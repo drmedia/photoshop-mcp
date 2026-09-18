@@ -280,6 +280,21 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         ) as TResult;
       case "DOCUMENT_SAVE":
         return this.#save() as TResult;
+      case "SELECTION_GET":
+        this.#requireDocument();
+        return {
+          hasSelection: this.#hasSelection,
+          bounds: this.#hasSelection ? { left: 0, top: 0, right: 100, bottom: 100 } : null,
+        } as TResult;
+      case "HISTORY_LIST": {
+        this.#requireDocument();
+        const names = this.#history.map((entry) => entry.name);
+        return {
+          states: names,
+          currentIndex: names.length - 1,
+          currentState: names[names.length - 1] ?? "열기",
+        } as TResult;
+      }
       case "WORKSPACE_USAGE":
         return this.#usage(command.params as { limit?: number }) as TResult;
       case "WORKSPACE_DELETE":

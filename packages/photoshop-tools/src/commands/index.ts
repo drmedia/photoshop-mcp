@@ -85,6 +85,12 @@ import {
 import { LAYER_LIST, layerListCommand } from "./layer-list.js";
 import { LAYER_PLACE, LayerPlaceParamsSchema, layerPlaceCommand } from "./layer-place.js";
 import {
+  HISTORY_LIST,
+  SELECTION_GET,
+  historyListCommand,
+  selectionGetCommand,
+} from "./state-read.js";
+import {
   WORKSPACE_DELETE,
   WORKSPACE_USAGE,
   WorkspaceDeleteParamsSchema,
@@ -97,6 +103,7 @@ import { PING, pingCommand } from "./ping.js";
 export { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
 export * from "./document-save.js";
 export * from "./layer-place.js";
+export * from "./state-read.js";
 export * from "./workspace-files.js";
 export * from "./adjustment.js";
 export * from "./filter.js";
@@ -266,4 +273,8 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     permission: "destructive",
     schema: WorkspaceDeleteParamsSchema,
   });
+
+  // ROADMAP §16 — MCP Resource 를 뒷받침하는 읽기 Command
+  registry.register(SELECTION_GET, selectionGetCommand, { permission: "read" });
+  registry.register(HISTORY_LIST, historyListCommand, { permission: "read" });
 }

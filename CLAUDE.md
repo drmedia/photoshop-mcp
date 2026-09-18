@@ -149,6 +149,19 @@ Job 은 메모리에만 있다. 서버를 다시 띄우면 사라진다.
 **긴 Tool 을 새로 만들 때는 반드시 실제 MCP 클라이언트(`client.callTool`)로 확인한다.**
 `tools.invoke` 로 서버 내부를 직접 부르면 타임아웃을 놓친다.
 
+## Resource (ROADMAP §16)
+
+Tool 은 **행동**이고 Resource 는 **맥락**이다. `photoshop://layers` 등 6개를 노출한다.
+읽을 때마다 실제 상태를 조회하며 캐시하지 않는다.
+
+**`notifications/resources/updated` 가 진짜 push 채널이다.** Phase 11 에서 "MCP 에
+push 가 없다" 고 적은 것은 *임의 이벤트*에 한한 이야기였다. 문서를 바꾸는 Command 가
+끝나면 관련 리소스가 낡았다고 알린다 — Photoshop 알림이 안 되는 환경에서도
+**우리가 만든 변경**은 알릴 수 있다.
+
+Extension 은 자기 namespace 의 URI 만 등록한다 (`milky://state`). unload 하면
+함께 사라진다.
+
 ## 진단과 임시 파일 (ROADMAP §17)
 
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는

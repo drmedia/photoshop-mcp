@@ -104,6 +104,9 @@ export const EXPECTED_COMMANDS = [
   "LAYER_PLACE",
   "WORKSPACE_USAGE",
   "WORKSPACE_DELETE",
+  // ROADMAP §16 — Resource 를 뒷받침하는 읽기
+  "SELECTION_GET",
+  "HISTORY_LIST",
 ] as const;
 
 /**

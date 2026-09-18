@@ -1,6 +1,6 @@
 import type { PhotoshopDocument } from "photoshop";
 import type { Folder } from "uxp";
-import { withExtension, type SaveResult } from "@photoshop-mcp/photoshop-bridge";
+import type { SaveResult } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
 import { runModal } from "./modal.js";
@@ -12,6 +12,12 @@ import { entryExists, requireWorkspace } from "./workspace.js";
  * UXP DOM 의 `document.saveAs.*` 를 쓴다. batchPlay 를 쓰지 않는다. (ARCHITECTURE §13)
  * 이 API 는 경로 문자열이 아니라 storage API 로 얻은 File entry 를 받으므로,
  * 승인된 폴더 안에서만 파일을 만들 수 있다는 성질이 그대로 유지된다.
+ *
+ * `filename` 은 서버가 확장자까지 맞춰서 보낸다. 플러그인은 그대로 쓴다.
+ * 플러그인은 contracts 를 **타입으로만** 참조하므로 공용 함수를 호출할 수 없다 —
+ * 값으로 import 하면 컴파일 결과에 `require("@photoshop-mcp/...")` 가 남고
+ * UXP 샌드박스에는 node_modules 가 없어 **플러그인 전체가 로드에 실패한다.**
+ * (CLAUDE.md 의존 방향 규칙 6, ARCHITECTURE §11)
  */
 
 /** 승인된 폴더에 새 파일을 만든다. 같은 이름이 있으면 실패한다. */
@@ -47,7 +53,7 @@ export async function documentSaveAs(params: {
   format?: "psd" | "psb" | "tiff";
 }): Promise<SaveResult> {
   const format = params.format ?? "psd";
-  const filename = withExtension(params.filename, format);
+  const filename = params.filename;
 
   return runModal("Save as", async () => {
     const document = requireActiveDocument();
@@ -81,7 +87,7 @@ export async function documentExport(params: {
   quality?: number;
 }): Promise<SaveResult> {
   const format = params.format ?? "png";
-  const filename = withExtension(params.filename, format);
+  const filename = params.filename;
 
   return runModal("Export", async () => {
     const document = requireActiveDocument();

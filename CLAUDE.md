@@ -143,6 +143,14 @@ Core public API                (photoshop-tools + command-engine + photoshop-bri
 5. `mcp-core` 는 라이브러리이며 실행 진입점을 갖지 않는다. `bin` 은 `mcp-server` 에만 있다.
 6. `photoshop-uxp` 는 contracts 를 **타입으로만** 참조한다. 컴파일 결과에 npm 의존이 남지
    않으므로 번들러가 필요 없다. MCP 로직을 넣지 않는다. (ARCHITECTURE §11)
+
+   값으로 import 하면 `require("@photoshop-mcp/...")` 가 산출물에 남고, UXP 샌드박스에는
+   `node_modules` 가 없어 **플러그인 전체가 로드에 실패한다.** 패널이 빈 채로 열리고
+   Bridge 도 연결되지 않는다. 타입 검사와 빌드는 통과하므로 실기에서만 드러난다.
+   `tests/uxp-bundle.test.ts` 가 산출물을 훑어 막는다.
+
+   Plugin 과 서버가 같은 계산을 해야 하면 **서버에서 끝내고 결과를 보낸다.**
+   Plugin 은 실행 Agent 다.
 7. Extension 은 `photoshop.*` namespace 에 Tool 을 등록할 수 없다.
 
 ## 디렉터리 규칙

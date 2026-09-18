@@ -7,6 +7,7 @@ import {
   PhotoshopMcpError,
   SaveResultSchema,
   WorkspaceStatusSchema,
+  withExtension,
   type SaveResult,
   type WorkspaceStatus,
 } from "@photoshop-mcp/photoshop-bridge";
@@ -85,9 +86,33 @@ function forward<TParams, TResult>(schema: z.ZodType<TResult>): CommandHandler<T
   };
 }
 
+/**
+ * 확장자를 맞춰서 Plugin 으로 보낸다.
+ *
+ * 정규화를 **서버에서** 끝내는 이유: Plugin 은 contracts 를 타입으로만 참조하므로
+ * 공용 함수를 호출할 수 없다. 값으로 import 하면 컴파일 결과에 npm 의존이 남아
+ * UXP 샌드박스에서 모듈 로드가 실패한다. (CLAUDE.md 의존 방향 규칙 6)
+ *
+ * 양쪽에 같은 함수를 두는 대신 한쪽만 알게 만든다. Plugin 은 실행 Agent 다.
+ * (ARCHITECTURE §11)
+ */
+function forwardSave<TParams extends { filename: string; format?: string }>(
+  defaultFormat: string,
+): CommandHandler<TParams, SaveResult> {
+  const inner = forward<TParams, SaveResult>(SaveResultSchema);
+  return async (command, context) => {
+    const params = command.params;
+    const format = params.format ?? defaultFormat;
+    return inner(
+      { ...command, params: { ...params, filename: withExtension(params.filename, format) } },
+      context,
+    );
+  };
+}
+
 export const workspaceStatusCommand = forward<Record<string, never>, WorkspaceStatus>(
   WorkspaceStatusSchema,
 );
-export const saveAsCommand = forward<SaveAsParams, SaveResult>(SaveResultSchema);
-export const exportCommand = forward<ExportParams, SaveResult>(SaveResultSchema);
+export const saveAsCommand = forwardSave<SaveAsParams>("psd");
+export const exportCommand = forwardSave<ExportParams>("png");
 export const saveCommand = forward<Record<string, never>, SaveResult>(SaveResultSchema);

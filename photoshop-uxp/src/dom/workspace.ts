@@ -1,4 +1,5 @@
-import { storage, type Folder } from "uxp";
+import * as uxp from "uxp";
+import type { Folder, LocalFileSystem } from "uxp";
 import type { WorkspaceStatus } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 
@@ -15,29 +16,67 @@ import { DispatchError } from "../dispatcher/dispatcher.js";
 
 const TOKEN_KEY = "photoshop-mcp.workspace-token";
 
-const fs = storage.localFileSystem;
+/**
+ * storage API 를 지연 조회한다.
+ *
+ * 모듈 최상위에서 `storage.localFileSystem` 을 잡으면, 그것이 없는 UXP 환경에서
+ * **플러그인 전체가 로드에 실패한다.** Bridge 연결까지 같이 죽는다.
+ * 저장은 부가 기능이고 Bridge 는 본체다. 부가 기능의 문제가 본체를 막으면 안 된다.
+ */
+function fileSystem(): LocalFileSystem {
+  const api = (uxp as { storage?: { localFileSystem?: LocalFileSystem } }).storage?.localFileSystem;
+  if (api === undefined) {
+    throw new DispatchError(
+      "WORKSPACE_NOT_APPROVED",
+      "이 Photoshop 의 UXP 에서 파일 시스템 API 를 쓸 수 없습니다.",
+      { recoverable: false },
+    );
+  }
+  return api;
+}
 
 /**
- * 보관된 토큰.
+ * 토큰 보관소.
  *
  * `localStorage` 는 플러그인마다 격리되어 있고 Photoshop 재시작 후에도 남는다.
- * 읽기가 실패해도 기능이 멈추지 않도록 감싼다 — 승인되지 않은 상태로 보면 된다.
+ *
+ * `localStorage` 가 없는 UXP 환경이 있다. 없으면 메모리로 물러난다 —
+ * 그 경우 Photoshop 재시작 후 다시 승인해야 하지만, 이번 세션에서는 저장이 동작한다.
  */
-function readToken(): string | null {
+let memoryToken: string | null = null;
+
+function store(): Storage | null {
   try {
-    const value = localStorage.getItem(TOKEN_KEY);
-    return value === null || value.length === 0 ? null : value;
+    return typeof localStorage === "undefined" ? null : localStorage;
   } catch {
     return null;
   }
 }
 
+function readToken(): string | null {
+  const storage = store();
+  if (storage === null) {
+    return memoryToken;
+  }
+  try {
+    const value = storage.getItem(TOKEN_KEY);
+    return value === null || value.length === 0 ? null : value;
+  } catch {
+    return memoryToken;
+  }
+}
+
 function writeToken(token: string | null): void {
+  memoryToken = token;
+  const storage = store();
+  if (storage === null) {
+    return;
+  }
   try {
     if (token === null) {
-      localStorage.removeItem(TOKEN_KEY);
+      storage.removeItem(TOKEN_KEY);
     } else {
-      localStorage.setItem(TOKEN_KEY, token);
+      storage.setItem(TOKEN_KEY, token);
     }
   } catch {
     // 보관에 실패하면 이번 세션에만 유효하다. 저장 자체는 계속 동작한다.
@@ -56,7 +95,7 @@ async function resolveFolder(): Promise<Folder | null> {
     return null;
   }
   try {
-    const entry = await fs.getEntryForPersistentToken(token);
+    const entry = await fileSystem().getEntryForPersistentToken(token);
     if (!entry.isFolder) {
       writeToken(null);
       return null;
@@ -84,11 +123,11 @@ export async function workspaceStatus(): Promise<WorkspaceStatus> {
  * @returns 사용자가 취소하면 `null`.
  */
 export async function approveFolder(): Promise<WorkspaceStatus | null> {
-  const folder = await fs.getFolder();
+  const folder = await fileSystem().getFolder();
   if (folder === null || folder === undefined) {
     return null;
   }
-  const token = await fs.createPersistentToken(folder);
+  const token = await fileSystem().createPersistentToken(folder);
   writeToken(token);
   return { approved: true, path: folder.nativePath };
 }

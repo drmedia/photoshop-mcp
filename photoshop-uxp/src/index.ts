@@ -43,6 +43,7 @@ import {
 } from "./dom/layer-edit.js";
 import { layerList } from "./dom/layers.js";
 import { startNotifications } from "./dom/notifications.js";
+import { workspaceDelete, workspaceUsage } from "./dom/workspace-files.js";
 import { layerPlace } from "./dom/place.js";
 import { documentExport, documentSave, documentSaveAs } from "./dom/save.js";
 import { approveFolder, revokeFolder, workspaceStatus } from "./dom/workspace.js";
@@ -152,6 +153,14 @@ export function createDispatcher(): CommandDispatcher {
   // 외부 처리 결과를 Photoshop 으로 되돌리는 길. (Phase 8 과 짝을 이룬다)
   dispatcher.register("LAYER_PLACE", async (p) =>
     layerPlace(p as Parameters<typeof layerPlace>[0]),
+  );
+
+  // ROADMAP §17 — 임시 파일 관리
+  dispatcher.register("WORKSPACE_USAGE", async (p) =>
+    workspaceUsage(p as Parameters<typeof workspaceUsage>[0]),
+  );
+  dispatcher.register("WORKSPACE_DELETE", async (p) =>
+    workspaceDelete(p as Parameters<typeof workspaceDelete>[0]),
   );
 
   return dispatcher;

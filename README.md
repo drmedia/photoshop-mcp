@@ -3,7 +3,7 @@
 Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입니다.
 
 > **현재 상태: Phase 9 (Permission / Safety) · Phase 8 (Capability System) 완료.**
-> Core Tool 36개. Extension 예제 2개(`example`, `milkyscape`)를 포함해 실기 검증했습니다.
+> Core Tool 46개. Extension 예제 2개(`example`, `milkyscape`)를 포함해 실기 검증했습니다.
 > 모든 Tool 과 Command 가 권한 레벨을 선언하며, 기본값은 `read` · `edit` 만 허용합니다.
 
 ## 빠른 시작
@@ -99,6 +99,28 @@ cp capabilities.example.json capabilities.json   # 실행 파일 경로를 고�
 실행 파일은 설정 파일에서만 오고(절대 경로), 인자는 선언된 파라미터로만 조립되며,
 shell 을 거치지 않고, 입출력은 승인된 작업 폴더 안의 파일 이름뿐입니다.
 
+## 문제가 생기면
+
+```
+photoshop.diagnostics
+```
+
+Bridge 연결·권한·외부 처리기·Extension·워크플로·Job 을 한 번에 보고하고,
+막힌 것은 **고치는 방법을 함께** 알려줍니다.
+
+## 임시 파일
+
+외부 처리기는 한 번 돌 때마다 16비트 TIFF 를 여러 개 만듭니다 — 4032×6048 이면
+파일 하나가 140MB 입니다.
+
+```
+photoshop.workspace.usage    # 무엇이 얼마나 쌓였는지 (큰 것부터)
+photoshop.workspace.delete   # 이름을 명시한 것만 삭제 (destructive)
+```
+
+패턴이나 와일드카드를 받지 않습니다. 승인된 폴더는 사용자의 폴더이고 우리가 만든
+파일만 있다는 보장이 없습니다.
+
 ## 이벤트
 
 `photoshop.event.recent` 로 최근에 일어난 일을 조회합니다. `after: lastSeq` 를 넘기면
@@ -159,7 +181,7 @@ Job 은 메모리에만 있어 서버를 다시 띄우면 사라집니다.
 
 ## 지금 동작하는 것
 
-Core Tool 36개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
+Core Tool 46개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
 
 **조회**
 

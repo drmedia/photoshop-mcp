@@ -13,7 +13,7 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 ## 현재 상태
 
 **Phase 9 (Permission / Safety) · Phase 8 (Capability System) 완료.**
-Core Tool 36개. `capability.list` 를 뺀 30개를 실제 Photoshop 27.8 에서 검증했다.
+Core Tool 46개. `capability.list` 를 뺀 30개를 실제 Photoshop 27.8 에서 검증했다.
 
 - 조회: `ping`, `document.get`, `layer.list`
 - 레이어: create / duplicate / rename / select / set_visibility / set_opacity
@@ -148,6 +148,19 @@ Job 은 메모리에만 있다. 서버를 다시 띄우면 사라진다.
 
 **긴 Tool 을 새로 만들 때는 반드시 실제 MCP 클라이언트(`client.callTool`)로 확인한다.**
 `tools.invoke` 로 서버 내부를 직접 부르면 타임아웃을 놓친다.
+
+## 진단과 임시 파일 (ROADMAP §17)
+
+**무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
+방법을 준다.
+
+외부 처리기는 한 번 돌 때마다 140MB 짜리 TIFF 를 여러 개 만든다. 실기 검증만으로
+1.7GB 가 쌓인 적이 있다. `photoshop.workspace.usage` 로 확인하고
+`photoshop.workspace.delete` 로 **이름을 명시해** 지운다. 패턴은 받지 않는다 —
+승인된 폴더는 사용자의 폴더다.
+
+로그는 기본적으로 조용하다. `PHOTOSHOP_MCP_DEBUG=1` 로 correlation ID 추적을 켠다.
+**실패는 디버그가 아니어도 남긴다** — 조용히 실패하면 원인을 못 찾는다.
 
 ## Event (ROADMAP §15)
 

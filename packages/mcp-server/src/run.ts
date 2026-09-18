@@ -130,6 +130,27 @@ export async function main(): Promise<void> {
       log(`Extension ${mcp.loadedExtensions.length}개: ${extensionNames}`);
     }
 
+    // 잡히지 않은 오류를 알아볼 수 있게 남긴다. (ROADMAP §17 Crash recovery)
+    //
+    // 삼키지 않는다. MCP 서버는 클라이언트가 다시 띄우므로 죽는 편이 맞고,
+    // 오류를 감추면 다음에 같은 문제가 또 난다. 다만 진행 중인 Job 은 정리한다 —
+    // 그러지 않으면 외부 처리기 프로세스가 서버보다 오래 산다.
+    const fatal = (kind: string) => (error: unknown) => {
+      log(`${kind}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
+      try {
+        const cancelled = mcp.jobs.cancelAll();
+        if (cancelled > 0) {
+          log(`진행 중이던 Job ${cancelled}개를 취소했습니다.`);
+        }
+      } catch {
+        // 정리 중 또 실패해도 원래 오류를 덮지 않는다.
+      }
+      process.exitCode = 1;
+      process.exit(1);
+    };
+    process.once("uncaughtException", fatal("처리되지 않은 예외"));
+    process.once("unhandledRejection", fatal("처리되지 않은 Promise 거부"));
+
     for (const signal of ["SIGINT", "SIGTERM"] as const) {
       process.once(signal, () => {
         void mcp.stop().finally(() => {

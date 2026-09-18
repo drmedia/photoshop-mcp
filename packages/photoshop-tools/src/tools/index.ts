@@ -27,6 +27,7 @@ import {
   createLayerVisibilityTool,
 } from "./layer-edit.js";
 import { createCapabilityListTool, type CapabilityLister } from "./capability.js";
+import { createDiagnosticsTool, type DiagnosticsSource } from "./diagnostics.js";
 import { createEventRecentTool, type EventReader } from "./event.js";
 import { createWorkflowListTool, createWorkflowRunTool, type WorkflowRunner } from "./workflow.js";
 import {
@@ -43,6 +44,7 @@ import {
 } from "./document-save.js";
 import { createLayerListTool } from "./layer-list.js";
 import { createLayerPlaceTool } from "./layer-place.js";
+import { createWorkspaceDeleteTool, createWorkspaceUsageTool } from "./workspace-files.js";
 import { createPingTool } from "./ping.js";
 
 export { DocumentGetInputSchema, createDocumentGetTool } from "./document-get.js";
@@ -55,10 +57,12 @@ export * from "./adjustment.js";
 export * from "./filter.js";
 export * from "./capability.js";
 export * from "./job.js";
+export * from "./diagnostics.js";
 export * from "./event.js";
 export * from "./workflow.js";
 export * from "./document-save.js";
 export * from "./layer-place.js";
+export * from "./workspace-files.js";
 export * from "./gap-tools.js";
 export * from "./group.js";
 export * from "./mask-selection.js";
@@ -120,6 +124,10 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createExportTool(engine));
   registry.register(createSaveTool(engine));
   registry.register(createLayerPlaceTool(engine));
+
+  // ROADMAP §17 — 임시 파일 관리
+  registry.register(createWorkspaceUsageTool(engine));
+  registry.register(createWorkspaceDeleteTool(engine));
 }
 
 /**
@@ -151,6 +159,11 @@ export function registerJobTools(registry: ToolRegistry, jobs: JobReader): void 
 /** 이벤트 조회 Tool 을 등록한다. (ROADMAP §15) */
 export function registerEventTools(registry: ToolRegistry, events: EventReader): void {
   registry.register(createEventRecentTool(events));
+}
+
+/** 진단 Tool 을 등록한다. (ROADMAP §17) */
+export function registerDiagnosticsTool(registry: ToolRegistry, source: DiagnosticsSource): void {
+  registry.register(createDiagnosticsTool(source));
 }
 
 /** 워크플로 Tool 을 등록한다. (ROADMAP §11) */

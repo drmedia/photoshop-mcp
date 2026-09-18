@@ -50,6 +50,9 @@ export const EXPECTED_TOOLS = [
   // 조회만 노출한다. 실행은 Extension 이 전체 흐름의 일부로 호출한다.
   // 외부 처리 결과를 되돌리는 길
   "photoshop.layer.place",
+  // ROADMAP §17 — 임시 파일 관리
+  "photoshop.workspace.usage",
+  "photoshop.workspace.delete",
   // Phase 8 — 외부 처리기 (ROADMAP §12)
   //
   // 조회만 노출한다. 실행은 Extension 이 전체 흐름의 일부로 호출한다.
@@ -63,6 +66,9 @@ export const EXPECTED_TOOLS = [
   "photoshop.event.recent",
   "photoshop.workflow.list",
   "photoshop.workflow.run",
+  // ROADMAP §17 — 무엇이 되고 무엇이 막혀 있는지 한 번에.
+  // 다른 모든 구성 요소를 들여다보므로 마지막에 등록한다.
+  "photoshop.diagnostics",
 ] as const;
 
 export const EXPECTED_COMMANDS = [
@@ -96,6 +102,8 @@ export const EXPECTED_COMMANDS = [
   "DOCUMENT_EXPORT",
   "DOCUMENT_SAVE",
   "LAYER_PLACE",
+  "WORKSPACE_USAGE",
+  "WORKSPACE_DELETE",
 ] as const;
 
 /**

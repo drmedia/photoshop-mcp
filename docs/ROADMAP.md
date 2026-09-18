@@ -1734,12 +1734,62 @@ UXP
 
 ## Stability
 
-- [ ] Crash recovery
-- [ ] Bridge reconnect
-- [ ] Request timeout
-- [ ] Process cleanup
-- [ ] Temporary file cleanup
-- [ ] Invalid Extension isolation
+- [x] Crash recovery — 잡히지 않은 예외·거부를 stderr 에 남기고 진행 중인 Job 을
+      정리한 뒤 종료한다. **삼키지 않는다** — MCP 서버는 클라이언트가 다시 띄우므로
+      죽는 편이 맞고, 오류를 감추면 같은 문제가 반복된다
+- [x] Bridge reconnect — Phase 2. 지수 백오프. 실기 확인
+- [x] Request timeout — Phase 2. `COMMAND_TIMEOUT`
+- [x] Process cleanup — Phase 10. `stop()` 이 진행 중인 Job 을 취소하고 자식 프로세스를
+      SIGKILL 한다
+- [x] Temporary file cleanup — 아래 참조
+- [x] Invalid Extension isolation — Phase 5. 하나가 실패해도 나머지와 서버는 기동한다
+
+## 진단 — `photoshop.diagnostics`
+
+Bridge 연결 · 권한 · 외부 처리기 · Extension · 워크플로 · Job · 이벤트를 한 번에
+보고하고, **막힌 것은 고치는 방법을 함께 준다.**
+
+이 Tool 이 없던 동안 상태를 보려면 매번 임시 스크립트를 짜야 했다. Bridge 는 `ping`,
+작업 폴더는 `workspace.status`, 처리기는 `capability.list`, Extension 은 서버 로그를
+따로 봐야 했다.
+
+상태만 나열하면 사용자가 스스로 조합해야 한다. `blocked` 에는 실행할 수 있는 문장을
+넣는다 — `"PHOTOSHOP_MCP_ALLOW 에 external 을 넣으세요"` 처럼.
+
+실기 확인:
+
+```text
+bridge: true | 권한: read,edit,external,destructive
+Tool: 46 Command: 32
+처리기: starnet2✓ bxt✓
+Extension: example,milky | 워크플로: 2
+막힌 것: 0건
+```
+
+## 임시 파일 — `photoshop.workspace.usage` · `.delete`
+
+외부 처리기를 한 번 돌릴 때마다 16비트 TIFF 가 여러 개 생긴다. 4032×6048 이면 파일
+하나가 140MB 다. **실기 검증만으로 37개 1.7GB 가 쌓였는데 알 방법이 없었다.**
+
+`usage` 는 큰 것부터 보고하고 사람이 읽을 크기(`1.7GB`)를 함께 준다. 바이트 숫자만
+보면 알아채지 못한다.
+
+`delete` 는 **파일 이름을 명시할 때만** 지운다. 패턴이나 와일드카드를 받지 않는다 —
+`*.tif` 한 줄이 사용자의 원본을 지울 수 있고, 승인된 폴더는 우리 폴더가 아니다.
+권한은 `destructive` 다.
+
+실기 확인: 지울 34개와 남길 3개를 먼저 보고 확인한 뒤 실행해 **1.7GB → 5KB** 가 되었다.
+
+## Logging
+
+correlation ID 가 Tool → Command → Bridge 를 관통한다. Command 수명 이벤트를 받아
+`[req-001] LAYER_DUPLICATE completed (12ms)` 형태로 남긴다.
+
+기본은 조용하다 — stdout 은 MCP 전송이 점유하고 stderr 도 시끄러우면 진짜 오류가
+묻힌다. `PHOTOSHOP_MCP_DEBUG=1` 일 때 나온다.
+
+**실패만은 디버그가 아니어도 남긴다.** 조용히 실패하면 원인을 못 찾는다 —
+Phase 11 에서 알림 등록 실패를 삼켰다가 진단이 불가능해진 일이 있었다.
 
 ---
 

@@ -84,11 +84,20 @@ import {
 } from "./document-save.js";
 import { LAYER_LIST, layerListCommand } from "./layer-list.js";
 import { LAYER_PLACE, LayerPlaceParamsSchema, layerPlaceCommand } from "./layer-place.js";
+import {
+  WORKSPACE_DELETE,
+  WORKSPACE_USAGE,
+  WorkspaceDeleteParamsSchema,
+  WorkspaceUsageParamsSchema,
+  workspaceDeleteCommand,
+  workspaceUsageCommand,
+} from "./workspace-files.js";
 import { PING, pingCommand } from "./ping.js";
 
 export { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
 export * from "./document-save.js";
 export * from "./layer-place.js";
+export * from "./workspace-files.js";
 export * from "./adjustment.js";
 export * from "./filter.js";
 export * from "./gap-tools.js";
@@ -245,5 +254,16 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_PLACE, layerPlaceCommand, {
     permission: "external",
     schema: LayerPlaceParamsSchema,
+  });
+
+  // ROADMAP §17 — 임시 파일 관리
+  // 조회는 read, 삭제는 되돌릴 수 없으므로 destructive.
+  registry.register(WORKSPACE_USAGE, workspaceUsageCommand, {
+    permission: "read",
+    schema: WorkspaceUsageParamsSchema,
+  });
+  registry.register(WORKSPACE_DELETE, workspaceDeleteCommand, {
+    permission: "destructive",
+    schema: WorkspaceDeleteParamsSchema,
   });
 }

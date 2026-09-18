@@ -184,8 +184,9 @@ describe("save_as", () => {
     ).resolves.toMatchObject({ filename: "큰파일.psb" });
   });
 
-  it("tiff 는 받지 않는다", async () => {
-    // UXP DOM 에 saveAs.tif 가 없다. 실기에서 확인했다.
+  it("tiff 는 save_as 가 아니라 export 로 받는다", async () => {
+    // UXP DOM 에 saveAs.tif 가 없다. TIFF 는 레이어를 유지하는 원본 형식이 아니라
+    // 외부 처리기용 평탄화 교환 파일이므로 export 쪽이 맞다.
     const { mcp } = setup({ workspace: "C:/작업" });
     await expect(
       call(mcp, "photoshop.document.save_as", { filename: "가", format: "tiff" }),
@@ -256,6 +257,42 @@ describe("export", () => {
     for (const quality of [0, 13, 1.5]) {
       await expect(
         call(mcp, "photoshop.document.export", { filename: "가", format: "jpg", quality }),
+      ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
+    }
+  });
+
+  it("tiff 로 16비트를 유지해 내보낸다", async () => {
+    // 외부 천체사진 처리기의 교환 형식이다. PNG 8비트로는 계조가 무너진다.
+    const { mcp } = setup({ workspace: "C:/작업" });
+    await expect(
+      call<SaveResult>(mcp, "photoshop.document.export", {
+        filename: "교환용",
+        format: "tiff",
+        bitDepth: 16,
+      }),
+    ).resolves.toMatchObject({ filename: "교환용.tif", format: "tiff", bitDepth: 16 });
+  });
+
+  it("bitDepth 를 생략하면 문서의 심도를 따른다", async () => {
+    const { mcp } = setup({ workspace: "C:/작업" });
+    // Mock 기본 문서는 16비트다.
+    await expect(
+      call<SaveResult>(mcp, "photoshop.document.export", { filename: "가", format: "tiff" }),
+    ).resolves.toMatchObject({ bitDepth: 16 });
+  });
+
+  it("bitDepth 는 tiff 에서만 쓸 수 있다", async () => {
+    const { mcp } = setup({ workspace: "C:/작업" });
+    await expect(
+      call(mcp, "photoshop.document.export", { filename: "가", format: "png", bitDepth: 16 }),
+    ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
+  });
+
+  it("bitDepth 는 8 또는 16 만 받는다", async () => {
+    const { mcp } = setup({ workspace: "C:/작업" });
+    for (const bad of [1, 32, 12]) {
+      await expect(
+        call(mcp, "photoshop.document.export", { filename: "가", format: "tiff", bitDepth: bad }),
       ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
     }
   });

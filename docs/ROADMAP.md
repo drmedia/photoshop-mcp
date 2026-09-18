@@ -707,9 +707,20 @@ Phase 9 에서 구현했다. 실제 해법:
 
 실기에서 드러난 것:
 
-- **TIFF 를 뺐다.** UXP DOM 에 `document.saveAs.tif` 가 없다
+- **TIFF 를 `save_as` 에서 뺐다.** UXP DOM 에 `document.saveAs.tif` 가 없다
   (`document.saveAs.tif is not a function`). 타입 선언에 검증 없이 적어둔 것이 원인이다.
-  batchPlay 로 우회할 수 있지만 검증되지 않은 경로를 늘리지 않는다.
+
+  이후 `export` 쪽에 batchPlay 경로로 다시 넣었다. 외부 천체사진 처리기
+  (GraXpert · StarNet2 · BXT)가 **16비트 TIFF** 를 교환 형식으로 쓴다는 것을
+  기존 CEP 패널 코드에서 확인했기 때문이다. PNG 8비트로는 계조가 무너진다.
+
+  `save_as`(레이어 유지 원본 형식)가 아니라 `export`(평탄화 교환 파일)에 둔 것은
+  용도가 그쪽이기 때문이다. 절차는 CEP 패널이 검증해 둔 것과 같다 —
+  복제본을 만들어 평탄화하고 비트 심도를 맞춘 뒤 저장하고 닫는다.
+
+  실기 검증: 파일 헤더를 직접 파싱해 `BitsPerSample = 16,16,16`, RGB 3채널,
+  무압축을 확인했다. 보고값이 아니라 실제 파일을 확인한 것이다.
+  8비트 요청 시 `8,8,8`, 생략 시 문서 심도(16)를 따르는 것도 함께 확인했다.
 - 플러그인이 contracts 를 **값으로** import 하면 산출물에 `require("@photoshop-mcp/...")`
   가 남아 **플러그인 전체가 로드되지 않는다.** 패널이 빈 채로 열린다.
   타입 검사·빌드는 통과하므로 `tests/uxp-bundle.test.ts` 로 막는다.

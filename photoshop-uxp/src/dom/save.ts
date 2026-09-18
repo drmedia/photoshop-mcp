@@ -4,6 +4,7 @@ import type { SaveResult } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
 import { runModal } from "./modal.js";
+import { exportTiff } from "./export-tiff.js";
 import { entryExists, requireWorkspace } from "./workspace.js";
 
 /**
@@ -81,11 +82,22 @@ export async function documentSaveAs(params: {
 /** `DOCUMENT_EXPORT` — 합쳐서 내보낸다. 열려 있는 문서는 바뀌지 않는다. */
 export async function documentExport(params: {
   filename: string;
-  format?: "png" | "jpg";
+  format?: "png" | "jpg" | "tiff";
   quality?: number;
+  bitDepth?: 8 | 16;
 }): Promise<SaveResult> {
   const format = params.format ?? "png";
   const filename = params.filename;
+
+  // TIFF 는 DOM 에 API 가 없어 경로가 완전히 다르다. 복제본을 만들어 처리한다.
+  if (format === "tiff") {
+    const folder = await requireWorkspace();
+    const { file, path } = await createTarget(folder, filename);
+    return exportTiff(file, path, {
+      filename,
+      ...(params.bitDepth === undefined ? {} : { bitDepth: params.bitDepth }),
+    });
+  }
 
   return runModal("Export", async () => {
     const document = requireActiveDocument();

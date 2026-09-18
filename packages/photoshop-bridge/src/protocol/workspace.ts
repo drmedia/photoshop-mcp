@@ -42,8 +42,13 @@ export type WorkspaceStatus = z.infer<typeof WorkspaceStatusSchema>;
 export const LayeredFormatSchema = z.enum(["psd", "psb"]);
 export type LayeredFormat = z.infer<typeof LayeredFormatSchema>;
 
-/** 합쳐서 내보내는 형식. `export` 용. */
-export const FlatFormatSchema = z.enum(["png", "jpg"]);
+/**
+ * 합쳐서 내보내는 형식. `export` 용.
+ *
+ * `tiff` 는 외부 천체사진 처리기(GraXpert · StarNet2 · BXT)의 교환 형식이다.
+ * 16비트를 유지할 수 있어야 하므로 PNG · JPEG 로 대체할 수 없다.
+ */
+export const FlatFormatSchema = z.enum(["png", "jpg", "tiff"]);
 export type FlatFormat = z.infer<typeof FlatFormatSchema>;
 
 /**
@@ -73,6 +78,7 @@ const EXTENSION: Record<string, string> = {
   psb: "psb",
   png: "png",
   jpg: "jpg",
+  tiff: "tif",
 };
 
 /**
@@ -96,6 +102,13 @@ export const SaveResultSchema = z.object({
   /** 승인된 폴더 기준 파일 이름. */
   filename: z.string(),
   format: z.string(),
+  /**
+   * 실제로 쓰인 비트 심도. TIFF 내보내기에만 있다.
+   *
+   * 요청한 값이 아니라 **실제 값**이다. 외부 처리기에 넘기기 전에
+   * 8비트로 떨어지지 않았는지 확인할 수 있어야 한다.
+   */
+  bitDepth: z.number().int().nullable().optional(),
 });
 
 export type SaveResult = z.infer<typeof SaveResultSchema>;

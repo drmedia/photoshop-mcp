@@ -62,7 +62,9 @@ export function createExportTool(engine: CommandEngine): ToolDefinition<ExportPa
   return {
     name: "photoshop.document.export",
     description:
-      "승인된 작업 폴더로 내보낸다. 레이어를 합친다 (png · jpg). " +
+      "승인된 작업 폴더로 내보낸다. 레이어를 합친다 (png · jpg · tiff). " +
+      "tiff 는 16비트를 유지할 수 있어 외부 천체사진 처리기의 교환 형식으로 쓴다. " +
+      "결과의 bitDepth 로 실제 심도를 확인할 수 있다. " +
       "파일 이름만 받으며 경로는 쓸 수 없다. " +
       "같은 이름이 이미 있으면 덮어쓰지 않고 실패한다. " +
       "열려 있는 문서 자체는 바뀌지 않는다.",

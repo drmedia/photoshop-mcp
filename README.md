@@ -74,8 +74,12 @@ PHOTOSHOP_MCP_ALLOW=all                     # 전부
 이것은 제약이자 안전장치입니다 — LLM 은 저장 폴더를 고를 수 없고 파일 이름만 줍니다.
 경로 구분자와 `..` 는 스키마가 거부합니다.
 
-`save_as` (psd · psb) 와 `export` (png · jpg) 는 같은 이름이 있으면 덮어쓰지 않고
-실패합니다. 덮어쓰기는 `document.save` 하나뿐이며 `destructive` 입니다.
+`save_as` (psd · psb, 레이어 유지) 와 `export` (png · jpg · tiff, 평탄화) 는 같은 이름이
+있으면 덮어쓰지 않고 실패합니다.
+
+TIFF 는 16비트를 유지할 수 있어 외부 천체사진 처리기의 교환 형식으로 씁니다.
+`bitDepth: 16` 으로 지정하거나 생략해 문서 심도를 따를 수 있으며, 결과의 `bitDepth` 에
+**실제로 쓰인** 심도가 담깁니다. 덮어쓰기는 `document.save` 하나뿐이며 `destructive` 입니다.
 
 ## 외부 처리기 (Capability)
 

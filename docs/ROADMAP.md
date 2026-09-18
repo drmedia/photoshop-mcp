@@ -64,10 +64,10 @@ Phase 7   Workflow System              완료
 Phase 8   Capability System            완료
 Phase 9   Permission / Safety          완료
 Phase 10  Job System                   완료
-Phase 11  Events
-Phase 12  MCP Resources
-Phase 13  Production Hardening
-Phase 14  Distribution
+Phase 11  Events                       완료 (photoshop.* 는 UXP 미지원)
+Phase 12  MCP Resources                완료
+Phase 13  Production Hardening         완료
+Phase 14  Distribution                 남음
 ```
 
 각 Phase 의 항목별 진행 상황은 해당 섹션의 체크박스로 추적한다.

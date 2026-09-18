@@ -3,7 +3,7 @@
 Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입니다.
 
 > **현재 상태: Phase 9 (Permission / Safety) · Phase 8 (Capability System) 완료.**
-> Core Tool 31개. `capability.list` 를 뺀 30개를 실제 Photoshop 27.8 에서 검증했습니다.
+> Core Tool 35개. Extension 예제 2개(`example`, `milkyscape`)를 포함해 실기 검증했습니다.
 > 모든 Tool 과 Command 가 권한 레벨을 선언하며, 기본값은 `read` · `edit` 만 허용합니다.
 
 ## 빠른 시작
@@ -99,9 +99,27 @@ cp capabilities.example.json capabilities.json   # 실행 파일 경로를 고�
 실행 파일은 설정 파일에서만 오고(절대 경로), 인자는 선언된 파라미터로만 조립되며,
 shell 을 거치지 않고, 입출력은 승인된 작업 폴더 안의 파일 이름뿐입니다.
 
+## 긴 작업 (Job)
+
+**MCP 기본 요청 타임아웃은 60초**인데 외부 처리기는 더 걸립니다. 실기에서 StarNet2가
+4032×6048 이미지를 67초에 처리했고, 그대로 부르면 `-32001 Request timed out` 이 납니다.
+
+그래서 오래 걸리는 Tool 은 **즉시 jobId 를 반환**하고 상태를 따로 조회합니다.
+
+```
+milky.remove_stars  →  { jobId: "09f3ad43-..." }     0초
+photoshop.job.status →  running | 25% StarNet2 로 별 분리 중
+photoshop.job.status →  completed | result: {...}    75초
+```
+
+`photoshop.job.cancel` 은 외부 프로세스를 실제로 종료합니다. 서버를 정지하면 진행 중인
+Job 이 모두 취소됩니다 — 그러지 않으면 외부 프로세스가 서버보다 오래 삽니다.
+
+Job 은 메모리에만 있어 서버를 다시 띄우면 사라집니다.
+
 ## 지금 동작하는 것
 
-Core Tool 31개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
+Core Tool 35개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
 
 **조회**
 
@@ -266,7 +284,8 @@ Extension 의 namespace 를 쓰면 적재가 거부됩니다. 하나가 잘못�
 현재 Phase 범위 밖이라 의도적으로 구현하지 않았습니다.
 
 - destructive 명령(`layer.delete`, `flatten`, `close`) — 분류 체계는 섰지만 구현은 없습니다
-- Capability 의 비동기 실행 · 진행률 · 취소 — Job System (Phase 10)
+- Capability 진행률의 실제 퍼센트 — 지금은 단계만 보고합니다
+  (StarNet2 의 `--machine-progress` 출력을 파싱하면 가능합니다)
 - MCP Resource (Phase 12), Event 시스템
 - Extension 의 Command 등록 — Extension 은 Core Command 를 호출만 합니다
 - Extension hot reload — 서버 재시작 없이 다시 적재하는 기능은 없습니다

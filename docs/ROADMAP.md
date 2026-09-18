@@ -959,6 +959,21 @@ MilkyScapeTools를 첫 번째 실제 Photoshop MCP Extension으로 사용한다.
 
 MilkyScapeTools 로직은 Photoshop MCP Core에 넣지 않는다.
 
+## 범위 결정 (2026-09-18)
+
+**기존 MilkyScape CEP 패널의 기능을 옮기지 않는다.** 이 프로젝트의 목적은
+PhotoshopMCP 자체이고, MilkyScape 는 아키텍처를 검증하는 소재다.
+
+두 인터페이스는 성격이 다르다. 패널은 사람이 슬라이더를 보며 조절하는 도구이고
+(경계 캔버스 미리보기 · 450ms 디바운스 · 상세 설정 창), MCP 는 언어로 지시하는
+통로다. 미리보기 UX 는 MCP 로 옮길 수 없고 옮길 이유도 없다.
+
+Phase 6 의 Tool 4개는 **아키텍처가 실제로 도는지 확인하는 데까지**다.
+Extension 계약 · Capability · 파일 왕복 · 권한 상한이 모두 실기에서 동작하는 것을
+확인했으므로 목적을 달성했다. 더 늘리지 않는다.
+
+이후 작업은 Core · Job · Workflow 쪽이다.
+
 ---
 
 ## Initial Tools
@@ -1360,6 +1375,62 @@ Level 배정:
 ---
 
 # 14. Phase 10 — Job System
+
+## 왜 필요한지 — 실측
+
+MCP 의 기본 요청 타임아웃은 **60초**다 (`DEFAULT_REQUEST_TIMEOUT_MSEC`).
+
+실기에서 StarNet2 가 4032×6048 이미지를 67초에 처리했다. 실제 MCP 클라이언트로
+`milky.remove_stars` 를 부르니 정확히 60초에 `-32001 Request timed out` 이 났다.
+
+처음에는 `tools.invoke` 로 서버 내부를 직접 불러 검증해서 이것을 놓쳤다.
+**MCP 서버를 만들면서 MCP 경로로 확인하지 않은 것**이 검증 설계의 결함이었다.
+
+## 설계
+
+- [x] 상태 기계 — `queued → running → completed | failed | cancelled`
+- [x] `photoshop.job.status` · `.list` · `.cancel` — **전부 즉시 반환.**
+      완료를 기다리면 타임아웃 문제가 그대로 돌아온다
+- [x] `ExtensionContext.jobs` — Extension 이 긴 작업을 등록. namespace 로 격리되어
+      다른 Extension 의 Job 을 보거나 취소할 수 없다
+- [x] 취소 — `AbortSignal` 이 자식 프로세스까지 내려가 `SIGKILL` 한다
+- [x] 서버 정지 시 진행 중인 Job 을 모두 취소한다
+- [x] 끝난 Job 이 100개를 넘으면 오래된 것부터 버린다
+
+### 반환 타입을 상황에 따라 바꾸지 않는다
+
+"짧으면 결과, 길면 Job" 으로 두면 호출자가 매번 어느 쪽인지 판단해야 한다.
+긴 작업은 짧게 끝나도 **항상** Job 을 돌려준다.
+
+### 취소는 실제로 죽여야 한다
+
+신호만 받고 프로세스가 계속 돌면 취소가 거짓말이 된다 — 상태는 `cancelled` 인데
+CPU 는 계속 먹고 파일도 계속 쓴다. 2초 뒤 마커 파일을 남기는 프로세스를 띄워
+취소하고 마커가 생기지 않는 것을 테스트로 고정했다.
+
+### 서버 정지 시 Job 방치
+
+Job System 을 만들자마자 드러났다. `stop()` 이 진행 중인 Job 을 그냥 두면 외부 처리기
+프로세스가 **서버보다 오래 산다.** StarNet2 가 몇 분씩 도는데 서버는 이미 없어서
+결과를 받을 곳도 없다. `cancelAll()` 을 `stop()` 이 먼저 부른다.
+
+### 서버가 죽으면 Job 도 사라진다
+
+Job 은 메모리에만 있다. 외부 프로세스는 이미 파일을 만들었을 수 있으므로 작업 폴더를
+확인하면 된다. `job.status` 가 없는 Job 에 대해 이 사실을 안내한다.
+
+## 실기 검증
+
+실제 MCP 클라이언트(`client.callTool`)로 전 구간을 확인했다. 내부 API 우회가 아니다.
+
+```text
+[0초]  remove_stars → jobId 09f3ad43        즉시 반환
+[3초]  running | 25% StarNet2 로 별 분리 중
+[75초] completed | 100% 완료                60초를 넘겼으나 타임아웃 없음
+       결과: StarNet2_별제거_02 / 별_02, 처리 72초
+[75초] job.list: 1건
+```
+
 
 ## Objective
 

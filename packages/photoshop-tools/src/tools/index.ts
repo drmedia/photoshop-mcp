@@ -28,6 +28,12 @@ import {
 } from "./layer-edit.js";
 import { createCapabilityListTool, type CapabilityLister } from "./capability.js";
 import {
+  createJobCancelTool,
+  createJobListTool,
+  createJobStatusTool,
+  type JobReader,
+} from "./job.js";
+import {
   createExportTool,
   createSaveAsTool,
   createSaveTool,
@@ -46,6 +52,7 @@ export {
 export * from "./adjustment.js";
 export * from "./filter.js";
 export * from "./capability.js";
+export * from "./job.js";
 export * from "./document-save.js";
 export * from "./layer-place.js";
 export * from "./gap-tools.js";
@@ -123,4 +130,16 @@ export function registerCapabilityTools(
   capabilities: CapabilityLister,
 ): void {
   registry.register(createCapabilityListTool(capabilities));
+}
+
+/**
+ * Job 조회 Tool 을 등록한다. (ROADMAP §14)
+ *
+ * Capability 와 같은 이유로 분리했다. Job 저장소는 Command Engine 이 아니라
+ * 별도 구성 요소이며, 선택 인자로 받으면 주지 않았을 때 조용히 빠진다.
+ */
+export function registerJobTools(registry: ToolRegistry, jobs: JobReader): void {
+  registry.register(createJobStatusTool(jobs));
+  registry.register(createJobListTool(jobs));
+  registry.register(createJobCancelTool(jobs));
 }

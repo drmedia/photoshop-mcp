@@ -89,7 +89,7 @@ function runStem(documentName: string, feature: string): string {
 }
 
 export function activate(context: ExtensionContext): void {
-  const { commands, tools, capabilities, logger, manifest } = context;
+  const { commands, tools, capabilities, jobs, logger, manifest } = context;
 
   const exec = <T>(type: string, params: unknown, requestId: string): Promise<T> =>
     commands.execute<T>({ type, params: params as Record<string, unknown> }, { requestId });
@@ -155,11 +155,28 @@ export function activate(context: ExtensionContext): void {
       "별을 지운 이미지와 별만 남긴 이미지를 **두 개의 새 레이어**로 가져온다. " +
       "별 레이어는 스크린 혼합으로 설정되어 바로 재합성할 수 있다. " +
       "기존 레이어를 바꾸지 않으며 여러 번 실행하면 번호가 올라간 새 결과가 쌓인다. " +
-      "큰 이미지는 수 분 걸릴 수 있다.",
+      "**즉시 jobId 를 반환한다.** 수 분 걸리는 작업이라 MCP 요청 안에서 끝낼 수 없다. " +
+      "photoshop.job.status 로 상태를 확인하고, completed 가 되면 result 에 결과가 담긴다.",
     permission: "external",
     inputSchema: RemoveStarsInput,
-    handler: async (_input, toolContext) => {
+    handler: (_input, toolContext) => {
       const { requestId } = toolContext;
+      // 즉시 돌려준다. 실제 작업은 백그라운드로 돈다.
+      const jobId = jobs.start("milky.remove_stars", async (job) => runRemoveStars(requestId, job));
+      return Promise.resolve({
+        jobId,
+        note: "photoshop.job.status 로 진행 상황을 확인하세요. 큰 이미지는 수 분 걸립니다.",
+      });
+    },
+  });
+
+  /** 별 분리 본문. Job 안에서 돈다. */
+  async function runRemoveStars(
+    requestId: string,
+    job: { report: (percent: number | null, message: string) => void; signal: AbortSignal },
+  ): Promise<unknown> {
+    {
+      job.report(5, "문서 확인");
       const document = await exec<DocumentInfo>(DOCUMENT_GET, {}, requestId);
       const before = await listLayers(requestId);
 
@@ -168,6 +185,7 @@ export function activate(context: ExtensionContext): void {
       const stem = runStem(document.name, "starnet");
 
       // 1) 16비트 TIFF 로 내보낸다. 8비트로 떨어지면 계조가 무너진다.
+      job.report(10, "16비트 TIFF 내보내기");
       const exported = await exec<SaveResult>(
         DOCUMENT_EXPORT,
         { filename: stem, format: "tiff", bitDepth: 16 },
@@ -178,14 +196,22 @@ export function activate(context: ExtensionContext): void {
       }
 
       // 2) StarNet2 는 출력이 둘이다 — 별 제거본과 별 이미지.
-      const processed = await capabilities.execute("starRemoval", {
-        input: exported.filename,
-        output: `${stem}_starless.tif`,
-        outputs: { stars: `${stem}_stars.tif` },
-      });
+      //    이 단계가 대부분의 시간을 먹는다.
+      job.report(25, "StarNet2 로 별 분리 중");
+      const processed = await capabilities.execute(
+        "starRemoval",
+        {
+          input: exported.filename,
+          output: `${stem}_starless.tif`,
+          outputs: { stars: `${stem}_stars.tif` },
+        },
+        // 취소하면 프로세스를 실제로 죽인다.
+        { signal: job.signal },
+      );
 
       // 3) 둘 다 레이어로 가져온다. place 는 활성 레이어 바로 위에 놓이므로
       //    맨 위 레이어를 먼저 고른다. 그래야 결과가 예측 가능한 자리에 쌓인다.
+      job.report(85, "레이어로 가져오는 중");
       const top = before[0];
       if (top !== undefined) {
         await exec(LAYER_SELECT, { layerId: top.id }, requestId);
@@ -220,8 +246,8 @@ export function activate(context: ExtensionContext): void {
         // 원칙이며, 다시 가져오거나 다른 도구에 넘길 수도 있다.
         files: Object.values(processed.outputPaths),
       };
-    },
-  });
+    }
+  }
 
   // ---------------------------------------------------------------------------
 

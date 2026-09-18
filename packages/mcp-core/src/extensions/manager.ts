@@ -6,6 +6,7 @@ import type {
   CapabilityResult,
   ExtensionCapabilityRegistry,
   ExtensionCommandEngine,
+  ExtensionJobRegistry,
   ExtensionContext,
   ExtensionManifest,
   ExtensionToolRegistry,
@@ -22,6 +23,7 @@ import {
   permissionToLevel,
 } from "@photoshop-mcp/photoshop-bridge";
 import type { CommandEngine } from "@photoshop-mcp/command-engine";
+import type { JobStore } from "../jobs/store.js";
 
 /**
  * Extension Manager. (ROADMAP §9.2, ARCHITECTURE §14)
@@ -48,6 +50,8 @@ export interface ExtensionManagerOptions {
   commands: CommandEngine;
   /** 외부 처리기. (ARCHITECTURE §19) */
   capabilities: ExtensionCapabilityRegistry;
+  /** 긴 작업. (ARCHITECTURE §25) */
+  jobs: JobStore;
   logger: Logger;
 }
 
@@ -61,6 +65,7 @@ export class ExtensionManager {
   readonly #tools: ToolRegistry;
   readonly #commands: CommandEngine;
   readonly #capabilities: ExtensionCapabilityRegistry;
+  readonly #jobs: JobStore;
   readonly #logger: Logger;
   readonly #loaded = new Map<string, LoadedExtension>();
 
@@ -68,6 +73,7 @@ export class ExtensionManager {
     this.#tools = options.tools;
     this.#commands = options.commands;
     this.#capabilities = options.capabilities;
+    this.#jobs = options.jobs;
     this.#logger = options.logger;
   }
 
@@ -340,14 +346,25 @@ export class ExtensionManager {
       list: () => source.list(),
       has: (capability) => source.has(capability),
       describe: (capability) => source.describe(capability),
-      execute: async (capability, request: CapabilityRequest): Promise<CapabilityResult> => {
+      execute: async (
+        capability,
+        request: CapabilityRequest,
+        options?: { signal?: AbortSignal },
+      ): Promise<CapabilityResult> => {
         scopedPolicy.assert("external", {
           kind: "command",
           name: `capability:${capability}`,
           namespace,
         });
-        return source.execute(capability, request);
+        return source.execute(capability, request, options ?? {});
       },
+    };
+
+    // Job 은 namespace 로 격리한다. 다른 Extension 의 Job 을 보거나 취소할 수 없다.
+    const store = this.#jobs;
+    const jobs: ExtensionJobRegistry = {
+      start: (kind, run) => store.start(kind, run, { owner: namespace }),
+      get: (id) => store.get(id, namespace),
     };
 
     return {
@@ -355,6 +372,7 @@ export class ExtensionManager {
       tools: scoped,
       commands,
       capabilities,
+      jobs,
       logger: this.#logger,
     };
   }

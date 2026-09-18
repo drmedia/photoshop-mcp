@@ -16,6 +16,17 @@ export {
 } from "./capability.js";
 export { assertConfigConsistent, buildArgs, placeholdersIn } from "./capability-args.js";
 export {
+  JobStateSchema,
+  TERMINAL_STATES,
+  isTerminal,
+  type ExtensionJobRegistry,
+  type JobContext,
+  type JobProgress,
+  type JobRecord,
+  type JobState,
+  type ReportProgress,
+} from "./job.js";
+export {
   ExtensionManifestSchema,
   NamespaceSchema,
   PermissionSchema,

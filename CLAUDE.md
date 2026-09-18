@@ -123,8 +123,31 @@ Extension 작성자가 있는 줄 알고 쓴다.
 Extension 은 워크스페이스 안에 있어야 한다. 밖에 두면 `@photoshop-mcp/extension-sdk`
 해석이 실패한다.
 
-다음 작업은 **GraXpert FITS 변환** 또는 MilkyScape 의 나머지 기능(노이즈 감소 ·
-Stretch · 은하수 보정 · 경계 보정)이다.
+**MilkyScape 기능을 더 옮기지 않는다.** 이 프로젝트의 목적은 PhotoshopMCP 자체이고
+MilkyScape 는 아키텍처 검증 소재다. 기존 CEP 패널은 사람이 슬라이더를 보며 조절하는
+도구로 그대로 둔다 — 미리보기 UX 는 MCP 로 옮길 수 없고 옮길 이유도 없다.
+
+Extension 은 지금 수준으로 충분하다. 이후 작업은 **Core · Job · Workflow** 쪽이다.
+
+## Job (ARCHITECTURE §25, ROADMAP §14)
+
+**MCP 기본 요청 타임아웃은 60초다.** 외부 처리기는 그보다 오래 걸린다 — 실기에서
+StarNet2 가 67초 걸려 실제 클라이언트로 부르니 `-32001 Request timed out` 이 났다.
+
+오래 걸리는 Tool 은 `context.jobs.start()` 로 등록하고 **즉시 jobId 를 반환한다.**
+짧게 끝나도 마찬가지다 — 반환 타입이 상황에 따라 달라지면 호출자가 매번 판단해야 한다.
+
+`photoshop.job.status` · `.list` · `.cancel` 은 전부 즉시 반환한다. 완료를 기다리면
+타임아웃 문제가 그대로 돌아온다.
+
+취소는 `AbortSignal` 이 자식 프로세스까지 내려가 `SIGKILL` 한다. 신호만 받고 계속
+돌면 취소가 거짓말이다. `stop()` 은 진행 중인 Job 을 모두 취소한다 — 그러지 않으면
+외부 프로세스가 서버보다 오래 산다.
+
+Job 은 메모리에만 있다. 서버를 다시 띄우면 사라진다.
+
+**긴 Tool 을 새로 만들 때는 반드시 실제 MCP 클라이언트(`client.callTool`)로 확인한다.**
+`tools.invoke` 로 서버 내부를 직접 부르면 타임아웃을 놓친다.
 
 알 수 없는 열거형 값은 기본값으로 덮지 않는다. `null` + 원본(`rawBitDepth` · `rawKind` ·
 `rawBlendMode`)을 함께 반환한다. 이 원칙으로 실기에서 세 번 실제 버그를 잡았다.

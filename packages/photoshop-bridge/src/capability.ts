@@ -220,5 +220,13 @@ export interface ExtensionCapabilityRegistry {
   has(capability: string): boolean;
   /** Provider 들의 상태. 무엇이 왜 안 되는지 알 수 있어야 한다. */
   describe(capability?: string): ProviderAvailability[];
-  execute(capability: string, request: CapabilityRequest): Promise<CapabilityResult>;
+  /**
+   * @param options.signal 취소 신호. 주면 외부 프로세스를 실제로 죽인다.
+   *   Job 안에서 실행할 때 `JobContext.signal` 을 그대로 넘긴다.
+   */
+  execute(
+    capability: string,
+    request: CapabilityRequest,
+    options?: { signal?: AbortSignal },
+  ): Promise<CapabilityResult>;
 }

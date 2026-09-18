@@ -8,11 +8,13 @@ import {
 import type { Logger } from "@photoshop-mcp/photoshop-bridge";
 import {
   registerCapabilityTools,
+  registerJobTools,
   registerPhotoshopCommands,
   registerPhotoshopTools,
 } from "@photoshop-mcp/photoshop-tools";
 import { CapabilityRegistry } from "./capabilities/registry.js";
 import { ExtensionManager } from "./extensions/manager.js";
+import { JobStore } from "./jobs/store.js";
 import { createConsoleLogger } from "./extensions/logger.js";
 import { PhotoshopMcpServer } from "./server/mcp-server.js";
 
@@ -47,6 +49,8 @@ export interface PhotoshopMcp {
   extensions: ExtensionManager;
   /** 외부 처리기. `loadConfig(path)` 로 Provider 를 등록한다. (ROADMAP §12) */
   capabilities: CapabilityRegistry;
+  /** 긴 작업. MCP 60초 타임아웃을 넘는 것은 여기로 보낸다. (ROADMAP §14) */
+  jobs: JobStore;
   logger: Logger;
 }
 
@@ -79,6 +83,8 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
 
   // 외부 처리기의 입출력은 승인된 작업 폴더 안으로 가둔다. (ROADMAP §8.5)
   // Bridge 를 직접 알면 계층이 섞이므로 조회 함수만 주입한다.
+  const jobs = new JobStore({ logger });
+
   const capabilities = new CapabilityRegistry({
     logger,
     resolveWorkspace: async () => {
@@ -96,8 +102,26 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
   });
 
   registerCapabilityTools(tools, capabilities);
+  registerJobTools(tools, jobs);
 
-  const extensions = new ExtensionManager({ tools, commands: engine, capabilities, logger });
+  const extensions = new ExtensionManager({
+    tools,
+    commands: engine,
+    capabilities,
+    jobs,
+    logger,
+  });
 
-  return { bridge, commands, engine, tools, server, extensions, capabilities, logger, policy };
+  return {
+    bridge,
+    commands,
+    engine,
+    tools,
+    server,
+    extensions,
+    capabilities,
+    jobs,
+    logger,
+    policy,
+  };
 }

@@ -17,6 +17,7 @@ import {
   adjustmentLevels,
 } from "./dom/adjustment.js";
 import { documentGet } from "./dom/document.js";
+import { gaussianBlur } from "./dom/filter.js";
 import {
   maskCreate,
   maskDisable,
@@ -105,6 +106,11 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("MASK_DISABLE", async (p) => maskDisable(p as { layerId?: number }));
   dispatcher.register("SELECTION_CLEAR", async () => selectionClear());
   dispatcher.register("SELECTION_INVERT", async () => selectionInvert());
+
+  // Phase 4 — 필터 (기본 스마트 필터)
+  dispatcher.register("FILTER_GAUSSIAN_BLUR", async (p) =>
+    gaussianBlur(p as Parameters<typeof gaussianBlur>[0]),
+  );
 
   return dispatcher;
 }

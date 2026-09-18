@@ -33,6 +33,8 @@ export const EXPECTED_TOOLS = [
   "photoshop.mask.disable",
   "photoshop.selection.clear",
   "photoshop.selection.invert",
+  // Phase 4 — 필터
+  "photoshop.filter.gaussian_blur",
 ] as const;
 
 export const EXPECTED_COMMANDS = [
@@ -56,6 +58,7 @@ export const EXPECTED_COMMANDS = [
   "MASK_DISABLE",
   "SELECTION_CLEAR",
   "SELECTION_INVERT",
+  "FILTER_GAUSSIAN_BLUR",
 ] as const;
 
 /**
@@ -70,8 +73,11 @@ export const FORBIDDEN_TOOLS = [
   "photoshop.document.flatten",
   "photoshop.document.close",
   "photoshop.group.ungroup",
-  // Phase 4 이후
+  // 아직 구현하지 않음
   "photoshop.mask.delete",
-  "photoshop.filter.gaussian_blur",
+  // save 는 원본 파일을 덮어쓰므로 Permission System 과 함께 도입한다.
+  // save_as 와 export 는 새 파일을 쓰므로 Phase 4 범위다.
   "photoshop.document.save",
+  // Phase 5 이후
+  "photoshop.document.flatten_all",
 ] as const;

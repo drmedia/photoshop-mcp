@@ -11,6 +11,7 @@ import {
   levelsCommand,
 } from "./adjustment.js";
 import { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
+import { FILTER_GAUSSIAN_BLUR, GaussianBlurParamsSchema, gaussianBlurCommand } from "./filter.js";
 import {
   MASK_CREATE,
   MASK_DISABLE,
@@ -60,6 +61,7 @@ import { PING, pingCommand } from "./ping.js";
 
 export { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
 export * from "./adjustment.js";
+export * from "./filter.js";
 export * from "./group.js";
 export * from "./mask-selection.js";
 export * from "./history.js";
@@ -111,4 +113,7 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   // Phase 4 — 선택 영역
   registry.register(SELECTION_CLEAR, selectionClearCommand, SelectionParamsSchema);
   registry.register(SELECTION_INVERT, selectionInvertCommand, SelectionParamsSchema);
+
+  // Phase 4 — 필터 (기본 스마트 필터로 비파괴)
+  registry.register(FILTER_GAUSSIAN_BLUR, gaussianBlurCommand, GaussianBlurParamsSchema);
 }

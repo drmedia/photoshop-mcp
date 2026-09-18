@@ -2,6 +2,7 @@ import type { CommandEngine } from "@photoshop-mcp/command-engine";
 import type { ToolRegistry } from "@photoshop-mcp/photoshop-bridge";
 import { createBrightnessContrastTool, createCurvesTool, createLevelsTool } from "./adjustment.js";
 import { createDocumentGetTool } from "./document-get.js";
+import { createGaussianBlurTool } from "./filter.js";
 import {
   createMaskCreateTool,
   createMaskDisableTool,
@@ -29,6 +30,7 @@ export {
   type LayerListToolResult,
 } from "./layer-list.js";
 export * from "./adjustment.js";
+export * from "./filter.js";
 export * from "./group.js";
 export * from "./mask-selection.js";
 export * from "./history.js";
@@ -70,4 +72,7 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   // Phase 4 — 선택 영역
   registry.register(createSelectionClearTool(engine));
   registry.register(createSelectionInvertTool(engine));
+
+  // Phase 4 — 필터 (기본 스마트 필터로 비파괴)
+  registry.register(createGaussianBlurTool(engine));
 }

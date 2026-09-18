@@ -330,3 +330,69 @@ describe("Phase 4 마스크 · 선택 Tool", () => {
     });
   });
 });
+
+describe("Phase 4 필터 Tool", () => {
+  it("필터 Tool 을 등록한다", () => {
+    const { tools, commands } = setup();
+    expect(tools.list().map((tool) => tool.name)).toContain("photoshop.filter.gaussian_blur");
+    expect(commands.list()).toContain("FILTER_GAUSSIAN_BLUR");
+  });
+
+  it("기본은 스마트 필터라 대상이 스마트 오브젝트가 된다", async () => {
+    const mcp = setup();
+
+    // 기본값은 비파괴다. 픽셀 레이어가 스마트 오브젝트로 바뀐다.
+    await expect(
+      call(mcp, "photoshop.filter.gaussian_blur", { layerId: 10, radius: 5 }),
+    ).resolves.toMatchObject({ id: 10, type: "smartObject" });
+  });
+
+  it("asSmartFilter: false 는 레이어 종류를 바꾸지 않는다", async () => {
+    const mcp = setup();
+
+    await expect(
+      call(mcp, "photoshop.filter.gaussian_blur", {
+        layerId: 10,
+        radius: 5,
+        asSmartFilter: false,
+      }),
+    ).resolves.toMatchObject({ id: 10, type: "pixel" });
+  });
+
+  it("이미 스마트 오브젝트면 변환하지 않는다", async () => {
+    const mcp = setup();
+    await call(mcp, "photoshop.filter.gaussian_blur", { layerId: 11, radius: 3 });
+    await expect(
+      call(mcp, "photoshop.filter.gaussian_blur", { layerId: 11, radius: 3 }),
+    ).resolves.toMatchObject({ id: 11, type: "smartObject" });
+  });
+
+  it("radius 범위를 검증한다", async () => {
+    const mcp = setup();
+    for (const radius of [0, 0.05, 1001]) {
+      await expect(call(mcp, "photoshop.filter.gaussian_blur", { radius })).rejects.toThrow(
+        expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
+      );
+    }
+    await expect(
+      call(mcp, "photoshop.filter.gaussian_blur", { radius: 0.1 }),
+    ).resolves.toBeTruthy();
+    await expect(
+      call(mcp, "photoshop.filter.gaussian_blur", { radius: 1000 }),
+    ).resolves.toBeTruthy();
+  });
+
+  it("radius 는 필수다", async () => {
+    const mcp = setup();
+    await expect(call(mcp, "photoshop.filter.gaussian_blur", {})).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
+    );
+  });
+
+  it("없는 레이어는 LAYER_NOT_FOUND 를 던진다", async () => {
+    const mcp = setup();
+    await expect(
+      call(mcp, "photoshop.filter.gaussian_blur", { layerId: 999, radius: 5 }),
+    ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.LAYER_NOT_FOUND }));
+  });
+});

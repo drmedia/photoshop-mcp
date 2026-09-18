@@ -176,6 +176,13 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         }
         return { hasSelection: true } as TResult;
 
+      // Phase 4 — 필터
+      case "FILTER_GAUSSIAN_BLUR":
+        this.#snapshot("Gaussian blur");
+        return this.#gaussianBlur(
+          command.params as { layerId?: number; asSmartFilter?: boolean },
+        ) as TResult;
+
       default:
         throw new PhotoshopMcpError(
           ErrorCode.COMMAND_NOT_SUPPORTED,
@@ -283,6 +290,22 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   #setMask(params: { layerId?: number }, _enabled: boolean): LayerInfo {
     const index = this.#requireLayerIndex(params.layerId);
     return { ...(this.#layers[index] as LayerInfo) };
+  }
+
+  /**
+   * 가우시안 블러. 픽셀은 흉내내지 않는다.
+   *
+   * 스마트 필터로 적용하면 대상이 스마트 오브젝트로 바뀌는 것만 반영한다.
+   * 호출자가 결과의 `type` 으로 비파괴 여부를 확인할 수 있어야 하기 때문이다.
+   */
+  #gaussianBlur(params: { layerId?: number; asSmartFilter?: boolean }): LayerInfo {
+    const index = this.#requireLayerIndex(params.layerId);
+    const layer = this.#layers[index] as LayerInfo;
+    const asSmartFilter = params.asSmartFilter ?? true;
+    const updated: LayerInfo =
+      asSmartFilter && layer.type !== "smartObject" ? { ...layer, type: "smartObject" } : layer;
+    this.#layers[index] = updated;
+    return { ...updated };
   }
 
   #adjustment(defaultName: string, params: unknown): LayerInfo {

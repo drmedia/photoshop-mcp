@@ -5,6 +5,8 @@ import type { SelectionState } from "../commands/state-read.js";
 import {
   ADJUSTMENT_COLOR_BALANCE,
   ColorRangeParams,
+  MASK_GRADIENT,
+  MaskGradientParams,
   LAYER_STAMP_VISIBLE,
   LoadChannelParams,
   SELECTION_COLOR_RANGE,
@@ -194,5 +196,21 @@ export function createStampVisibleTool(
       "그대로 남는다. 샤프닝처럼 '지금까지의 결과 전체'를 대상으로 삼아야 하는 " +
       "단계에서 쓴다. 숨긴 레이어는 포함되지 않으며, **보이는 레이어가 2장 이상**이어야 한다.",
     StampVisibleParams,
+  );
+}
+
+export function createMaskGradientTool(
+  engine: CommandEngine,
+): ToolDefinition<z.infer<typeof MaskGradientParams>, LayerInfo> {
+  return selectionTool(
+    engine,
+    "photoshop.mask.gradient",
+    MASK_GRADIENT,
+    "레이어 마스크에 선형 그라디언트를 그린다. 마스크가 이미 있어야 한다 — " +
+      "mask.create 로 먼저 만든다. from 에서 to 로 검은색→흰색이며 reverse 로 뒤집는다. " +
+      "마스크에서 검은색은 가려지는 쪽, 흰색은 보이는 쪽이다. " +
+      "지평선 쪽만 서서히 효과를 줄이는 작업이 이것이다 — 경계가 뚜렷한 마스크로는 " +
+      "빛 공해 보정의 티가 난다. 좌표는 픽셀이며 문서 좌상단이 원점이다.",
+    MaskGradientParams,
   );
 }

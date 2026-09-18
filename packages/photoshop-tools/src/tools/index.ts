@@ -50,6 +50,7 @@ import {
   createHighPassTool,
   createLayerFromBackgroundTool,
   createLoadChannelTool,
+  createMaskGradientTool,
   createMinimumMaximumTool,
   createSaveChannelTool,
   createSelectionModifyTool,
@@ -103,6 +104,7 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createSelectionModifyTool(engine));
   registry.register(createColorRangeTool(engine));
   registry.register(createStampVisibleTool(engine));
+  registry.register(createMaskGradientTool(engine));
 
   // Phase 3 — 레이어 편집 (비파괴)
   registry.register(createLayerCreateTool(engine));

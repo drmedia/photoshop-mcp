@@ -22,6 +22,7 @@ export const EXPECTED_TOOLS = [
   "photoshop.selection.modify",
   "photoshop.selection.color_range",
   "photoshop.layer.stamp_visible",
+  "photoshop.mask.gradient",
   // Phase 3 — 레이어 편집 (비파괴)
   "photoshop.layer.create",
   "photoshop.layer.duplicate",
@@ -97,6 +98,7 @@ export const EXPECTED_COMMANDS = [
   "SELECTION_MODIFY",
   "SELECTION_COLOR_RANGE",
   "LAYER_STAMP_VISIBLE",
+  "MASK_GRADIENT",
   "LAYER_CREATE",
   "LAYER_DUPLICATE",
   "LAYER_RENAME",

@@ -143,3 +143,33 @@ export const selectionColorRangeCommand = forwardAny<
   SelectionState
 >();
 export const layerStampVisibleCommand = forwardAny<z.infer<typeof StampVisibleParams>, LayerInfo>();
+
+export const MASK_GRADIENT = "MASK_GRADIENT";
+
+/** 픽셀 좌표. 문서 좌상단이 원점. */
+const Point = z.object({ x: z.number().min(0), y: z.number().min(0) }).strict();
+
+export const MaskGradientParams = z
+  .object({
+    layerId: z.number().int().optional(),
+    /** 그라디언트가 시작하는 점. 기본은 여기가 검은색(가려지는 쪽)이다. */
+    from: Point,
+    /** 끝나는 점. 기본은 여기가 흰색(보이는 쪽)이다. */
+    to: Point,
+    /** 흑백을 뒤집는다. */
+    reverse: z.boolean().optional(),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    // 같은 점이면 그라디언트가 성립하지 않는다. Photoshop 은 조용히 아무것도
+    // 하지 않을 수 있어 호출자가 적용된 줄 안다.
+    if (value.from.x === value.to.x && value.from.y === value.to.y) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "from 과 to 가 같은 점입니다. 그라디언트에는 길이가 필요합니다.",
+        path: ["to"],
+      });
+    }
+  });
+
+export const maskGradientCommand = forwardAny<z.infer<typeof MaskGradientParams>, LayerInfo>();

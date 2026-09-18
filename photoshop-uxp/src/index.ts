@@ -44,6 +44,7 @@ import {
   layerVisibility,
 } from "./dom/layer-edit.js";
 import { layerGetActive, layerList } from "./dom/layers.js";
+import { maskGradient } from "./dom/mask-gradient.js";
 import { selectionSky } from "./dom/selection-auto.js";
 import {
   layerStampVisible,
@@ -96,6 +97,9 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("LAYER_STAMP_VISIBLE", async (p) =>
     layerStampVisible(p as { name?: string }),
+  );
+  dispatcher.register("MASK_GRADIENT", async (p) =>
+    maskGradient(p as Parameters<typeof maskGradient>[0]),
   );
   dispatcher.register("LAYER_FROM_BACKGROUND", async (p) =>
     layerFromBackground(p as { name?: string }),

@@ -340,6 +340,21 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         this.#activeLayerId = merged.id;
         return { ...merged } as TResult;
       }
+      // 마스크 그라디언트. Mock 은 픽셀을 모르지만 "마스크가 있어야 한다" 는
+      // 전제는 실제와 같아야 한다 — 없으면 Photoshop 이 거부한다.
+      case "MASK_GRADIENT": {
+        this.#snapshot("Mask gradient");
+        const index = this.#requireLayerIndex((command.params as { layerId?: number }).layerId);
+        const layer = this.#layers[index] as LayerInfo;
+        if (layer.hasMask !== true) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "이 레이어에 마스크가 없습니다. mask.create 로 먼저 만드세요.",
+            { recoverable: true, details: { layerId: layer.id } },
+          );
+        }
+        return { ...layer } as TResult;
+      }
       case "SELECTION_CLEAR":
         this.#hasSelection = false;
         return { hasSelection: false } as TResult;

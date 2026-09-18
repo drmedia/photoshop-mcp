@@ -95,6 +95,8 @@ import {
   MinimumMaximumParams,
   ColorRangeParams,
   LAYER_STAMP_VISIBLE,
+  MASK_GRADIENT,
+  MaskGradientParams,
   LoadChannelParams,
   SELECTION_COLOR_RANGE,
   SELECTION_LOAD_CHANNEL,
@@ -108,6 +110,7 @@ import {
   filterMinimumMaximumCommand,
   layerFromBackgroundCommand,
   layerStampVisibleCommand,
+  maskGradientCommand,
   selectionColorRangeCommand,
   selectionLoadChannelCommand,
   selectionModifyCommand,
@@ -211,6 +214,10 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_STAMP_VISIBLE, layerStampVisibleCommand, {
     permission: "edit",
     schema: StampVisibleParams,
+  });
+  registry.register(MASK_GRADIENT, maskGradientCommand, {
+    permission: "edit",
+    schema: MaskGradientParams,
   });
 
   // Phase 3 — 레이어 편집 (비파괴)

@@ -90,7 +90,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (51개)
+## 4. 구현된 Core API (52개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -147,6 +147,7 @@ P3  확장 기능
 | `photoshop.mask.create` | EDIT | `from`: revealAll · hideAll · **fromSelection** |
 | `photoshop.mask.enable` | EDIT | |
 | `photoshop.mask.disable` | EDIT | 마스크를 지우지 않고 해제만 한다 |
+| `photoshop.mask.gradient` | EDIT | 마스크에 선형 그라디언트. 마스크가 있어야 한다 |
 | `photoshop.selection.set` | EDIT | `shape`: rectangle · ellipse · **canvas** · layerTransparency |
 | `photoshop.selection.sky` | EDIT | Photoshop 의 `선택 > 하늘` |
 | `photoshop.selection.clear` | EDIT | |

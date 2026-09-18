@@ -238,22 +238,34 @@ describe("Core Tool 분류", () => {
     const byLevel = (level: string): string[] =>
       mcp.commands.list().filter((type) => mcp.commands.permissionOf(type) === level);
 
-    expect(byLevel("external")).toEqual(["DOCUMENT_SAVE_AS", "DOCUMENT_EXPORT"]);
+    expect(byLevel("external")).toEqual(["DOCUMENT_SAVE_AS", "DOCUMENT_EXPORT", "LAYER_PLACE"]);
     expect(byLevel("destructive")).toEqual(["DOCUMENT_SAVE"]);
   });
 
-  it("Photoshop 문서 편집 Command 는 전부 edit 이하다", () => {
+  it("그 목록에 없는 Command 는 전부 edit 이하다", () => {
     // 레이어·조정·마스크·선택·필터는 전부 비파괴라는 주장을 검증한다.
+    // 위 테스트가 고정한 목록에서 파생해 필터가 따로 낡지 않게 한다.
     const mcp = createPhotoshopMcp({ bridge: new MockPhotoshopBridge() });
-    const editing = mcp.commands
-      .list()
-      .filter((type) => !type.startsWith("DOCUMENT_SAVE") && type !== "DOCUMENT_EXPORT");
+    const risky = new Set(
+      mcp.commands
+        .list()
+        .filter((type) =>
+          ["external", "destructive"].includes(mcp.commands.permissionOf(type) ?? ""),
+        ),
+    );
 
-    for (const type of editing) {
+    for (const type of mcp.commands.list()) {
+      if (risky.has(type)) {
+        continue;
+      }
       expect(["read", "edit"], `${type} 이 위험 등급입니다`).toContain(
         mcp.commands.permissionOf(type),
       );
     }
+    // 위험 등급이 문서 저장·가져오기 말고 늘어나지 않았는지 확인한다.
+    expect([...risky].every((type) => type.startsWith("DOCUMENT_") || type === "LAYER_PLACE")).toBe(
+      true,
+    );
   });
 
   it("읽기 전용 정책이면 편집 Tool 이 전부 막힌다", async () => {

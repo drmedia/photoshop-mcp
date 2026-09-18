@@ -48,6 +48,8 @@ export const ErrorCode = {
   FILE_WRITE_FAILED: "FILE_WRITE_FAILED",
   /** 문서에 저장 경로가 없음. 한 번도 저장한 적 없는 문서. */
   DOCUMENT_NOT_SAVED: "DOCUMENT_NOT_SAVED",
+  /** 승인된 작업 폴더에 그 파일이 없음. */
+  FILE_NOT_FOUND: "FILE_NOT_FOUND",
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

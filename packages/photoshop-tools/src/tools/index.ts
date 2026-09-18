@@ -34,6 +34,7 @@ import {
   createWorkspaceStatusTool,
 } from "./document-save.js";
 import { createLayerListTool } from "./layer-list.js";
+import { createLayerPlaceTool } from "./layer-place.js";
 import { createPingTool } from "./ping.js";
 
 export { DocumentGetInputSchema, createDocumentGetTool } from "./document-get.js";
@@ -46,6 +47,7 @@ export * from "./adjustment.js";
 export * from "./filter.js";
 export * from "./capability.js";
 export * from "./document-save.js";
+export * from "./layer-place.js";
 export * from "./gap-tools.js";
 export * from "./group.js";
 export * from "./mask-selection.js";
@@ -106,6 +108,7 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createSaveAsTool(engine));
   registry.register(createExportTool(engine));
   registry.register(createSaveTool(engine));
+  registry.register(createLayerPlaceTool(engine));
 }
 
 /**

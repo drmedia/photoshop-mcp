@@ -48,6 +48,11 @@ export const EXPECTED_TOOLS = [
   // Phase 8 — 외부 처리기 (ROADMAP §12)
   //
   // 조회만 노출한다. 실행은 Extension 이 전체 흐름의 일부로 호출한다.
+  // 외부 처리 결과를 되돌리는 길
+  "photoshop.layer.place",
+  // Phase 8 — 외부 처리기 (ROADMAP §12)
+  //
+  // 조회만 노출한다. 실행은 Extension 이 전체 흐름의 일부로 호출한다.
   "photoshop.capability.list",
 ] as const;
 
@@ -81,6 +86,7 @@ export const EXPECTED_COMMANDS = [
   "DOCUMENT_SAVE_AS",
   "DOCUMENT_EXPORT",
   "DOCUMENT_SAVE",
+  "LAYER_PLACE",
 ] as const;
 
 /**

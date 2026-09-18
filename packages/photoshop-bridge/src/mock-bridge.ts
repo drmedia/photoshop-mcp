@@ -257,6 +257,9 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         ) as TResult;
       case "DOCUMENT_SAVE":
         return this.#save() as TResult;
+      case "LAYER_PLACE":
+        this.#snapshot("Place file");
+        return this.#place(command.params as { filename: string; name?: string }) as TResult;
 
       default:
         throw new PhotoshopMcpError(
@@ -275,6 +278,13 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   /** 작업 폴더에 쓰인 파일 이름. 실기 없이 저장 동작을 확인할 때 쓴다. */
   get writtenFiles(): string[] {
     return [...this.#writtenFiles];
+  }
+
+  /** 폴더에 이미 있던 파일을 흉내 낸다. 외부 처리기가 만든 결과 등. */
+  addExistingFile(filename: string): void {
+    if (!this.#writtenFiles.some((name) => name.toLowerCase() === filename.toLowerCase())) {
+      this.#writtenFiles.push(filename);
+    }
   }
 
   /** 사용자가 패널에서 폴더를 승인한 상황을 재현한다. */
@@ -316,6 +326,50 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
 
     this.#writtenFiles.push(filename);
     return { path: `${this.#workspacePath}/${filename}`, filename, format };
+  }
+
+  /**
+   * 파일을 스마트 오브젝트 레이어로 가져온다.
+   *
+   * 실제 구현과 같은 계약을 지킨다 — 승인된 폴더 안에 **있는** 파일만 가져올 수 있다.
+   */
+  #place(params: { filename: string; name?: string }): LayerInfo {
+    this.#requireDocument();
+    if (this.#workspacePath === null) {
+      throw new PhotoshopMcpError(
+        ErrorCode.WORKSPACE_NOT_APPROVED,
+        "가져올 파일이 있는 작업 폴더가 승인되지 않았습니다.",
+        { recoverable: true },
+      );
+    }
+    if (!this.#writtenFiles.some((name) => name.toLowerCase() === params.filename.toLowerCase())) {
+      throw new PhotoshopMcpError(
+        ErrorCode.FILE_NOT_FOUND,
+        `승인된 작업 폴더에 파일이 없습니다: ${params.filename}`,
+        { recoverable: true, details: { filename: params.filename } },
+      );
+    }
+
+    // 실기에서 확인한 동작. 처음에는 "맨 위에 opacity 100 으로" 만들었는데 셋 다 틀렸다.
+    //
+    // 1. 문서 맨 위가 아니라 **활성 레이어 바로 위**에 놓인다.
+    // 2. 활성 레이어가 그룹 안이면 같은 그룹으로 들어간다.
+    // 3. 활성 레이어의 **opacity 를 물려받는다.** (기준 40 → 결과 40 으로 확인)
+    const activeIndex = this.#layers.findIndex((layer) => layer.id === this.#activeLayerId);
+    const anchor = activeIndex < 0 ? undefined : this.#layers[activeIndex];
+
+    const layer: LayerInfo = {
+      id: this.#nextLayerId++,
+      name: params.name ?? params.filename,
+      type: "smartObject",
+      visible: true,
+      opacity: anchor?.opacity ?? 100,
+      parentId: anchor?.parentId ?? null,
+      blendMode: "normal",
+    };
+    this.#layers.splice(activeIndex < 0 ? 0 : activeIndex, 0, layer);
+    this.#activeLayerId = layer.id;
+    return { ...layer };
   }
 
   /** 원본을 덮어쓴다. */

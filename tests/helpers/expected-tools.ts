@@ -11,6 +11,7 @@ export const EXPECTED_TOOLS = [
   "photoshop.ping",
   "photoshop.document.get",
   "photoshop.layer.list",
+  "photoshop.layer.get_active",
   // Phase 3 — 레이어 편집 (비파괴)
   "photoshop.layer.create",
   "photoshop.layer.duplicate",
@@ -75,6 +76,7 @@ export const EXPECTED_COMMANDS = [
   "PING",
   "DOCUMENT_GET",
   "LAYER_LIST",
+  "LAYER_GET_ACTIVE",
   "LAYER_CREATE",
   "LAYER_DUPLICATE",
   "LAYER_RENAME",

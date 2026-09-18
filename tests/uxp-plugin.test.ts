@@ -1,5 +1,7 @@
+import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { describe, expect, it } from "vitest";
 import { CommandDispatcher, DispatchError } from "../photoshop-uxp/src/dispatcher/dispatcher.js";
+import { orderActiveLayers } from "../photoshop-uxp/src/dom/active-order.js";
 import { toBitDepth, toColorMode, toLayerType } from "../photoshop-uxp/src/dom/mappings.js";
 
 /**
@@ -149,5 +151,51 @@ describe("Photoshop 열거형 매핑", () => {
       raw: "someFutureKind",
     });
     expect(toLayerType(undefined)).toEqual({ type: "unknown", raw: "undefined" });
+  });
+});
+
+describe("orderActiveLayers", () => {
+  /**
+   * 편집 Command 는 `layerId` 를 생략하면 `document.activeLayers[0]` 을 쓴다.
+   * 이 함수가 돌려주는 첫 번째가 그것과 달라지면 `layer.get_active` 가 거짓말을 한다.
+   *
+   * 실기에서 실제로 틀렸다 — 레이어 순서로 정렬해 id 14 를 첫 번째로 보고했는데
+   * `activeLayers[0]` 은 id 13 이었고, 생략 rename 이 13 을 건드렸다.
+   */
+  const layer = (id: number, name: string, parentId: number | null = null): LayerInfo => ({
+    id,
+    name,
+    type: "pixel",
+    visible: true,
+    opacity: 100,
+    parentId,
+    blendMode: "normal",
+  });
+
+  /** 레이어 순서는 14 가 13 보다 위다. 실기에서 마주친 배치. */
+  const flattened = [layer(14, "배경 복사 2"), layer(13, "배경 복사")];
+
+  it("레이어 순서가 아니라 activeLayers 순서를 따른다", () => {
+    const result = orderActiveLayers([13, 14], flattened, [layer(13, "x"), layer(14, "y")]);
+    expect(result.map((entry) => entry.id)).toEqual([13, 14]);
+  });
+
+  it("평탄화 목록의 parentId 를 가져온다", () => {
+    // activeLayers 객체를 그대로 쓰면 parentId 가 null 이 되어 그룹 안 레이어가
+    // 최상위로 보고된다.
+    const inGroup = [layer(11, "안쪽", 17)];
+    const result = orderActiveLayers([11], inGroup, [layer(11, "안쪽", null)]);
+    expect(result[0]?.parentId).toBe(17);
+  });
+
+  it("평탄화 목록에 없으면 fallback 을 쓰고 자리를 지킨다", () => {
+    // 건너뛰면 뒤엣것이 첫 번째로 올라와 편집 대상과 어긋난다.
+    const result = orderActiveLayers([99, 13], flattened, [layer(99, "모름"), layer(13, "x")]);
+    expect(result.map((entry) => entry.id)).toEqual([99, 13]);
+    expect(result[0]?.name).toBe("모름");
+  });
+
+  it("선택이 없으면 빈 배열이다", () => {
+    expect(orderActiveLayers([], flattened, [])).toEqual([]);
   });
 });

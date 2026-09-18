@@ -160,6 +160,10 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         return (await this.getDocumentInfo()) as TResult;
       case "LAYER_LIST":
         return (await this.getLayers()) as TResult;
+      // Mock 은 활성 레이어를 하나만 들고 있다. 실제 Photoshop 은 여러 개를 선택할 수
+      // 있으므로 **배열로** 돌려준다 — Mock 이 단수로 주면 호출자가 단수라고 믿는다.
+      case "LAYER_GET_ACTIVE":
+        return this.#layers.filter((layer) => layer.id === this.#activeLayerId) as TResult;
 
       // Phase 3 — 레이어 편집. 실제 Photoshop 과 같은 의미로 상태를 바꾼다.
       case "LAYER_CREATE":

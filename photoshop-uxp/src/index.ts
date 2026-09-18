@@ -41,7 +41,7 @@ import {
   layerSelect,
   layerVisibility,
 } from "./dom/layer-edit.js";
-import { layerList } from "./dom/layers.js";
+import { layerGetActive, layerList } from "./dom/layers.js";
 import { startNotifications } from "./dom/notifications.js";
 import { historyList, selectionGet } from "./dom/state-read.js";
 import { workspaceDelete, workspaceUsage } from "./dom/workspace-files.js";
@@ -70,6 +70,7 @@ export function createDispatcher(): CommandDispatcher {
   // Phase 1 — 조회
   dispatcher.register("DOCUMENT_GET", async () => documentGet());
   dispatcher.register("LAYER_LIST", async () => layerList());
+  dispatcher.register("LAYER_GET_ACTIVE", async () => layerGetActive());
 
   // Phase 3 — 레이어 편집 (비파괴)
   // payload 는 Server 의 Command Engine 이 이미 검증했다. (ARCHITECTURE §3.2)

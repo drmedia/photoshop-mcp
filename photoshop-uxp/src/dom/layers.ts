@@ -1,5 +1,6 @@
 import { type PhotoshopLayer } from "photoshop";
 import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
+import { orderActiveLayers } from "./active-order.js";
 import { requireActiveDocument } from "./document.js";
 import { toBlendMode, toLayerType } from "./mappings.js";
 import { runModal } from "./modal.js";
@@ -79,4 +80,29 @@ export function toLayerInfo(layer: PhotoshopLayer, parentId: number | null = nul
     ...(blend.raw === undefined ? {} : { rawBlendMode: blend.raw }),
     ...(kind.raw === undefined ? {} : { rawKind: kind.raw }),
   };
+}
+
+/**
+ * `LAYER_GET_ACTIVE` — 지금 선택된 레이어들.
+ *
+ * 순서는 `activeLayers` 를 그대로 따르고 `parentId` 만 평탄화 목록에서 가져온다.
+ * 왜 그래야 하는지는 `orderActiveLayers` 의 주석에 있다 — 실기에서 한 번 틀렸다.
+ *
+ * `activeLayers` 의 레이어 객체를 `toLayerInfo` 로 바로 바꾸면 `parentId` 가 `null`
+ * 이 된다. 그 값은 트리를 순회하는 중에만 알 수 있기 때문이다. 그러면 그룹 안의
+ * 레이어를 골라 둔 사용자가 최상위 레이어라고 보고받는다.
+ */
+export async function layerGetActive(): Promise<LayerInfo[]> {
+  return runModal("Get active layers", () => {
+    const document = requireActiveDocument();
+    const active = toArray<PhotoshopLayer>(document.activeLayers);
+    if (active.length === 0) {
+      return [];
+    }
+    return orderActiveLayers(
+      active.map((layer) => layer.id),
+      flattenLayers(document.layers),
+      active.map((layer) => toLayerInfo(layer)),
+    );
+  });
 }

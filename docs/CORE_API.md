@@ -90,7 +90,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (40개)
+## 4. 구현된 Core API (41개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -101,6 +101,7 @@ P3  확장 기능
 | `photoshop.ping` | READ | 서버 상태와 Bridge 연결 여부 |
 | `photoshop.document.get` | READ | 활성 문서 정보 |
 | `photoshop.layer.list` | READ | 활성 문서의 레이어 목록 |
+| `photoshop.layer.get_active` | READ | 지금 선택된 레이어. `layers` 에 전부, `layer` 에 첫 번째 |
 
 ### 4.2 레이어
 
@@ -114,7 +115,8 @@ P3  확장 기능
 | `photoshop.layer.set_opacity` | EDIT | 0–100 |
 | `photoshop.layer.set_blend_mode` | EDIT | normal · multiply · screen · overlay · softLight 등 |
 
-`layerId` 를 생략하면 활성 레이어를 대상으로 한다.
+`layerId` 를 생략하면 활성 레이어를 대상으로 한다. 그것이 무엇인지는
+`photoshop.layer.get_active` 로 미리 확인한다.
 
 ### 4.3 그룹
 
@@ -231,7 +233,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
 | `photoshop.layer.get` | P1 | READ | 한 레이어의 상세 |
-| `photoshop.layer.get_active` | P0 | READ | **P0 인데 유일하게 없다.** §8 참조 |
 | `photoshop.layer.select_multiple` | P1 | EDIT | |
 | `photoshop.layer.set_fill_opacity` | P1 | EDIT | |
 | `photoshop.layer.move` | P1 | EDIT | 순서 변경 |
@@ -453,13 +454,30 @@ get · list · create · delete · set_* · select · duplicate · move · enabl
 | `history.get` | → Resource | `photoshop://history` |
 | `state.get` | → `photoshop.diagnostics` | 상태에 더해 **막힌 이유와 고치는 방법**까지 준다 |
 
-### 남은 공백
+### 늦게 채운 공백 — `layer.get_active`
 
-`photoshop.layer.get_active` 는 **P0 로 분류해 놓고 유일하게 구현되지 않았다.**
-지금은 `layer.list` 가 활성 여부를 함께 주고, 편집 Tool 이 `layerId` 를 생략하면
-활성 레이어를 쓰기 때문에 실무에서 막히지 않았다. 그래서 늦어졌다.
+P0 로 분류해 놓고 **유일하게 구현되지 않은 채 남아 있었다.** 편집 Tool 이 `layerId`
+를 생략하면 활성 레이어를 쓰는데, 그것이 무엇인지 물어볼 방법이 없었다. `layer.list`
+로 전체를 받아 훑는 것이 유일한 우회였고 레이어가 33개인 문서에서도 그랬다.
+없어도 돌기는 해서 늦어졌다.
 
-없어도 도는 것과 P0 인 것은 다르다. 분류를 내리든 구현하든 한쪽으로 정해야 한다.
+구현하면서 드러난 것은 **활성 레이어가 하나가 아니라는 사실**이다.
+`document.activeLayers` 는 배열이고 편집 Command 들은 그중 첫 번째만 쓴다.
+그래서 `layer`(편집 Tool 이 실제로 쓰는 것)와 `layers`(사용자가 골라 둔 전부)를
+함께 준다. 첫 번째만 돌려주면 세 개를 골라 둔 사용자에게 `layer.rename` 이 나머지
+둘을 건드리지 않는다는 사실이 가려진다.
+
+`layer` 는 **서버가** `layers[0]` 에서 뽑는다. Plugin 이 둘을 따로 보내면 어긋날 수
+있고, 그러면 "편집 Tool 이 무엇을 건드리는지" 알려주는 Tool 자체가 거짓말을 한다.
+
+**실기가 순서 버그를 잡았다.** 처음에는 평탄화 목록을 선택 집합으로 걸렀는데, 그러면
+결과가 레이어 순서(위→아래)로 정렬된다. 레이어 두 개를 선택해 확인하니 이 Tool 은
+id 14 를 첫 번째로 보고했는데 `layerId` 를 생략한 `layer.rename` 은 id 13 을 건드렸다.
+**Photoshop 의 `activeLayers` 순서는 레이어 순서가 아니다.** 지금은 `activeLayers`
+순서를 그대로 두고 `parentId` 만 평탄화 목록에서 가져온다.
+
+Mock 만 보고 만들었으면 조용히 어긋난 채로 남았을 버그다. 단위 테스트는
+`photoshop-uxp/src/dom/active-order.ts` 에서 순서 규칙만 떼어 고정했다.
 
 ---
 
@@ -491,8 +509,8 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **40** |
-| 후보 (P0–P1) | 약 20 |
+| 구현됨 | **41** |
+| 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |
 | 합계 후보 풀 | 약 150 |

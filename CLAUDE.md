@@ -14,7 +14,7 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **40개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **41개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
 Tool 까지 더한 수다(지금 47). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
@@ -106,6 +106,12 @@ FITS → TIFF 변환에서 조심할 것은 **정규화**다. min/max 로 무조
 실기에서 확인한 `place` 동작: 문서 맨 위가 아니라 **활성 레이어 바로 위**에 놓이고,
 활성 레이어가 그룹 안이면 같은 그룹으로 들어가며, **opacity 를 물려받는다.**
 셋 다 처음 가정과 달랐다. 위치가 중요하면 먼저 `layer.select` 한다.
+
+**`document.activeLayers` 는 배열이고 그 순서는 레이어 순서가 아니다.** 편집 Command 는
+`layerId` 를 생략하면 `activeLayers[0]` 을 대상으로 삼는다. `photoshop.layer.get_active`
+는 그 순서를 그대로 보고해야 한다 — 레이어 순서로 정렬했다가 실기에서 어긋났다.
+보고는 id 14, 실제 편집은 id 13 이었다. 순서 규칙은
+`photoshop-uxp/src/dom/active-order.ts` 에 떼어 두고 단위 테스트로 고정했다.
 
 `batchPlay` 는 조정·마스크·선택·필터에 쓴다. DOM 에 API 가 없는 경우다.
 descriptor 는 반드시 플러그인이 검증된 파라미터로 조립한다.

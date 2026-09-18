@@ -3,7 +3,7 @@
 Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입니다.
 
 > **현재 상태: Phase 13 (Production Hardening) 까지 완료. 남은 것은 Phase 14 (Distribution) 입니다.**
-> Core Tool 40개, Resource 6개. Extension 예제 2개(`example` 2개 · `milkyscape` 5개)를 포함해
+> Core Tool 41개, Resource 6개. Extension 예제 2개(`example` 2개 · `milkyscape` 5개)를 포함해
 > Photoshop 27.8 에서 실기 검증했습니다.
 > 모든 Tool 과 Command 가 권한 레벨을 선언하며, 기본값은 `read` · `edit` 만 허용합니다.
 
@@ -202,7 +202,7 @@ Job 은 메모리에만 있어 서버를 다시 띄우면 사라집니다.
 
 ## 지금 동작하는 것
 
-Core Tool 40개, Resource 6개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
+Core Tool 41개, Resource 6개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
 전체 목록과 Permission 기준은 [docs/CORE_API.md](docs/CORE_API.md) 에 있습니다.
 
 **조회**
@@ -212,6 +212,7 @@ Core Tool 40개, Resource 6개가 **Mock Bridge** 와 **실제 Photoshop Bridge*
 | `photoshop.ping` | `PING` | 서버 상태와 Bridge 연결 여부 |
 | `photoshop.document.get` | `DOCUMENT_GET` | 활성 문서 정보 |
 | `photoshop.layer.list` | `LAYER_LIST` | 레이어 목록 (opacity · parentId 포함) |
+| `photoshop.layer.get_active` | `LAYER_GET_ACTIVE` | 지금 선택된 레이어. 여러 개일 수 있다 |
 
 **편집** — 전부 비파괴입니다. 삭제·병합은 Permission System 과 함께 이후 Phase 에서 추가합니다.
 

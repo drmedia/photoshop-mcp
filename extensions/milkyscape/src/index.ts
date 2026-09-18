@@ -417,50 +417,83 @@ export function activate(context: ExtensionContext): void {
     description:
       "BlurXTerminator 로 선명화한다. 현재 문서를 16비트 TIFF 로 내보내 처리한 뒤 " +
       "새 레이어로 가져온다. 별을 먼저 분리해 두면 별이 뭉치는 것을 줄일 수 있지만 " +
-      "필수는 아니다. 기존 레이어를 바꾸지 않는다.",
+      "필수는 아니다. 기존 레이어를 바꾸지 않는다. " +
+      "**즉시 jobId 를 반환한다.** 수 분 걸릴 수 있어 MCP 요청 안에서 끝낼 수 없다. " +
+      "photoshop.job.status 로 상태를 확인하고, completed 가 되면 result 에 결과가 담긴다.",
     permission: "external",
     inputSchema: EnhanceInput,
-    handler: async (input, toolContext) => {
+    handler: (input, toolContext) => {
       const { requestId } = toolContext;
-      const document = await exec<DocumentInfo>(DOCUMENT_GET, {}, requestId);
-      const before = await listLayers(requestId);
+      const jobId = jobs.start("milky.enhance", async (job) => runEnhance(input, requestId, job));
+      return Promise.resolve({
+        jobId,
+        note: "photoshop.job.status 로 진행 상황을 확인하세요. 큰 이미지는 수 분 걸립니다.",
+      });
+    },
+  });
 
-      const name = nextName(before, SHARPENED);
-      const stem = runStem(document.name, "bxt");
+  /**
+   * 선명화 본문. Job 안에서 돈다.
+   *
+   * 처음에는 동기로 두었다. BXT 가 실기에서 10초였기 때문이다. 그러나 **처리 시간은
+   * 이미지 크기에 따라 변한다.** StarNet2 도 작은 이미지에서는 빨랐다가 4032×6048
+   * 에서 67초가 나와 MCP 기본 타임아웃 60초를 넘겼다.
+   *
+   * 외부 처리기를 부르는 Tool 이 셋인데 둘만 Job 이면 호출자가 매번 어느 쪽인지
+   * 판단해야 한다. 짧게 끝나도 jobId 를 돌려준다. (CLAUDE.md — Job)
+   */
+  async function runEnhance(
+    input: z.infer<typeof EnhanceInput>,
+    requestId: string,
+    job: { report: (percent: number | null, message: string) => void; signal: AbortSignal },
+  ): Promise<unknown> {
+    job.report(5, "문서 확인");
+    const document = await exec<DocumentInfo>(DOCUMENT_GET, {}, requestId);
+    const before = await listLayers(requestId);
 
-      const exported = await exec<SaveResult>(
-        DOCUMENT_EXPORT,
-        { filename: stem, format: "tiff", bitDepth: 16 },
-        requestId,
-      );
+    const name = nextName(before, SHARPENED);
+    const stem = runStem(document.name, "bxt");
 
-      const processed = await capabilities.execute("deconvolution", {
+    job.report(10, "16비트 TIFF 내보내기");
+    const exported = await exec<SaveResult>(
+      DOCUMENT_EXPORT,
+      { filename: stem, format: "tiff", bitDepth: 16 },
+      requestId,
+    );
+
+    job.report(25, "BlurXTerminator 로 선명화 중");
+    const processed = await capabilities.execute(
+      "deconvolution",
+      {
         input: exported.filename,
         output: `${stem}_sharp.tif`,
         ...(input.nonstellar === undefined ? {} : { params: { nonstellar: input.nonstellar } }),
-      });
+      },
+      { signal: job.signal },
+    );
 
-      const top = before[0];
-      if (top !== undefined) {
-        await exec(LAYER_SELECT, { layerId: top.id }, requestId);
-      }
+    job.report(85, "레이어로 가져오는 중");
+    const top = before[0];
+    if (top !== undefined) {
+      await exec(LAYER_SELECT, { layerId: top.id }, requestId);
+    }
 
-      const placed = await exec<LayerInfo>(
-        LAYER_PLACE,
-        { filename: `${stem}_sharp.tif`, name },
-        requestId,
-      );
+    const placed = await exec<LayerInfo>(
+      LAYER_PLACE,
+      { filename: `${stem}_sharp.tif`, name },
+      requestId,
+    );
 
-      logger.info(`선명화 완료: ${name} (${processed.provider})`);
+    logger.info(`선명화 완료: ${name} (${processed.provider})`);
+    job.report(100, "완료");
 
-      return {
-        layer: { id: placed.id, name: placed.name },
-        provider: processed.provider,
-        seconds: Math.round(processed.durationMs / 1000),
-        files: Object.values(processed.outputPaths),
-      };
-    },
-  });
+    return {
+      layer: { id: placed.id, name: placed.name },
+      provider: processed.provider,
+      seconds: Math.round(processed.durationMs / 1000),
+      files: Object.values(processed.outputPaths),
+    };
+  }
 }
 
 /**

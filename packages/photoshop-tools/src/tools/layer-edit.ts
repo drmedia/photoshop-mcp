@@ -122,8 +122,10 @@ export function createLayerOpacityTool(
   return createLayerTool(
     "photoshop.layer.set_opacity",
     "레이어 불투명도를 0–100 으로 설정한다. layerId 를 생략하면 활성 레이어를 대상으로 한다. " +
-      "**배경 레이어에 100 미만을 주면 Photoshop 이 일반 레이어로 승격시키며 id 와 이름이 바뀐다** " +
-      "(배경은 반투명할 수 없다). 반환값의 id 가 요청한 것과 다를 수 있으므로 그대로 쓴다.",
+      "**배경 레이어(isBackground: true)는 다르게 동작한다** — 배경은 반투명할 수 없기 때문이다. " +
+      "Photoshop 이 일반 레이어로 승격시키면 id 와 이름이 바뀌므로 반환값의 id 를 그대로 쓴다. " +
+      "거부하면 실패로 보고하며 문서는 바뀌지 않는다 — 그때는 layer.duplicate 로 복제본을 만들어 쓴다. " +
+      "둘 중 어느 쪽이 될지는 Photoshop 이 정한다.",
     "edit",
     LayerOpacityParamsSchema,
     LAYER_OPACITY,

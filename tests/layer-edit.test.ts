@@ -132,9 +132,35 @@ describe("Phase 3 레이어 편집 Tool", () => {
 
     it("불투명도를 바꾼다", async () => {
       const mcp = setup();
+      // 배경이 아닌 레이어. 배경은 아래 테스트에서 따로 본다.
       await expect(
-        call(mcp, "photoshop.layer.set_opacity", { layerId: 10, opacity: 50 }),
-      ).resolves.toMatchObject({ id: 10, opacity: 50 });
+        call(mcp, "photoshop.layer.set_opacity", { layerId: 11, opacity: 50 }),
+      ).resolves.toMatchObject({ id: 11, opacity: 50 });
+    });
+
+    it("배경 레이어는 승격되어 id 와 이름이 바뀐다", async () => {
+      // 배경은 반투명할 수 없어 Photoshop 이 일반 레이어로 바꾼다. 실기에서 확인했다.
+      // 이때 반환되는 id 는 요청한 것과 다르다 — 호출자는 반환값을 그대로 써야 한다.
+      const mcp = setup();
+      const result = await call<Layer>(mcp, "photoshop.layer.set_opacity", {
+        layerId: 10,
+        opacity: 50,
+      });
+
+      expect(result.id).not.toBe(10);
+      expect(result.opacity).toBe(50);
+
+      const { layers } = await call<{ layers: Layer[] }>(mcp, "photoshop.layer.list");
+      expect(layers.find((layer) => layer.id === 10)).toBeUndefined();
+      expect(layers.find((layer) => layer.id === result.id)).toMatchObject({ opacity: 50 });
+    });
+
+    it("배경 레이어를 100 으로 두면 승격하지 않는다", async () => {
+      // 불투명도가 100 이면 배경으로 있을 수 있다. 괜히 승격시키지 않는다.
+      const mcp = setup();
+      await expect(
+        call(mcp, "photoshop.layer.set_opacity", { layerId: 10, opacity: 100 }),
+      ).resolves.toMatchObject({ id: 10, opacity: 100 });
     });
 
     it("변경이 목록에 반영된다", async () => {
@@ -241,8 +267,8 @@ describe("Command Engine 파라미터 검증", () => {
     const mcp = setup();
 
     await expect(
-      mcp.engine.execute({ type: "LAYER_OPACITY", params: { layerId: 10, opacity: 33 } }),
-    ).resolves.toMatchObject({ id: 10, opacity: 33 });
+      mcp.engine.execute({ type: "LAYER_OPACITY", params: { layerId: 11, opacity: 33 } }),
+    ).resolves.toMatchObject({ id: 11, opacity: 33 });
   });
 
   it("파라미터 없는 Command 는 스키마 없이도 동작한다", async () => {

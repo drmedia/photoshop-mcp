@@ -448,11 +448,29 @@ describe("remove_gradient", () => {
 });
 
 describe("enhance", () => {
+  /** 선명화를 시작하고 결과까지 기다린다. */
+  async function enhance<T>(s: Setup, input?: Record<string, unknown>): Promise<T> {
+    const { jobId } = await call<{ jobId: string }>(s, "milky.enhance", input);
+    return awaitJob<T>(s, jobId);
+  }
+
   it("선명화 결과를 새 레이어로 가져온다", async () => {
     const s = await setup();
-    const result = await call<{ layer: { name: string }; provider: string }>(s, "milky.enhance");
+    const result = await enhance<{ layer: { name: string }; provider: string }>(s);
     expect(result.layer.name).toBe("BXT_선명화_01");
     expect(result.provider).toBe("bxt");
+  });
+
+  it("외부 처리기를 부르는 Tool 은 전부 Job 으로 넘긴다", async () => {
+    // 셋 중 둘만 Job 이면 호출자가 매번 어느 쪽인지 판단해야 한다.
+    // BXT 는 실기에서 10초였지만 처리 시간은 이미지 크기에 따라 변한다 —
+    // StarNet2 도 큰 이미지에서 67초가 나와 MCP 기본 타임아웃을 넘겼다.
+    const s = await setup();
+    for (const name of ["milky.remove_stars", "milky.remove_gradient", "milky.enhance"]) {
+      const started = await call<{ jobId?: string }>(s, name);
+      expect(started.jobId, `${name} 이 jobId 를 돌려주지 않았습니다`).toEqual(expect.any(String));
+      expect(s.mcp.tools.get(name)?.description).toMatch(/jobId/u);
+    }
   });
 
   it("강도 범위를 검증한다", async () => {
@@ -469,7 +487,8 @@ describe("자동 연쇄 처리하지 않는다", () => {
     const s = await setup();
     await removeStars(s);
 
-    const result = await call<{ layer: { name: string } }>(s, "milky.enhance");
+    const { jobId } = await call<{ jobId: string }>(s, "milky.enhance");
+    const result = await awaitJob<{ layer: { name: string } }>(s, jobId);
     // 별 제거본이 아니라 문서 전체를 대상으로 한다.
     expect(result.layer.name).toBe("BXT_선명화_01");
 
@@ -514,7 +533,7 @@ describe("실제 MCP 클라이언트", () => {
     const { client, close } = await connect(s);
     try {
       // 실제 처리 시간보다 짧은 타임아웃. 기다리는 구현이면 여기서 깨진다.
-      for (const name of ["milky.remove_stars", "milky.remove_gradient"]) {
+      for (const name of ["milky.remove_stars", "milky.remove_gradient", "milky.enhance"]) {
         const result = await client.callTool({ name, arguments: {} }, undefined, {
           timeout: 500,
         });

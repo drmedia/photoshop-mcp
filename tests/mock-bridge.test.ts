@@ -62,7 +62,11 @@ describe("MockPhotoshopBridge", () => {
         opacity: 100,
         parentId: null,
         blendMode: "normal",
+        // 맨 아래는 배경이다. 이것이 없으면 배경 특유의 동작이 테스트에 안 나온다.
+        isBackground: true,
       });
+      // 배경은 문서에 하나뿐이다. 나머지에는 붙지 않는다.
+      expect(layers.slice(1).every((layer) => layer.isBackground === undefined)).toBe(true);
       expect(layers.map((layer) => layer.name)).toEqual(["Background", "Curves 1", "Retouch"]);
     });
 

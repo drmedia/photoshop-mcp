@@ -3,7 +3,7 @@ import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
 import { flattenLayers, toLayerInfo } from "./layers.js";
-import { resolveMutatedLayer } from "./mutation-result.js";
+import { opacityApplied, resolveMutatedLayer } from "./mutation-result.js";
 import { runModal } from "./modal.js";
 
 /**
@@ -212,9 +212,33 @@ export async function layerOpacity(params: TargetParams & { opacity: number }): 
     const document = requireActiveDocument();
     const layer = resolveLayer(document, params.layerId);
     // 배경 레이어에 불투명도를 주면 Photoshop 이 일반 레이어로 승격시키고 id 를 바꾼다.
-    return mutate(document, layer, (target) => {
+    const result = mutate(document, layer, (target) => {
       target.opacity = params.opacity;
     });
+
+    // **쓴 값이 실제로 들어갔는지 확인한다.**
+    //
+    // 배경 레이어는 조건에 따라 대입을 조용히 무시한다 — 예외도 없고 값도 그대로다.
+    // 실기에서 레이어가 둘 이상인 문서의 배경에 60 을 넣었더니 100 그대로였다.
+    // 그런데도 성공으로 보고하면 호출자는 60 이 되었다고 믿는다. 반환값에 100 이
+    // 담겨 있어도 성공 신호를 먼저 읽는다.
+    //
+    // 비교 규칙은 `opacityApplied` 에 있다 — Photoshop 의 0–255 저장 때문에
+    // 정확히 비교하면 오탐이 난다.
+    if (!opacityApplied(params.opacity, result.opacity)) {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        `불투명도가 적용되지 않았습니다 — 요청 ${params.opacity}, 실제 ${result.opacity}. ` +
+          (result.isBackground === true
+            ? "배경 레이어라서 Photoshop 이 거부했습니다. layer.duplicate 로 복제본을 만들어 쓰세요."
+            : "Photoshop 이 이 레이어의 불투명도를 바꾸지 않았습니다."),
+        {
+          recoverable: true,
+          details: { requested: params.opacity, actual: result.opacity, layer: result },
+        },
+      );
+    }
+    return result;
   });
 }
 

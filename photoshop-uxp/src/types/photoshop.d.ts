@@ -22,6 +22,11 @@ declare module "photoshop" {
     opacity: number;
     /** `Constants.BlendMode`. */
     blendMode: string;
+    /**
+     * 배경 레이어인지. UXP 버전에 따라 없을 수 있어 `unknown` 으로 받는다.
+     * 값을 쓰는 쪽에서 boolean 인지 확인한다.
+     */
+    readonly isBackgroundLayer?: unknown;
     /** 그룹 레이어의 자식. 그룹이 아니면 빈 배열이거나 `undefined`. */
     readonly layers?: readonly PhotoshopLayer[];
 

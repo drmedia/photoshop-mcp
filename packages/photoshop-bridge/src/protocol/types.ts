@@ -114,6 +114,17 @@ export const LayerInfoSchema = z.object({
   rawBlendMode: z.string().optional(),
   /** `type` 이 `unknown` 일 때만 포함. Photoshop 의 원본 `LayerKind`. */
   rawKind: z.string().optional(),
+  /**
+   * 배경 레이어인지.
+   *
+   * 배경 레이어는 편집을 다르게 받는다 — `set_opacity` 는 **일반 레이어로 승격**시켜
+   * id 와 이름을 바꾸고, `rename` 과 `set_blend_mode` 는 거부한다. 이것을 모르면
+   * 호출자가 피할 방법이 없다.
+   *
+   * **Photoshop 이 알려줄 때만 담는다.** 값을 얻지 못하면 필드가 아예 없다.
+   * 없는 것을 `false` 로 덮으면 "배경이 아니다" 라는 틀린 사실을 말하게 된다.
+   */
+  isBackground: z.boolean().optional(),
 });
 
 export type LayerInfo = z.infer<typeof LayerInfoSchema>;

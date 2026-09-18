@@ -23,6 +23,9 @@ export const DEFAULT_MOCK_LAYERS: readonly LayerInfo[] = [
     opacity: 100,
     parentId: null,
     blendMode: "normal",
+    // 실제 Photoshop 문서의 맨 아래 레이어는 보통 배경이다. Mock 이 이것을
+    // 빠뜨리면 배경 레이어 특유의 동작(승격·거부)이 테스트에 영원히 안 나온다.
+    isBackground: true,
   },
   {
     id: 11,
@@ -187,12 +190,20 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
           ...layer,
           visible: (command.params as { visible: boolean }).visible,
         })) as TResult;
-      case "LAYER_OPACITY":
+      case "LAYER_OPACITY": {
         this.#snapshot("Set opacity");
-        return this.#mutate(command.params as { layerId?: number }, (layer) => ({
-          ...layer,
-          opacity: (command.params as { opacity: number }).opacity,
-        })) as TResult;
+        const opacity = (command.params as { opacity: number }).opacity;
+        return this.#mutate(command.params as { layerId?: number }, (layer) => {
+          // 배경 레이어는 반투명할 수 없다. Photoshop 은 거부하는 대신
+          // **일반 레이어로 승격시키고 id 와 이름을 바꾼다.** 실기에서 확인했다.
+          // Mock 이 이것을 흉내내지 않으면 승격 경로가 테스트에 안 나온다.
+          if (layer.isBackground === true && opacity < 100) {
+            const { isBackground: _dropped, ...rest } = layer;
+            return { ...rest, id: this.#nextLayerId++, name: "레이어 0", opacity };
+          }
+          return { ...layer, opacity };
+        }) as TResult;
+      }
 
       // Phase 3 — 그룹
       case "GROUP_CREATE":
@@ -566,8 +577,10 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   #duplicate(params: { layerId?: number; name?: string }): LayerInfo {
     const index = this.#requireLayerIndex(params.layerId);
     const source = this.#layers[index] as LayerInfo;
+    // 배경의 복제본은 배경이 아니다. 문서에 배경은 하나뿐이다.
+    const { isBackground: _notCopied, ...rest } = source;
     const copy: LayerInfo = {
-      ...source,
+      ...rest,
       id: this.#nextLayerId++,
       name: params.name ?? `${source.name} copy`,
     };

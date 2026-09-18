@@ -79,6 +79,12 @@ export function toLayerInfo(layer: PhotoshopLayer, parentId: number | null = nul
     blendMode: blend.blendMode,
     ...(blend.raw === undefined ? {} : { rawBlendMode: blend.raw }),
     ...(kind.raw === undefined ? {} : { rawKind: kind.raw }),
+    // Photoshop 이 알려줄 때만 담는다. 이 속성이 없는 UXP 버전에서 false 로 덮으면
+    // "배경이 아니다" 라는 틀린 사실을 말하게 된다. (알 수 없는 값을 기본값으로
+    // 덮지 않는다는 원칙과 같다)
+    ...(typeof layer.isBackgroundLayer === "boolean"
+      ? { isBackground: layer.isBackgroundLayer }
+      : {}),
   };
 }
 

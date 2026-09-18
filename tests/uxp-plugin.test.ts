@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CommandDispatcher, DispatchError } from "../photoshop-uxp/src/dispatcher/dispatcher.js";
 import { orderActiveLayers } from "../photoshop-uxp/src/dom/active-order.js";
 import { toBitDepth, toColorMode, toLayerType } from "../photoshop-uxp/src/dom/mappings.js";
-import { resolveMutatedLayer } from "../photoshop-uxp/src/dom/mutation-result.js";
+import { opacityApplied, resolveMutatedLayer } from "../photoshop-uxp/src/dom/mutation-result.js";
 
 /**
  * UXP Plugin 중 Photoshop 런타임에 의존하지 않는 부분만 검증한다.
@@ -246,5 +246,32 @@ describe("resolveMutatedLayer", () => {
 
   it("아무것도 남지 않았으면 null 이다", () => {
     expect(resolveMutatedLayer([1], [], 1)).toBeNull();
+  });
+});
+
+describe("opacityApplied", () => {
+  /**
+   * 배경 레이어는 조건에 따라 불투명도 대입을 조용히 무시한다. 실기에서 레이어가
+   * 둘 이상인 문서의 배경에 60 을 넣었더니 100 그대로였는데 성공으로 보고했다.
+   */
+  it("무시된 변경을 잡는다", () => {
+    expect(opacityApplied(60, 100)).toBe(false);
+  });
+
+  it("그대로 적용되면 통과한다", () => {
+    expect(opacityApplied(60, 60)).toBe(true);
+    expect(opacityApplied(0, 0)).toBe(true);
+    expect(opacityApplied(100, 100)).toBe(true);
+  });
+
+  it("0–255 저장에서 오는 반올림 차이를 오탐하지 않는다", () => {
+    // Photoshop 은 50 을 넣으면 50.196… 을 돌려준다. 요청값도 정수가 아닐 수 있다.
+    expect(opacityApplied(60.5, 60)).toBe(true);
+    expect(opacityApplied(33.3, 33)).toBe(true);
+    expect(opacityApplied(50, 51)).toBe(true);
+  });
+
+  it("2 이상 차이는 적용되지 않은 것으로 본다", () => {
+    expect(opacityApplied(50, 53)).toBe(false);
   });
 });

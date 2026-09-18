@@ -154,8 +154,13 @@ Job 은 메모리에만 있다. 서버를 다시 띄우면 사라진다.
 **Command 수명 이벤트는 동작한다** — `command.started` · `command.completed` ·
 `command.failed`. Photoshop 연결이 없어도 난다.
 
-**Photoshop 알림은 아직 미검증이다.** 실기에서 하나도 오지 않았고 원인을 모른다.
-`photoshop.notifications.started` · `.unavailable` 로 구독 상태를 보고하게 해두었다.
+**Photoshop 알림은 이 환경에서 동작하지 않는다.** Photoshop 27.8 / manifestVersion 4
+에서 API 는 있고 등록도 성공하는데(문자열·객체 양쪽) 알림이 하나도 오지 않는다.
+플러그인 자신의 동작과 사용자 편집 모두 확인했다. 원인을 찾지 못했고 추측으로
+코드를 더 넣지 않았다.
+
+배선은 남겨두되 `photoshop.notifications.registered` 가 `delivery: "unverified"` 를
+담아 동작하는 것처럼 읽히지 않게 했다. **`command.*` 만 신뢰할 수 있다.**
 
 LLM 은 구독하지 않고 `photoshop.event.recent` 로 조회한다. MCP 에 임의 이벤트 통로가
 없기 때문이다. Extension 은 `context.events.on()` 으로 구독하며 unload 때 자동 해제된다.

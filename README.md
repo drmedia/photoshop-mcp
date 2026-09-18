@@ -99,6 +99,20 @@ cp capabilities.example.json capabilities.json   # 실행 파일 경로를 고�
 실행 파일은 설정 파일에서만 오고(절대 경로), 인자는 선언된 파라미터로만 조립되며,
 shell 을 거치지 않고, 입출력은 승인된 작업 폴더 안의 파일 이름뿐입니다.
 
+## 이벤트
+
+`photoshop.event.recent` 로 최근에 일어난 일을 조회합니다. `after: lastSeq` 를 넘기면
+새로 생긴 것만 받습니다. MCP 에는 임의 이벤트를 밀어주는 통로가 없어 폴링 방식입니다.
+Extension 은 `context.events.on()` 으로 구독할 수 있습니다.
+
+```
+command.started   / command.completed / command.failed
+```
+
+**Photoshop 변경 알림(`photoshop.*`)은 현재 환경에서 동작하지 않습니다.**
+Photoshop 27.8 / manifestVersion 4 에서 UXP 알림 API 는 있고 등록도 성공하지만 실제
+알림이 전달되지 않는 것을 확인했습니다. 원인을 찾지 못해 추측으로 구현하지 않았습니다.
+
 ## 워크플로
 
 자주 하는 Tool 순서를 `workflows.json` 에 선언합니다. Extension 을 만들려면 TypeScript 를

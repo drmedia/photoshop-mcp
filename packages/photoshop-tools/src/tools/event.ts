@@ -37,7 +37,9 @@ export function createEventRecentTool(
       "최근에 일어난 일을 조회한다. Photoshop 의 변화(`photoshop.*`)와 " +
       "Command 수명(`command.started` · `command.completed` · `command.failed`)이 담긴다. " +
       "반환된 lastSeq 를 다음 호출의 after 로 넘기면 새로 생긴 것만 받는다. " +
-      "해석하지 못한 Photoshop 알림은 photoshop.unknown 으로 원본과 함께 기록된다.",
+      "해석하지 못한 Photoshop 알림은 photoshop.unknown 으로 원본과 함께 기록된다. " +
+      "**주의: Photoshop 27.8 에서는 photoshop.* 이벤트가 전달되지 않는다.** " +
+      "command.* 만 신뢰할 수 있다.",
     permission: "read",
     inputSchema: EventRecentInputSchema,
     handler: (input) => {

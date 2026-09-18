@@ -879,6 +879,17 @@ example.hello
 - [x] `PHOTOSHOP_MCP_EXTENSIONS` 로 스캔 디렉터리를 바꿀 수 있다. (기본 `<cwd>/extensions`)
 - [x] 서버가 `tools/list` 를 노출하기 전에 적재하므로 Extension Tool 도 첫 응답에 포함된다.
 
+실기 검증 (Photoshop 27.8, UXP Bridge, 문서 "제목 없음-1" / 레이어 33개):
+
+- [x] 빌드된 `dist` 로 Extension 적재 — Tool 27개 (Core 25 + Extension 2)
+- [x] `example.hello` — Extension manifest 의 id · version 반환
+- [x] `example.document_summary` — 문서 이름 · 레이어 총수(33) · 보이는 레이어(31)가
+      `photoshop.document.get` · `photoshop.layer.list` 결과와 일치
+- [x] Extension → Core Command → 실제 UXP Bridge 경로 동작. Extension 은 Bridge 에 닿지 않는다.
+- [x] `stop()` 이 Extension 을 unload 하고 Tool 등록을 되돌린다.
+
+Plugin 이 지수 백오프로 재연결 중이면 서버 기동 후 붙기까지 30초 가까이 걸릴 수 있다.
+
 Phase 5 에 포함하지 않은 것:
 
 - Permission 강제 — Phase 9. manifest 의 `permissions` 는 선언만 받는다.

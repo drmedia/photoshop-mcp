@@ -12,6 +12,14 @@ export {
   type WorkspaceResolver,
 } from "./capabilities/registry.js";
 export { createConsoleLogger, createSilentLogger } from "./extensions/logger.js";
+export {
+  convertFitsToTiff,
+  normalizationFor,
+  readFitsHeader,
+  type ConvertResult,
+  type FitsMetadata,
+  type Normalization,
+} from "./capabilities/fits.js";
 export { EventBus, type EventBusOptions } from "./events/bus.js";
 export {
   ResourceRegistry,

@@ -58,6 +58,31 @@ async function fakeBxt(): Promise<string> {
   return script;
 }
 
+/**
+ * 가짜 GraXpert.
+ *
+ * 진짜와 같은 버릇을 흉내낸다 — 요청한 이름에 `.fits` 를 덧붙인 파일을 만든다.
+ * 이 버릇을 흉내내지 않으면 Provider 의 `outputSuffix` · `convert` 가 검증되지 않는다.
+ */
+async function fakeGraXpert(): Promise<string> {
+  const script = join(workspace, "graxpert.cjs");
+  const lines = [
+    "const fs = require('node:fs');",
+    "const a = process.argv.slice(2);",
+    "const cards = ['SIMPLE  =                    T','BITPIX  =                  -32',",
+    "  'NAXIS   =                    2','NAXIS1  =                    2',",
+    "  'NAXIS2  =                    1','END'].map((t) => t.padEnd(80)).join('');",
+    "const header = Buffer.alloc(2880, 0x20);",
+    "header.write(cards, 0, 'ascii');",
+    "const data = Buffer.alloc(2880);",
+    "data.writeFloatBE(0.5, 0);",
+    "data.writeFloatBE(0.25, 4);",
+    "fs.writeFileSync(a[a.indexOf('-output') + 1] + '.fits', Buffer.concat([header, data]));",
+  ];
+  await writeFile(script, lines.join("\n"), "utf8");
+  return script;
+}
+
 interface Setup {
   mcp: ReturnType<typeof createPhotoshopMcp>;
   bridge: MockPhotoshopBridge;
@@ -102,8 +127,32 @@ async function setup(options: { providers?: boolean; approved?: boolean } = {}):
       args: [await fakeBxt(), "{{input}}", "--output", "{{output}}", "--ns", "{{nonstellar}}"],
       params: { nonstellar: { type: "number", min: 0, max: 1, default: 0.5 } },
     };
+    const graxpert: ProviderConfig = {
+      id: "graxpert",
+      capability: "gradientRemoval",
+      executable: process.execPath,
+      args: [
+        await fakeGraXpert(),
+        "-cmd",
+        "background-extraction",
+        "{{input}}",
+        "-correction",
+        "{{correction}}",
+        "-smoothing",
+        "{{smoothing}}",
+        "-output",
+        "{{output}}",
+      ],
+      params: {
+        correction: { type: "enum", values: ["Subtraction", "Division"], default: "Subtraction" },
+        smoothing: { type: "number", min: 0, max: 1, default: 0.5 },
+      },
+      outputSuffix: ".fits",
+      convert: "fitsToTiff",
+    };
     mcp.capabilities.register(starnet);
     mcp.capabilities.register(bxt);
+    mcp.capabilities.register(graxpert);
   }
 
   const directory = join(workspace, "milkyscape");
@@ -169,12 +218,13 @@ async function removeStars<T>(s: Setup): Promise<T> {
 }
 
 describe("적재", () => {
-  it("Tool 4개를 등록한다", async () => {
+  it("Tool 5개를 등록한다", async () => {
     const s = await setup();
     for (const name of [
       "milky.get_state",
       "milky.remove_stars",
       "milky.restore_stars",
+      "milky.remove_gradient",
       "milky.enhance",
     ]) {
       expect(s.mcp.tools.has(name), name).toBe(true);
@@ -199,7 +249,11 @@ describe("get_state", () => {
 
     expect(state.document.name).toBe("test.psd");
     expect(state.workspace.approved).toBe(true);
-    expect(state.capabilities.available).toEqual(["deconvolution", "starRemoval"]);
+    expect(state.capabilities.available).toEqual([
+      "deconvolution",
+      "gradientRemoval",
+      "starRemoval",
+    ]);
     expect(state.results.starless).toBeNull();
   });
 
@@ -340,6 +394,54 @@ describe("restore_stars", () => {
   it("Photoshop 밖에 닿지 않으므로 edit 권한이면 된다", async () => {
     const s = await setup();
     expect(s.mcp.tools.get("milky.restore_stars")?.permission).toBe("edit");
+  });
+});
+
+describe("remove_gradient", () => {
+  /** 그래디언트 제거를 시작하고 결과까지 기다린다. */
+  async function removeGradient<T>(s: Setup, input?: Record<string, unknown>): Promise<T> {
+    const { jobId } = await call<{ jobId: string }>(s, "milky.remove_gradient", input);
+    return awaitJob<T>(s, jobId);
+  }
+
+  it("FITS 만 내놓는 처리기의 결과를 TIFF 레이어로 가져온다", async () => {
+    // GraXpert 는 `.fits` 를 덧붙이고 Photoshop 은 FITS 를 못 읽는다.
+    // 그 보정이 Provider 설정에 있어서 Extension 이 몰라도 되는지 본다.
+    const s = await setup();
+    const result = await removeGradient<{
+      layer: { name: string };
+      provider: string;
+      converted?: Record<string, string>;
+    }>(s);
+
+    expect(result.layer.name).toBe("GraXpert_그래디언트제거_01");
+    expect(result.provider).toBe("graxpert");
+    expect(result.converted?.["output"]).toContain("2x1");
+  });
+
+  it("여러 번 실행하면 번호가 올라간 새 레이어가 쌓인다", async () => {
+    const s = await setup();
+    await removeGradient(s);
+    const second = await removeGradient<{ layer: { name: string } }>(s);
+    expect(second.layer.name).toBe("GraXpert_그래디언트제거_02");
+  });
+
+  it("선언되지 않은 보정 값을 거부한다", async () => {
+    const s = await setup();
+    await expect(call(s, "milky.remove_gradient", { correction: "Whatever" })).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
+    );
+  });
+
+  it("Photoshop 밖으로 나가므로 external 권한이 필요하다", async () => {
+    const s = await setup();
+    expect(s.mcp.tools.get("milky.remove_gradient")?.permission).toBe("external");
+  });
+
+  it("처리기가 없으면 막힌 이유로 알려준다", async () => {
+    const s = await setup({ providers: false });
+    const state = await call<{ blocked: string[] }>(s, "milky.get_state");
+    expect(state.blocked.join(" ")).toMatch(/GraXpert/u);
   });
 });
 

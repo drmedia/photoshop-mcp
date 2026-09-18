@@ -141,6 +141,19 @@ export const ProviderConfigSchema = z
       .optional(),
     /** 우선순위. 같은 Capability 에 여러 Provider 가 있을 때 큰 값을 먼저 고른다. */
     priority: z.number().int().min(0).max(1000).optional(),
+    /**
+     * 처리기가 실제로 만드는 파일이 요청한 이름과 다를 때 붙는 꼬리.
+     *
+     * GraXpert 3.0.2 는 `-output out.tif` 를 줘도 `out.tif.fits` 를 만든다.
+     * 출력 형식 옵션이 없어 우회할 수 없다.
+     */
+    outputSuffix: z.string().min(1).max(32).optional(),
+    /**
+     * 실제 파일을 요청한 형식으로 바꾼다.
+     *
+     * `fitsToTiff` — FITS 를 16비트 TIFF 로. Photoshop 은 FITS 를 못 읽는다.
+     */
+    convert: z.enum(["fitsToTiff"]).optional(),
   })
   .strict();
 
@@ -205,6 +218,8 @@ export interface CapabilityResult {
   outputPaths: Record<string, string>;
   /** 실행에 걸린 시간(ms). */
   durationMs: number;
+  /** 형식을 바꾼 출력이 있으면 그 내용. 없으면 없다. */
+  converted?: Record<string, string>;
 }
 
 /**

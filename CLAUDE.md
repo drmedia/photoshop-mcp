@@ -82,7 +82,17 @@ Capability 실행은 전체 흐름의 가운데 토막이고, 그 흐름을 아�
 `ProviderConfig.outputs` 로 선언하고 템플릿에서 `{{output.stars}}` 로 참조한다.
 선언·요청·실제 생성 세 가지가 모두 맞는지 검사한다.
 
-동기 실행만 한다. 진행률·취소는 Phase 10 이다.
+**요청한 이름·형식으로 만들어 주지 않는 처리기도 있다.** GraXpert 3.0.2 는 `-output
+out.tif` 를 줘도 `out.tif.fits` 를 만들고, 출력 형식 옵션이 없어 우회할 수 없다.
+`outputSuffix` · `convert` 로 **설정에 선언한다.** Registry 가 실제 파일을 찾아
+변환하고 중간 파일을 지운다. Command 와 Extension 은 요청한 파일이 나온다고만 알면
+된다 — 처리기의 버릇을 도메인 코드가 알면 처리기를 바꿀 때 도메인 코드가 따라 바뀐다.
+
+FITS → TIFF 변환에서 조심할 것은 **정규화**다. min/max 로 무조건 늘리면 그래디언트를
+제거한 결과의 계조가 조용히 바뀐다. 값 범위로 의도한 인코딩을 추정만 하고 늘리지 않는다.
+(`packages/mcp-core/src/capabilities/fits.ts`)
+
+동기 실행만 한다. 긴 작업의 진행률·취소는 Job System(Phase 10) 이 맡는다.
 
 `photoshop.layer.place` 가 돌아오는 길이다. 승인된 폴더의 파일을 스마트 오브젝트로
 가져온다. 권한은 `external` — `export` 가 쓰기로 넘듯 읽기로 경계를 넘는다.
@@ -111,8 +121,9 @@ Extension 작성자가 있는 줄 알고 쓴다.
 왕복이 실기에서 검증되었다 — 4032×6048 16비트 문서로
 `export(tiff) → StarNet2(68초) → place ×2` 를 통과시켰고 16비트가 전 구간 유지된다.
 
-**GraXpert 는 아직 못 쓴다.** CLI 가 FITS 만 출력하고 Photoshop 이 못 읽는다.
-기존 CEP 패널이 JS 로 구현해 둔 FITS → TIFF 변환(약 450줄)이 따로 필요하다.
+GraXpert 도 실기에서 검증했다 — 같은 문서로 `export(tiff) → GraXpert(7초, GPU) →
+FITS → TIFF 변환 → place` 를 통과시켰다. 변환기가 `0..1 float` 로 판정해 늘리지
+않았고 표본 픽셀 범위는 7844–25656 이었다.
 
 **Phase 6 첫 슬라이스 완료.** `extensions/milkyscape` 에 별 워크플로 Tool 4개가 있고
 실기 검증했다 — StarNet2 67초, BXT 10초.

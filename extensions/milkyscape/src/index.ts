@@ -14,7 +14,15 @@ import {
   type WorkspaceStatus,
 } from "@photoshop-mcp/extension-sdk";
 import { z } from "zod";
-import { SHARPENED, STARLESS, STARS, findByKind, latestOfKind, nextName } from "./layers.js";
+import {
+  GRADIENT,
+  SHARPENED,
+  STARLESS,
+  STARS,
+  findByKind,
+  latestOfKind,
+  nextName,
+} from "./layers.js";
 
 /**
  * MilkyScape Extension. (ROADMAP §10)
@@ -32,8 +40,6 @@ import { SHARPENED, STARLESS, STARS, findByKind, latestOfKind, nextName } from "
  *
  * ## 이 버전에 없는 것
  *
- * - `remove_gradient` — GraXpert CLI 가 FITS 만 출력하고 Photoshop 이 못 읽는다.
- *   FITS → TIFF 변환이 필요하다.
  * - `create_sky_mask` · `create_foreground_mask` — 기존 MilkyScape 는 하늘 마스크를
  *   **만들지 않는다.** 사용자가 두 사진을 정렬해 만든 합성 마스크를 입력으로 받는다.
  *   Photoshop 자체 '하늘 선택' 은 Photoshop 기능이지 이 도메인의 지식이 아니므로
@@ -56,6 +62,15 @@ const RestoreStarsInput = z
     layerId: z.number().int().positive().optional(),
     /** 별 레이어의 불투명도 0–100. 생략하면 그대로 둔다. */
     opacity: z.number().min(0).max(100).optional(),
+  })
+  .strict();
+
+const RemoveGradientInput = z
+  .object({
+    /** 보정 방식. 생략하면 Provider 기본값(Subtraction). */
+    correction: z.enum(["Subtraction", "Division"]).optional(),
+    /** 배경 모델의 평활도 0–1. 생략하면 Provider 기본값. */
+    smoothing: z.number().min(0).max(1).optional(),
   })
   .strict();
 
@@ -304,6 +319,100 @@ export function activate(context: ExtensionContext): void {
   // ---------------------------------------------------------------------------
 
   tools.register({
+    name: "milky.remove_gradient",
+    description:
+      "빛 공해와 하늘 밝기 차이를 GraXpert 로 제거한다. 현재 문서를 16비트 TIFF 로 " +
+      "내보내 처리한 뒤 새 레이어로 가져온다. 기존 레이어를 바꾸지 않는다. " +
+      "**즉시 jobId 를 반환한다.** 수 분 걸리는 작업이라 MCP 요청 안에서 끝낼 수 없다. " +
+      "photoshop.job.status 로 상태를 확인하고, completed 가 되면 result 에 결과가 담긴다.",
+    permission: "external",
+    inputSchema: RemoveGradientInput,
+    handler: (input, toolContext) => {
+      const { requestId } = toolContext;
+      const jobId = jobs.start("milky.remove_gradient", async (job) =>
+        runRemoveGradient(input, requestId, job),
+      );
+      return Promise.resolve({
+        jobId,
+        note: "photoshop.job.status 로 진행 상황을 확인하세요. 큰 이미지는 수 분 걸립니다.",
+      });
+    },
+  });
+
+  /**
+   * 그래디언트 제거 본문. Job 안에서 돈다.
+   *
+   * GraXpert 3.0.2 는 FITS 만 출력하고 Photoshop 은 FITS 를 못 읽는다. 그 보정은
+   * Provider 설정의 `outputSuffix` · `convert` 가 맡는다 — 여기서는 요청한 TIFF 가
+   * 나온다고 보고 쓴다. 처리기마다 다른 버릇을 도메인 Extension 이 알 필요는 없다.
+   */
+  async function runRemoveGradient(
+    input: z.infer<typeof RemoveGradientInput>,
+    requestId: string,
+    job: { report: (percent: number | null, message: string) => void; signal: AbortSignal },
+  ): Promise<unknown> {
+    job.report(5, "문서 확인");
+    const document = await exec<DocumentInfo>(DOCUMENT_GET, {}, requestId);
+    const before = await listLayers(requestId);
+
+    const name = nextName(before, GRADIENT);
+    const stem = runStem(document.name, "graxpert");
+
+    job.report(10, "16비트 TIFF 내보내기");
+    const exported = await exec<SaveResult>(
+      DOCUMENT_EXPORT,
+      { filename: stem, format: "tiff", bitDepth: 16 },
+      requestId,
+    );
+    if (exported.bitDepth !== 16) {
+      logger.warn(`16비트로 내보내지 못했습니다: ${String(exported.bitDepth)}`);
+    }
+
+    const params: Record<string, string | number | boolean> = {};
+    if (input.correction !== undefined) {
+      params["correction"] = input.correction;
+    }
+    if (input.smoothing !== undefined) {
+      params["smoothing"] = input.smoothing;
+    }
+
+    job.report(25, "GraXpert 로 배경 추출 중");
+    const processed = await capabilities.execute(
+      "gradientRemoval",
+      {
+        input: exported.filename,
+        output: `${stem}_flat.tif`,
+        ...(Object.keys(params).length === 0 ? {} : { params }),
+      },
+      { signal: job.signal },
+    );
+
+    job.report(85, "레이어로 가져오는 중");
+    const top = before[0];
+    if (top !== undefined) {
+      await exec(LAYER_SELECT, { layerId: top.id }, requestId);
+    }
+    const placed = await exec<LayerInfo>(
+      LAYER_PLACE,
+      { filename: `${stem}_flat.tif`, name },
+      requestId,
+    );
+
+    logger.info(`그래디언트 제거 완료: ${name} (${processed.provider})`);
+    job.report(100, "완료");
+
+    return {
+      layer: { id: placed.id, name: placed.name },
+      provider: processed.provider,
+      seconds: Math.round(processed.durationMs / 1000),
+      files: Object.values(processed.outputPaths),
+      ...(processed.converted === undefined ? {} : { converted: processed.converted }),
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+
+  tools.register({
     name: "milky.enhance",
     description:
       "BlurXTerminator 로 선명화한다. 현재 문서를 16비트 TIFF 로 내보내 처리한 뒤 " +
@@ -376,10 +485,11 @@ function blockedReasons(workspace: WorkspaceStatus, available: string[]): string
   if (!available.includes("deconvolution")) {
     reasons.push("선명화 처리기(BlurXTerminator)가 설정되지 않았습니다.");
   }
-  // 이 Phase 에 없는 것도 알려준다. 조용히 빠져 있으면 사용자가 찾는다.
-  reasons.push(
-    "그래디언트 제거는 아직 없습니다. GraXpert CLI 가 Photoshop 이 못 읽는 FITS 만 출력합니다.",
-  );
+  if (!available.includes("gradientRemoval")) {
+    reasons.push(
+      "그래디언트 제거 처리기(GraXpert)가 설정되지 않았습니다. capabilities.json 을 확인하세요.",
+    );
+  }
 
   return reasons;
 }

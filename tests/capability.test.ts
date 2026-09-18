@@ -638,8 +638,8 @@ describe("설정 파일", () => {
     const registry = setup();
     const example = new URL("../capabilities.example.json", import.meta.url);
     const loaded = await registry.loadConfig(example.pathname.replace(/^\/([A-Za-z]:)/u, "$1"));
-    expect(loaded).toBe(2);
-    expect(registry.list()).toEqual(["deconvolution", "starRemoval"]);
+    expect(loaded).toBe(3);
+    expect(registry.list()).toEqual(["deconvolution", "gradientRemoval", "starRemoval"]);
   });
 
   it("하나가 잘못되어도 나머지는 등록한다", async () => {
@@ -665,5 +665,122 @@ describe("설정 파일", () => {
     await writeFile(path, "{ not json", "utf8");
     const registry = setup();
     await expect(registry.loadConfig(path)).resolves.toBe(0);
+  });
+});
+
+describe("출력 형식 보정", () => {
+  /**
+   * 처리기가 요청한 이름·형식으로 만들어 주지 않는 경우.
+   *
+   * GraXpert 3.0.2 는 `-output out.tif` 를 줘도 `out.tif.fits` 를 만든다. 출력 형식
+   * 옵션이 없어 호출 쪽에서 우회할 수 없고, Photoshop 은 FITS 를 못 읽는다.
+   * 그 버릇을 Provider 선언에 가둬서 Command·Workflow 가 몰라도 되게 한다.
+   */
+
+  /** 최소 FITS 를 만든다. 자세한 형식 검증은 fits.test.ts 가 한다. */
+  function fitsBytes(value: number): Buffer {
+    const cards = [
+      "SIMPLE  =                    T",
+      "BITPIX  =                  -32",
+      "NAXIS   =                    2",
+      "NAXIS1  =                    2",
+      "NAXIS2  =                    1",
+      "END",
+    ]
+      .map((text) => text.padEnd(80, " "))
+      .join("");
+    const header = Buffer.alloc(2880, " ");
+    header.write(cards, 0, "ascii");
+    const data = Buffer.alloc(2880);
+    data.writeFloatBE(value, 0);
+    data.writeFloatBE(value, 4);
+    return Buffer.concat([header, data]);
+  }
+
+  it("접미사가 붙은 FITS 를 찾아 TIFF 로 바꾼다", async () => {
+    const registry = setup(
+      [
+        {
+          ...base,
+          id: "graxpert-fake",
+          args: ["{{input}}", "{{output}}"],
+          outputSuffix: ".fits",
+          convert: "fitsToTiff",
+        },
+      ],
+      async (_exe, args) => {
+        // 처리기는 요청한 이름이 아니라 `.fits` 를 붙인 이름으로 만든다.
+        await writeFile(`${args[1] as string}.fits`, fitsBytes(0.5));
+        return { code: 0, stdout: "", stderr: "", timedOut: false };
+      },
+      workspace,
+    );
+
+    await writeFile(join(workspace, "in.tif"), "x");
+    const result = await registry.execute("gradientRemoval", {
+      input: "in.tif",
+      output: "out.tif",
+    });
+
+    // 요청한 이름으로 TIFF 가 있어야 한다. II 매직이면 우리가 쓴 TIFF 다.
+    const produced = await readFile(join(workspace, "out.tif"));
+    expect(produced.subarray(0, 4)).toEqual(Buffer.from([0x49, 0x49, 42, 0]));
+    expect(result.converted?.["output"]).toContain("2x1");
+
+    // 중간 FITS 는 남기지 않는다. 남기면 작업 폴더가 쓰지 못할 파일로 찬다.
+    await expect(readFile(join(workspace, "out.tif.fits"))).rejects.toThrow();
+  });
+
+  it("접미사 파일이 없으면 실패한다", async () => {
+    // 종료 코드가 0 이어도 만들어진 것이 없으면 성공이 아니다.
+    const registry = setup(
+      [{ ...base, id: "suffix-only", outputSuffix: ".fits", convert: "fitsToTiff" }],
+      async () => ({ code: 0, stdout: "", stderr: "", timedOut: false }),
+      workspace,
+    );
+    await writeFile(join(workspace, "in.tif"), "x");
+
+    await expect(
+      registry.execute("gradientRemoval", { input: "in.tif", output: "out.tif" }),
+    ).rejects.toThrow(/out\.tif\.fits/u);
+  });
+
+  it("변환 없이 접미사만 있으면 이름만 바꾼다", async () => {
+    const registry = setup(
+      [{ ...base, id: "rename-only", outputSuffix: ".tmp" }],
+      async (_exe, args) => {
+        await writeFile(`${args[1] as string}.tmp`, "결과");
+        return { code: 0, stdout: "", stderr: "", timedOut: false };
+      },
+      workspace,
+    );
+    await writeFile(join(workspace, "in.tif"), "x");
+
+    const result = await registry.execute("gradientRemoval", {
+      input: "in.tif",
+      output: "out.tif",
+    });
+    expect(result.converted).toBeUndefined();
+    expect(await readFile(join(workspace, "out.tif"), "utf8")).toBe("결과");
+  });
+
+  it("보정을 선언하지 않은 Provider 는 그대로 둔다", async () => {
+    // 기존 Provider(StarNet2 · BXT) 의 동작이 바뀌면 안 된다.
+    const registry = setup(
+      [{ ...base, id: "plain" }],
+      async (_exe, args) => {
+        await writeFile(args[1] as string, "그대로");
+        return { code: 0, stdout: "", stderr: "", timedOut: false };
+      },
+      workspace,
+    );
+    await writeFile(join(workspace, "in.tif"), "x");
+
+    const result = await registry.execute("gradientRemoval", {
+      input: "in.tif",
+      output: "out.tif",
+    });
+    expect(result.converted).toBeUndefined();
+    expect(await readFile(join(workspace, "out.tif"), "utf8")).toBe("그대로");
   });
 });

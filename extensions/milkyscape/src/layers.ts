@@ -20,6 +20,7 @@ export interface LayerKind {
 export const STARLESS: LayerKind = { tool: "StarNet2", feature: "별제거" };
 export const STARS: LayerKind = { tool: "StarNet2", feature: "별" };
 export const SHARPENED: LayerKind = { tool: "BXT", feature: "선명화" };
+export const GRADIENT: LayerKind = { tool: "GraXpert", feature: "그래디언트제거" };
 
 const prefixOf = (kind: LayerKind): string => `${kind.tool}_${kind.feature}_`;
 

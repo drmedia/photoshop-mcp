@@ -1,6 +1,39 @@
 {
   "providers": [
     {
+      "id": "graxpert",
+      "capability": "gradientRemoval",
+      "label": "GraXpert 3.0.2 (background-extraction)",
+      "executable": "C:/Users/drmedia/AppData/Local/Programs/GraXpert/GraXpert.exe",
+      "args": [
+        "-cmd",
+        "background-extraction",
+        "{{input}}",
+        "-cli",
+        "-gpu",
+        "{{gpu}}",
+        "-correction",
+        "{{correction}}",
+        "-smoothing",
+        "{{smoothing}}",
+        "-output",
+        "{{output}}"
+      ],
+      "params": {
+        "correction": {
+          "type": "enum",
+          "values": ["Subtraction", "Division"],
+          "default": "Subtraction"
+        },
+        "smoothing": { "type": "number", "min": 0, "max": 1, "default": 0.5 },
+        "gpu": { "type": "boolean", "default": true }
+      },
+      "outputSuffix": ".fits",
+      "convert": "fitsToTiff",
+      "timeoutMs": 1800000,
+      "priority": 10
+    },
+    {
       "id": "starnet2",
       "capability": "starRemoval",
       "label": "StarNet++ v2",

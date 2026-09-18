@@ -85,6 +85,11 @@ TIFF 는 16비트를 유지할 수 있어 외부 천체사진 처리기의 교�
 
 Extension 은 특정 프로그램이 아니라 **기능**을 요청합니다 — `gradientRemoval`, `starRemoval`.
 
+처리기가 요청한 이름·형식으로 만들어 주지 않으면 그 보정도 설정에 선언합니다.
+GraXpert 3.0.2 는 `-output out.tif` 를 줘도 `out.tif.fits` 를 만들고 Photoshop 은 FITS 를
+읽지 못합니다. `outputSuffix` 와 `convert` 를 선언하면 실제 파일을 찾아 16비트 TIFF 로
+바꾸고 중간 파일을 지웁니다. 호출하는 쪽은 요청한 파일이 나온다고만 알면 됩니다.
+
 ```bash
 cp capabilities.example.json capabilities.json   # 실행 파일 경로를 고쳐서 쓰세요
 ```

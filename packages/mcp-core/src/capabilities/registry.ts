@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { constants } from "node:fs";
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, rename, rm } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 import type {
   CapabilityRequest,
@@ -18,6 +18,8 @@ import {
   assertConfigConsistent,
   buildArgs,
 } from "@photoshop-mcp/photoshop-bridge";
+
+import { convertFitsToTiff } from "./fits.js";
 
 /**
  * Capability Registry. (ARCHITECTURE §19, ROADMAP §12)
@@ -357,9 +359,43 @@ export class CapabilityRegistry implements ExtensionCapabilityRegistry {
       );
     }
 
+    const names: Record<string, string> = { output: request.output, ...(request.outputs ?? {}) };
+
+    // 처리기가 다른 이름·형식으로 만들었으면 요청한 것으로 맞춘다.
+    //
+    // GraXpert 3.0.2 는 `-output out.tif` 를 줘도 `out.tif.fits` 를 만든다. 출력 형식
+    // 옵션이 없어 호출 쪽에서 우회할 수 없다. 그리고 Photoshop 은 FITS 를 못 읽는다.
+    // 그래서 이 보정을 Provider 선언으로 표현한다 — 처리기마다 다른 버릇을 Command 나
+    // Workflow 가 알게 하지 않기 위해서다.
+    const converted: Record<string, string> = {};
+    if (config.outputSuffix !== undefined || config.convert !== undefined) {
+      for (const [key, path] of Object.entries(outputPaths)) {
+        const actual = `${path}${config.outputSuffix ?? ""}`;
+        const label = `${names[key] ?? key}${config.outputSuffix ?? ""}`;
+        await assertReadable(
+          actual,
+          label,
+          `Provider '${config.id}' 가 성공했다고 보고했지만 출력 파일이 없습니다`,
+        );
+
+        if (config.convert === "fitsToTiff") {
+          const info = await convertFitsToTiff(actual, path);
+          converted[key] = `${info.width}x${info.height} ${info.normalization.mode}`;
+          this.#logger.info(`FITS → TIFF: ${label} → ${names[key] ?? key} (${converted[key]})`);
+        } else if (actual !== path) {
+          await rename(actual, path);
+        }
+
+        // 중간 파일은 지운다. 남기면 작업 폴더가 쓰지 못할 파일로 찬다 —
+        // 실기에서 실패한 실행이 남긴 파일이 1.7GB 까지 쌓인 적이 있다.
+        if (actual !== path) {
+          await rm(actual, { force: true });
+        }
+      }
+    }
+
     // 종료 코드가 0 이어도 출력이 없으면 실패다. 다음 단계가 없는 파일을 읽게 두지 않는다.
     // 추가 출력도 함께 확인한다 — 하나만 만들어지고 끝나는 경우가 있다.
-    const names: Record<string, string> = { output: request.output, ...(request.outputs ?? {}) };
     for (const [key, path] of Object.entries(outputPaths)) {
       await assertReadable(
         path,
@@ -374,6 +410,7 @@ export class CapabilityRegistry implements ExtensionCapabilityRegistry {
       outputPath: outputPaths["output"] as string,
       outputPaths,
       durationMs,
+      ...(Object.keys(converted).length === 0 ? {} : { converted }),
     };
   }
 

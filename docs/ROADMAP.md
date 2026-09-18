@@ -83,8 +83,9 @@ ROADMAP 자신이 "외부 도구는 Capability Provider 로 구현한다"(§12)�
   필요하다는 것이 증명되었다
 - Phase 10 의 Job 이 있어야 Phase 7 의 긴 워크플로가 성립한다
 
-남은 것: Phase 11 Events · Phase 12 MCP Resources · Phase 13 Production Hardening ·
-Phase 14 Distribution. GraXpert 연동은 FITS → TIFF 변환이 필요하다. (§10, §12)
+남은 것: Phase 14 Distribution.
+
+GraXpert 연동을 막던 FITS → TIFF 변환은 Phase 12 뒤에 붙였다. (§10, §12)
 
 ---
 
@@ -976,7 +977,7 @@ PhotoshopMCP 자체이고, MilkyScape 는 아키텍처를 검증하는 소재다
 (경계 캔버스 미리보기 · 450ms 디바운스 · 상세 설정 창), MCP 는 언어로 지시하는
 통로다. 미리보기 UX 는 MCP 로 옮길 수 없고 옮길 이유도 없다.
 
-Phase 6 의 Tool 4개는 **아키텍처가 실제로 도는지 확인하는 데까지**다.
+Phase 6 의 Tool 은 **아키텍처가 실제로 도는지 확인하는 데까지**다.
 Extension 계약 · Capability · 파일 왕복 · 권한 상한이 모두 실기에서 동작하는 것을
 확인했으므로 목적을 달성했다. 더 늘리지 않는다.
 
@@ -992,7 +993,7 @@ Extension 계약 · Capability · 파일 왕복 · 권한 상한이 모두 실�
 - [x] `milky.remove_stars` — TIFF 내보내기 → StarNet2 → 별 제거본·별 두 레이어
 - [x] `milky.restore_stars` — 별 레이어 스크린 혼합 + 불투명도
 - [x] `milky.enhance` — BlurXTerminator 선명화
-- [ ] `milky.remove_gradient` — GraXpert CLI 가 Photoshop 이 못 읽는 FITS 만 출력한다
+- [x] `milky.remove_gradient` — GraXpert CLI 의 FITS 출력을 Provider 설정으로 보정해서 붙였다
 - [ ] ~~`milky.create_sky_mask`~~ · ~~`milky.create_foreground_mask`~~ — **범위에서 뺀다**
 
 ### 하늘/전경 마스크를 빼는 이유
@@ -1040,11 +1041,24 @@ Phase 8 의 Capability Provider 로 구현했다. 실기에서 확인한 것:
 |---|---|---|
 | StarNet2 | `.tif` → `.tif` ×2 | 동작. 4032×6048 16비트에서 67초 |
 | BlurXTerminator | `.tif` → `.tif` | CLI 2.6.9, ML5 정식 라이선스 |
-| GraXpert | `.tif` → **`.fits`** | **막힘.** Photoshop 이 FITS 를 못 읽는다 |
+| GraXpert | `.tif` → `.fits` → `.tif` | 동작. 4032×6048 16비트에서 7초(GPU) |
 
 GraXpert 3.0.2 CLI 에는 출력 형식 옵션이 없다(`-h` 로 확인). `-output out.tif` 를 줘도
-`out.tif.fits` 가 나온다. 기존 CEP 패널은 FITS → TIFF 변환을 JS 로 직접 구현해 두었다
-(`GraXpert-Photoshop-Panel/client/main.js` 2607~3050행, 약 450줄).
+`out.tif.fits` 가 나오고 Photoshop 은 FITS 를 못 읽는다.
+
+이 보정을 **Provider 설정에 둔다.** `outputSuffix: ".fits"` 와 `convert: "fitsToTiff"` 를
+선언하면 Capability Registry 가 실제 파일을 찾아 변환하고 중간 파일을 지운다.
+Command 나 Extension 은 요청한 TIFF 가 나온다고만 알면 된다 — 처리기마다 다른 버릇을
+도메인 코드가 알게 하면 처리기를 바꿀 때마다 도메인 코드가 따라 바뀐다.
+
+변환에서 가장 조심한 것은 **정규화**다. min/max 로 무조건 늘리면 그래디언트를 제거한
+결과의 계조가 조용히 바뀐다 — 배경을 뺀 이미지는 원래 어둡고, 그것을 1.0 까지 늘리면
+다른 그림이 된다. 그래서 값 범위로 의도한 인코딩을 추정만 하고 늘리지 않는다.
+기존 CEP 패널(`GraXpert-Photoshop-Panel/client/main.js`)이 검증해 둔 규칙을 따랐다.
+
+실기 확인(4032×6048 16비트): GraXpert 가 `..._flat.tif.fits` 를 만들고, 변환기가
+`0..1 float` 로 판정해 늘리지 않은 채 16비트 TIFF 로 옮겼다. 표본 픽셀 범위는
+7844–25656 이었다. 늘렸다면 0–65535 가 되었을 것이다.
 
 ---
 
@@ -1057,6 +1071,14 @@ milky.get_state    문서·폴더·처리기·결과 + 막힌 이유 2건 정확
 milky.remove_stars StarNet2 67초 → StarNet2_별제거_01 · StarNet2_별_01(screen)
 milky.restore_stars opacity 80 적용
 milky.enhance      BXT 10초 → BXT_선명화_01
+```
+
+FITS → TIFF 변환을 붙인 뒤 같은 문서로 추가 확인:
+
+```text
+milky.remove_gradient GraXpert 7초(GPU) → GraXpert_그래디언트제거_01
+                      ..._flat.tif.fits 를 찾아 16비트 TIFF 로 변환하고 중간 파일 삭제
+                      0..1 float 판정, 늘리지 않음 (표본 픽셀 7844–25656)
 ```
 
 BlurXTerminator CLI 2.6.9, ML5 정식 라이선스. 예제 설정의 인자가 `--help` 와 일치하는
@@ -1146,8 +1168,8 @@ Star Restore
 
 ## 범위 재검토 (2026-09-18)
 
-위 예시는 실제 도메인을 보기 전에 쓰였다. `Create Sky Mask` 와 `Gradient Removal` 은
-각각 범위에서 뺐고 GraXpert 에 막혀 있다. (§10 참조)
+위 예시는 실제 도메인을 보기 전에 쓰였다. `Create Sky Mask` 는 범위에서 뺐다.
+`Gradient Removal` 은 GraXpert 에 막혀 있었으나 FITS → TIFF 변환으로 풀었다. (§10 참조)
 
 그리고 **Extension 이 이미 워크플로다.** `milky.remove_stars` 는 문서 조회 → 내보내기 →
 외부 처리 → 가져오기 ×2 → 혼합까지 5단계를 한 Job 으로 묶고 진행률도 보고한다.
@@ -1322,14 +1344,11 @@ export(tiff, 16bit) → StarNet2(68초) → layer.place ×2
 Provider 설정은 기존 CEP 패널에서 가져온 실제 인자다. `capabilities.example.json` 의
 두 Provider 모두 실행 파일이 존재하는 것을 확인했다.
 
-**GraXpert 는 예제에서 뺐다.** 3.0.2 CLI 에는 출력 형식 옵션이 없고 항상 FITS 를 쓴다
-(`-h` 로 확인). `-output out.tif` 를 줘도 `out.tif.fits` 가 나온다. Photoshop 이 못 여는
-형식이라 FITS → TIFF 변환 없이는 왕복이 성립하지 않는다. 동작하지 않는 설정을 예제에
-두면 복사해서 쓰는 사람이 속는다.
+**GraXpert 는 처음에 예제에서 뺐다.** 3.0.2 CLI 에는 출력 형식 옵션이 없고 항상 FITS 를
+쓰는데(`-h` 로 확인) Photoshop 이 못 여는 형식이라 왕복이 성립하지 않았기 때문이다.
+동작하지 않는 설정을 예제에 두면 복사해서 쓰는 사람이 속는다.
 
-기존 CEP 패널(`GraXpert-Photoshop-Panel`)은 이 변환을 JS 로 직접 구현해 두었다
-(`client/main.js` 2607~3050행, 약 450줄: BITPIX · NAXIS · BSCALE/BZERO · 채널 축 배치 ·
-정규화). GraXpert 를 붙이려면 이만큼의 작업이 따로 필요하다.
+Phase 12 뒤에 FITS → TIFF 변환을 붙이면서 예제에 되돌렸다. 자세한 것은 §10 을 본다.
 
 첫 검증에서 StarNet2 가 `Image size is too small for the window!` 로 거부했다.
 319×226 테스트 문서였기 때문이다. 오류 설계가 의도대로 동작해 stderr 가 그대로

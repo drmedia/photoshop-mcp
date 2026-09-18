@@ -751,45 +751,66 @@ version
 
 namespace
 
+main
+
+description
+
 requires
 
 permissions
 ```
 
+- [x] `ExtensionManifestSchema` (zod, `.strict()`) — `packages/photoshop-bridge/src/extension.ts`
+- [x] `main` — 진입점 경로. manifest 만으로 적재할 수 있어야 하므로 추가했다.
+- [x] `permissions` — **선언만 받고 강제하지 않는다.** Permission System 은 Phase 9 다.
+
 ---
 
 ## 9.2 Extension Manager
 
-구현:
+구현: `packages/mcp-core/src/extensions/manager.ts`
 
-- [ ] discover
-- [ ] validate
-- [ ] load
-- [ ] activate
-- [ ] deactivate
-- [ ] unload
+- [x] discover — `extensions/<name>/extension.json` 한 단계 스캔. 디렉터리가 없어도 오류가 아니다.
+- [x] validate — JSON · 스키마 · namespace 검증
+- [x] load — 진입점 import → activate → 등록
+- [x] activate — namespace 를 강제하는 `ExtensionContext` 주입
+- [x] deactivate — `deactivate()` 호출. 실패해도 등록 해제는 진행한다.
+- [x] unload — 등록한 Tool 되돌리기
+
+적재 실패 격리: 하나가 실패해도 나머지 Extension 과 서버는 계속 기동한다.
+activate 도중 실패하면 그 Extension 이 등록한 Tool 을 되돌린다.
 
 ---
 
 ## 9.3 Extension Context
 
-구현:
+구현: `packages/photoshop-bridge/src/extension.ts`
 
 ```typescript
 interface ExtensionContext {
-  tools: ToolRegistry;
+  manifest: ExtensionManifest;
 
-  commands: CommandEngine;
+  tools: ExtensionToolRegistry;
 
-  resources: ResourceRegistry;
-
-  capabilities: CapabilityRegistry;
-
-  photoshop: PhotoshopService;
+  commands: ExtensionCommandEngine;
 
   logger: Logger;
 }
 ```
+
+원안과 달라진 점:
+
+- [x] `tools` 는 `ToolRegistry` 전체가 아니라 `register` · `has` 만 있는 좁은 인터페이스다.
+      전체를 주면 Extension 이 Core Tool 을 조회·해제·호출할 수 있다. 최소 권한 원칙. (ARCHITECTURE §17)
+- [x] `commands` 는 `execute` 만 노출한다. Extension 은 Core Command 를 **호출**할 수 있을 뿐
+      등록하거나 대체할 수 없다.
+- [x] `manifest` 추가 — Extension 이 자기 id·version 을 알아야 한다.
+- [ ] `resources` — Phase 12 (MCP Resources) 에서 추가한다.
+- [ ] `capabilities` — Phase 8 (Capability Registry) 에서 추가한다.
+- [ ] `photoshop` — `PhotoshopService` 는 아직 정의된 적이 없다. 정의될 때 추가한다.
+
+대응하는 런타임이 없는 필드는 넣지 않았다. 동작하지 않는 껍데기를 두면 Extension 작성자가
+있는 줄 알고 쓴다.
 
 ---
 
@@ -815,6 +836,12 @@ photoshop.*
 
 또한 다른 Extension namespace를 덮어쓸 수 없도록 한다.
 
+- [x] `NamespaceSchema` — `/^[a-z][a-z0-9-]*$/`. 점을 쓸 수 없다.
+- [x] `RESERVED_NAMESPACES = ["photoshop"]` — manifest 검증 단계에서 거부
+- [x] namespace 중복 — 나중에 적재된 쪽을 거부한다. 먼저 적재된 쪽이 살아남는다.
+- [x] Tool 등록 시 `<namespace>.` 접두사 강제 — 어기면 `EXTENSION_NAMESPACE_VIOLATION`
+      (`demo` 가 `demoevil.tool` 을 등록하는 경우도 막는다)
+
 ---
 
 ## 9.5 Example Extension
@@ -829,7 +856,12 @@ Tool:
 
 ```text
 example.hello
+example.document_summary
 ```
+
+- [x] `example.hello` — Photoshop 연결 없이 동작. 적재 확인용.
+- [x] `example.document_summary` — `DOCUMENT_GET` + `LAYER_LIST` 를 조합한다.
+      Extension 이 Bridge 에 직접 닿지 않고 Core Command 만 쓰는 예다.
 
 ---
 
@@ -842,6 +874,27 @@ Photoshop MCP Core 코드를 수정하지 않고 Extension Tool을 추가할 수
 ```text
 example.hello
 ```
+
+- [x] `extensions/` 에 디렉터리를 추가하는 것만으로 Tool 이 늘어난다. Core 소스 수정 없음.
+- [x] `PHOTOSHOP_MCP_EXTENSIONS` 로 스캔 디렉터리를 바꿀 수 있다. (기본 `<cwd>/extensions`)
+- [x] 서버가 `tools/list` 를 노출하기 전에 적재하므로 Extension Tool 도 첫 응답에 포함된다.
+
+실기 검증 (Photoshop 27.8, UXP Bridge, 문서 "제목 없음-1" / 레이어 33개):
+
+- [x] 빌드된 `dist` 로 Extension 적재 — Tool 27개 (Core 25 + Extension 2)
+- [x] `example.hello` — Extension manifest 의 id · version 반환
+- [x] `example.document_summary` — 문서 이름 · 레이어 총수(33) · 보이는 레이어(31)가
+      `photoshop.document.get` · `photoshop.layer.list` 결과와 일치
+- [x] Extension → Core Command → 실제 UXP Bridge 경로 동작. Extension 은 Bridge 에 닿지 않는다.
+- [x] `stop()` 이 Extension 을 unload 하고 Tool 등록을 되돌린다.
+
+Plugin 이 지수 백오프로 재연결 중이면 서버 기동 후 붙기까지 30초 가까이 걸릴 수 있다.
+
+Phase 5 에 포함하지 않은 것:
+
+- Permission 강제 — Phase 9. manifest 의 `permissions` 는 선언만 받는다.
+- Extension 의 Command 등록 — Extension 은 Core Command 를 호출만 한다.
+- Hot reload — 서버 재시작 없이 다시 적재하는 기능은 없다.
 
 가 Extension 설치만으로 MCP Tool 목록에 나타나야 한다.
 

@@ -1,9 +1,9 @@
 {
-  "name": "@photoshop-mcp/extension-sdk",
+  "name": "@photoshop-mcp/example-extension",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Extension이 사용할 수 있는 Core public API 표면",
+  "description": "extension-sdk 사용법을 보여주는 예제 확장",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -14,14 +14,14 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "extension.json"
   ],
   "scripts": {
     "build": "tsc -b"
   },
   "dependencies": {
-    "@photoshop-mcp/command-engine": "0.1.0",
-    "@photoshop-mcp/photoshop-bridge": "0.1.0",
-    "@photoshop-mcp/photoshop-tools": "0.1.0"
+    "@photoshop-mcp/extension-sdk": "0.1.0",
+    "zod": "^3.25.76"
   }
 }

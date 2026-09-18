@@ -1,7 +1,10 @@
 import { CommandEngine, CommandRegistry } from "@photoshop-mcp/command-engine";
 import type { PhotoshopBridge } from "@photoshop-mcp/photoshop-bridge";
 import { MockPhotoshopBridge, ToolRegistry } from "@photoshop-mcp/photoshop-bridge";
+import type { Logger } from "@photoshop-mcp/photoshop-bridge";
 import { registerPhotoshopCommands, registerPhotoshopTools } from "@photoshop-mcp/photoshop-tools";
+import { ExtensionManager } from "./extensions/manager.js";
+import { createConsoleLogger } from "./extensions/logger.js";
 import { PhotoshopMcpServer } from "./server/mcp-server.js";
 
 export interface CreatePhotoshopMcpOptions {
@@ -12,6 +15,8 @@ export interface CreatePhotoshopMcpOptions {
   bridge?: PhotoshopBridge;
   name?: string;
   version?: string;
+  /** 진단 로그. 생략하면 stderr 로 쓰는 기본 로거를 쓴다. */
+  logger?: Logger;
 }
 
 /** 조립된 Core 구성 요소. */
@@ -21,6 +26,9 @@ export interface PhotoshopMcp {
   engine: CommandEngine;
   tools: ToolRegistry;
   server: PhotoshopMcpServer;
+  /** Extension 적재. `loadAll(dir)` 로 Extension 을 붙인다. (ROADMAP §9.2) */
+  extensions: ExtensionManager;
+  logger: Logger;
 }
 
 /**
@@ -40,11 +48,15 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
   const tools = new ToolRegistry();
   registerPhotoshopTools(tools, engine);
 
+  const logger = options.logger ?? createConsoleLogger();
+
   const server = new PhotoshopMcpServer({
     registry: tools,
     ...(options.name === undefined ? {} : { name: options.name }),
     ...(options.version === undefined ? {} : { version: options.version }),
   });
 
-  return { bridge, commands, engine, tools, server };
+  const extensions = new ExtensionManager({ tools, commands: engine, logger });
+
+  return { bridge, commands, engine, tools, server, extensions, logger };
 }

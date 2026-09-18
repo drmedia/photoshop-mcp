@@ -9,6 +9,7 @@
  *
  * `stdout` 은 MCP stdio 전송이 점유하므로 로그는 반드시 `stderr` 로 출력한다.
  */
+import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { DEFAULT_PORT } from "@photoshop-mcp/photoshop-bridge";
 import { startPhotoshopMcpServer, type BridgeMode, type StartOptions } from "./start.js";
@@ -29,10 +30,12 @@ function log(message: string): void {
  *
  * - `PHOTOSHOP_MCP_PORT` — Bridge WebSocket 포트 (기본 8765)
  * - `PHOTOSHOP_MCP_BRIDGE` — `uxp` (기본) 또는 `mock`
+ * - `PHOTOSHOP_MCP_EXTENSIONS` — Extension 디렉터리 (기본 `<cwd>/extensions`)
  */
 export function readOptionsFromEnv(env: Record<string, string | undefined> = process.env): {
   mode: BridgeMode;
   port: number;
+  extensionsDir: string;
 } {
   const mode: BridgeMode = env["PHOTOSHOP_MCP_BRIDGE"] === "mock" ? "mock" : "uxp";
 
@@ -44,16 +47,20 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
     log(`PHOTOSHOP_MCP_PORT 값이 올바르지 않습니다: ${rawPort} — 기본값 ${DEFAULT_PORT} 사용`);
   }
 
-  return { mode, port };
+  // 디렉터리가 없으면 조용히 건너뛴다. Extension 이 없는 것은 정상이다.
+  const extensionsDir = resolve(env["PHOTOSHOP_MCP_EXTENSIONS"] ?? "extensions");
+
+  return { mode, port, extensionsDir };
 }
 
 /** CLI 진입점. 오류를 스스로 처리하며 예외를 던지지 않는다. */
 export async function main(): Promise<void> {
-  const { mode, port } = readOptionsFromEnv();
+  const { mode, port, extensionsDir } = readOptionsFromEnv();
 
   const options: StartOptions = {
     mode,
     port,
+    extensionsDir,
     onBridgeStateChange: (state) => {
       log(`Bridge: ${STATE_LABEL[state] ?? state}`);
     },
@@ -70,6 +77,12 @@ export async function main(): Promise<void> {
       mode === "mock" ? "Mock Bridge" : `UXP Bridge (ws://127.0.0.1:${port} 대기 중)`;
     log(`stdio 서버 시작. ${bridgeLabel}`);
     log(`Tool ${mcp.tools.size}개: ${names}`);
+    if (mcp.loadedExtensions.length > 0) {
+      const extensionNames = mcp.loadedExtensions
+        .map((extension) => `${extension.manifest.name}(${extension.manifest.namespace})`)
+        .join(", ");
+      log(`Extension ${mcp.loadedExtensions.length}개: ${extensionNames}`);
+    }
 
     for (const signal of ["SIGINT", "SIGTERM"] as const) {
       process.once(signal, () => {

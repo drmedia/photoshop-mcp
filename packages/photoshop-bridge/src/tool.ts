@@ -57,6 +57,17 @@ export class ToolRegistry {
     this.#tools.set(name, tool as unknown as ToolDefinition<never, unknown>);
   }
 
+  /**
+   * 등록을 해제한다.
+   *
+   * Extension 을 unload 할 때 그 Extension 이 등록한 Tool 을 되돌리는 데 쓴다.
+   *
+   * @returns 등록되어 있지 않았으면 `false`.
+   */
+  unregister(name: string): boolean {
+    return this.#tools.delete(name);
+  }
+
   get(name: string): ToolDefinition<never, unknown> | undefined {
     return this.#tools.get(name);
   }

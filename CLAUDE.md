@@ -12,8 +12,7 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 ## 현재 상태
 
-**Phase 4 (Extended Photoshop Tools) 완료.** 실제 Photoshop 27.8 에서 검증했다.
-Tool 25개.
+**Phase 5 (Extension SDK) 완료.** Core Tool 25개는 실제 Photoshop 27.8 에서 검증했다.
 
 - 조회: `ping`, `document.get`, `layer.list`
 - 레이어: create / duplicate / rename / select / set_visibility / set_opacity
@@ -34,7 +33,17 @@ descriptor 는 반드시 플러그인이 검증된 파라미터로 조립한다.
 UXP 의 실기 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 정리되어 있다.
 바꾸기 전에 그 문서를 먼저 읽는다.
 
-다음 작업은 **Phase 5 (Extension SDK)** 다.
+**Extension.** 서버는 기동 시 `extensions/` 를 한 단계 훑어 `<name>/extension.json` 을 적재한다.
+`PHOTOSHOP_MCP_EXTENSIONS` 로 디렉터리를 바꾼다. Extension 은 자신의 namespace 로만 Tool 을
+등록할 수 있고, Photoshop 은 Core Command 로만 건드린다. Bridge 에는 닿지 않는다.
+하나가 실패해도 나머지와 서버는 계속 기동한다.
+
+manifest 의 `permissions` 는 **선언만 받고 강제하지 않는다.** 강제는 Phase 9 다.
+`ExtensionContext` 에는 대응 런타임이 있는 것만 넣는다 — `resources`(Phase 12) ·
+`capabilities`(Phase 8) · `photoshop` 은 아직 없다. 동작하지 않는 껍데기를 두면
+Extension 작성자가 있는 줄 알고 쓴다.
+
+다음 작업은 **Phase 6** 다. 범위는 `docs/ROADMAP.md` 를 따른다.
 
 알 수 없는 열거형 값은 기본값으로 덮지 않는다. `null` + 원본(`rawBitDepth` · `rawKind` ·
 `rawBlendMode`)을 함께 반환한다. 이 원칙으로 실기에서 세 번 실제 버그를 잡았다.
@@ -80,8 +89,12 @@ extensions
    ↓
 extension-sdk
    ↓
-Core public API                (command-engine + photoshop-bridge contracts)
+Core public API                (photoshop-tools + command-engine + photoshop-bridge contracts)
 ```
+
+`extension-sdk` 는 Core Command **이름 상수**를 재노출한다. Command 핸들러 · `CommandRegistry` ·
+`ToolRegistry` · `PhotoshopBridge` 는 노출하지 않는다. Extension 은 Core Command 를 호출할 수
+있을 뿐 Core 의 구성을 바꿀 수 없다.
 
 규칙:
 
@@ -103,7 +116,7 @@ Core public API                (command-engine + photoshop-bridge contracts)
 - `packages/*` — 각자 독립된 package.json 과 tsconfig.json 을 가진다.
 - `photoshop-uxp/` — Photoshop 내부에서 실행되는 UXP 플러그인. **CommonJS 로 컴파일한다**
   (UXP 가 `require("photoshop")` 를 쓴다). Node API 사용 불가 — tsconfig 에 `types: []` 로 차단.
-- `extensions/*` — `extension-sdk` 기반 확장. Core 내부 모듈을 직접 import 하지 않는다. (Phase 5)
+- `extensions/*` — `extension-sdk` 기반 확장. Core 내부 모듈을 직접 import 하지 않는다.
 - `tests/` — 테스트는 소스 옆이 아니라 여기에 모은다.
 - `docs/` — 설계 문서. 한글로 작성한다. Prettier 대상에서 제외되어 있다(`.prettierignore`).
 

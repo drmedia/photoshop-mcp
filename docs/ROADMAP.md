@@ -687,6 +687,29 @@ Phase 9 에서 구현했다. 실제 해법:
   만들 수 있다는 성질이 그대로 유지된다.
 - Tool 은 **파일 이름만** 받는다. 경로 구분자와 `..` 를 스키마가 거부한다.
 
+실기 검증 (Photoshop 27.8, 승인 폴더 `E:	est01`):
+
+- [x] 패널 ≡ 메뉴 / 버튼에서 폴더 승인 → persistent token 보관
+- [x] 재연결 후에도 `workspace.status` 가 `approved: true` 와 경로를 보고
+- [x] `export` png · jpg(quality 12) — 실제 파일 생성. 문서 제목이 바뀌지 않음 (asCopy)
+- [x] `save_as` psd · psb — 실제 파일 생성. 문서가 새 파일로 전환됨
+- [x] 같은 이름 재시도 → `FILE_ALREADY_EXISTS` (export · save_as 양쪽)
+- [x] `../탈출` → `INVALID_PARAMETER` (스키마에서 차단, Plugin 까지 가지 않음)
+- [x] `save` — `save_as` 이후 그 파일을 덮어씀
+- [x] `PHOTOSHOP_MCP_ALLOW=read,edit` → export · save 는 `PERMISSION_DENIED`,
+      `workspace.status` 는 허용
+
+실기에서 드러난 것:
+
+- **TIFF 를 뺐다.** UXP DOM 에 `document.saveAs.tif` 가 없다
+  (`document.saveAs.tif is not a function`). 타입 선언에 검증 없이 적어둔 것이 원인이다.
+  batchPlay 로 우회할 수 있지만 검증되지 않은 경로를 늘리지 않는다.
+- 플러그인이 contracts 를 **값으로** import 하면 산출물에 `require("@photoshop-mcp/...")`
+  가 남아 **플러그인 전체가 로드되지 않는다.** 패널이 빈 채로 열린다.
+  타입 검사·빌드는 통과하므로 `tests/uxp-bundle.test.ts` 로 막는다.
+- 도킹된 패널은 사용자가 높이를 못 늘릴 수 있다. 승인 버튼을 맨 위에 두고
+  플라이아웃 메뉴에도 넣었다.
+
 ## 8.6 실기에서 드러난 공백
 
 Phase 4 를 마치고 Phase 5 로 넘어가기 전에 채운다.

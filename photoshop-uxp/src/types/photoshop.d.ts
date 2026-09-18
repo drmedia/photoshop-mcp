@@ -74,7 +74,7 @@ declare module "photoshop" {
     readonly saveAs: {
       psd(entry: unknown, options?: Record<string, unknown>, asCopy?: boolean): Promise<void>;
       psb(entry: unknown, options?: Record<string, unknown>, asCopy?: boolean): Promise<void>;
-      tif(entry: unknown, options?: Record<string, unknown>, asCopy?: boolean): Promise<void>;
+      // tif 는 없다. 실기에서 `document.saveAs.tif is not a function` 으로 확인했다.
       png(entry: unknown, options?: Record<string, unknown>, asCopy?: boolean): Promise<void>;
       jpg(entry: unknown, options?: { quality?: number }, asCopy?: boolean): Promise<void>;
     };

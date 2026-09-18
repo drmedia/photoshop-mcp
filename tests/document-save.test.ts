@@ -51,12 +51,6 @@ describe("withExtension", () => {
     expect(withExtension("결과.PSD", "psd")).toBe("결과.PSD");
   });
 
-  it("tiff 는 .tif 로 쓰되 .tiff 도 인정한다", () => {
-    expect(withExtension("가", "tiff")).toBe("가.tif");
-    expect(withExtension("가.tif", "tiff")).toBe("가.tif");
-    expect(withExtension("가.tiff", "tiff")).toBe("가.tiff");
-  });
-
   it("다른 확장자는 바꾸지 않고 덧붙인다", () => {
     // 사용자가 고른 이름을 바꿔치기하지 않는다.
     expect(withExtension("보고서.txt", "psd")).toBe("보고서.txt.psd");
@@ -183,14 +177,19 @@ describe("save_as", () => {
     ).resolves.toMatchObject({ filename: "결과.psd" });
   });
 
-  it("psb 와 tiff 를 지원한다", async () => {
+  it("psb 를 지원한다", async () => {
     const { mcp } = setup({ workspace: "C:/작업" });
     await expect(
       call<SaveResult>(mcp, "photoshop.document.save_as", { filename: "큰파일", format: "psb" }),
     ).resolves.toMatchObject({ filename: "큰파일.psb" });
+  });
+
+  it("tiff 는 받지 않는다", async () => {
+    // UXP DOM 에 saveAs.tif 가 없다. 실기에서 확인했다.
+    const { mcp } = setup({ workspace: "C:/작업" });
     await expect(
-      call<SaveResult>(mcp, "photoshop.document.save_as", { filename: "중간", format: "tiff" }),
-    ).resolves.toMatchObject({ filename: "중간.tif" });
+      call(mcp, "photoshop.document.save_as", { filename: "가", format: "tiff" }),
+    ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
   });
 
   it("덮어쓰지 않는다", async () => {

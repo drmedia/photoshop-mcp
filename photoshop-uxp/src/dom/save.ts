@@ -50,7 +50,7 @@ function describe(error: unknown): string {
 /** `DOCUMENT_SAVE_AS` — 레이어를 유지해서 저장한다. */
 export async function documentSaveAs(params: {
   filename: string;
-  format?: "psd" | "psb" | "tiff";
+  format?: "psd" | "psb";
 }): Promise<SaveResult> {
   const format = params.format ?? "psd";
   const filename = params.filename;
@@ -65,8 +65,6 @@ export async function documentSaveAs(params: {
       // 그래야 이후의 document.save 가 원본이 아니라 이 파일을 덮어쓴다.
       if (format === "psb") {
         await document.saveAs.psb(file, { maximizeCompatibility: true });
-      } else if (format === "tiff") {
-        await document.saveAs.tif(file, {});
       } else {
         await document.saveAs.psd(file, { maximizeCompatibility: true });
       }

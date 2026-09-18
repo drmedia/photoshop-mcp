@@ -12,8 +12,7 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 ## 현재 상태
 
-**Phase 9 (Permission / Safety) 코드 완료. 파일 저장은 실기 미검증.**
-Core Tool 29개. Phase 4 까지의 25개는 실제 Photoshop 27.8 에서 검증했다.
+**Phase 9 (Permission / Safety) 완료.** Core Tool 29개 전부 실제 Photoshop 27.8 에서 검증했다.
 
 - 조회: `ping`, `document.get`, `layer.list`
 - 레이어: create / duplicate / rename / select / set_visibility / set_opacity
@@ -56,6 +55,9 @@ Extension 의 manifest `permissions` 는 **강제된다.** 선언 밖의 Tool �
 
 `save_as` 와 `export` 는 **덮어쓰지 않는다.** 그래서 `external` 로 분류할 수 있다.
 덮어쓰기는 `save` 하나로 모아 `destructive` 로 둔다.
+
+형식: `save_as` 는 psd · psb, `export` 는 png · jpg. **TIFF 는 없다** —
+UXP DOM 에 `document.saveAs.tif` 가 없다. 실기에서 확인했다.
 
 `layer.delete` · `document.flatten` · `document.close` 는 분류 체계만 섰고 구현은 없다.
 

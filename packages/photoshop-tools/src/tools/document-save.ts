@@ -44,7 +44,7 @@ export function createSaveAsTool(engine: CommandEngine): ToolDefinition<SaveAsPa
   return {
     name: "photoshop.document.save_as",
     description:
-      "승인된 작업 폴더에 새 이름으로 저장한다. 레이어를 유지한다 (psd · psb · tiff). " +
+      "승인된 작업 폴더에 새 이름으로 저장한다. 레이어를 유지한다 (psd · psb). " +
       "파일 이름만 받으며 경로는 쓸 수 없다. " +
       "같은 이름이 이미 있으면 덮어쓰지 않고 실패한다.",
     permission: "external",

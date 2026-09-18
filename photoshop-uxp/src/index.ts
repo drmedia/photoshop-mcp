@@ -163,6 +163,10 @@ export function createClient(url: string = DEFAULT_URL): BridgeClient {
   });
 }
 
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 let statusElement: HTMLElement | null = null;
 let errorElement: HTMLElement | null = null;
 let workspaceElement: HTMLElement | null = null;
@@ -175,7 +179,8 @@ function renderState(state: ClientState): void {
   console.log(`[photoshop-mcp] 상태: ${detail}`);
 
   if (statusElement !== null) {
-    statusElement.textContent = detail;
+    // URL 을 같은 줄에 합친다. 도킹된 패널은 줄 하나가 아깝다.
+    statusElement.textContent = `Bridge: ${detail} · ${client.url}`;
   }
   // 접속 실패 사유를 패널에 그대로 노출한다.
   // UXP Developer Tool 콘솔을 열지 않고도 원인을 확인할 수 있어야 한다.
@@ -204,35 +209,41 @@ async function renderWorkspace(): Promise<void> {
       ? `저장 폴더: ${status.path ?? "(경로 없음)"}`
       : "저장 폴더: 승인되지 않음";
   } catch (error) {
-    workspaceElement.textContent = `저장 폴더 확인 실패: ${
-      error instanceof Error ? error.message : String(error)
-    }`;
+    workspaceElement.textContent = `저장 폴더 확인 실패: ${describeError(error)}`;
   }
 }
 
-/** 패널이 열릴 때 상태 표시 요소를 잡아둔다. */
+/**
+ * 패널이 열릴 때 상태 표시 요소를 잡아둔다.
+ *
+ * 도킹된 패널은 사용자가 높이를 늘리지 못하는 경우가 있다. 내용이 잘리면 '폴더 승인'
+ * 버튼에 닿을 수 없으므로, 루트를 스크롤 가능하게 만들고 줄 수를 최소로 유지한다.
+ * 패널 탭에 이미 이름이 있으므로 제목 줄을 두지 않는다.
+ */
 export function mountPanel(root: HTMLElement): void {
+  root.style.height = "100%";
+  root.style.overflow = "auto";
+
+  // 가장 중요한 것을 맨 위에 둔다. 도킹된 패널은 아래가 잘릴 수 있는데
+  // 사용자가 높이를 못 늘리는 경우가 있다. 승인 버튼은 항상 닿을 수 있어야 한다.
   root.innerHTML = [
-    '<div style="padding:12px;font-family:sans-serif;font-size:12px">',
-    '<div style="font-weight:600;margin-bottom:6px">Photoshop MCP</div>',
-    '<div>Bridge: <span id="photoshop-mcp-state">-</span></div>',
-    `<div style="margin-top:6px;opacity:.7;font-size:11px">${client.url}</div>`,
-    '<div id="photoshop-mcp-error" style="margin-top:8px;padding:6px;',
-    "background:#4a1f1f;color:#ffb4b4;font-size:11px;",
-    'word-break:break-all;display:none"></div>',
-    '<div style="margin-top:12px;padding-top:10px;border-top:1px solid #444">',
-    '<div id="photoshop-mcp-workspace" style="font-size:11px;opacity:.85;',
+    '<div style="padding:8px;font-family:sans-serif;font-size:11px">',
+    // 1행 — 승인 버튼
+    "<div>",
+    '<button id="photoshop-mcp-approve" style="font-size:11px">저장 폴더 승인</button>',
+    '<button id="photoshop-mcp-revoke" style="font-size:11px;margin-left:4px">해제</button>',
+    "</div>",
+    // 2행 — 승인된 경로
+    '<div id="photoshop-mcp-workspace" style="margin-top:6px;opacity:.85;',
     'word-break:break-all">저장 폴더: 확인 중</div>',
-    '<div style="margin-top:6px">',
-    '<button id="photoshop-mcp-approve" style="font-size:11px">폴더 승인</button>',
-    '<button id="photoshop-mcp-revoke" style="font-size:11px;margin-left:6px">해제</button>',
-    "</div>",
-    '<div style="margin-top:6px;opacity:.6;font-size:10px">',
-    "MCP 는 승인된 폴더 안에만 저장할 수 있습니다.",
-    "</div>",
-    "</div>",
+    // 3행 — Bridge 상태
+    '<div id="photoshop-mcp-state" style="margin-top:6px;opacity:.85">-</div>',
+    // 4행 — 오류. 길어질 수 있으므로 맨 아래에 둔다.
+    '<div id="photoshop-mcp-error" style="margin-top:6px;padding:4px;',
+    'background:#4a1f1f;color:#ffb4b4;word-break:break-all;display:none"></div>',
     "</div>",
   ].join("");
+
   statusElement = root.querySelector("#photoshop-mcp-state");
   errorElement = root.querySelector("#photoshop-mcp-error");
   workspaceElement = root.querySelector("#photoshop-mcp-workspace");
@@ -241,9 +252,7 @@ export function mountPanel(root: HTMLElement): void {
     void approveFolder()
       .catch((error: unknown) => {
         if (workspaceElement !== null) {
-          workspaceElement.textContent = `승인 실패: ${
-            error instanceof Error ? error.message : String(error)
-          }`;
+          workspaceElement.textContent = `승인 실패: ${describeError(error)}`;
         }
         return null;
       })
@@ -280,11 +289,49 @@ function onPanel(arg: unknown): void {
   }
 }
 
+/**
+ * 패널 플라이아웃 메뉴(≡) 항목.
+ *
+ * 도킹된 패널은 높이를 사용자가 못 늘리는 경우가 있어 버튼이 잘린다.
+ * 메뉴는 패널 공간을 쓰지 않으므로 항상 닿을 수 있다.
+ * 메뉴 클릭도 사용자 제스처라 `getFolder()` 를 띄울 수 있다.
+ */
+const MENU_APPROVE = "approveWorkspaceFolder";
+const MENU_REVOKE = "revokeWorkspaceFolder";
+
+function onMenu(id: string): void {
+  if (id === MENU_APPROVE) {
+    void approveFolder()
+      .then((status) => {
+        console.log(
+          `[photoshop-mcp] ${status === null ? "폴더 승인 취소됨" : `폴더 승인: ${status.path ?? ""}`}`,
+        );
+      })
+      .catch((error: unknown) => {
+        console.error(`[photoshop-mcp] 폴더 승인 실패: ${describeError(error)}`);
+        if (workspaceElement !== null) {
+          workspaceElement.textContent = `승인 실패: ${describeError(error)}`;
+        }
+      })
+      .then(() => renderWorkspace());
+    return;
+  }
+  if (id === MENU_REVOKE) {
+    revokeFolder();
+    void renderWorkspace();
+  }
+}
+
 entrypoints.setup({
   panels: {
     photoshopMcpPanel: {
       create: onPanel,
       show: onPanel,
+      menuItems: [
+        { id: MENU_APPROVE, label: "저장 폴더 승인…" },
+        { id: MENU_REVOKE, label: "저장 폴더 승인 해제" },
+      ],
+      invokeMenu: onMenu,
     },
   },
 });

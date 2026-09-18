@@ -34,8 +34,12 @@ export type WorkspaceStatus = z.infer<typeof WorkspaceStatusSchema>;
  * 레이어를 유지하는 저장 형식. `save_as` 용.
  *
  * `psb` 는 2GB 를 넘거나 30000px 를 넘는 문서에 필요하다.
+ *
+ * TIFF 는 넣지 않는다. UXP DOM 에 `document.saveAs.tif` 가 없다 —
+ * 실기에서 `document.saveAs.tif is not a function` 으로 확인했다.
+ * batchPlay 로 우회할 수는 있지만, 검증되지 않은 경로를 늘리지 않는다. (ARCHITECTURE §13)
  */
-export const LayeredFormatSchema = z.enum(["psd", "psb", "tiff"]);
+export const LayeredFormatSchema = z.enum(["psd", "psb"]);
 export type LayeredFormat = z.infer<typeof LayeredFormatSchema>;
 
 /** 합쳐서 내보내는 형식. `export` 용. */
@@ -63,11 +67,10 @@ export const FilenameSchema = z
     message: "파일 이름이 '.' 또는 '..' 일 수 없습니다.",
   });
 
-/** 형식별 확장자. `tiff` 는 Photoshop 관례대로 `.tif` 로 쓴다. */
+/** 형식별 확장자. */
 const EXTENSION: Record<string, string> = {
   psd: "psd",
   psb: "psb",
-  tiff: "tif",
   png: "png",
   jpg: "jpg",
 };
@@ -83,12 +86,7 @@ const EXTENSION: Record<string, string> = {
  */
 export function withExtension(filename: string, format: string): string {
   const extension = EXTENSION[format] ?? format;
-  const lower = filename.toLowerCase();
-  // tiff 는 .tif 와 .tiff 를 모두 인정한다.
-  const accepted = format === "tiff" ? ["tif", "tiff"] : [extension];
-  return accepted.some((candidate) => lower.endsWith(`.${candidate}`))
-    ? filename
-    : `${filename}.${extension}`;
+  return filename.toLowerCase().endsWith(`.${extension}`) ? filename : `${filename}.${extension}`;
 }
 
 /** 저장 결과. */

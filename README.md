@@ -2,8 +2,8 @@
 
 Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입니다.
 
-> **현재 상태: Phase 9 (Permission / Safety) 코드 완료. 파일 저장은 실기 미검증.**
-> Core Tool 29개. Phase 4 까지의 25개는 실제 Photoshop 27.8 에서 검증했습니다.
+> **현재 상태: Phase 9 (Permission / Safety) 완료.**
+> Core Tool 29개 전부 실제 Photoshop 27.8 에서 검증했습니다.
 > 모든 Tool 과 Command 가 권한 레벨을 선언하며, 기본값은 `read` · `edit` 만 허용합니다.
 
 ## 빠른 시작
@@ -74,7 +74,7 @@ PHOTOSHOP_MCP_ALLOW=all                     # 전부
 이것은 제약이자 안전장치입니다 — LLM 은 저장 폴더를 고를 수 없고 파일 이름만 줍니다.
 경로 구분자와 `..` 는 스키마가 거부합니다.
 
-`save_as` (psd · psb · tiff) 와 `export` (png · jpg) 는 같은 이름이 있으면 덮어쓰지 않고
+`save_as` (psd · psb) 와 `export` (png · jpg) 는 같은 이름이 있으면 덮어쓰지 않고
 실패합니다. 덮어쓰기는 `document.save` 하나뿐이며 `destructive` 입니다.
 
 ## 지금 동작하는 것

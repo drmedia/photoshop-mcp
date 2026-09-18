@@ -18,16 +18,16 @@
         "default": "Photoshop MCP"
       },
       "minimumSize": {
-        "width": 230,
-        "height": 120
+        "width": 200,
+        "height": 80
       },
       "preferredDockedSize": {
         "width": 260,
-        "height": 160
+        "height": 200
       },
       "preferredFloatingSize": {
         "width": 320,
-        "height": 200
+        "height": 240
       }
     }
   ],

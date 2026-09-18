@@ -43,6 +43,7 @@ import {
   createWorkspaceStatusTool,
 } from "./document-save.js";
 import { createLayerGetActiveTool } from "./layer-active.js";
+import { createSelectionSkyTool } from "./selection-auto.js";
 import { createLayerListTool } from "./layer-list.js";
 import { createLayerPlaceTool } from "./layer-place.js";
 import { createWorkspaceDeleteTool, createWorkspaceUsageTool } from "./workspace-files.js";
@@ -50,6 +51,7 @@ import { createPingTool } from "./ping.js";
 
 export { DocumentGetInputSchema, createDocumentGetTool } from "./document-get.js";
 export { createLayerGetActiveTool } from "./layer-active.js";
+export { createSelectionSkyTool } from "./selection-auto.js";
 export {
   LayerListInputSchema,
   createLayerListTool,
@@ -79,6 +81,7 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createDocumentGetTool(engine));
   registry.register(createLayerListTool(engine));
   registry.register(createLayerGetActiveTool(engine));
+  registry.register(createSelectionSkyTool(engine));
 
   // Phase 3 — 레이어 편집 (비파괴)
   registry.register(createLayerCreateTool(engine));

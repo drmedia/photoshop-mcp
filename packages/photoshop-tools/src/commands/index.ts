@@ -83,6 +83,7 @@ import {
   workspaceStatusCommand,
 } from "./document-save.js";
 import { LAYER_GET_ACTIVE, layerGetActiveCommand } from "./layer-active.js";
+import { SELECTION_SKY, selectionSkyCommand } from "./selection-auto.js";
 import { LAYER_LIST, layerListCommand } from "./layer-list.js";
 import { LAYER_PLACE, LayerPlaceParamsSchema, layerPlaceCommand } from "./layer-place.js";
 import {
@@ -120,6 +121,12 @@ export {
   type ActiveLayerState,
 } from "./layer-active.js";
 export { LAYER_LIST, layerListCommand } from "./layer-list.js";
+export {
+  SELECTION_SKY,
+  SelectionAutoParams,
+  selectionSkyCommand,
+  type SelectionResult,
+} from "./selection-auto.js";
 export { PING, pingCommand, type PingResult } from "./ping.js";
 
 /**
@@ -138,6 +145,7 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(DOCUMENT_GET, documentGetCommand, { permission: "read" });
   registry.register(LAYER_LIST, layerListCommand, { permission: "read" });
   registry.register(LAYER_GET_ACTIVE, layerGetActiveCommand, { permission: "read" });
+  registry.register(SELECTION_SKY, selectionSkyCommand, { permission: "edit" });
 
   // Phase 3 — 레이어 편집 (비파괴)
   const edit = "edit" as const;

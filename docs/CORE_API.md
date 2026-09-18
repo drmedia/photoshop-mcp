@@ -90,7 +90,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (41개)
+## 4. 구현된 Core API (42개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -144,7 +144,8 @@ P3  확장 기능
 | `photoshop.mask.create` | EDIT | `from`: revealAll · hideAll · **fromSelection** |
 | `photoshop.mask.enable` | EDIT | |
 | `photoshop.mask.disable` | EDIT | 마스크를 지우지 않고 해제만 한다 |
-| `photoshop.selection.set` | EDIT | `shape`: rectangle · ellipse · **canvas** |
+| `photoshop.selection.set` | EDIT | `shape`: rectangle · ellipse · **canvas** · layerTransparency |
+| `photoshop.selection.sky` | EDIT | Photoshop 의 `선택 > 하늘` |
 | `photoshop.selection.clear` | EDIT | |
 | `photoshop.selection.invert` | EDIT | 선택이 없으면 실패한다 |
 
@@ -262,7 +263,8 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
-| `photoshop.selection.feather` | P2 | EDIT | |
+| `photoshop.selection.subject` | P1 | EDIT | `선택 > 피사체`. 아래 참조 |
+| `photoshop.selection.feather` | P2 | EDIT | 이미 만든 선택의 페더 조정 |
 | `photoshop.selection.expand` | P2 | EDIT | |
 | `photoshop.selection.contract` | P2 | EDIT | |
 | `photoshop.selection.from_layer` | P2 | EDIT | 레이어 투명도에서 |
@@ -413,11 +415,35 @@ Extension namespace 예: `milky.*` · `portrait.*` · `landscape.*` · `product.
 다음은 Core API 가 아니라 고수준 워크플로 또는 Extension 으로 본다.
 
 ```text
-Select Sky · Select Subject · Remove Background
-Generative Fill · Neural Filters · Camera Raw · Auto Retouch · Auto Color Grade
+Remove Background · Generative Fill · Neural Filters
+Camera Raw · Auto Retouch · Auto Color Grade
 ```
 
 Core 에서는 가능한 한 저수준 기능만 제공한다.
+
+### `Select Sky` 는 여기 있었는데 잘못이었다
+
+**Photoshop 메뉴에 있는 네이티브 명령**이다. 내부적으로 Adobe 의 모델을 쓰지만
+호출하는 쪽에서는 Gaussian Blur 와 다를 바 없는 batchPlay 명령 하나이고, 외부
+프로그램도 플러그인도 필요 없다. Core 의 기준은 "Photoshop 일반 기능인가" 이며
+이 둘은 그 기준을 만족한다. `Remove Background` 나 `Generative Fill` 과 같은
+칸에 둔 것이 분류 착오였다.
+
+이 착오의 대가가 컸다. 천체사진 워크플로를 LLM 으로 시험하다 하늘/전경을 나누는
+단계에서 막혔고, 사각형으로 근사할 수밖에 없었다. 실제 지평선은 직선이 아니므로
+그 결과는 쓸모가 없다. 뒤따르는 네 단계가 전부 의미를 잃었다.
+
+`선택 > 피사체` 도 같은 이유로 Core 에 속하지만 **아직 구현하지 못했다.**
+`autoCutout` descriptor 가 거부된다. 관찰한 것:
+
+```text
+조정 레이어 활성:  "피사체 선택" 명령은 현재 사용할 수 없습니다.
+픽셀 레이어 활성:  "피사체 선택" 명령의 매개 변수는 현재 유효하지 않습니다.
+             (sampleAllLayers: false 를 줘도, 빼도 같다)
+```
+
+레이어 종류에 따라 오류가 달라지므로 대상 조건과 파라미터 둘 다 봐야 한다.
+동작하지 않는 Tool 을 남기지 않기 위해 §5 후보로 돌려 두었다.
 
 ### 실제로 그렇게 됐는가
 

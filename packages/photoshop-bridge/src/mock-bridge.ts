@@ -242,6 +242,20 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       case "MASK_DISABLE":
         this.#snapshot("Disable mask");
         return this.#setMask(command.params as { layerId?: number }, false) as TResult;
+      // 하늘 선택. Mock 은 픽셀을 모르므로 "문서 전체" 를 고른 것으로 흉내낸다.
+      // 실제로는 지평선을 따라 잘리며, 하늘이 없으면 선택이 비어 hasSelection 이 false 다.
+      case "SELECTION_SKY": {
+        this.#snapshot("Select sky");
+        const document = this.#document;
+        this.#hasSelection = document !== null;
+        return {
+          hasSelection: this.#hasSelection,
+          bounds:
+            document === null
+              ? null
+              : { left: 0, top: 0, right: document.width, bottom: document.height },
+        } as TResult;
+      }
       case "SELECTION_CLEAR":
         this.#hasSelection = false;
         return { hasSelection: false } as TResult;

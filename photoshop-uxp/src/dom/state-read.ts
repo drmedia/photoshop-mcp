@@ -18,7 +18,7 @@ interface Bounds {
 }
 
 /** 선택 영역 경계. 모양을 확신할 수 없으면 `null`. */
-function selectionBounds(): Bounds | null {
+export function selectionBounds(): Bounds | null {
   const raw = app.activeDocument?.selection?.bounds as Record<string, unknown> | undefined;
   if (raw === undefined || raw === null) {
     return null;

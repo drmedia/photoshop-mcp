@@ -47,6 +47,12 @@ export interface StartOptions extends CreatePhotoshopMcpOptions {
    */
   capabilityConfig?: string;
   /**
+   * 워크플로 설정 파일. (ROADMAP §11)
+   *
+   * 생략하면 등록하지 않는다. 파일이 없어도 오류가 아니다.
+   */
+  workflowConfig?: string;
+  /**
    * 사용할 transport. 생략하면 stdio 를 사용한다.
    * 테스트에서 in-memory transport 를 주입할 때 사용한다.
    */
@@ -61,6 +67,8 @@ export interface StartedPhotoshopMcp extends PhotoshopMcp {
   loadedExtensions: LoadedExtension[];
   /** 등록된 Capability Provider 수. */
   loadedProviders: number;
+  /** 등록된 워크플로 수. */
+  loadedWorkflows: number;
   /** MCP 서버와 Bridge 전송을 함께 정지한다. */
   stop(): Promise<void>;
 }
@@ -81,6 +89,7 @@ export async function startPhotoshopMcpServer(
     transport,
     extensionsDir,
     capabilityConfig,
+    workflowConfig,
     ...coreOptions
   } = options;
 
@@ -108,6 +117,10 @@ export async function startPhotoshopMcpServer(
   const loadedProviders =
     capabilityConfig === undefined ? 0 : await mcp.capabilities.loadConfig(capabilityConfig);
 
+  // 워크플로는 Tool 을 부르므로 Tool 이 다 등록된 뒤여야 한다.
+  const loadedWorkflows =
+    workflowConfig === undefined ? 0 : await mcp.workflows.loadConfig(workflowConfig);
+
   // Tool 목록을 노출하기 전에 적재한다.
   const loadedExtensions =
     extensionsDir === undefined ? [] : await mcp.extensions.loadAll(extensionsDir);
@@ -124,6 +137,7 @@ export async function startPhotoshopMcpServer(
     bridgeTransport,
     loadedExtensions,
     loadedProviders,
+    loadedWorkflows,
     stop: async () => {
       // 진행 중인 Job 을 먼저 취소한다. 그러지 않으면 외부 처리기 프로세스가
       // 서버보다 오래 살고, 결과를 받을 곳도 없이 몇 분씩 CPU 를 먹는다.

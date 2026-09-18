@@ -13,6 +13,7 @@ export {
 } from "./capabilities/registry.js";
 export { createConsoleLogger, createSilentLogger } from "./extensions/logger.js";
 export { JobStore, type JobStoreOptions } from "./jobs/store.js";
+export { WorkflowRegistry, type WorkflowRegistryOptions } from "./workflows/registry.js";
 export {
   ExtensionManager,
   type DiscoveredExtension,

@@ -3,6 +3,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { startPhotoshopMcpServer, type StartedPhotoshopMcp } from "@photoshop-mcp/mcp-server";
 import { ErrorCode } from "@photoshop-mcp/photoshop-bridge";
 import { afterEach, describe, expect, it } from "vitest";
+import { EXPECTED_TOOLS, FORBIDDEN_TOOLS } from "./helpers/expected-tools.js";
 import { FAKE_DOCUMENT, FAKE_LAYERS, FakeUxpPlugin } from "./helpers/fake-uxp-plugin.js";
 
 /**
@@ -90,11 +91,7 @@ describe("Phase 2 Bridge 통합", () => {
     const { client, mcp } = await connect({ plugin: null });
 
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name)).toEqual([
-      "photoshop.ping",
-      "photoshop.document.get",
-      "photoshop.layer.list",
-    ]);
+    expect(tools.map((tool) => tool.name)).toEqual([...EXPECTED_TOOLS]);
     expect(mcp.bridge.isConnected()).toBe(false);
   });
 
@@ -201,20 +198,12 @@ describe("Phase 2 Bridge 통합", () => {
     ).toEqual({ layers: FAKE_LAYERS });
   });
 
-  it("Phase 3 Tool 은 아직 노출하지 않는다", async () => {
+  it("아직 범위 밖인 Tool 은 노출하지 않는다", async () => {
     const { client } = await connect();
 
-    const { tools } = await client.listTools();
-    const names = tools.map((tool) => tool.name);
-    for (const phase3 of [
-      "photoshop.layer.create",
-      "photoshop.layer.duplicate",
-      "photoshop.layer.rename",
-      "photoshop.group.create",
-      "photoshop.mask.create",
-      "photoshop.adjustment.curves",
-    ]) {
-      expect(names).not.toContain(phase3);
+    const names = (await client.listTools()).tools.map((tool) => tool.name);
+    for (const forbidden of FORBIDDEN_TOOLS) {
+      expect(names).not.toContain(forbidden);
     }
   });
 });

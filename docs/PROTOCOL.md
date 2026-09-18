@@ -316,6 +316,34 @@ Opacity 와 Parent 는 Phase 3 에서 추가한다.
 
 활성 문서가 없으면 `DOCUMENT_NOT_FOUND`.
 
+### Phase 3 Command
+
+레이어 편집과 그룹 Command 는 **변경 후 레이어 상태**(`LAYER_LIST` 항목과 같은 형태)를
+결과로 돌려준다. 호출자가 결과를 확인하려고 목록을 다시 조회하지 않아도 되고,
+연속 작업에서 직전 결과의 `id` 를 다음 작업에 쓸 수 있다.
+
+| Command | `payload` | 결과 |
+|---|---|---|
+| `LAYER_CREATE` | `name?` | 만들어진 레이어 |
+| `LAYER_DUPLICATE` | `layerId?`, `name?` | 복제된 레이어 |
+| `LAYER_RENAME` | `layerId?`, `name` | 대상 레이어 |
+| `LAYER_SELECT` | `layerId` | 선택된 레이어 |
+| `LAYER_VISIBILITY` | `layerId?`, `visible` | 대상 레이어 |
+| `LAYER_OPACITY` | `layerId?`, `opacity` (0–100) | 대상 레이어 |
+| `GROUP_CREATE` | `name?`, `layerIds?` | 만들어진 그룹 |
+| `GROUP_MOVE_LAYER` | `layerId`, `groupId` (`null` 이면 최상위) | 이동한 레이어 |
+| `HISTORY_UNDO` | 없음 | `{ currentState: string }` |
+
+`layerId` 를 생략하면 활성 레이어를 대상으로 한다.
+
+`LAYER_LIST` 결과에는 `opacity` (0–100 정수) 와 `parentId` (소속 그룹, 최상위면 `null`) 가
+포함된다. Photoshop 은 불투명도를 0–255 로 저장해 `50` 을 넣으면 `50.196…` 을 돌려주므로
+Plugin 이 반올림한다.
+
+되돌릴 항목이 없으면 `HISTORY_EMPTY` (`recoverable: true`) 로 실패한다.
+
+---
+
 ---
 
 ## 5. 오류
@@ -334,6 +362,7 @@ Opacity 와 Parent 는 Phase 3 에서 추가한다.
 | `LAYER_NOT_FOUND` | 지정한 레이어 없음 | true |
 | `INVALID_PARAMETER` | `payload` 가 스키마 불일치 | false |
 | `COMMAND_NOT_SUPPORTED` | Dispatcher 에 등록되지 않은 Command | false |
+| `HISTORY_EMPTY` | 되돌릴 History 항목 없음 | true |
 | `COMMAND_FAILED` | 그 외 실행 실패 | false |
 
 ### Server 가 발생시키는 코드

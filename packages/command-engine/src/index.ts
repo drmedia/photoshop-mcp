@@ -6,5 +6,7 @@ export {
 export {
   CommandRegistry,
   type CommandContext,
+  type CommandEntry,
   type CommandHandler,
 } from "./registry/command-registry.js";
+export { validateParams } from "./validation/validate-params.js";

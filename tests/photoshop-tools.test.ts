@@ -9,6 +9,7 @@ import { CommandEngine, CommandRegistry } from "@photoshop-mcp/command-engine";
 import { createPhotoshopMcp } from "@photoshop-mcp/mcp-core";
 import { registerPhotoshopTools } from "@photoshop-mcp/photoshop-tools";
 import { describe, expect, it } from "vitest";
+import { EXPECTED_COMMANDS, EXPECTED_TOOLS } from "./helpers/expected-tools.js";
 
 function setup(): ReturnType<typeof createPhotoshopMcp> & { bridge: MockPhotoshopBridge } {
   const bridge = new MockPhotoshopBridge();
@@ -23,15 +24,11 @@ const call = async (
 ): Promise<unknown> => mcp.tools.invoke(name, input, { requestId: "req-test" });
 
 describe("Phase 1 Core Tools", () => {
-  it("Phase 1 Tool 과 Command 만 등록한다", () => {
+  it("Tool 과 Command 를 등록 순서대로 노출한다", () => {
     const { tools, commands } = setup();
 
-    expect(tools.list().map((tool) => tool.name)).toEqual([
-      "photoshop.ping",
-      "photoshop.document.get",
-      "photoshop.layer.list",
-    ]);
-    expect(commands.list()).toEqual(["PING", "DOCUMENT_GET", "LAYER_LIST"]);
+    expect(tools.list().map((tool) => tool.name)).toEqual([...EXPECTED_TOOLS]);
+    expect(commands.list()).toEqual([...EXPECTED_COMMANDS]);
   });
 
   describe("photoshop.ping", () => {
@@ -105,9 +102,23 @@ describe("Phase 1 Core Tools", () => {
 
       await expect(call(mcp, "photoshop.layer.list")).resolves.toEqual({
         layers: [
-          { id: 10, name: "Background", type: "pixel", visible: true },
-          { id: 11, name: "Curves 1", type: "adjustment", visible: true },
-          { id: 12, name: "Retouch", type: "pixel", visible: false },
+          {
+            id: 10,
+            name: "Background",
+            type: "pixel",
+            visible: true,
+            opacity: 100,
+            parentId: null,
+          },
+          {
+            id: 11,
+            name: "Curves 1",
+            type: "adjustment",
+            visible: true,
+            opacity: 100,
+            parentId: null,
+          },
+          { id: 12, name: "Retouch", type: "pixel", visible: false, opacity: 50, parentId: null },
         ],
       });
     });
@@ -158,7 +169,7 @@ describe("Phase 1 Core Tools", () => {
   it("알 수 없는 Tool 은 TOOL_NOT_FOUND 를 던진다", async () => {
     const mcp = setup();
 
-    await expect(call(mcp, "photoshop.layer.duplicate")).rejects.toThrow(
+    await expect(call(mcp, "photoshop.mask.create")).rejects.toThrow(
       expect.objectContaining({ code: ErrorCode.TOOL_NOT_FOUND }),
     );
   });

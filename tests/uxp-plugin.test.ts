@@ -130,20 +130,24 @@ describe("Photoshop 열거형 매핑", () => {
   });
 
   it("LayerKind 를 프로토콜 type 으로 매핑한다", () => {
-    expect(toLayerType("group")).toBe("group");
-    expect(toLayerType("layerSection")).toBe("group");
-    expect(toLayerType("text")).toBe("text");
-    expect(toLayerType("smartObject")).toBe("smartObject");
-    expect(toLayerType("curves")).toBe("adjustment");
-    expect(toLayerType("brightnessContrast")).toBe("adjustment");
-    expect(toLayerType("solidColor")).toBe("shape");
-    expect(toLayerType("gradientFill")).toBe("shape");
-    expect(toLayerType("pixel")).toBe("pixel");
+    expect(toLayerType("group")).toEqual({ type: "group" });
+    expect(toLayerType("layerSection")).toEqual({ type: "group" });
+    expect(toLayerType("text")).toEqual({ type: "text" });
+    expect(toLayerType("smartObject")).toEqual({ type: "smartObject" });
+    expect(toLayerType("curves")).toEqual({ type: "adjustment" });
+    expect(toLayerType("brightnessContrast")).toEqual({ type: "adjustment" });
+    expect(toLayerType("solidColor")).toEqual({ type: "shape" });
+    expect(toLayerType("gradientFill")).toEqual({ type: "shape" });
+    expect(toLayerType("pixel")).toEqual({ type: "pixel" });
+    expect(toLayerType("normal")).toEqual({ type: "pixel" });
   });
 
-  it("알 수 없는 LayerKind 는 pixel 로 떨어진다", () => {
-    // Photoshop 버전이 올라가며 새 kind 가 생겨도 목록 조회가 실패하지 않아야 한다.
-    expect(toLayerType("someFutureKind")).toBe("pixel");
-    expect(toLayerType(undefined)).toBe("pixel");
+  it("알 수 없는 LayerKind 는 unknown 과 원본을 돌려준다", () => {
+    // pixel 로 떨어뜨리면 새로 생긴 조정 레이어를 픽셀 레이어로 오인하게 만든다.
+    expect(toLayerType("someFutureKind")).toEqual({
+      type: "unknown",
+      raw: "someFutureKind",
+    });
+    expect(toLayerType(undefined)).toEqual({ type: "unknown", raw: "undefined" });
   });
 });

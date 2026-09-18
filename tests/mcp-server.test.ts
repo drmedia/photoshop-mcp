@@ -3,6 +3,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createPhotoshopMcp } from "@photoshop-mcp/mcp-core";
 import { ErrorCode, MockPhotoshopBridge } from "@photoshop-mcp/photoshop-bridge";
 import { afterEach, describe, expect, it } from "vitest";
+import { EXPECTED_TOOLS } from "./helpers/expected-tools.js";
 
 interface Harness {
   client: Client;
@@ -49,15 +50,11 @@ afterEach(async () => {
 });
 
 describe("PhotoshopMcpServer", () => {
-  it("tools/list 로 Phase 1 Tool 3개를 스키마와 함께 노출한다", async () => {
+  it("tools/list 로 Tool 을 스키마와 함께 노출한다", async () => {
     const { client } = await connect();
     const { tools } = await client.listTools();
 
-    expect(tools.map((tool) => tool.name)).toEqual([
-      "photoshop.ping",
-      "photoshop.document.get",
-      "photoshop.layer.list",
-    ]);
+    expect(tools.map((tool) => tool.name)).toEqual([...EXPECTED_TOOLS]);
     for (const tool of tools) {
       expect(tool.description).toBeTruthy();
       expect(tool.inputSchema.type).toBe("object");
@@ -86,9 +83,23 @@ describe("PhotoshopMcpServer", () => {
     expect(payload(await client.callTool({ name: "photoshop.layer.list", arguments: {} }))).toEqual(
       {
         layers: [
-          { id: 10, name: "Background", type: "pixel", visible: true },
-          { id: 11, name: "Curves 1", type: "adjustment", visible: true },
-          { id: 12, name: "Retouch", type: "pixel", visible: false },
+          {
+            id: 10,
+            name: "Background",
+            type: "pixel",
+            visible: true,
+            opacity: 100,
+            parentId: null,
+          },
+          {
+            id: 11,
+            name: "Curves 1",
+            type: "adjustment",
+            visible: true,
+            opacity: 100,
+            parentId: null,
+          },
+          { id: 12, name: "Retouch", type: "pixel", visible: false, opacity: 50, parentId: null },
         ],
       },
     );
@@ -110,7 +121,7 @@ describe("PhotoshopMcpServer", () => {
   it("등록되지 않은 Tool 호출은 TOOL_NOT_FOUND Error Response 를 반환한다", async () => {
     const { client } = await connect();
 
-    const result = await client.callTool({ name: "photoshop.layer.duplicate", arguments: {} });
+    const result = await client.callTool({ name: "photoshop.mask.create", arguments: {} });
 
     expect(result.isError).toBe(true);
     expect(payload(result)).toMatchObject({ code: ErrorCode.TOOL_NOT_FOUND });

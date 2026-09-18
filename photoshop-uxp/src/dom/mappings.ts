@@ -132,28 +132,40 @@ const SHAPE_KINDS = new Set([
   "vector",
 ]);
 
+/** {@link toLayerType} 결과. 분류 실패 시 `type` 은 `"unknown"` 이고 `raw` 가 채워진다. */
+export interface LayerTypeResult {
+  type: LayerType;
+  raw?: string;
+}
+
 /**
  * Photoshop 의 `LayerKind` 를 PROTOCOL.md §4 의 `type` 으로 매핑한다.
  *
- * 분류를 알 수 없는 값은 `pixel` 로 본다.
+ * 분류하지 못하면 `"unknown"` 과 원본을 돌려준다. 예전에는 `pixel` 로 떨어뜨렸는데,
+ * Photoshop 버전이 올라가며 새로 생긴 조정 레이어를 픽셀 레이어로 오인하게 만든다.
+ * `bitDepth` 와 같은 원칙이다. (PROTOCOL.md §4)
  */
-export function toLayerType(kind: unknown): LayerType {
-  const raw = String(kind).toLowerCase();
+export function toLayerType(kind: unknown): LayerTypeResult {
+  const raw = String(kind);
+  const normalized = raw.toLowerCase();
 
-  if (raw === "group" || raw === "layersection" || raw === "layergroup") {
-    return "group";
+  if (normalized === "group" || normalized === "layersection" || normalized === "layergroup") {
+    return { type: "group" };
   }
-  if (raw === "text" || raw === "textlayer") {
-    return "text";
+  if (normalized === "text" || normalized === "textlayer") {
+    return { type: "text" };
   }
-  if (raw === "smartobject") {
-    return "smartObject";
+  if (normalized === "smartobject") {
+    return { type: "smartObject" };
   }
-  if (ADJUSTMENT_KINDS.has(raw)) {
-    return "adjustment";
+  if (normalized === "pixel" || normalized === "normal" || normalized === "background") {
+    return { type: "pixel" };
   }
-  if (SHAPE_KINDS.has(raw)) {
-    return "shape";
+  if (ADJUSTMENT_KINDS.has(normalized)) {
+    return { type: "adjustment" };
   }
-  return "pixel";
+  if (SHAPE_KINDS.has(normalized)) {
+    return { type: "shape" };
+  }
+  return { type: "unknown", raw };
 }

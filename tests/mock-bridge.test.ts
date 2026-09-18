@@ -54,7 +54,14 @@ describe("MockPhotoshopBridge", () => {
       const layers = await new MockPhotoshopBridge().getLayers();
 
       expect(layers).toHaveLength(DEFAULT_MOCK_LAYERS.length);
-      expect(layers[0]).toEqual({ id: 10, name: "Background", type: "pixel", visible: true });
+      expect(layers[0]).toEqual({
+        id: 10,
+        name: "Background",
+        type: "pixel",
+        visible: true,
+        opacity: 100,
+        parentId: null,
+      });
       expect(layers.map((layer) => layer.name)).toEqual(["Background", "Curves 1", "Retouch"]);
     });
 
@@ -134,7 +141,7 @@ describe("MockPhotoshopBridge", () => {
 
     it("지원하지 않는 Command 는 COMMAND_NOT_SUPPORTED 를 던진다", async () => {
       await expect(
-        new MockPhotoshopBridge().executeCommand({ type: "LAYER_DUPLICATE", params: {} }),
+        new MockPhotoshopBridge().executeCommand({ type: "MASK_CREATE", params: {} }),
       ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.COMMAND_NOT_SUPPORTED }));
     });
   });

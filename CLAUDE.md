@@ -12,7 +12,8 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 ## 현재 상태
 
-**Phase 9 (Permission / Safety) 완료.** Core Tool 29개 전부 실제 Photoshop 27.8 에서 검증했다.
+**Phase 9 (Permission / Safety) · Phase 8 (Capability System) 완료.**
+Core Tool 30개. Phase 9 까지의 29개는 실제 Photoshop 27.8 에서 검증했다.
 
 - 조회: `ping`, `document.get`, `layer.list`
 - 레이어: create / duplicate / rename / select / set_visibility / set_opacity
@@ -61,6 +62,20 @@ UXP DOM 에 `document.saveAs.tif` 가 없다. 실기에서 확인했다.
 
 `layer.delete` · `document.flatten` · `document.close` 는 분류 체계만 섰고 구현은 없다.
 
+## Capability (ARCHITECTURE §19, ROADMAP §12)
+
+Extension 은 특정 프로그램이 아니라 기능을 요청한다 — `ctx.capabilities.execute("gradientRemoval", …)`.
+
+안전 규칙은 batchPlay 와 같다. **임의의 프로그램과 인자를 실행할 수 없다.**
+실행 파일은 `capabilities.json` 에서만 오고(절대 경로), argv 는 선언된 파라미터로만
+조립되며, `shell: false` 로 돌린다. 입출력은 승인된 작업 폴더 안의 파일 이름뿐이다.
+
+Tool 은 `photoshop.capability.list` (조회) 하나만 노출한다. 실행 Tool 은 만들지 않는다 —
+Capability 실행은 전체 흐름의 가운데 토막이고, 그 흐름을 아는 것은 Extension 이다.
+
+동기 실행만 한다. 진행률·취소는 Phase 10 이다. 처리된 파일을 Photoshop 으로 되돌리는
+Command 는 아직 없다 (Phase 6).
+
 `batchPlay` 는 조정·마스크·선택·필터에 쓴다. DOM 에 API 가 없는 경우다.
 descriptor 는 반드시 플러그인이 검증된 파라미터로 조립한다.
 호출자가 descriptor 를 넘기는 통로를 만들지 않는다. (ARCHITECTURE §13, §23)
@@ -78,8 +93,9 @@ manifest 의 `permissions` 는 **선언만 받고 강제하지 않는다.** 강�
 `capabilities`(Phase 8) · `photoshop` 은 아직 없다. 동작하지 않는 껍데기를 두면
 Extension 작성자가 있는 줄 알고 쓴다.
 
-다음 작업은 파일 저장의 **실기 검증**, 그다음 **Phase 8 (Capability)** · **Phase 6
-(MilkyScapeTools)** 다. Phase 6 의 외부 도구 연동은 Phase 8 과 파일 접근에 의존한다.
+다음 작업은 **Phase 6 (MilkyScapeTools)** 다. 그 전에 처리된 파일을 Photoshop 으로
+되돌리는 Command(`layer.place` 같은 것)가 필요하다 — 지금은 내보내기와 외부 실행까지만
+이어지고 돌아오는 길이 없다.
 
 알 수 없는 열거형 값은 기본값으로 덮지 않는다. `null` + 원본(`rawBitDepth` · `rawKind` ·
 `rawBlendMode`)을 함께 반환한다. 이 원칙으로 실기에서 세 번 실제 버그를 잡았다.
@@ -214,6 +230,7 @@ npm run check        # format + lint + build + typecheck:tests + test
 | `PHOTOSHOP_MCP_PORT` | `8765` | Bridge WebSocket 포트 |
 | `PHOTOSHOP_MCP_EXTENSIONS` | `<cwd>/extensions` | Extension 디렉터리 |
 | `PHOTOSHOP_MCP_ALLOW` | `read,edit` | 허용 권한. `all` · `none` 도 쓸 수 있다 |
+| `PHOTOSHOP_MCP_CAPABILITIES` | `<cwd>/capabilities.json` | 외부 처리기 설정 |
 
 Photoshop 없이 돌릴 때는 `PHOTOSHOP_MCP_BRIDGE=mock` 을 사용합니다.
 

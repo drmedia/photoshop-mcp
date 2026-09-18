@@ -1098,11 +1098,47 @@ starRemoval
 
 ## Tasks
 
-- [ ] Capability Registry
-- [ ] Provider Registration
-- [ ] Provider Availability
-- [ ] Provider Selection
-- [ ] Provider Configuration
+- [x] Capability Registry — `packages/mcp-core/src/capabilities/registry.ts`
+- [x] Provider Registration — 설정 파일(`capabilities.json`) 또는 `register()`
+- [x] Provider Availability — 실행 파일 존재·실행 권한 확인. **안 되는 이유를 함께 준다.**
+- [x] Provider Selection — `priority` 내림차순. `provider` 로 지정도 가능
+- [x] Provider Configuration — `executable` · `args` 템플릿 · `params` 선언 · `timeoutMs`
+
+## 안전 설계
+
+ARCHITECTURE §23.2 와 같은 원칙이다. LLM 이 임의 batchPlay 를 실행할 수 없듯
+**임의의 프로그램과 인자도 실행할 수 없다.**
+
+- 실행 파일 경로는 **설정에서만** 온다. 절대 경로를 요구한다 — 상대 경로는 서버의
+  작업 디렉터리에 따라 달라진다.
+- argv 는 Provider 정의가 **선언된 파라미터로 조립한다.** 호출자가 argv 를 넘기는
+  통로가 없다. enum 은 허용 목록 밖의 값을 거부하므로 자유 문자열이 argv 에 닿지 않는다.
+- `shell: false` 로 실행한다. 값 안의 `&&` 나 따옴표는 한 인자의 내용일 뿐이다.
+- 입출력은 **승인된 작업 폴더 안의 파일 이름**만 받는다 (§8.5 와 같은 규칙).
+  경로를 받으면 `external` 권한이 임의 파일 읽기·쓰기로 넓어진다.
+- `{{...}}` 는 무엇이든 자리표시자로 보고 선언되지 않았으면 등록 시점에 거부한다.
+  이름을 ASCII 로 좁혔더니 `{{오타}}` 가 검사를 빠져나가 그대로 인자가 되었다.
+
+## Tool 노출
+
+`photoshop.capability.list` (read) 하나만 노출한다. **실행 Tool 은 만들지 않는다.**
+
+Capability 실행은 "파일을 내보내고 → 외부 처리기를 돌리고 → 되돌려 놓는" 흐름의 가운데
+토막이다. 그 흐름을 아는 것은 Extension 이고(ARCHITECTURE §1), LLM 이 토막을 직접 부르면
+앞뒤가 빠진 채로 실행된다. 실행은 `ExtensionContext.capabilities` 로만 한다.
+
+Extension 의 Capability 실행에는 manifest 에 `photoshop.external` 선언이 필요하다.
+Command 와 같은 상한이다.
+
+## 아직 없는 것
+
+- **동기 실행만 한다.** 진행률 보고와 취소는 Job System (Phase 10) 이다.
+  `timeoutMs` 로 무한정 매달리는 것만 막는다.
+- 처리된 파일을 Photoshop 에 **되돌려 놓는 Command 가 없다.** `layer.place` 같은 것이
+  필요하며 Phase 6 에서 다룬다. 지금은 내보내기와 외부 실행까지만 이어진다.
+- GraXpert · StarNet2 의 실제 인자는 검증하지 않았다. `capabilities.example.json` 은
+  예시이며 각 프로그램의 CLI 문서를 확인하고 고쳐 써야 한다. 검증하지 않은 것을
+  동작한다고 적지 않는다.
 
 ---
 

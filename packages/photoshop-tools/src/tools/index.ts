@@ -26,6 +26,7 @@ import {
   createLayerSelectTool,
   createLayerVisibilityTool,
 } from "./layer-edit.js";
+import { createCapabilityListTool, type CapabilityLister } from "./capability.js";
 import {
   createExportTool,
   createSaveAsTool,
@@ -43,6 +44,7 @@ export {
 } from "./layer-list.js";
 export * from "./adjustment.js";
 export * from "./filter.js";
+export * from "./capability.js";
 export * from "./document-save.js";
 export * from "./gap-tools.js";
 export * from "./group.js";
@@ -104,4 +106,18 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createSaveAsTool(engine));
   registry.register(createExportTool(engine));
   registry.register(createSaveTool(engine));
+}
+
+/**
+ * Capability 조회 Tool 을 등록한다. (ROADMAP §12)
+ *
+ * `registerPhotoshopTools` 와 분리한 이유: Capability 레지스트리는 Command Engine 이
+ * 아니라 별도 구성 요소다. 선택 인자로 받으면 주지 않았을 때 Tool 이 조용히 빠진다.
+ * 호출을 나누면 빠뜨린 것이 보인다.
+ */
+export function registerCapabilityTools(
+  registry: ToolRegistry,
+  capabilities: CapabilityLister,
+): void {
+  registry.register(createCapabilityListTool(capabilities));
 }

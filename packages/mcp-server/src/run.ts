@@ -36,11 +36,13 @@ function log(message: string): void {
  * - `PHOTOSHOP_MCP_BRIDGE` — `uxp` (기본) 또는 `mock`
  * - `PHOTOSHOP_MCP_EXTENSIONS` — Extension 디렉터리 (기본 `<cwd>/extensions`)
  * - `PHOTOSHOP_MCP_ALLOW` — 허용할 Permission Level (기본 `read,edit`)
+ * - `PHOTOSHOP_MCP_CAPABILITIES` — 외부 처리기 설정 (기본 `<cwd>/capabilities.json`)
  */
 export function readOptionsFromEnv(env: Record<string, string | undefined> = process.env): {
   mode: BridgeMode;
   port: number;
   extensionsDir: string;
+  capabilityConfig: string;
   policy: PermissionPolicy;
 } {
   const mode: BridgeMode = env["PHOTOSHOP_MCP_BRIDGE"] === "mock" ? "mock" : "uxp";
@@ -64,17 +66,21 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
     log(`PHOTOSHOP_MCP_ALLOW 에 알 수 없는 값이 있습니다: ${unknown.join(", ")} — 무시합니다`);
   }
 
-  return { mode, port, extensionsDir, policy: new PermissionPolicy(levels) };
+  // 파일이 없으면 조용히 넘어간다. 외부 처리기가 없는 것은 정상이다.
+  const capabilityConfig = resolve(env["PHOTOSHOP_MCP_CAPABILITIES"] ?? "capabilities.json");
+
+  return { mode, port, extensionsDir, capabilityConfig, policy: new PermissionPolicy(levels) };
 }
 
 /** CLI 진입점. 오류를 스스로 처리하며 예외를 던지지 않는다. */
 export async function main(): Promise<void> {
-  const { mode, port, extensionsDir, policy } = readOptionsFromEnv();
+  const { mode, port, extensionsDir, capabilityConfig, policy } = readOptionsFromEnv();
 
   const options: StartOptions = {
     mode,
     port,
     extensionsDir,
+    capabilityConfig,
     policy,
     onBridgeStateChange: (state) => {
       log(`Bridge: ${STATE_LABEL[state] ?? state}`);
@@ -93,6 +99,9 @@ export async function main(): Promise<void> {
     log(`stdio 서버 시작. ${bridgeLabel}`);
     log(`Tool ${mcp.tools.size}개: ${names}`);
     log(`허용 권한: ${policy.allowed.join(", ") || "(없음)"}`);
+    if (mcp.loadedProviders > 0) {
+      log(`외부 처리기 ${mcp.loadedProviders}개: ${mcp.capabilities.list().join(", ")}`);
+    }
     if (mcp.loadedExtensions.length > 0) {
       const extensionNames = mcp.loadedExtensions
         .map((extension) => `${extension.manifest.name}(${extension.manifest.namespace})`)

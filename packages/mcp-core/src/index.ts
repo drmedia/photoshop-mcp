@@ -3,6 +3,14 @@ export {
   type CreatePhotoshopMcpOptions,
   type PhotoshopMcp,
 } from "./create-core.js";
+export {
+  CapabilityRegistry,
+  spawnRunner,
+  type CapabilityRegistryOptions,
+  type ProcessOutcome,
+  type ProcessRunner,
+  type WorkspaceResolver,
+} from "./capabilities/registry.js";
 export { createConsoleLogger, createSilentLogger } from "./extensions/logger.js";
 export {
   ExtensionManager,

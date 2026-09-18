@@ -40,6 +40,13 @@ export interface StartOptions extends CreatePhotoshopMcpOptions {
    */
   extensionsDir?: string;
   /**
+   * Capability Provider 설정 파일. (ROADMAP §12)
+   *
+   * 생략하면 외부 처리기를 등록하지 않는다. 파일이 없어도 오류가 아니다 —
+   * 외부 처리기가 없는 것은 정상이다.
+   */
+  capabilityConfig?: string;
+  /**
    * 사용할 transport. 생략하면 stdio 를 사용한다.
    * 테스트에서 in-memory transport 를 주입할 때 사용한다.
    */
@@ -52,6 +59,8 @@ export interface StartedPhotoshopMcp extends PhotoshopMcp {
   bridgeTransport: BridgeTransport | null;
   /** 적재에 성공한 Extension. `extensionsDir` 를 주지 않았으면 빈 배열. */
   loadedExtensions: LoadedExtension[];
+  /** 등록된 Capability Provider 수. */
+  loadedProviders: number;
   /** MCP 서버와 Bridge 전송을 함께 정지한다. */
   stop(): Promise<void>;
 }
@@ -71,6 +80,7 @@ export async function startPhotoshopMcpServer(
     onBridgeStateChange,
     transport,
     extensionsDir,
+    capabilityConfig,
     ...coreOptions
   } = options;
 
@@ -94,6 +104,10 @@ export async function startPhotoshopMcpServer(
 
   const mcp = createPhotoshopMcp({ ...coreOptions, bridge });
 
+  // Extension 이 Capability 를 쓸 수 있으려면 먼저 등록되어 있어야 한다.
+  const loadedProviders =
+    capabilityConfig === undefined ? 0 : await mcp.capabilities.loadConfig(capabilityConfig);
+
   // Tool 목록을 노출하기 전에 적재한다.
   const loadedExtensions =
     extensionsDir === undefined ? [] : await mcp.extensions.loadAll(extensionsDir);
@@ -109,6 +123,7 @@ export async function startPhotoshopMcpServer(
     ...mcp,
     bridgeTransport,
     loadedExtensions,
+    loadedProviders,
     stop: async () => {
       await mcp.server.stop();
       for (const extension of loadedExtensions) {

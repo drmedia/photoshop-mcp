@@ -35,10 +35,12 @@ export {
 } from "./protocol/messages.js";
 export { SERVER_NAME, SERVER_VERSION } from "./protocol/server-info.js";
 export {
+  BlendModeSchema,
   DocumentInfoSchema,
   LayerInfoListSchema,
   LayerInfoSchema,
   LayerTypeSchema,
+  type BlendMode,
   type DocumentInfo,
   type LayerInfo,
   type LayerType,

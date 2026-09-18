@@ -32,7 +32,7 @@ function channelReference(channel: Channel | undefined): Record<string, unknown>
 }
 
 /** 조정 레이어를 만들고 결과를 프로토콜 형태로 돌려준다. */
-async function makeAdjustmentLayer(
+export async function makeAdjustmentLayer(
   commandName: string,
   type: Record<string, unknown>,
   name: string | undefined,

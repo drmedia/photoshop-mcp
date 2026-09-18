@@ -101,25 +101,7 @@ describe("Phase 1 Core Tools", () => {
       const mcp = setup();
 
       await expect(call(mcp, "photoshop.layer.list")).resolves.toEqual({
-        layers: [
-          {
-            id: 10,
-            name: "Background",
-            type: "pixel",
-            visible: true,
-            opacity: 100,
-            parentId: null,
-          },
-          {
-            id: 11,
-            name: "Curves 1",
-            type: "adjustment",
-            visible: true,
-            opacity: 100,
-            parentId: null,
-          },
-          { id: 12, name: "Retouch", type: "pixel", visible: false, opacity: 50, parentId: null },
-        ],
+        layers: DEFAULT_MOCK_LAYERS.map((layer) => ({ ...layer })),
       });
     });
 

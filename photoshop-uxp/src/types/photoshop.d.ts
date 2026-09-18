@@ -20,6 +20,8 @@ declare module "photoshop" {
     visible: boolean;
     /** 0–100. */
     opacity: number;
+    /** `Constants.BlendMode`. */
+    blendMode: string;
     /** 그룹 레이어의 자식. 그룹이 아니면 빈 배열이거나 `undefined`. */
     readonly layers?: readonly PhotoshopLayer[];
 

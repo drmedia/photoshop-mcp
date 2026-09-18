@@ -1,4 +1,4 @@
-import type { LayerType } from "@photoshop-mcp/photoshop-bridge";
+import type { BlendMode, LayerType } from "@photoshop-mcp/photoshop-bridge";
 
 /**
  * Photoshop 열거형 값을 프로토콜 표기로 바꾸는 순수 함수 모음.
@@ -168,4 +168,70 @@ export function toLayerType(kind: unknown): LayerTypeResult {
     return { type: "shape" };
   }
   return { type: "unknown", raw };
+}
+
+/** {@link toBlendMode} 결과. 매핑 실패 시 `blendMode` 는 `null` 이고 `raw` 가 채워진다. */
+export interface BlendModeResult {
+  blendMode: BlendMode | null;
+  raw?: string;
+}
+
+/** 프로토콜이 정의한 혼합 모드. Photoshop 값과 이름이 같다. */
+const BLEND_MODES = new Set<string>([
+  // 그룹 레이어의 기본값. 실기에서 확인했다.
+  "passThrough",
+  "normal",
+  "dissolve",
+  "darken",
+  "multiply",
+  "colorBurn",
+  "linearBurn",
+  "lighten",
+  "screen",
+  "colorDodge",
+  "linearDodge",
+  "overlay",
+  "softLight",
+  "hardLight",
+  "vividLight",
+  "linearLight",
+  "pinLight",
+  "hardMix",
+  "difference",
+  "exclusion",
+  "subtract",
+  "divide",
+  "hue",
+  "saturation",
+  "color",
+  "luminosity",
+]);
+
+/** Photoshop 의 대문자·변형 표기를 프로토콜 표기로 맞춘다. */
+const BLEND_MODE_ALIASES: Record<string, BlendMode> = {
+  linearDodgeAdd: "linearDodge",
+  blendSubtraction: "subtract",
+  blendDivide: "divide",
+};
+
+/**
+ * `Layer.blendMode` 를 프로토콜 표기로 바꾼다.
+ *
+ * 모르는 값은 `null` 과 원본을 돌려준다. `bitDepth` · `layer.kind` 와 같은 원칙이다.
+ */
+export function toBlendMode(value: unknown): BlendModeResult {
+  const raw = String(value);
+  if (BLEND_MODES.has(raw)) {
+    return { blendMode: raw as BlendMode };
+  }
+  const alias = BLEND_MODE_ALIASES[raw];
+  if (alias !== undefined) {
+    return { blendMode: alias };
+  }
+  // Photoshop 이 "NORMAL" 처럼 대문자로 줄 수 있다.
+  const lower = raw.charAt(0).toLowerCase() + raw.slice(1);
+  if (BLEND_MODES.has(lower)) {
+    return { blendMode: lower as BlendMode };
+  }
+  return { blendMode: null, raw };
 }

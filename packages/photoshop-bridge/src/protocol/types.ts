@@ -61,6 +61,43 @@ export const LayerTypeSchema = z.enum([
 
 export type LayerType = z.infer<typeof LayerTypeSchema>;
 
+/**
+ * 혼합 모드.
+ *
+ * `passThrough` 는 그룹 레이어의 기본값이며 그룹에만 쓸 수 있다.
+ * 실기에서 그룹이 이 값을 돌려주는 것을 확인했다.
+ */
+export const BlendModeSchema = z.enum([
+  "passThrough",
+  "normal",
+  "dissolve",
+  "darken",
+  "multiply",
+  "colorBurn",
+  "linearBurn",
+  "lighten",
+  "screen",
+  "colorDodge",
+  "linearDodge",
+  "overlay",
+  "softLight",
+  "hardLight",
+  "vividLight",
+  "linearLight",
+  "pinLight",
+  "hardMix",
+  "difference",
+  "exclusion",
+  "subtract",
+  "divide",
+  "hue",
+  "saturation",
+  "color",
+  "luminosity",
+]);
+
+export type BlendMode = z.infer<typeof BlendModeSchema>;
+
 /** 레이어 정보. */
 export const LayerInfoSchema = z.object({
   id: z.number().int(),
@@ -71,6 +108,10 @@ export const LayerInfoSchema = z.object({
   opacity: z.number(),
   /** 소속 그룹의 레이어 ID. 최상위면 `null`. */
   parentId: z.number().int().nullable(),
+  /** 혼합 모드. 매핑하지 못한 값은 `rawBlendMode` 에 원본이 담긴다. */
+  blendMode: BlendModeSchema.nullable(),
+  /** `blendMode` 가 `null` 일 때만 포함. */
+  rawBlendMode: z.string().optional(),
   /** `type` 이 `unknown` 일 때만 포함. Photoshop 의 원본 `LayerKind`. */
   rawKind: z.string().optional(),
 });

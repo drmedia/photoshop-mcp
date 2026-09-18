@@ -13,6 +13,20 @@ import {
 import { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
 import { FILTER_GAUSSIAN_BLUR, GaussianBlurParamsSchema, gaussianBlurCommand } from "./filter.js";
 import {
+  ADJUSTMENT_HUE_SATURATION,
+  ADJUSTMENT_VIBRANCE,
+  HueSaturationParamsSchema,
+  LAYER_BLEND_MODE,
+  LayerBlendModeParamsSchema,
+  SELECTION_SET,
+  SelectionSetParamsSchema,
+  VibranceParamsSchema,
+  hueSaturationCommand,
+  layerBlendModeCommand,
+  selectionSetCommand,
+  vibranceCommand,
+} from "./gap-tools.js";
+import {
   MASK_CREATE,
   MASK_DISABLE,
   MASK_ENABLE,
@@ -62,6 +76,7 @@ import { PING, pingCommand } from "./ping.js";
 export { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
 export * from "./adjustment.js";
 export * from "./filter.js";
+export * from "./gap-tools.js";
 export * from "./group.js";
 export * from "./mask-selection.js";
 export * from "./history.js";
@@ -116,4 +131,10 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
 
   // Phase 4 — 필터 (기본 스마트 필터로 비파괴)
   registry.register(FILTER_GAUSSIAN_BLUR, gaussianBlurCommand, GaussianBlurParamsSchema);
+
+  // ROADMAP §8.6 — 실기에서 드러난 공백
+  registry.register(LAYER_BLEND_MODE, layerBlendModeCommand, LayerBlendModeParamsSchema);
+  registry.register(SELECTION_SET, selectionSetCommand, SelectionSetParamsSchema);
+  registry.register(ADJUSTMENT_HUE_SATURATION, hueSaturationCommand, HueSaturationParamsSchema);
+  registry.register(ADJUSTMENT_VIBRANCE, vibranceCommand, VibranceParamsSchema);
 }

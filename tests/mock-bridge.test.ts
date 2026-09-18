@@ -61,6 +61,7 @@ describe("MockPhotoshopBridge", () => {
         visible: true,
         opacity: 100,
         parentId: null,
+        blendMode: "normal",
       });
       expect(layers.map((layer) => layer.name)).toEqual(["Background", "Curves 1", "Retouch"]);
     });

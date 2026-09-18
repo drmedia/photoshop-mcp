@@ -13,7 +13,7 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 ## 현재 상태
 
 **Phase 4 (Extended Photoshop Tools) 완료.** 실제 Photoshop 27.8 에서 검증했다.
-Tool 21개.
+Tool 25개.
 
 - 조회: `ping`, `document.get`, `layer.list`
 - 레이어: create / duplicate / rename / select / set_visibility / set_opacity
@@ -21,6 +21,7 @@ Tool 21개.
 - 조정 레이어: curves / levels / brightness_contrast
 - 마스크: create / enable / disable · 선택: clear / invert
 - 필터: gaussian_blur (기본 스마트 필터)
+- §8.6 공백 보완: selection.set · layer.set_blend_mode · adjustment.hue_saturation · vibrance
 
 **전부 비파괴다.** destructive 명령과 문서 저장은 Phase 9 의 Permission System 과
 함께 도입한다. 저장은 UXP 샌드박스가 임의 경로 쓰기를 막아 폴더 승인·토큰 보관이
@@ -34,6 +35,9 @@ UXP 의 실기 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 
 바꾸기 전에 그 문서를 먼저 읽는다.
 
 다음 작업은 **Phase 5 (Extension SDK)** 다.
+
+알 수 없는 열거형 값은 기본값으로 덮지 않는다. `null` + 원본(`rawBitDepth` · `rawKind` ·
+`rawBlendMode`)을 함께 반환한다. 이 원칙으로 실기에서 세 번 실제 버그를 잡았다.
 
 ## Phase 기준
 

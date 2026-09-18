@@ -26,7 +26,7 @@ async function play(
 }
 
 /** 활성 문서에 선택 영역이 있는지. */
-function hasSelection(): boolean {
+export function hasSelection(): boolean {
   const document = app.activeDocument;
   if (document === null || document === undefined) {
     return false;

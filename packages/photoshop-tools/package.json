@@ -1,0 +1,27 @@
+{
+  "name": "@photoshop-mcp/photoshop-tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Photoshop Core MCP Tool 및 Command 정의",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@photoshop-mcp/command-engine": "0.1.0",
+    "@photoshop-mcp/photoshop-bridge": "0.1.0",
+    "zod": "^3.23.8"
+  }
+}

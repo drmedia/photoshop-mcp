@@ -1,0 +1,29 @@
+{
+  "name": "@photoshop-mcp/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Photoshop MCP 실행 패키지 (composition root)",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "photoshop-mcp": "./bin/photoshop-mcp.js"
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@photoshop-mcp/mcp-core": "0.1.0"
+  }
+}

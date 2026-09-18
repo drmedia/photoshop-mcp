@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo"
+  },
+  "include": ["src/**/*"],
+  "references": [
+    {
+      "path": "../photoshop-bridge"
+    },
+    {
+      "path": "../command-engine"
+    },
+    {
+      "path": "../photoshop-tools"
+    }
+  ]
+}

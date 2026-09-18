@@ -1,0 +1,23 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/photoshop-bridge"
+    },
+    {
+      "path": "packages/command-engine"
+    },
+    {
+      "path": "packages/photoshop-tools"
+    },
+    {
+      "path": "packages/mcp-core"
+    },
+    {
+      "path": "packages/mcp-server"
+    },
+    {
+      "path": "packages/extension-sdk"
+    }
+  ]
+}

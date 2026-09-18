@@ -1,0 +1,25 @@
+{
+  "name": "@photoshop-mcp/command-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Command Registry 및 Command Engine",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@photoshop-mcp/photoshop-bridge": "0.1.0"
+  }
+}

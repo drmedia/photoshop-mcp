@@ -1,0 +1,8 @@
+# 모든 텍스트 파일을 저장소에 LF 로 저장한다.
+# Prettier 의 endOfLine: lf 설정과 작업 트리를 일치시킨다.
+* text=auto eol=lf
+
+# 바이너리
+*.png binary
+*.jpg binary
+*.psd binary

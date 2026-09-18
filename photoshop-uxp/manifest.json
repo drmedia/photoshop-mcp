@@ -1,0 +1,15 @@
+{
+  "manifestVersion": 5,
+  "id": "com.photoshopmcp.plugin",
+  "name": "Photoshop MCP",
+  "version": "0.0.1",
+  "main": "src/index.js",
+  "host": [
+    {
+      "app": "PS",
+      "minVersion": "24.0.0"
+    }
+  ],
+  "entrypoints": [],
+  "requiredPermissions": {}
+}

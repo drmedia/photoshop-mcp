@@ -1,0 +1,38 @@
+{
+  "name": "photoshop-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Photoshop를 MCP로 제어하는 모노레포",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "workspaces": [
+    "packages/*",
+    "extensions/*"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "rebuild": "npm run clean && npm run build",
+    "dev": "tsx --conditions development packages/mcp-server/src/run.ts",
+    "dev:watch": "tsx watch --conditions development packages/mcp-server/src/run.ts",
+    "start": "node packages/mcp-server/bin/photoshop-mcp.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run lint && npm run build && npm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.9.0",
+    "eslint": "^10.10.0",
+    "prettier": "^3.3.3",
+    "tsx": "^4.23.13",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^5.0.1"
+  }
+}

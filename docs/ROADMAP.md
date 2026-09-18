@@ -2179,6 +2179,27 @@ minimum(0.4)                             별 축소 성립
 selection.sky → color_balance            하늘에만 적용 (bounds bottom 4507)
 ```
 
+## 스마트 오브젝트 없이도 성립한다
+
+`asSmartFilter: false` 경로는 그때까지 한 번도 시험하지 않았다. 사용자 요청으로
+스마트 오브젝트를 배제하고 같은 워크플로를 돌렸다.
+
+```text
+13:"Sharpen"(pixel,op30,softLight)   High Pass 샤프닝
+17:"Global Color"(adjustment,mask)
+16:"Foreground"(adjustment,mask)
+15:"Sky Color"(adjustment,mask)
+14:"Sky Tone"(adjustment,mask)
+12:"Work"(pixel)                     별 축소 적용
+```
+
+**레이어 id 가 전 구간에서 유지된다.** 스마트 필터 경로는 변환할 때마다 id 와 type 이
+바뀌어 호출자가 매번 반환값을 다시 읽어야 하는데, 이쪽은 그럴 필요가 없다. 여러
+단계를 이어갈 때는 이쪽이 추적하기 쉽다.
+
+대신 픽셀에 구워진다. **비파괴는 복제본에서 온다** — `layer.duplicate` 한 레이어에
+적용하면 원본이 남는다. 이 절충을 Tool 설명에 적었다.
+
 ## 아직 남은 워크플로 공백
 
 | 단계 | 필요한 것 |

@@ -1,6 +1,7 @@
 import { createPhotoshopMcp } from "@photoshop-mcp/mcp-core";
 import { ErrorCode, MockPhotoshopBridge } from "@photoshop-mcp/photoshop-bridge";
 import { describe, expect, it } from "vitest";
+import { FORBIDDEN_TOOLS } from "./helpers/expected-tools.js";
 
 /**
  * Phase 3 레이어 편집. (ROADMAP §7.1)
@@ -56,16 +57,11 @@ describe("Phase 3 레이어 편집 Tool", () => {
     }
   });
 
-  it("destructive Tool 은 등록하지 않는다", () => {
-    // ROADMAP §7.4 — Permission System 과 함께 이후 Phase 에서 추가한다.
+  it("아직 범위 밖인 Tool 은 등록하지 않는다", () => {
     const names = setup()
       .tools.list()
       .map((tool) => tool.name);
-    for (const forbidden of [
-      "photoshop.layer.delete",
-      "photoshop.document.flatten",
-      "photoshop.document.close",
-    ]) {
+    for (const forbidden of FORBIDDEN_TOOLS) {
       expect(names).not.toContain(forbidden);
     }
   });
@@ -252,5 +248,94 @@ describe("Command Engine 파라미터 검증", () => {
   it("파라미터 없는 Command 는 스키마 없이도 동작한다", async () => {
     const mcp = setup();
     await expect(mcp.engine.execute({ type: "LAYER_LIST", params: {} })).resolves.toHaveLength(3);
+  });
+});
+
+describe("Phase 3 그룹 Tool", () => {
+  it("그룹 Tool 2개를 등록한다", () => {
+    const { tools, commands } = setup();
+
+    expect(tools.list().map((tool) => tool.name)).toContain("photoshop.group.create");
+    expect(tools.list().map((tool) => tool.name)).toContain("photoshop.group.move_layer");
+    expect(commands.list()).toContain("GROUP_CREATE");
+    expect(commands.list()).toContain("GROUP_MOVE_LAYER");
+  });
+
+  it("빈 그룹을 만든다", async () => {
+    const mcp = setup();
+
+    const group = await call<Layer>(mcp, "photoshop.group.create", { name: "My Group" });
+
+    expect(group).toMatchObject({ name: "My Group", type: "group", parentId: null });
+    const { layers } = await call<{ layers: Layer[] }>(mcp, "photoshop.layer.list");
+    expect(layers[0]?.id).toBe(group.id);
+  });
+
+  it("레이어를 넣어 그룹을 만들면 parentId 가 설정된다", async () => {
+    const mcp = setup();
+
+    const group = await call<Layer>(mcp, "photoshop.group.create", {
+      name: "Sky",
+      layerIds: [10, 11],
+    });
+
+    const { layers } = await call<{ layers: Layer[] }>(mcp, "photoshop.layer.list");
+    expect(layers.find((layer) => layer.id === 10)?.parentId).toBe(group.id);
+    expect(layers.find((layer) => layer.id === 11)?.parentId).toBe(group.id);
+    // 넣지 않은 레이어는 그대로다.
+    expect(layers.find((layer) => layer.id === 12)?.parentId).toBeNull();
+  });
+
+  it("없는 레이어를 넣으려 하면 그룹을 만들지 않는다", async () => {
+    const mcp = setup();
+
+    await expect(
+      call(mcp, "photoshop.group.create", { name: "x", layerIds: [10, 999] }),
+    ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.LAYER_NOT_FOUND }));
+
+    // 부분 적용되지 않았다.
+    const { layers } = await call<{ layers: Layer[] }>(mcp, "photoshop.layer.list");
+    expect(layers).toHaveLength(3);
+    expect(layers.find((layer) => layer.id === 10)?.parentId).toBeNull();
+  });
+
+  it("레이어를 그룹으로 옮기고 다시 꺼낸다", async () => {
+    const mcp = setup();
+    const group = await call<Layer>(mcp, "photoshop.group.create", { name: "G" });
+
+    const moved = await call<Layer>(mcp, "photoshop.group.move_layer", {
+      layerId: 12,
+      groupId: group.id,
+    });
+    expect(moved).toMatchObject({ id: 12, parentId: group.id });
+
+    const out = await call<Layer>(mcp, "photoshop.group.move_layer", {
+      layerId: 12,
+      groupId: null,
+    });
+    expect(out).toMatchObject({ id: 12, parentId: null });
+  });
+
+  it("자기 자신 안으로 옮길 수 없다", async () => {
+    const mcp = setup();
+    const group = await call<Layer>(mcp, "photoshop.group.create", { name: "G" });
+
+    await expect(
+      call(mcp, "photoshop.group.move_layer", { layerId: group.id, groupId: group.id }),
+    ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
+  });
+
+  it("없는 그룹으로 옮기면 LAYER_NOT_FOUND 를 던진다", async () => {
+    const mcp = setup();
+    await expect(
+      call(mcp, "photoshop.group.move_layer", { layerId: 10, groupId: 999 }),
+    ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.LAYER_NOT_FOUND }));
+  });
+
+  it("groupId 는 필수다", async () => {
+    const mcp = setup();
+    await expect(call(mcp, "photoshop.group.move_layer", { layerId: 10 })).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
+    );
   });
 });

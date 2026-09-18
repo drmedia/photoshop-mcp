@@ -25,6 +25,9 @@ declare module "photoshop" {
 
     /** 레이어를 복제한다. **비동기다.** */
     duplicate(): Promise<PhotoshopLayer>;
+
+    /** 레이어를 다른 위치로 옮긴다. **비동기다.** */
+    move(relativeObject: PhotoshopLayer | PhotoshopDocument, placement: string): Promise<void>;
   }
 
   export interface PhotoshopDocument {
@@ -41,6 +44,12 @@ declare module "photoshop" {
 
     /** 새 픽셀 레이어를 만든다. **비동기다.** */
     createLayer(options?: { name?: string; opacity?: number }): Promise<PhotoshopLayer>;
+
+    /** 레이어 그룹을 만든다. **비동기다.** */
+    createLayerGroup(options?: {
+      name?: string;
+      fromLayers?: readonly PhotoshopLayer[];
+    }): Promise<PhotoshopLayer>;
   }
 
   export interface PhotoshopApp {
@@ -63,8 +72,18 @@ declare module "photoshop" {
     ): Promise<TResult>;
   }
 
+  /** `Constants.ElementPlacement`. 레이어 이동 위치를 지정한다. */
+  export interface ElementPlacementConstants {
+    readonly PLACEINSIDE: string;
+    readonly PLACEATBEGINNING: string;
+    readonly PLACEATEND: string;
+    readonly PLACEBEFORE: string;
+    readonly PLACEAFTER: string;
+  }
+
   export const app: PhotoshopApp;
   export const core: PhotoshopCore;
+  export const constants: { readonly ElementPlacement: ElementPlacementConstants };
 }
 
 declare module "uxp" {

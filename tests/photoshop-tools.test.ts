@@ -9,6 +9,7 @@ import { CommandEngine, CommandRegistry } from "@photoshop-mcp/command-engine";
 import { createPhotoshopMcp } from "@photoshop-mcp/mcp-core";
 import { registerPhotoshopTools } from "@photoshop-mcp/photoshop-tools";
 import { describe, expect, it } from "vitest";
+import { EXPECTED_COMMANDS, EXPECTED_TOOLS } from "./helpers/expected-tools.js";
 
 function setup(): ReturnType<typeof createPhotoshopMcp> & { bridge: MockPhotoshopBridge } {
   const bridge = new MockPhotoshopBridge();
@@ -23,31 +24,11 @@ const call = async (
 ): Promise<unknown> => mcp.tools.invoke(name, input, { requestId: "req-test" });
 
 describe("Phase 1 Core Tools", () => {
-  it("Phase 1 조회 Tool 을 맨 앞에 등록한다", () => {
+  it("Tool 과 Command 를 등록 순서대로 노출한다", () => {
     const { tools, commands } = setup();
 
-    expect(tools.list().map((tool) => tool.name)).toEqual([
-      "photoshop.ping",
-      "photoshop.document.get",
-      "photoshop.layer.list",
-      "photoshop.layer.create",
-      "photoshop.layer.duplicate",
-      "photoshop.layer.rename",
-      "photoshop.layer.select",
-      "photoshop.layer.set_visibility",
-      "photoshop.layer.set_opacity",
-    ]);
-    expect(commands.list()).toEqual([
-      "PING",
-      "DOCUMENT_GET",
-      "LAYER_LIST",
-      "LAYER_CREATE",
-      "LAYER_DUPLICATE",
-      "LAYER_RENAME",
-      "LAYER_SELECT",
-      "LAYER_VISIBILITY",
-      "LAYER_OPACITY",
-    ]);
+    expect(tools.list().map((tool) => tool.name)).toEqual([...EXPECTED_TOOLS]);
+    expect(commands.list()).toEqual([...EXPECTED_COMMANDS]);
   });
 
   describe("photoshop.ping", () => {

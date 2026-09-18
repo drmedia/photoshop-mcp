@@ -3,6 +3,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createPhotoshopMcp } from "@photoshop-mcp/mcp-core";
 import { ErrorCode, MockPhotoshopBridge } from "@photoshop-mcp/photoshop-bridge";
 import { afterEach, describe, expect, it } from "vitest";
+import { EXPECTED_TOOLS } from "./helpers/expected-tools.js";
 
 interface Harness {
   client: Client;
@@ -53,17 +54,7 @@ describe("PhotoshopMcpServer", () => {
     const { client } = await connect();
     const { tools } = await client.listTools();
 
-    expect(tools.map((tool) => tool.name)).toEqual([
-      "photoshop.ping",
-      "photoshop.document.get",
-      "photoshop.layer.list",
-      "photoshop.layer.create",
-      "photoshop.layer.duplicate",
-      "photoshop.layer.rename",
-      "photoshop.layer.select",
-      "photoshop.layer.set_visibility",
-      "photoshop.layer.set_opacity",
-    ]);
+    expect(tools.map((tool) => tool.name)).toEqual([...EXPECTED_TOOLS]);
     for (const tool of tools) {
       expect(tool.description).toBeTruthy();
       expect(tool.inputSchema.type).toBe("object");

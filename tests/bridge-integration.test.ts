@@ -3,6 +3,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { startPhotoshopMcpServer, type StartedPhotoshopMcp } from "@photoshop-mcp/mcp-server";
 import { ErrorCode } from "@photoshop-mcp/photoshop-bridge";
 import { afterEach, describe, expect, it } from "vitest";
+import { EXPECTED_TOOLS, FORBIDDEN_TOOLS } from "./helpers/expected-tools.js";
 import { FAKE_DOCUMENT, FAKE_LAYERS, FakeUxpPlugin } from "./helpers/fake-uxp-plugin.js";
 
 /**
@@ -90,17 +91,7 @@ describe("Phase 2 Bridge 통합", () => {
     const { client, mcp } = await connect({ plugin: null });
 
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name)).toEqual([
-      "photoshop.ping",
-      "photoshop.document.get",
-      "photoshop.layer.list",
-      "photoshop.layer.create",
-      "photoshop.layer.duplicate",
-      "photoshop.layer.rename",
-      "photoshop.layer.select",
-      "photoshop.layer.set_visibility",
-      "photoshop.layer.set_opacity",
-    ]);
+    expect(tools.map((tool) => tool.name)).toEqual([...EXPECTED_TOOLS]);
     expect(mcp.bridge.isConnected()).toBe(false);
   });
 
@@ -207,34 +198,12 @@ describe("Phase 2 Bridge 통합", () => {
     ).toEqual({ layers: FAKE_LAYERS });
   });
 
-  it("Phase 4 이후 Tool 은 아직 노출하지 않는다", async () => {
-    const { client } = await connect();
-
-    const { tools } = await client.listTools();
-    const names = tools.map((tool) => tool.name);
-    for (const later of [
-      "photoshop.mask.create",
-      "photoshop.selection.clear",
-      "photoshop.adjustment.curves",
-      "photoshop.adjustment.levels",
-      "photoshop.filter.gaussian_blur",
-      "photoshop.document.save",
-    ]) {
-      expect(names).not.toContain(later);
-    }
-  });
-
-  it("destructive Tool 은 노출하지 않는다", async () => {
-    // ROADMAP §7.4 — Permission System 과 함께 이후 Phase 에서 추가한다.
+  it("아직 범위 밖인 Tool 은 노출하지 않는다", async () => {
     const { client } = await connect();
 
     const names = (await client.listTools()).tools.map((tool) => tool.name);
-    for (const destructive of [
-      "photoshop.layer.delete",
-      "photoshop.document.flatten",
-      "photoshop.document.close",
-    ]) {
-      expect(names).not.toContain(destructive);
+    for (const forbidden of FORBIDDEN_TOOLS) {
+      expect(names).not.toContain(forbidden);
     }
   });
 });

@@ -33,7 +33,7 @@ function resolveLayer(document: PhotoshopDocument, layerId?: number): PhotoshopL
     return first;
   }
 
-  const found = findLayer(document.layers, layerId);
+  const found = findLayerById(document.layers, layerId);
   if (found === null) {
     throw new DispatchError("LAYER_NOT_FOUND", `레이어 ${layerId} 를 찾을 수 없습니다.`, {
       recoverable: true,
@@ -44,12 +44,12 @@ function resolveLayer(document: PhotoshopDocument, layerId?: number): PhotoshopL
 }
 
 /** 레이어 트리에서 id 로 찾는다. 그룹 안쪽까지 내려간다. */
-function findLayer(layers: unknown, layerId: number): PhotoshopLayer | null {
+export function findLayerById(layers: unknown, layerId: number): PhotoshopLayer | null {
   for (const layer of asArray(layers)) {
     if (layer.id === layerId) {
       return layer;
     }
-    const inner = findLayer(layer.layers, layerId);
+    const inner = findLayerById(layer.layers, layerId);
     if (inner !== null) {
       return inner;
     }
@@ -84,7 +84,7 @@ function asArray(value: unknown): PhotoshopLayer[] {
  * `parentId` 는 트리 순회로만 알 수 있으므로 전체 목록에서 해당 레이어를 찾아 쓴다.
  * 편집 Command 는 호출 빈도가 낮아 이 비용은 받아들일 만하다.
  */
-function describe(document: PhotoshopDocument, layer: PhotoshopLayer): LayerInfo {
+export function describeLayer(document: PhotoshopDocument, layer: PhotoshopLayer): LayerInfo {
   const found = flattenLayers(document.layers).find((entry) => entry.id === layer.id);
   return found ?? toLayerInfo(layer);
 }
@@ -97,7 +97,7 @@ export async function layerCreate(params: { name?: string }): Promise<LayerInfo>
     const created = await (params.name === undefined
       ? document.createLayer()
       : document.createLayer({ name: params.name }));
-    return describe(document, created);
+    return describeLayer(document, created);
   });
 }
 
@@ -110,7 +110,7 @@ export async function layerDuplicate(params: TargetParams & { name?: string }): 
     if (params.name !== undefined) {
       copy.name = params.name;
     }
-    return describe(document, copy);
+    return describeLayer(document, copy);
   });
 }
 
@@ -119,7 +119,7 @@ export async function layerRename(params: TargetParams & { name: string }): Prom
     const document = requireActiveDocument();
     const layer = resolveLayer(document, params.layerId);
     layer.name = params.name;
-    return describe(document, layer);
+    return describeLayer(document, layer);
   });
 }
 
@@ -128,7 +128,7 @@ export async function layerSelect(params: { layerId: number }): Promise<LayerInf
     const document = requireActiveDocument();
     const layer = resolveLayer(document, params.layerId);
     document.activeLayers = [layer];
-    return describe(document, layer);
+    return describeLayer(document, layer);
   });
 }
 
@@ -139,7 +139,7 @@ export async function layerVisibility(
     const document = requireActiveDocument();
     const layer = resolveLayer(document, params.layerId);
     layer.visible = params.visible;
-    return describe(document, layer);
+    return describeLayer(document, layer);
   });
 }
 
@@ -148,7 +148,7 @@ export async function layerOpacity(params: TargetParams & { opacity: number }): 
     const document = requireActiveDocument();
     const layer = resolveLayer(document, params.layerId);
     layer.opacity = params.opacity;
-    return describe(document, layer);
+    return describeLayer(document, layer);
   });
 }
 

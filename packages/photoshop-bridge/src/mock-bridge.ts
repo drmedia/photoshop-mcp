@@ -120,6 +120,16 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
           opacity: (command.params as { opacity: number }).opacity,
         })) as TResult;
 
+      // Phase 3 — 그룹
+      case "GROUP_CREATE":
+        return this.#groupCreate(
+          command.params as { name?: string; layerIds?: number[] },
+        ) as TResult;
+      case "GROUP_MOVE_LAYER":
+        return this.#groupMoveLayer(
+          command.params as { layerId: number; groupId: number | null },
+        ) as TResult;
+
       default:
         throw new PhotoshopMcpError(
           ErrorCode.COMMAND_NOT_SUPPORTED,
@@ -183,6 +193,69 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     this.#layers.splice(index, 0, copy);
     this.#activeLayerId = copy.id;
     return { ...copy };
+  }
+
+  #groupCreate(params: { name?: string; layerIds?: number[] }): LayerInfo {
+    this.#requireDocument();
+
+    // 넣을 레이어를 먼저 확인한다. 하나라도 없으면 그룹을 만들지 않는다.
+    const members = (params.layerIds ?? []).map((layerId) => {
+      const index = this.#layers.findIndex((layer) => layer.id === layerId);
+      if (index < 0) {
+        throw new PhotoshopMcpError(
+          ErrorCode.LAYER_NOT_FOUND,
+          `레이어 ${layerId} 를 찾을 수 없습니다.`,
+          { recoverable: true, details: { layerId } },
+        );
+      }
+      return index;
+    });
+
+    const group: LayerInfo = {
+      id: this.#nextLayerId++,
+      name: params.name ?? `Group ${this.#layers.length + 1}`,
+      type: "group",
+      visible: true,
+      opacity: 100,
+      parentId: null,
+    };
+    this.#layers.unshift(group);
+
+    // unshift 로 인덱스가 하나씩 밀렸다.
+    for (const index of members) {
+      const layer = this.#layers[index + 1] as LayerInfo;
+      this.#layers[index + 1] = { ...layer, parentId: group.id };
+    }
+
+    this.#activeLayerId = group.id;
+    return { ...group };
+  }
+
+  #groupMoveLayer(params: { layerId: number; groupId: number | null }): LayerInfo {
+    const index = this.#requireLayerIndex(params.layerId);
+
+    if (params.groupId !== null) {
+      const group = this.#layers.find((layer) => layer.id === params.groupId);
+      if (group === undefined) {
+        throw new PhotoshopMcpError(
+          ErrorCode.LAYER_NOT_FOUND,
+          `그룹 ${params.groupId} 를 찾을 수 없습니다.`,
+          { recoverable: true, details: { groupId: params.groupId } },
+        );
+      }
+      if (group.id === params.layerId) {
+        throw new PhotoshopMcpError(
+          ErrorCode.INVALID_PARAMETER,
+          "레이어를 자기 자신 안으로 옮길 수 없습니다.",
+          { details: { layerId: params.layerId } },
+        );
+      }
+    }
+
+    const layer = this.#layers[index] as LayerInfo;
+    const moved: LayerInfo = { ...layer, parentId: params.groupId };
+    this.#layers[index] = moved;
+    return { ...moved };
   }
 
   #select(params: { layerId: number }): LayerInfo {

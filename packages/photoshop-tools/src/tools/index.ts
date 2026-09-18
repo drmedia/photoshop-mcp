@@ -1,6 +1,7 @@
 import type { CommandEngine } from "@photoshop-mcp/command-engine";
 import type { ToolRegistry } from "@photoshop-mcp/photoshop-bridge";
 import { createDocumentGetTool } from "./document-get.js";
+import { createGroupCreateTool, createGroupMoveLayerTool } from "./group.js";
 import {
   createLayerCreateTool,
   createLayerDuplicateTool,
@@ -18,6 +19,7 @@ export {
   createLayerListTool,
   type LayerListToolResult,
 } from "./layer-list.js";
+export * from "./group.js";
 export * from "./layer-edit.js";
 export { PingInputSchema, createPingTool, type PingToolResult } from "./ping.js";
 
@@ -35,4 +37,8 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createLayerSelectTool(engine));
   registry.register(createLayerVisibilityTool(engine));
   registry.register(createLayerOpacityTool(engine));
+
+  // Phase 3 — 그룹
+  registry.register(createGroupCreateTool(engine));
+  registry.register(createGroupMoveLayerTool(engine));
 }

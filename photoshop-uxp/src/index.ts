@@ -12,6 +12,7 @@
 import { entrypoints, host } from "uxp";
 import { CommandDispatcher } from "./dispatcher/dispatcher.js";
 import { documentGet } from "./dom/document.js";
+import { groupCreate, groupMoveLayer } from "./dom/group.js";
 import {
   layerCreate,
   layerDuplicate,
@@ -59,6 +60,14 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("LAYER_OPACITY", async (p) =>
     layerOpacity(p as { layerId?: number; opacity: number }),
+  );
+
+  // Phase 3 — 그룹
+  dispatcher.register("GROUP_CREATE", async (p) =>
+    groupCreate(p as { name?: string; layerIds?: number[] }),
+  );
+  dispatcher.register("GROUP_MOVE_LAYER", async (p) =>
+    groupMoveLayer(p as { layerId: number; groupId: number | null }),
   );
 
   return dispatcher;

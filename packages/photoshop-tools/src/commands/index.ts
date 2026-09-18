@@ -1,6 +1,14 @@
 import type { CommandRegistry } from "@photoshop-mcp/command-engine";
 import { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
 import {
+  GROUP_CREATE,
+  GROUP_MOVE_LAYER,
+  GroupCreateParamsSchema,
+  GroupMoveLayerParamsSchema,
+  groupCreateCommand,
+  groupMoveLayerCommand,
+} from "./group.js";
+import {
   LAYER_CREATE,
   LAYER_DUPLICATE,
   LAYER_OPACITY,
@@ -24,6 +32,7 @@ import { LAYER_LIST, layerListCommand } from "./layer-list.js";
 import { PING, pingCommand } from "./ping.js";
 
 export { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
+export * from "./group.js";
 export * from "./layer-edit.js";
 export { LAYER_LIST, layerListCommand } from "./layer-list.js";
 export { PING, pingCommand, type PingResult } from "./ping.js";
@@ -47,4 +56,8 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_SELECT, layerSelectCommand, LayerSelectParamsSchema);
   registry.register(LAYER_VISIBILITY, layerVisibilityCommand, LayerVisibilityParamsSchema);
   registry.register(LAYER_OPACITY, layerOpacityCommand, LayerOpacityParamsSchema);
+
+  // Phase 3 — 그룹
+  registry.register(GROUP_CREATE, groupCreateCommand, GroupCreateParamsSchema);
+  registry.register(GROUP_MOVE_LAYER, groupMoveLayerCommand, GroupMoveLayerParamsSchema);
 }

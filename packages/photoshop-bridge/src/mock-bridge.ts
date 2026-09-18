@@ -42,6 +42,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   #activeLayerId: number | null;
   #nextLayerId: number;
   readonly #history: { name: string; layers: LayerInfo[]; activeLayerId: number | null }[] = [];
+  #hasSelection = false;
 
   /** 이 Bridge 가 처리한 Command 기록. 테스트에서 호출 경로를 검증할 때 사용한다. */
   readonly executedCommands: PhotoshopCommand[] = [];
@@ -154,6 +155,27 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         this.#snapshot("Brightness/Contrast");
         return this.#adjustment("Brightness/Contrast", command.params) as TResult;
 
+      // Phase 4 — 마스크 · 선택 영역
+      case "MASK_CREATE":
+        this.#snapshot("Create mask");
+        return this.#setMask(command.params as { layerId?: number }, true) as TResult;
+      case "MASK_ENABLE":
+        this.#snapshot("Enable mask");
+        return this.#setMask(command.params as { layerId?: number }, true) as TResult;
+      case "MASK_DISABLE":
+        this.#snapshot("Disable mask");
+        return this.#setMask(command.params as { layerId?: number }, false) as TResult;
+      case "SELECTION_CLEAR":
+        this.#hasSelection = false;
+        return { hasSelection: false } as TResult;
+      case "SELECTION_INVERT":
+        if (!this.#hasSelection) {
+          throw new PhotoshopMcpError(ErrorCode.INVALID_PARAMETER, "반전할 선택 영역이 없습니다.", {
+            recoverable: true,
+          });
+        }
+        return { hasSelection: true } as TResult;
+
       default:
         throw new PhotoshopMcpError(
           ErrorCode.COMMAND_NOT_SUPPORTED,
@@ -247,6 +269,22 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   }
 
   /** 조정 레이어를 만들어 맨 위에 넣는다. 실제 Photoshop 과 같은 위치다. */
+  /** 선택 영역 유무를 바꾼다. 테스트에서 선택 상태를 만들 때 쓴다. */
+  setSelection(present: boolean): void {
+    this.#hasSelection = present;
+  }
+
+  /**
+   * 마스크 상태를 바꾼다.
+   *
+   * Mock 은 마스크의 픽셀을 흉내내지 않는다. 대상 레이어가 존재하는지와
+   * 오류 경로만 검증할 수 있으면 충분하다.
+   */
+  #setMask(params: { layerId?: number }, _enabled: boolean): LayerInfo {
+    const index = this.#requireLayerIndex(params.layerId);
+    return { ...(this.#layers[index] as LayerInfo) };
+  }
+
   #adjustment(defaultName: string, params: unknown): LayerInfo {
     this.#requireDocument();
     const name = (params as { name?: string }).name ?? defaultName;

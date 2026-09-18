@@ -11,6 +11,21 @@ import {
   levelsCommand,
 } from "./adjustment.js";
 import { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
+import {
+  MASK_CREATE,
+  MASK_DISABLE,
+  MASK_ENABLE,
+  MaskCreateParamsSchema,
+  MaskToggleParamsSchema,
+  SELECTION_CLEAR,
+  SELECTION_INVERT,
+  SelectionParamsSchema,
+  maskCreateCommand,
+  maskDisableCommand,
+  maskEnableCommand,
+  selectionClearCommand,
+  selectionInvertCommand,
+} from "./mask-selection.js";
 import { HISTORY_UNDO, HistoryUndoParamsSchema, historyUndoCommand } from "./history.js";
 import {
   GROUP_CREATE,
@@ -46,6 +61,7 @@ import { PING, pingCommand } from "./ping.js";
 export { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
 export * from "./adjustment.js";
 export * from "./group.js";
+export * from "./mask-selection.js";
 export * from "./history.js";
 export * from "./layer-edit.js";
 export { LAYER_LIST, layerListCommand } from "./layer-list.js";
@@ -86,4 +102,13 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     brightnessContrastCommand,
     BrightnessContrastParamsSchema,
   );
+
+  // Phase 4 — 마스크 (비파괴)
+  registry.register(MASK_CREATE, maskCreateCommand, MaskCreateParamsSchema);
+  registry.register(MASK_ENABLE, maskEnableCommand, MaskToggleParamsSchema);
+  registry.register(MASK_DISABLE, maskDisableCommand, MaskToggleParamsSchema);
+
+  // Phase 4 — 선택 영역
+  registry.register(SELECTION_CLEAR, selectionClearCommand, SelectionParamsSchema);
+  registry.register(SELECTION_INVERT, selectionInvertCommand, SelectionParamsSchema);
 }

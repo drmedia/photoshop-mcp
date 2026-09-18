@@ -41,6 +41,8 @@ declare module "photoshop" {
     readonly layers: readonly PhotoshopLayer[];
     /** 현재 선택된 레이어들. 대입하면 선택이 바뀐다. */
     activeLayers: readonly PhotoshopLayer[];
+    /** 선택 영역. `bounds` 가 없으면 선택이 없다. */
+    readonly selection?: { readonly bounds?: unknown };
     /** History 항목. 오래된 것부터 최신 순. */
     readonly historyStates: readonly PhotoshopHistoryState[];
     /** 현재 History 지점. 대입하면 그 지점으로 되돌린다. */

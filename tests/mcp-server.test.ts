@@ -121,7 +121,7 @@ describe("PhotoshopMcpServer", () => {
   it("등록되지 않은 Tool 호출은 TOOL_NOT_FOUND Error Response 를 반환한다", async () => {
     const { client } = await connect();
 
-    const result = await client.callTool({ name: "photoshop.mask.create", arguments: {} });
+    const result = await client.callTool({ name: "photoshop.nonexistent.tool", arguments: {} });
 
     expect(result.isError).toBe(true);
     expect(payload(result)).toMatchObject({ code: ErrorCode.TOOL_NOT_FOUND });

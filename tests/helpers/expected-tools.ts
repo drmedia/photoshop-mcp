@@ -27,6 +27,12 @@ export const EXPECTED_TOOLS = [
   "photoshop.adjustment.curves",
   "photoshop.adjustment.levels",
   "photoshop.adjustment.brightness_contrast",
+  // Phase 4 — 마스크 · 선택
+  "photoshop.mask.create",
+  "photoshop.mask.enable",
+  "photoshop.mask.disable",
+  "photoshop.selection.clear",
+  "photoshop.selection.invert",
 ] as const;
 
 export const EXPECTED_COMMANDS = [
@@ -45,6 +51,11 @@ export const EXPECTED_COMMANDS = [
   "ADJUSTMENT_CURVES",
   "ADJUSTMENT_LEVELS",
   "ADJUSTMENT_BRIGHTNESS_CONTRAST",
+  "MASK_CREATE",
+  "MASK_ENABLE",
+  "MASK_DISABLE",
+  "SELECTION_CLEAR",
+  "SELECTION_INVERT",
 ] as const;
 
 /**
@@ -60,8 +71,7 @@ export const FORBIDDEN_TOOLS = [
   "photoshop.document.close",
   "photoshop.group.ungroup",
   // Phase 4 이후
-  "photoshop.mask.create",
-  "photoshop.selection.clear",
+  "photoshop.mask.delete",
   "photoshop.filter.gaussian_blur",
   "photoshop.document.save",
 ] as const;

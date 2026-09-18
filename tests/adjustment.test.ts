@@ -221,3 +221,112 @@ describe("Phase 4 조정 Tool", () => {
     );
   });
 });
+
+describe("Phase 4 마스크 · 선택 Tool", () => {
+  it("마스크·선택 Tool 5개를 등록한다", () => {
+    const { tools, commands } = setup();
+    for (const name of [
+      "photoshop.mask.create",
+      "photoshop.mask.enable",
+      "photoshop.mask.disable",
+      "photoshop.selection.clear",
+      "photoshop.selection.invert",
+    ]) {
+      expect(tools.list().map((tool) => tool.name)).toContain(name);
+    }
+    for (const type of [
+      "MASK_CREATE",
+      "MASK_ENABLE",
+      "MASK_DISABLE",
+      "SELECTION_CLEAR",
+      "SELECTION_INVERT",
+    ]) {
+      expect(commands.list()).toContain(type);
+    }
+  });
+
+  it("마스크 삭제 Tool 은 등록하지 않는다", () => {
+    // 가려둔 작업을 잃으므로 Permission System 과 함께 검토한다.
+    const names = setup()
+      .tools.list()
+      .map((tool) => tool.name);
+    expect(names).not.toContain("photoshop.mask.delete");
+  });
+
+  describe("mask.create", () => {
+    it("대상 레이어를 돌려준다", async () => {
+      const mcp = setup();
+      await expect(call(mcp, "photoshop.mask.create", { layerId: 10 })).resolves.toMatchObject({
+        id: 10,
+      });
+    });
+
+    it("layerId 를 생략하면 활성 레이어를 대상으로 한다", async () => {
+      const mcp = setup();
+      await expect(call(mcp, "photoshop.mask.create")).resolves.toMatchObject({ id: 10 });
+    });
+
+    it("from 값을 검증한다", async () => {
+      const mcp = setup();
+      for (const from of ["revealAll", "hideAll", "fromSelection"]) {
+        await expect(call(mcp, "photoshop.mask.create", { from })).resolves.toMatchObject({
+          id: 10,
+        });
+      }
+      await expect(call(mcp, "photoshop.mask.create", { from: "partial" })).rejects.toThrow(
+        expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
+      );
+    });
+
+    it("없는 레이어는 LAYER_NOT_FOUND 를 던진다", async () => {
+      const mcp = setup();
+      await expect(call(mcp, "photoshop.mask.create", { layerId: 999 })).rejects.toThrow(
+        expect.objectContaining({ code: ErrorCode.LAYER_NOT_FOUND }),
+      );
+    });
+  });
+
+  describe("mask.enable / disable", () => {
+    it("대상 레이어를 돌려준다", async () => {
+      const mcp = setup();
+      await expect(call(mcp, "photoshop.mask.disable", { layerId: 11 })).resolves.toMatchObject({
+        id: 11,
+      });
+      await expect(call(mcp, "photoshop.mask.enable", { layerId: 11 })).resolves.toMatchObject({
+        id: 11,
+      });
+    });
+  });
+
+  describe("selection", () => {
+    it("선택을 해제한다", async () => {
+      const mcp = setup();
+      mcp.bridge.setSelection(true);
+      await expect(call(mcp, "photoshop.selection.clear")).resolves.toEqual({
+        hasSelection: false,
+      });
+    });
+
+    it("선택이 없으면 반전할 수 없다", async () => {
+      const mcp = setup();
+      await expect(call(mcp, "photoshop.selection.invert")).rejects.toThrow(
+        expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
+      );
+    });
+
+    it("선택이 있으면 반전한다", async () => {
+      const mcp = setup();
+      mcp.bridge.setSelection(true);
+      await expect(call(mcp, "photoshop.selection.invert")).resolves.toEqual({
+        hasSelection: true,
+      });
+    });
+
+    it("인자를 받지 않는다", async () => {
+      const mcp = setup();
+      await expect(call(mcp, "photoshop.selection.clear", { all: true })).rejects.toThrow(
+        expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
+      );
+    });
+  });
+});

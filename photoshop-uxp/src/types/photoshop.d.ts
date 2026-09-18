@@ -37,7 +37,6 @@ declare module "photoshop" {
     readonly name: string;
     readonly width: number;
     readonly height: number;
-    readonly bitsPerChannel: BitsPerChannel;
     /** `Constants.DocumentMode` */
     readonly mode: string;
     readonly layers: readonly PhotoshopLayer[];
@@ -49,6 +48,27 @@ declare module "photoshop" {
     readonly historyStates: readonly PhotoshopHistoryState[];
     /** 현재 History 지점. 대입하면 그 지점으로 되돌린다. */
     activeHistoryState: PhotoshopHistoryState;
+
+    /**
+     * 문서를 복제한다. **비동기다.**
+     *
+     * 교환용 파일을 만들 때 원본을 건드리지 않기 위해 쓴다.
+     */
+    duplicate(): Promise<PhotoshopDocument>;
+
+    /** 모든 레이어를 합친다. **비동기다.** */
+    flatten(): Promise<void>;
+
+    /**
+     * 문서를 닫는다. **비동기다.**
+     *
+     * 인자를 주지 않으면 Photoshop 이 저장 여부를 묻는다. 복제본은 반드시
+     * 저장하지 않고 닫아야 대화상자가 뜨지 않는다.
+     */
+    close(saveOptions?: unknown): Promise<void>;
+
+    /** 비트 심도. 복제본에서만 바꾼다. */
+    bitsPerChannel: BitsPerChannel;
 
     /** 새 픽셀 레이어를 만든다. **비동기다.** */
     createLayer(options?: { name?: string; opacity?: number }): Promise<PhotoshopLayer>;
@@ -137,7 +157,11 @@ declare module "photoshop" {
   export const action: PhotoshopAction;
   export const app: PhotoshopApp;
   export const core: PhotoshopCore;
-  export const constants: { readonly ElementPlacement: ElementPlacementConstants };
+  export const constants: {
+    readonly ElementPlacement: ElementPlacementConstants;
+    /** 문서를 닫을 때의 저장 여부. 복제본은 DONOTSAVECHANGES 로 닫는다. */
+    readonly SaveOptions?: { readonly DONOTSAVECHANGES: string };
+  };
 }
 
 declare module "uxp" {

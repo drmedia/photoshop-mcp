@@ -252,7 +252,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         ) as TResult;
       case "DOCUMENT_EXPORT":
         return this.#saveInto(
-          command.params as { filename: string; format?: string },
+          command.params as { filename: string; format?: string; bitDepth?: number },
           "png",
         ) as TResult;
       case "DOCUMENT_SAVE":
@@ -302,7 +302,10 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
    *
    * 실제 구현과 같은 계약을 지킨다 — **덮어쓰지 않는다.**
    */
-  #saveInto(params: { filename: string; format?: string }, fallback: string): SaveResult {
+  #saveInto(
+    params: { filename: string; format?: string; bitDepth?: number },
+    fallback: string,
+  ): SaveResult {
     this.#requireDocument();
     if (this.#workspacePath === null) {
       throw new PhotoshopMcpError(
@@ -325,7 +328,13 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     }
 
     this.#writtenFiles.push(filename);
-    return { path: `${this.#workspacePath}/${filename}`, filename, format };
+    const result: SaveResult = { path: `${this.#workspacePath}/${filename}`, filename, format };
+    if (format === "tiff") {
+      // 실제 Plugin 과 같이 실제 심도를 돌려준다. 요청값이 아니라 결과값이다.
+      const requested = (params as { bitDepth?: number }).bitDepth;
+      result.bitDepth = requested ?? this.#document?.bitDepth ?? null;
+    }
+    return result;
   }
 
   /**

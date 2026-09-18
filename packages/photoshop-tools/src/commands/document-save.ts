@@ -55,6 +55,12 @@ export const ExportParamsSchema = z
      * Photoshop 의 JPEG 품질 눈금과 같다. 생략하면 10.
      */
     quality: z.number().int().min(1).max(12).optional(),
+    /**
+     * 비트 심도. `format: "tiff"` 일 때만 쓴다.
+     *
+     * 생략하면 문서의 현재 심도를 유지한다. 외부 천체사진 처리기는 16을 요구한다.
+     */
+    bitDepth: z.union([z.literal(8), z.literal(16)]).optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -63,6 +69,13 @@ export const ExportParamsSchema = z
         code: z.ZodIssueCode.custom,
         path: ["quality"],
         message: "quality 는 format 이 'jpg' 일 때만 쓸 수 있습니다.",
+      });
+    }
+    if (value.bitDepth !== undefined && value.format !== "tiff") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["bitDepth"],
+        message: "bitDepth 는 format 이 'tiff' 일 때만 쓸 수 있습니다.",
       });
     }
   });

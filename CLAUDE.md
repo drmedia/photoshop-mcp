@@ -57,8 +57,13 @@ Extension 의 manifest `permissions` 는 **강제된다.** 선언 밖의 Tool �
 `save_as` 와 `export` 는 **덮어쓰지 않는다.** 그래서 `external` 로 분류할 수 있다.
 덮어쓰기는 `save` 하나로 모아 `destructive` 로 둔다.
 
-형식: `save_as` 는 psd · psb, `export` 는 png · jpg. **TIFF 는 없다** —
-UXP DOM 에 `document.saveAs.tif` 가 없다. 실기에서 확인했다.
+형식: `save_as` 는 psd · psb (레이어 유지), `export` 는 png · jpg · tiff (평탄화).
+
+**TIFF 는 batchPlay 경로다.** UXP DOM 에 `saveAs.tif` 가 없다. 외부 천체사진 처리기가
+16비트 TIFF 를 교환 형식으로 쓰므로 필요하다 — PNG 8비트로는 계조가 무너진다.
+**복제본**을 만들어 평탄화·심도 변환 후 저장하고 닫는다. 원본을 건드리지 않기 위함이다.
+`bitDepth` 는 8 또는 16, 생략하면 문서 심도를 따른다. 결과의 `bitDepth` 는 요청값이
+아니라 **실제값**이다.
 
 `layer.delete` · `document.flatten` · `document.close` 는 분류 체계만 섰고 구현은 없다.
 

@@ -24,6 +24,7 @@ export function createMaskCreateTool(
     name: "photoshop.mask.create",
     description:
       "레이어에 마스크를 추가한다. from 은 revealAll(기본, 전부 보임) / hideAll(전부 가림) / fromSelection(현재 선택 영역). layerId 를 생략하면 활성 레이어.",
+    permission: "edit",
     inputSchema: MaskCreateParamsSchema,
     handler: async (input, context) =>
       engine.execute<LayerInfo>(
@@ -39,6 +40,7 @@ export function createMaskEnableTool(
   return {
     name: "photoshop.mask.enable",
     description: "레이어 마스크를 활성화한다. layerId 를 생략하면 활성 레이어.",
+    permission: "edit",
     inputSchema: MaskToggleParamsSchema,
     handler: async (input, context) =>
       engine.execute<LayerInfo>(
@@ -55,6 +57,7 @@ export function createMaskDisableTool(
     name: "photoshop.mask.disable",
     description:
       "레이어 마스크를 일시 해제한다. 마스크는 유지된다. layerId 를 생략하면 활성 레이어.",
+    permission: "edit",
     inputSchema: MaskToggleParamsSchema,
     handler: async (input, context) =>
       engine.execute<LayerInfo>(
@@ -70,6 +73,7 @@ export function createSelectionClearTool(
   return {
     name: "photoshop.selection.clear",
     description: "선택 영역을 해제한다.",
+    permission: "edit",
     inputSchema: SelectionParamsSchema,
     handler: async (input, context) =>
       engine.execute<SelectionResult>(
@@ -85,6 +89,7 @@ export function createSelectionInvertTool(
   return {
     name: "photoshop.selection.invert",
     description: "선택 영역을 반전한다. 선택 영역이 없으면 실패한다.",
+    permission: "edit",
     inputSchema: SelectionParamsSchema,
     handler: async (input, context) =>
       engine.execute<SelectionResult>(

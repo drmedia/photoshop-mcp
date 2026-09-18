@@ -1,6 +1,10 @@
 import { CommandEngine, CommandRegistry } from "@photoshop-mcp/command-engine";
 import type { PhotoshopBridge } from "@photoshop-mcp/photoshop-bridge";
-import { MockPhotoshopBridge, ToolRegistry } from "@photoshop-mcp/photoshop-bridge";
+import {
+  MockPhotoshopBridge,
+  PermissionPolicy,
+  ToolRegistry,
+} from "@photoshop-mcp/photoshop-bridge";
 import type { Logger } from "@photoshop-mcp/photoshop-bridge";
 import { registerPhotoshopCommands, registerPhotoshopTools } from "@photoshop-mcp/photoshop-tools";
 import { ExtensionManager } from "./extensions/manager.js";
@@ -17,6 +21,12 @@ export interface CreatePhotoshopMcpOptions {
   version?: string;
   /** 진단 로그. 생략하면 stderr 로 쓰는 기본 로거를 쓴다. */
   logger?: Logger;
+  /**
+   * Permission 정책. 생략하면 기본 정책(`read` · `edit` 만 허용).
+   *
+   * `external` 과 `destructive` 는 명시적으로 켜야 한다. (ARCHITECTURE §22)
+   */
+  policy?: PermissionPolicy;
 }
 
 /** 조립된 Core 구성 요소. */
@@ -26,6 +36,8 @@ export interface PhotoshopMcp {
   engine: CommandEngine;
   tools: ToolRegistry;
   server: PhotoshopMcpServer;
+  /** 적용된 Permission 정책. */
+  policy: PermissionPolicy;
   /** Extension 적재. `loadAll(dir)` 로 Extension 을 붙인다. (ROADMAP §9.2) */
   extensions: ExtensionManager;
   logger: Logger;
@@ -43,9 +55,11 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
   const commands = new CommandRegistry();
   registerPhotoshopCommands(commands);
 
-  const engine = new CommandEngine({ registry: commands, bridge });
+  const policy = options.policy ?? new PermissionPolicy();
 
-  const tools = new ToolRegistry();
+  const engine = new CommandEngine({ registry: commands, bridge, policy });
+
+  const tools = new ToolRegistry(policy);
   registerPhotoshopTools(tools, engine);
 
   const logger = options.logger ?? createConsoleLogger();
@@ -58,5 +72,5 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
 
   const extensions = new ExtensionManager({ tools, commands: engine, logger });
 
-  return { bridge, commands, engine, tools, server, extensions, logger };
+  return { bridge, commands, engine, tools, server, extensions, logger, policy };
 }

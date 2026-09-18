@@ -3,6 +3,9 @@ import type { PhotoshopCommand } from "@photoshop-mcp/photoshop-bridge";
 import { ErrorCode, MockPhotoshopBridge, PhotoshopMcpError } from "@photoshop-mcp/photoshop-bridge";
 import { describe, expect, it } from "vitest";
 
+/** 이 파일은 실행 흐름만 검증한다. Permission 판정은 permission.test.ts 가 다룬다. */
+const EDIT = { permission: "edit" } as const;
+
 function createEngine(): { engine: CommandEngine; bridge: MockPhotoshopBridge } {
   const bridge = new MockPhotoshopBridge();
   const engine = new CommandEngine({ registry: new CommandRegistry(), bridge });
@@ -12,9 +15,13 @@ function createEngine(): { engine: CommandEngine; bridge: MockPhotoshopBridge } 
 describe("CommandEngine", () => {
   it("등록된 Command 를 실행하고 결과를 반환한다", async () => {
     const { engine } = createEngine();
-    engine.register("ECHO", async (command: PhotoshopCommand<{ value: number }>) => ({
-      echoed: command.params.value,
-    }));
+    engine.register(
+      "ECHO",
+      async (command: PhotoshopCommand<{ value: number }>) => ({
+        echoed: command.params.value,
+      }),
+      EDIT,
+    );
 
     await expect(engine.execute({ type: "ECHO", params: { value: 3 } })).resolves.toEqual({
       echoed: 3,
@@ -23,10 +30,14 @@ describe("CommandEngine", () => {
 
   it("핸들러에 Bridge 와 correlation ID 를 전달한다", async () => {
     const { engine, bridge } = createEngine();
-    engine.register("CONTEXT", async (_command, context) => ({
-      sameBridge: context.bridge === bridge,
-      requestId: context.requestId,
-    }));
+    engine.register(
+      "CONTEXT",
+      async (_command, context) => ({
+        sameBridge: context.bridge === bridge,
+        requestId: context.requestId,
+      }),
+      EDIT,
+    );
 
     await expect(
       engine.execute({ type: "CONTEXT", params: {} }, { requestId: "req-abc" }),
@@ -35,7 +46,7 @@ describe("CommandEngine", () => {
 
   it("requestId 를 주지 않으면 순번 ID 를 생성한다", async () => {
     const { engine } = createEngine();
-    engine.register("CONTEXT", async (_command, context) => context.requestId);
+    engine.register("CONTEXT", async (_command, context) => context.requestId, EDIT);
 
     await expect(engine.execute({ type: "CONTEXT", params: {} })).resolves.toBe("req-1");
     await expect(engine.execute({ type: "CONTEXT", params: {} })).resolves.toBe("req-2");
@@ -43,7 +54,7 @@ describe("CommandEngine", () => {
 
   it("등록되지 않은 Command 는 COMMAND_NOT_SUPPORTED 를 던진다", async () => {
     const { engine } = createEngine();
-    engine.register("PING", async () => null);
+    engine.register("PING", async () => null, EDIT);
 
     try {
       await engine.execute({ type: "LAYER_DUPLICATE", params: {} });
@@ -66,7 +77,11 @@ describe("CommandEngine", () => {
 
   it("Bridge 오류를 코드 그대로 전파한다", async () => {
     const { engine, bridge } = createEngine();
-    engine.register("DOCUMENT_GET", async (_command, context) => context.bridge.getDocumentInfo());
+    engine.register(
+      "DOCUMENT_GET",
+      async (_command, context) => context.bridge.getDocumentInfo(),
+      EDIT,
+    );
     bridge.setConnected(false);
 
     await expect(engine.execute({ type: "DOCUMENT_GET", params: {} })).rejects.toThrow(
@@ -76,9 +91,13 @@ describe("CommandEngine", () => {
 
   it("PhotoshopMcpError 가 아닌 예외는 COMMAND_FAILED 로 정규화한다", async () => {
     const { engine } = createEngine();
-    engine.register("BOOM", async () => {
-      throw new TypeError("예상치 못한 실패");
-    });
+    engine.register(
+      "BOOM",
+      async () => {
+        throw new TypeError("예상치 못한 실패");
+      },
+      EDIT,
+    );
 
     try {
       await engine.execute({ type: "BOOM", params: {} });

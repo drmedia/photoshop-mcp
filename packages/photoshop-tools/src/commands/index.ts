@@ -89,52 +89,122 @@ export { PING, pingCommand, type PingResult } from "./ping.js";
  *
  * 파라미터를 받는 Command 는 스키마를 함께 등록한다.
  * Extension 이 Tool 을 거치지 않고 Engine 을 직접 호출해도 검증되도록 하기 위함이다.
+ *
+ * `permission` 은 필수다. (ARCHITECTURE §22)
+ * 현재 Core Command 는 `read` 아니면 `edit` 뿐이다 — 전부 비파괴이기 때문이다.
+ * `external` · `destructive` Command 는 아직 없다.
  */
 export function registerPhotoshopCommands(registry: CommandRegistry): void {
   // Phase 1 — 조회
-  registry.register(PING, pingCommand);
-  registry.register(DOCUMENT_GET, documentGetCommand);
-  registry.register(LAYER_LIST, layerListCommand);
+  registry.register(PING, pingCommand, { permission: "read" });
+  registry.register(DOCUMENT_GET, documentGetCommand, { permission: "read" });
+  registry.register(LAYER_LIST, layerListCommand, { permission: "read" });
 
   // Phase 3 — 레이어 편집 (비파괴)
-  registry.register(LAYER_CREATE, layerCreateCommand, LayerCreateParamsSchema);
-  registry.register(LAYER_DUPLICATE, layerDuplicateCommand, LayerDuplicateParamsSchema);
-  registry.register(LAYER_RENAME, layerRenameCommand, LayerRenameParamsSchema);
-  registry.register(LAYER_SELECT, layerSelectCommand, LayerSelectParamsSchema);
-  registry.register(LAYER_VISIBILITY, layerVisibilityCommand, LayerVisibilityParamsSchema);
-  registry.register(LAYER_OPACITY, layerOpacityCommand, LayerOpacityParamsSchema);
+  const edit = "edit" as const;
+  registry.register(LAYER_CREATE, layerCreateCommand, {
+    permission: edit,
+    schema: LayerCreateParamsSchema,
+  });
+  registry.register(LAYER_DUPLICATE, layerDuplicateCommand, {
+    permission: edit,
+    schema: LayerDuplicateParamsSchema,
+  });
+  registry.register(LAYER_RENAME, layerRenameCommand, {
+    permission: edit,
+    schema: LayerRenameParamsSchema,
+  });
+  registry.register(LAYER_SELECT, layerSelectCommand, {
+    permission: edit,
+    schema: LayerSelectParamsSchema,
+  });
+  registry.register(LAYER_VISIBILITY, layerVisibilityCommand, {
+    permission: edit,
+    schema: LayerVisibilityParamsSchema,
+  });
+  registry.register(LAYER_OPACITY, layerOpacityCommand, {
+    permission: edit,
+    schema: LayerOpacityParamsSchema,
+  });
 
   // Phase 3 — 그룹
-  registry.register(GROUP_CREATE, groupCreateCommand, GroupCreateParamsSchema);
-  registry.register(GROUP_MOVE_LAYER, groupMoveLayerCommand, GroupMoveLayerParamsSchema);
+  registry.register(GROUP_CREATE, groupCreateCommand, {
+    permission: edit,
+    schema: GroupCreateParamsSchema,
+  });
+  registry.register(GROUP_MOVE_LAYER, groupMoveLayerCommand, {
+    permission: edit,
+    schema: GroupMoveLayerParamsSchema,
+  });
 
   // Phase 3 — History
-  registry.register(HISTORY_UNDO, historyUndoCommand, HistoryUndoParamsSchema);
+  //
+  // undo 는 되돌리기이지 파괴가 아니다. 이미 한 편집을 취소할 뿐,
+  // Photoshop 의 History 에 남아 redo 할 수 있다.
+  registry.register(HISTORY_UNDO, historyUndoCommand, {
+    permission: edit,
+    schema: HistoryUndoParamsSchema,
+  });
 
   // Phase 4 — 조정 레이어 (비파괴)
-  registry.register(ADJUSTMENT_CURVES, curvesCommand, CurvesParamsSchema);
-  registry.register(ADJUSTMENT_LEVELS, levelsCommand, LevelsParamsSchema);
-  registry.register(
-    ADJUSTMENT_BRIGHTNESS_CONTRAST,
-    brightnessContrastCommand,
-    BrightnessContrastParamsSchema,
-  );
+  registry.register(ADJUSTMENT_CURVES, curvesCommand, {
+    permission: edit,
+    schema: CurvesParamsSchema,
+  });
+  registry.register(ADJUSTMENT_LEVELS, levelsCommand, {
+    permission: edit,
+    schema: LevelsParamsSchema,
+  });
+  registry.register(ADJUSTMENT_BRIGHTNESS_CONTRAST, brightnessContrastCommand, {
+    permission: edit,
+    schema: BrightnessContrastParamsSchema,
+  });
 
   // Phase 4 — 마스크 (비파괴)
-  registry.register(MASK_CREATE, maskCreateCommand, MaskCreateParamsSchema);
-  registry.register(MASK_ENABLE, maskEnableCommand, MaskToggleParamsSchema);
-  registry.register(MASK_DISABLE, maskDisableCommand, MaskToggleParamsSchema);
+  registry.register(MASK_CREATE, maskCreateCommand, {
+    permission: edit,
+    schema: MaskCreateParamsSchema,
+  });
+  registry.register(MASK_ENABLE, maskEnableCommand, {
+    permission: edit,
+    schema: MaskToggleParamsSchema,
+  });
+  registry.register(MASK_DISABLE, maskDisableCommand, {
+    permission: edit,
+    schema: MaskToggleParamsSchema,
+  });
 
   // Phase 4 — 선택 영역
-  registry.register(SELECTION_CLEAR, selectionClearCommand, SelectionParamsSchema);
-  registry.register(SELECTION_INVERT, selectionInvertCommand, SelectionParamsSchema);
+  registry.register(SELECTION_CLEAR, selectionClearCommand, {
+    permission: edit,
+    schema: SelectionParamsSchema,
+  });
+  registry.register(SELECTION_INVERT, selectionInvertCommand, {
+    permission: edit,
+    schema: SelectionParamsSchema,
+  });
 
   // Phase 4 — 필터 (기본 스마트 필터로 비파괴)
-  registry.register(FILTER_GAUSSIAN_BLUR, gaussianBlurCommand, GaussianBlurParamsSchema);
+  registry.register(FILTER_GAUSSIAN_BLUR, gaussianBlurCommand, {
+    permission: edit,
+    schema: GaussianBlurParamsSchema,
+  });
 
   // ROADMAP §8.6 — 실기에서 드러난 공백
-  registry.register(LAYER_BLEND_MODE, layerBlendModeCommand, LayerBlendModeParamsSchema);
-  registry.register(SELECTION_SET, selectionSetCommand, SelectionSetParamsSchema);
-  registry.register(ADJUSTMENT_HUE_SATURATION, hueSaturationCommand, HueSaturationParamsSchema);
-  registry.register(ADJUSTMENT_VIBRANCE, vibranceCommand, VibranceParamsSchema);
+  registry.register(LAYER_BLEND_MODE, layerBlendModeCommand, {
+    permission: edit,
+    schema: LayerBlendModeParamsSchema,
+  });
+  registry.register(SELECTION_SET, selectionSetCommand, {
+    permission: edit,
+    schema: SelectionSetParamsSchema,
+  });
+  registry.register(ADJUSTMENT_HUE_SATURATION, hueSaturationCommand, {
+    permission: edit,
+    schema: HueSaturationParamsSchema,
+  });
+  registry.register(ADJUSTMENT_VIBRANCE, vibranceCommand, {
+    permission: edit,
+    schema: VibranceParamsSchema,
+  });
 }

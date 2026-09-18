@@ -55,6 +55,8 @@ const manifestOf = (
   version: "1.0.0",
   namespace,
   main: "main.mjs",
+  // Tool 등록에는 manifest 선언이 필요하다. (ARCHITECTURE §22)
+  permissions: ["photoshop.read"],
   ...overrides,
 });
 
@@ -69,6 +71,7 @@ const sourceRegistering = (toolName: string): string =>
     "  context.tools.register({",
     `    name: ${JSON.stringify(toolName)},`,
     '    description: "테스트용",',
+    '    permission: "read",',
     `    inputSchema: ${PASS_THROUGH_SCHEMA},`,
     "    handler: async () => ({ ok: true }),",
     "  });",

@@ -18,6 +18,7 @@ export function createGroupCreateTool(
     name: "photoshop.group.create",
     description:
       "레이어 그룹을 만든다. layerIds 를 주면 그 레이어들을 그룹에 넣고, 생략하면 빈 그룹을 만든다.",
+    permission: "edit",
     inputSchema: GroupCreateParamsSchema,
     handler: async (input, context) =>
       engine.execute<LayerInfo>(
@@ -34,6 +35,7 @@ export function createGroupMoveLayerTool(
     name: "photoshop.group.move_layer",
     description:
       "레이어를 그룹 안으로 옮긴다. groupId 에 null 을 주면 그룹에서 꺼내 최상위로 옮긴다.",
+    permission: "edit",
     inputSchema: GroupMoveLayerParamsSchema,
     handler: async (input, context) =>
       engine.execute<LayerInfo>(

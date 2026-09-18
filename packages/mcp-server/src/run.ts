@@ -11,7 +11,11 @@
  */
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { DEFAULT_PORT } from "@photoshop-mcp/photoshop-bridge";
+import {
+  DEFAULT_PORT,
+  PermissionPolicy,
+  parsePermissionLevels,
+} from "@photoshop-mcp/photoshop-bridge";
 import { startPhotoshopMcpServer, type BridgeMode, type StartOptions } from "./start.js";
 
 const STATE_LABEL: Record<string, string> = {
@@ -31,11 +35,13 @@ function log(message: string): void {
  * - `PHOTOSHOP_MCP_PORT` — Bridge WebSocket 포트 (기본 8765)
  * - `PHOTOSHOP_MCP_BRIDGE` — `uxp` (기본) 또는 `mock`
  * - `PHOTOSHOP_MCP_EXTENSIONS` — Extension 디렉터리 (기본 `<cwd>/extensions`)
+ * - `PHOTOSHOP_MCP_ALLOW` — 허용할 Permission Level (기본 `read,edit`)
  */
 export function readOptionsFromEnv(env: Record<string, string | undefined> = process.env): {
   mode: BridgeMode;
   port: number;
   extensionsDir: string;
+  policy: PermissionPolicy;
 } {
   const mode: BridgeMode = env["PHOTOSHOP_MCP_BRIDGE"] === "mock" ? "mock" : "uxp";
 
@@ -50,17 +56,26 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
   // 디렉터리가 없으면 조용히 건너뛴다. Extension 이 없는 것은 정상이다.
   const extensionsDir = resolve(env["PHOTOSHOP_MCP_EXTENSIONS"] ?? "extensions");
 
-  return { mode, port, extensionsDir };
+  // 값을 주면 그것이 **전체 목록**이다. 기존 기본값에 더하지 않는다.
+  // 그래야 `PHOTOSHOP_MCP_ALLOW=read` 로 읽기 전용 서버를 만들 수 있다.
+  const { levels, unknown } = parsePermissionLevels(env["PHOTOSHOP_MCP_ALLOW"]);
+  if (unknown.length > 0) {
+    // 오타 때문에 권한이 빠진 것을 조용히 넘기지 않는다.
+    log(`PHOTOSHOP_MCP_ALLOW 에 알 수 없는 값이 있습니다: ${unknown.join(", ")} — 무시합니다`);
+  }
+
+  return { mode, port, extensionsDir, policy: new PermissionPolicy(levels) };
 }
 
 /** CLI 진입점. 오류를 스스로 처리하며 예외를 던지지 않는다. */
 export async function main(): Promise<void> {
-  const { mode, port, extensionsDir } = readOptionsFromEnv();
+  const { mode, port, extensionsDir, policy } = readOptionsFromEnv();
 
   const options: StartOptions = {
     mode,
     port,
     extensionsDir,
+    policy,
     onBridgeStateChange: (state) => {
       log(`Bridge: ${STATE_LABEL[state] ?? state}`);
     },
@@ -77,6 +92,7 @@ export async function main(): Promise<void> {
       mode === "mock" ? "Mock Bridge" : `UXP Bridge (ws://127.0.0.1:${port} 대기 중)`;
     log(`stdio 서버 시작. ${bridgeLabel}`);
     log(`Tool ${mcp.tools.size}개: ${names}`);
+    log(`허용 권한: ${policy.allowed.join(", ") || "(없음)"}`);
     if (mcp.loadedExtensions.length > 0) {
       const extensionNames = mcp.loadedExtensions
         .map((extension) => `${extension.manifest.name}(${extension.manifest.namespace})`)

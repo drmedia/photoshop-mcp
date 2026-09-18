@@ -13,6 +13,16 @@ export {
   type PhotoshopMcpExtension,
 } from "./extension.js";
 export {
+  DEFAULT_ALLOWED_LEVELS,
+  PERMISSION_LEVELS,
+  PermissionLevelSchema,
+  PermissionPolicy,
+  parsePermissionLevels,
+  permissionToLevel,
+  type PermissionSubject,
+  type PermissionLevel,
+} from "./permission.js";
+export {
   DEFAULT_MOCK_DOCUMENT,
   DEFAULT_MOCK_LAYERS,
   MockPhotoshopBridge,

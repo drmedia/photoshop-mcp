@@ -1,5 +1,7 @@
 import type { ZodType } from "zod";
 import { ZodError } from "zod";
+import type { PermissionLevel } from "./permission.js";
+import { PermissionPolicy } from "./permission.js";
 import { ErrorCode, PhotoshopMcpError } from "./protocol/errors.js";
 
 /** Tool 핸들러에 전달되는 컨텍스트. */
@@ -22,6 +24,16 @@ export interface ToolDefinition<TInput = unknown, TResult = unknown> {
   /** 점으로 구분된 Tool 이름. 예: `photoshop.layer.list` */
   name: string;
   description: string;
+  /**
+   * 요구 Permission Level. (ARCHITECTURE §22)
+   *
+   * 선택 필드가 아니다. 기본값을 두면 새 Tool 이 조용히 관대한 값을 갖는다.
+   *
+   * 이 값은 `tools/list` 노출용 메타데이터이자 빠른 실패용이다.
+   * **실제 차단은 Command Engine 이 한다** — Extension 이 Tool 을 거치지 않고
+   * Command 를 직접 호출할 수 있기 때문이다. (ARCHITECTURE §3.2)
+   */
+  permission: PermissionLevel;
   /** 입력 스키마. Tool 호출 전에 이 스키마로 인자를 검증한다. */
   inputSchema: ZodType<TInput>;
   handler: ToolHandler<TInput, TResult>;
@@ -35,6 +47,22 @@ export interface ToolDefinition<TInput = unknown, TResult = unknown> {
  */
 export class ToolRegistry {
   readonly #tools = new Map<string, ToolDefinition<never, unknown>>();
+  readonly #policy: PermissionPolicy;
+
+  /**
+   * @param policy Permission 정책. 생략하면 기본 정책(`read` · `edit`).
+   *
+   * 여기서의 검사는 **빠른 실패**다. 실제 차단은 Command Engine 이 한다.
+   * Tool 이 선언한 레벨이 실제 Command 보다 낮아도 Engine 이 잡는다.
+   */
+  constructor(policy: PermissionPolicy = new PermissionPolicy()) {
+    this.#policy = policy;
+  }
+
+  /** 이 레지스트리에 걸린 Permission 정책. */
+  get policy(): PermissionPolicy {
+    return this.#policy;
+  }
 
   /**
    * Tool 을 등록한다.
@@ -90,6 +118,7 @@ export class ToolRegistry {
    *
    * @throws {PhotoshopMcpError}
    *   - `TOOL_NOT_FOUND` — 등록되지 않은 Tool
+   *   - `PERMISSION_DENIED` — Tool 이 선언한 Permission Level 이 허용되지 않음
    *   - `INVALID_PARAMETER` — 입력이 스키마를 만족하지 않음
    */
   async invoke<TResult = unknown>(
@@ -103,6 +132,9 @@ export class ToolRegistry {
         details: { name, registered: this.list().map((entry) => entry.name) },
       });
     }
+
+    // 거부될 호출이면 입력 검증도 낭비다. Permission 을 먼저 본다.
+    this.#policy.assert(tool.permission, { kind: "tool", name });
 
     let parsed: never;
     try {

@@ -27,6 +27,7 @@ export function createSelectionSetTool(
       "선택 영역을 만든다. shape 는 rectangle / ellipse (bounds 필요) / canvas (문서 전체) / " +
       "layerTransparency (레이어의 불투명한 픽셀). bounds 는 픽셀 좌표 {left, top, right, bottom}. " +
       "feather 로 가장자리를 부드럽게 할 수 있다. 만든 선택은 mask.create 의 fromSelection 으로 쓸 수 있다.",
+    permission: "edit",
     inputSchema: SelectionSetParamsSchema,
     handler: async (input, context) =>
       engine.execute<SelectionSetResult>(
@@ -44,6 +45,7 @@ export function createLayerBlendModeTool(
     description:
       "레이어 혼합 모드를 바꾼다. normal · multiply · screen · overlay · softLight · luminosity 등. " +
       "layerId 를 생략하면 활성 레이어.",
+    permission: "edit",
     inputSchema: LayerBlendModeParamsSchema,
     handler: async (input, context) =>
       engine.execute<LayerInfo>(
@@ -60,6 +62,7 @@ export function createHueSaturationTool(
     name: "photoshop.adjustment.hue_saturation",
     description:
       "Hue/Saturation 조정 레이어를 만든다. hue -180~180, saturation -100~100, lightness -100~100.",
+    permission: "edit",
     inputSchema: HueSaturationParamsSchema,
     handler: async (input, context) =>
       engine.execute<LayerInfo>(
@@ -76,6 +79,7 @@ export function createVibranceTool(
     name: "photoshop.adjustment.vibrance",
     description:
       "Vibrance 조정 레이어를 만든다. vibrance 는 채도가 낮은 색을 우선 올린다. 둘 다 -100~100.",
+    permission: "edit",
     inputSchema: VibranceParamsSchema,
     handler: async (input, context) =>
       engine.execute<LayerInfo>(

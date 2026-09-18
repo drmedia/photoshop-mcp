@@ -38,6 +38,8 @@ export const ErrorCode = {
   EXTENSION_NAMESPACE_CONFLICT: "EXTENSION_NAMESPACE_CONFLICT",
   /** Extension 이 자신의 namespace 밖에 Tool 을 등록하려 함. */
   EXTENSION_NAMESPACE_VIOLATION: "EXTENSION_NAMESPACE_VIOLATION",
+  /** 요구 Permission Level 이 허용되어 있지 않음. (ARCHITECTURE §22) */
+  PERMISSION_DENIED: "PERMISSION_DENIED",
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

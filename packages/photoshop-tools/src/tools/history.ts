@@ -14,6 +14,7 @@ export function createHistoryUndoTool(
   return {
     name: "photoshop.history.undo",
     description: "직전 작업을 한 단계 되돌린다.",
+    permission: "edit",
     inputSchema: HistoryUndoParamsSchema,
     handler: async (input, context) =>
       engine.execute<HistoryUndoResult>(

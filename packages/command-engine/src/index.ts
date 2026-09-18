@@ -8,5 +8,6 @@ export {
   type CommandContext,
   type CommandEntry,
   type CommandHandler,
+  type CommandOptions,
 } from "./registry/command-registry.js";
 export { validateParams } from "./validation/validate-params.js";

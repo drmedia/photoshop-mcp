@@ -41,6 +41,8 @@ export function activate(context: ExtensionContext): void {
   tools.register({
     name: "example.hello",
     description: "예제 확장이 살아 있는지 확인합니다. Photoshop 연결이 없어도 동작합니다.",
+    // manifest 의 permissions 에 선언한 범위 안이어야 등록된다. (ARCHITECTURE §22)
+    permission: "read",
     inputSchema: HelloInput,
     handler: (input) => {
       const target = input.name ?? "Photoshop";
@@ -57,6 +59,7 @@ export function activate(context: ExtensionContext): void {
     description:
       "현재 문서와 레이어를 요약합니다. Core Command 두 개를 조합하는 예입니다. " +
       "열린 문서가 없으면 오류를 반환합니다.",
+    permission: "read",
     inputSchema: SummaryInput,
     handler: async (_input, toolContext): Promise<Summary> => {
       // Extension 은 MCP Tool 을 다시 호출하지 않고 Command 를 직접 실행한다.

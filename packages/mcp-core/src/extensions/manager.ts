@@ -2,10 +2,12 @@ import { readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type {
+  ExtensionCommandEngine,
   ExtensionContext,
   ExtensionManifest,
   ExtensionToolRegistry,
   Logger,
+  PermissionLevel,
   PhotoshopMcpExtension,
   ToolRegistry,
 } from "@photoshop-mcp/photoshop-bridge";
@@ -14,6 +16,7 @@ import {
   ExtensionManifestSchema,
   PhotoshopMcpError,
   RESERVED_NAMESPACES,
+  permissionToLevel,
 } from "@photoshop-mcp/photoshop-bridge";
 import type { CommandEngine } from "@photoshop-mcp/command-engine";
 
@@ -271,6 +274,13 @@ export class ExtensionManager {
     const prefix = `${namespace}.`;
     const registry = this.#tools;
 
+    // manifest 가 선언한 권한으로 가둔다. (ARCHITECTURE §22)
+    //
+    // 선언하지 않았으면 **아무 권한도 없다.** 최소 권한 원칙이다.
+    // 기본값을 주면 권한을 적지 않은 Extension 이 조용히 편집 권한을 얻는다.
+    const granted = grantedLevels(loaded.manifest);
+    const scopedPolicy = this.#commands.policy.restrictTo(granted);
+
     const scoped: ExtensionToolRegistry = {
       register: (tool) => {
         if (!tool.name.startsWith(prefix)) {
@@ -281,16 +291,45 @@ export class ExtensionManager {
             { details: { namespace, toolName: tool.name } },
           );
         }
+        // manifest 에 없는 권한을 요구하는 Tool 은 등록 자체를 막는다.
+        // 호출 시점에 막으면 Tool 목록에는 떠 있는데 항상 실패하는 상태가 된다.
+        if (!granted.includes(tool.permission)) {
+          throw new PhotoshopMcpError(
+            ErrorCode.PERMISSION_DENIED,
+            `Extension 이 manifest 에 선언하지 않은 권한의 Tool 을 등록하려 합니다: ` +
+              `${tool.name} 은 '${tool.permission}' 필요, 선언: ${granted.join(", ") || "(없음)"}`,
+            {
+              details: {
+                namespace,
+                toolName: tool.name,
+                required: tool.permission,
+                granted,
+              },
+            },
+          );
+        }
         registry.register(tool);
         loaded.registeredTools.push(tool.name);
       },
       has: (name) => registry.has(name),
     };
 
+    // Command 호출에도 같은 상한을 씌운다.
+    // Extension 은 Tool 을 거치지 않고 Command 를 직접 부를 수 있다. (ARCHITECTURE §3.2)
+    const engine = this.#commands;
+    const commands: ExtensionCommandEngine = {
+      execute: (command, options) =>
+        engine.execute(command as Parameters<typeof engine.execute>[0], {
+          ...options,
+          policy: scopedPolicy,
+          namespace,
+        }),
+    };
+
     return {
       manifest: loaded.manifest,
       tools: scoped,
-      commands: this.#commands,
+      commands,
       logger: this.#logger,
     };
   }
@@ -312,6 +351,23 @@ export class ExtensionManager {
       );
     }
   }
+}
+
+/**
+ * manifest 가 선언한 Permission Level.
+ *
+ * 선언이 없으면 빈 배열이다 — 아무 Command 도 실행할 수 없다.
+ * 알 수 없는 문자열은 조용히 버린다. 스키마가 이미 거른 뒤이므로 여기 도달하지 않는다.
+ */
+function grantedLevels(manifest: ExtensionManifest): PermissionLevel[] {
+  const levels: PermissionLevel[] = [];
+  for (const permission of manifest.permissions ?? []) {
+    const level = permissionToLevel(permission);
+    if (level !== null && !levels.includes(level)) {
+      levels.push(level);
+    }
+  }
+  return levels;
 }
 
 /** 모듈이 내보낸 것에서 Extension 을 꺼낸다. default export 와 named export 를 모두 받는다. */

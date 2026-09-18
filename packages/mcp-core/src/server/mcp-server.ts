@@ -68,7 +68,8 @@ export class PhotoshopMcpServer {
     this.#server.setRequestHandler(ListToolsRequestSchema, () => ({
       tools: this.#registry.list().map((tool) => ({
         name: tool.name,
-        description: tool.description,
+        // 요구 권한을 설명에 덧붙인다. 클라이언트가 호출 전에 위험도를 알 수 있어야 한다.
+        description: `${tool.description} [권한: ${tool.permission}]`,
         inputSchema: zodToJsonSchema(tool.inputSchema, {
           target: "jsonSchema7",
           $refStrategy: "none",

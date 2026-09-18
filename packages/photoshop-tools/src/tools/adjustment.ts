@@ -20,6 +20,7 @@ export function createCurvesTool(engine: CommandEngine): ToolDefinition<CurvesPa
     description:
       "Curves 조정 레이어를 만든다. points 는 {input, output} (0-255) 제어점 배열이며 input 오름차순이어야 한다. " +
       "중간톤 대비를 올리려면 어두운 쪽 점을 내리고 밝은 쪽 점을 올린다. 예: [{input:0,output:0},{input:64,output:54},{input:192,output:202},{input:255,output:255}]",
+    permission: "edit",
     inputSchema: CurvesParamsSchema,
     handler: async (input, context) =>
       engine.execute<LayerInfo>(
@@ -34,6 +35,7 @@ export function createLevelsTool(engine: CommandEngine): ToolDefinition<LevelsPa
     name: "photoshop.adjustment.levels",
     description:
       "Levels 조정 레이어를 만든다. 입력 검은점/흰점, 감마(1 이 기본), 출력 검은점/흰점을 지정한다.",
+    permission: "edit",
     inputSchema: LevelsParamsSchema,
     handler: async (input, context) =>
       engine.execute<LayerInfo>(
@@ -50,6 +52,7 @@ export function createBrightnessContrastTool(
     name: "photoshop.adjustment.brightness_contrast",
     description:
       "Brightness/Contrast 조정 레이어를 만든다. brightness -150~150, contrast -50~100. 둘 다 0 이 기본.",
+    permission: "edit",
     inputSchema: BrightnessContrastParamsSchema,
     handler: async (input, context) =>
       engine.execute<LayerInfo>(

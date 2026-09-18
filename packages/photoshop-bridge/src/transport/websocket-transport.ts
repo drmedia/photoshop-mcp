@@ -3,19 +3,16 @@ import { ErrorCode, PhotoshopMcpError } from "../protocol/errors.js";
 import type {
   CommandMessage,
   ConnectionState,
-  ErrorResponseMessage,
+  HelloAckMessage,
   HelloMessage,
   OutboundMessage,
   ResponseMessage,
-  WelcomeMessage,
 } from "../protocol/messages.js";
 import {
   DEFAULT_COMMAND_TIMEOUT_MS,
-  HelloMessageSchema,
   InboundMessageSchema,
   MAX_FRAME_BYTES,
   PROTOCOL_VERSION,
-  ResponseMessageSchema,
 } from "../protocol/messages.js";
 import { SERVER_NAME, SERVER_VERSION } from "../protocol/server-info.js";
 import type { BridgeTransport, SendOptions } from "./transport.js";
@@ -40,7 +37,7 @@ interface PendingRequest {
   timer: ReturnType<typeof setTimeout>;
 }
 
-/** Plugin 이 보고한 정보. 핸드셰이크 완료 후 채워진다. */
+/** Plugin 이 보고한 정보. `hello` 수신 후 채워진다. */
 export interface PluginInfo {
   name: string;
   version: string;
@@ -50,6 +47,16 @@ export interface PluginInfo {
 
 /**
  * WebSocket 기반 Bridge 전송. MCP Server 측이 서버 역할을 한다. (PROTOCOL.md §1)
+ *
+ * 핸드셰이크는 3단계다. (PROTOCOL.md §3.2~3.4)
+ *
+ * ```text
+ * Plugin → hello       handshaking
+ * Server → hello_ack   awaiting_ready
+ * Plugin → ready       connected
+ * ```
+ *
+ * `ready` 를 받기 전에는 Command 를 보내지 않는다.
  *
  * 동시에 하나의 Plugin 연결만 유지하며, 새 연결이 오면 이전 연결을 대체한다.
  * 재접속 책임은 Plugin 쪽에 있고 이 전송은 계속 listen 한다. (PROTOCOL.md §7)
@@ -80,7 +87,7 @@ export class WebSocketBridgeTransport implements BridgeTransport {
     return typeof address === "object" && address !== null ? address.port : this.#port;
   }
 
-  /** 접속한 Plugin 정보. 미접속이면 `null`. */
+  /** 접속한 Plugin 정보. `hello` 이전이면 `null`. */
   get plugin(): PluginInfo | null {
     return this.#plugin;
   }
@@ -139,6 +146,7 @@ export class WebSocketBridgeTransport implements BridgeTransport {
     });
   }
 
+  /** `ready` 까지 완료된 연결이 있는지. */
   isConnected(): boolean {
     return this.#state === "connected";
   }
@@ -152,6 +160,7 @@ export class WebSocketBridgeTransport implements BridgeTransport {
     options: SendOptions = {},
   ): Promise<TResult> {
     const socket = this.#socket;
+    // ready 이전에는 Command 를 보내지 않는다. (PROTOCOL.md §3.4)
     if (socket === null || this.#state !== "connected") {
       throw new PhotoshopMcpError(
         ErrorCode.PHOTOSHOP_NOT_CONNECTED,
@@ -236,38 +245,43 @@ export class WebSocketBridgeTransport implements BridgeTransport {
 
     const message = parsed.data;
 
-    if (message.type === "hello") {
-      this.#handleHello(socket, HelloMessageSchema.parse(message));
-      return;
+    switch (message.type) {
+      case "hello":
+        this.#handleHello(socket, message);
+        return;
+      case "ready":
+        this.#handleReady();
+        return;
+      case "event":
+        // Phase 11 예약. 현재는 무시한다.
+        return;
+      case "response":
+        // 핸드셰이크 완료 전에 도착한 응답은 버린다. (PROTOCOL.md §3.5)
+        if (this.#state !== "connected") {
+          return;
+        }
+        this.#handleResponse(message);
+        return;
     }
-
-    // Phase 11 예약. 현재는 무시한다.
-    if (message.type === "event") {
-      return;
-    }
-
-    // 핸드셰이크 전에 도착한 응답은 버린다. (PROTOCOL.md §3.2)
-    if (this.#state !== "connected") {
-      return;
-    }
-    this.#handleResponse(ResponseMessageSchema.parse(message));
   }
 
+  /** 1단계 수신 → 2단계 발신. */
   #handleHello(socket: WebSocket, hello: HelloMessage): void {
     const { protocolVersion, plugin, host, commands } = hello.payload;
 
     if (protocolVersion !== PROTOCOL_VERSION) {
-      const mismatch: ErrorResponseMessage = {
-        id: hello.id,
-        type: "response",
-        success: false,
-        error: {
-          code: ErrorCode.PROTOCOL_VERSION_MISMATCH,
-          message: `프로토콜 버전이 다릅니다. server=${PROTOCOL_VERSION} plugin=${protocolVersion}`,
-          recoverable: false,
+      const rejected: HelloAckMessage = {
+        type: "hello_ack",
+        payload: {
+          accepted: false,
+          protocolVersion: PROTOCOL_VERSION,
+          error: {
+            code: ErrorCode.PROTOCOL_VERSION_MISMATCH,
+            message: `프로토콜 버전이 다릅니다. server=${PROTOCOL_VERSION} plugin=${protocolVersion}`,
+          },
         },
       };
-      this.#send(socket, mismatch);
+      this.#send(socket, rejected);
       socket.close(1002, "protocol version mismatch");
       return;
     }
@@ -279,16 +293,26 @@ export class WebSocketBridgeTransport implements BridgeTransport {
       ...(host === undefined ? {} : { host }),
     };
 
-    const welcome: WelcomeMessage = {
-      id: hello.id,
-      type: "response",
-      success: true,
-      result: {
+    const accepted: HelloAckMessage = {
+      type: "hello_ack",
+      payload: {
+        accepted: true,
         protocolVersion: PROTOCOL_VERSION,
         server: { name: SERVER_NAME, version: SERVER_VERSION },
       },
     };
-    this.#send(socket, welcome);
+    this.#send(socket, accepted);
+
+    // 아직 connected 가 아니다. ready 를 기다린다.
+    this.#setState("awaiting_ready");
+  }
+
+  /** 3단계 수신 → 연결 확정. */
+  #handleReady(): void {
+    // hello 를 건너뛴 ready 는 무시한다. 순서를 지키지 않은 Plugin 이다.
+    if (this.#state !== "awaiting_ready") {
+      return;
+    }
     this.#setState("connected");
   }
 

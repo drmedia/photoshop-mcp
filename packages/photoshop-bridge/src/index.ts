@@ -19,17 +19,19 @@ export {
   InboundMessageSchema,
   MAX_FRAME_BYTES,
   PROTOCOL_VERSION,
+  ReadyMessageSchema,
   ResponseMessageSchema,
   type CommandMessage,
   type ConnectionState,
-  type ErrorResponseMessage,
   type EventMessage,
+  type HelloAckAccepted,
+  type HelloAckMessage,
+  type HelloAckRejected,
   type HelloMessage,
   type InboundMessage,
   type OutboundMessage,
+  type ReadyMessage,
   type ResponseMessage,
-  type WelcomeMessage,
-  type WelcomeResult,
 } from "./protocol/messages.js";
 export { SERVER_NAME, SERVER_VERSION } from "./protocol/server-info.js";
 export {

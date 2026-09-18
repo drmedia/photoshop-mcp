@@ -15,7 +15,8 @@ import { startPhotoshopMcpServer, type BridgeMode, type StartOptions } from "./s
 
 const STATE_LABEL: Record<string, string> = {
   disconnected: "연결 끊김",
-  handshaking: "핸드셰이크 중",
+  handshaking: "hello 대기",
+  awaiting_ready: "ready 대기",
   connected: "연결됨",
 };
 

@@ -8,6 +8,8 @@ import { WebSocket } from "ws";
  * PROTOCOL.md 의 클라이언트 측을 구현한다. Photoshop DOM 대신 주입된 값을 돌려준다.
  * 실제 플러그인의 `BridgeClient` 와 같은 프로토콜을 말하므로, 서버 측 전 구간
  * (Tool → Command Engine → UXPPhotoshopBridge → WebSocket) 을 검증할 수 있다.
+ *
+ * 핸드셰이크는 3단계다: `hello` → `hello_ack` → `ready`.
  */
 export interface FakePluginOptions {
   url: string;
@@ -15,6 +17,11 @@ export interface FakePluginOptions {
   protocolVersion?: number;
   /** 등록된 것으로 보고할 Command 목록. */
   commands?: string[];
+  /**
+   * `hello_ack` 를 받고도 `ready` 를 보내지 않는다.
+   * Server 가 `ready` 이전에 Command 를 보내지 않는지 검증할 때 사용한다.
+   */
+  skipReady?: boolean;
   document?: DocumentInfo | null;
   layers?: LayerInfo[];
   /** 지정한 Command 에 응답하지 않는다. 타임아웃 테스트에 사용한다. */
@@ -40,6 +47,16 @@ export const FAKE_LAYERS: LayerInfo[] = [
   { id: 102, name: "Foreground", type: "group", visible: false },
 ];
 
+/** 핸드셰이크 진행 결과. */
+export interface HandshakeOutcome {
+  /** `hello_ack` 의 `accepted` 값. */
+  accepted: boolean;
+  /** 거부된 경우의 오류 코드. */
+  code?: string;
+  /** `ready` 를 실제로 보냈는지. */
+  readySent: boolean;
+}
+
 export class FakeUxpPlugin {
   readonly #options: FakePluginOptions;
   #socket: WebSocket | null = null;
@@ -47,14 +64,14 @@ export class FakeUxpPlugin {
   /** 수신한 Command 기록. 라우팅 검증에 사용한다. */
   readonly received: { command: string; payload: Record<string, unknown> }[] = [];
 
-  /** 핸드셰이크 결과. 거부되면 error 가 채워진다. */
-  handshake: { ok: boolean; code?: string } | null = null;
+  /** 핸드셰이크 결과. `connect()` 가 끝나면 채워진다. */
+  handshake: HandshakeOutcome | null = null;
 
   constructor(options: FakePluginOptions) {
     this.#options = options;
   }
 
-  /** 접속하고 핸드셰이크가 끝날 때까지 기다린다. */
+  /** 접속하고 핸드셰이크(`hello` → `hello_ack` → `ready`)가 끝날 때까지 기다린다. */
   async connect(): Promise<void> {
     const socket = new WebSocket(this.#options.url);
     this.#socket = socket;
@@ -66,18 +83,28 @@ export class FakeUxpPlugin {
       socket.once("error", reject);
     });
 
-    const settled = new Promise<void>((resolve) => {
+    const acked = new Promise<void>((resolve) => {
       const onMessage = (data: unknown): void => {
         const message = JSON.parse(String(data)) as Record<string, unknown>;
-        if (typeof message["success"] !== "boolean") {
+        if (message["type"] !== "hello_ack") {
           return;
         }
         socket.off("message", onMessage);
-        if (message["success"] === true) {
-          this.handshake = { ok: true };
+
+        const payload = (message["payload"] ?? {}) as Record<string, unknown>;
+        if (payload["accepted"] === true) {
+          const readySent = this.#options.skipReady !== true;
+          if (readySent) {
+            socket.send(JSON.stringify({ type: "ready" }));
+          }
+          this.handshake = { accepted: true, readySent };
         } else {
-          const error = message["error"] as { code?: string } | undefined;
-          this.handshake = { ok: false, code: error?.code };
+          const error = payload["error"] as { code?: string } | undefined;
+          this.handshake = {
+            accepted: false,
+            readySent: false,
+            ...(error?.code === undefined ? {} : { code: error.code }),
+          };
         }
         resolve();
       };
@@ -86,7 +113,6 @@ export class FakeUxpPlugin {
 
     socket.send(
       JSON.stringify({
-        id: "hs-1",
         type: "hello",
         payload: {
           protocolVersion: this.#options.protocolVersion ?? PROTOCOL_VERSION,
@@ -97,10 +123,18 @@ export class FakeUxpPlugin {
       }),
     );
 
-    await settled;
+    await acked;
     socket.on("message", (data) => {
       this.#handleCommand(socket, String(data));
     });
+  }
+
+  /** `skipReady` 로 보류했던 `ready` 를 뒤늦게 보낸다. */
+  sendReady(): void {
+    this.#socket?.send(JSON.stringify({ type: "ready" }));
+    if (this.handshake !== null) {
+      this.handshake = { ...this.handshake, readySent: true };
+    }
   }
 
   /**
@@ -155,19 +189,12 @@ export class FakeUxpPlugin {
 
     const failure = this.#options.failWith?.[command];
     if (failure !== undefined) {
-      socket.send(JSON.stringify({ id, type: "response", success: false, error: failure }));
+      this.#sendError(socket, id, failure);
       return;
     }
 
     if (this.#options.malformedResults !== undefined && command in this.#options.malformedResults) {
-      socket.send(
-        JSON.stringify({
-          id,
-          type: "response",
-          success: true,
-          result: this.#options.malformedResults[command],
-        }),
-      );
+      this.#sendResult(socket, id, this.#options.malformedResults[command]);
       return;
     }
 
@@ -185,17 +212,10 @@ export class FakeUxpPlugin {
 
     switch (command) {
       case "DOCUMENT_GET":
-        socket.send(JSON.stringify({ id, type: "response", success: true, result: document }));
+        this.#sendResult(socket, id, document);
         return;
       case "LAYER_LIST":
-        socket.send(
-          JSON.stringify({
-            id,
-            type: "response",
-            success: true,
-            result: this.#options.layers ?? FAKE_LAYERS,
-          }),
-        );
+        this.#sendResult(socket, id, this.#options.layers ?? FAKE_LAYERS);
         return;
       default:
         this.#sendError(socket, id, {
@@ -206,11 +226,15 @@ export class FakeUxpPlugin {
     }
   }
 
+  #sendResult(socket: WebSocket, id: string, result: unknown): void {
+    socket.send(JSON.stringify({ type: "response", id, success: true, result }));
+  }
+
   #sendError(
     socket: WebSocket,
     id: string,
     error: { code: string; message: string; recoverable?: boolean },
   ): void {
-    socket.send(JSON.stringify({ id, type: "response", success: false, error }));
+    socket.send(JSON.stringify({ type: "response", id, success: false, error }));
   }
 }

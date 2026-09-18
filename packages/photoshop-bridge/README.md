@@ -39,7 +39,17 @@ Tool 계약을 여기에 두는 이유는 MCP 서버 구현(`mcp-core`)과 Tool 
 `WebSocketBridgeTransport` 는 **서버** 역할입니다. Photoshop 이 실행 중이 아니어도 기동하며,
 Plugin 이 클라이언트로 접속합니다. 재접속 책임은 Plugin 쪽에 있습니다.
 
-담당하는 것: 연결 상태 기계, 핸드셰이크와 버전 협상, 요청 ID 대응, 요청별 타임아웃,
+핸드셰이크는 3단계이며, `ready` 를 받은 뒤에만 Command 를 보냅니다. (PROTOCOL.md §3.1)
+
+```text
+Plugin → hello       handshaking
+Server → hello_ack   awaiting_ready
+Plugin → ready       connected      ← 이 시점부터 Command 허용
+```
+
+`hello_ack` 와 `ready` 는 요청/응답이 아닌 connection lifecycle 메시지이므로 `id` 가 없습니다.
+
+담당하는 것: 연결 상태 기계, 3단계 핸드셰이크와 버전 협상, 요청 ID 대응, 요청별 타임아웃,
 끊김 시 대기 요청 즉시 실패, 프레임 크기 제한.
 
 Photoshop 기능은 알지 못합니다. 규약은 [docs/PROTOCOL.md](../../docs/PROTOCOL.md) 를 참고하세요.

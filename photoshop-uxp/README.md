@@ -16,7 +16,7 @@ contracts 는 **타입만** 가져옵니다. 컴파일 결과에 `require("@phot
 src/
 ├─ index.ts                 bootstrap — Dispatcher 구성, 접속, 패널 등록
 ├─ dispatcher/dispatcher.ts CommandDispatcher — Command → 처리 코드 연결
-├─ transport/ws-client.ts   BridgeClient — WebSocket 접속 · 핸드셰이크 · 재접속
+├─ transport/ws-client.ts   BridgeClient — 접속 · 3단계 핸드셰이크 · 재접속
 ├─ dom/document.ts          DOCUMENT_GET (Photoshop DOM)
 ├─ dom/layers.ts            LAYER_LIST (Photoshop DOM)
 ├─ dom/mappings.ts          열거형 매핑 (순수 함수, Photoshop 무관)
@@ -42,6 +42,18 @@ npm run build          # 저장소 루트에서. dist/ 생성
 
 MCP 서버가 `ws://127.0.0.1:8765` 에서 대기해야 합니다. 서버 먼저 띄울 필요는 없습니다 —
 플러그인이 지수 백오프로 재접속합니다. (PROTOCOL.md §7)
+
+## 핸드셰이크
+
+접속 후 3단계를 거칩니다. (PROTOCOL.md §3.1)
+
+```text
+Plugin → hello       플러그인·호스트 정보와 등록된 Command 목록 보고
+Server → hello_ack   수락 또는 버전 불일치 거부
+Plugin → ready       Dispatcher 준비 완료 — 이 시점부터 Server 가 Command 를 보냄
+```
+
+`ready` 는 Dispatcher 구성이 끝난 뒤에만 보냅니다. 패널의 상태 표시는 이 단계를 반영합니다.
 
 ## 검증 상태
 

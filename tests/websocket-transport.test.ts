@@ -5,6 +5,7 @@ import {
   type ConnectionState,
 } from "@photoshop-mcp/photoshop-bridge";
 import { afterEach, describe, expect, it } from "vitest";
+import { WebSocket } from "ws";
 import { FakeUxpPlugin } from "./helpers/fake-uxp-plugin.js";
 
 interface Harness {
@@ -36,6 +37,12 @@ async function startTransport(timeoutMs?: number): Promise<Harness> {
   return harness;
 }
 
+/**
+ * Plugin 을 접속시킨다.
+ *
+ * `ready` 에는 ack 가 없으므로 Plugin 의 `connect()` 는 Server 가 `ready` 를 처리하기
+ * 전에 반환한다. 따라서 Server 측 상태가 확정될 때까지 기다린다. (PROTOCOL.md §3.4)
+ */
 async function connectPlugin(
   harness: Harness,
   options: Partial<ConstructorParameters<typeof FakeUxpPlugin>[0]> = {},
@@ -43,6 +50,13 @@ async function connectPlugin(
   const plugin = new FakeUxpPlugin({ url: harness.url, ...options });
   harness.plugins.push(plugin);
   await plugin.connect();
+
+  // 핸드셰이크가 거부되면 Server 가 연결을 닫으므로 기다리지 않는다.
+  if (plugin.handshake?.accepted === true) {
+    const expected = options.skipReady === true ? "awaiting_ready" : "connected";
+    await expect.poll(() => harness.transport.state(), { timeout: 2000 }).toBe(expected);
+  }
+
   return plugin;
 }
 
@@ -71,9 +85,10 @@ describe("WebSocketBridgeTransport", () => {
     const harness = await startTransport();
     const plugin = await connectPlugin(harness);
 
-    expect(plugin.handshake).toEqual({ ok: true });
+    expect(plugin.handshake).toEqual({ accepted: true, readySent: true });
     expect(harness.transport.isConnected()).toBe(true);
-    expect(harness.states).toEqual(["handshaking", "connected"]);
+    // hello → hello_ack → ready 3단계를 거친다.
+    expect(harness.states).toEqual(["handshaking", "awaiting_ready", "connected"]);
     expect(harness.transport.plugin).toEqual({
       name: "fake-uxp",
       version: "0.0.0",
@@ -197,19 +212,88 @@ describe("WebSocketBridgeTransport", () => {
 
     expect(harness.states).toEqual([
       "handshaking",
+      "awaiting_ready",
       "connected",
       "disconnected",
       "handshaking",
+      "awaiting_ready",
       "connected",
     ]);
+  });
+
+  it("ready 이전에는 연결됨이 아니고 Command 를 보내지 않는다", async () => {
+    const harness = await startTransport();
+    const plugin = await connectPlugin(harness, { skipReady: true });
+
+    // hello_ack 은 받았지만 ready 를 보내지 않았다.
+    expect(plugin.handshake).toEqual({ accepted: true, readySent: false });
+    expect(harness.transport.state()).toBe("awaiting_ready");
+    expect(harness.transport.isConnected()).toBe(false);
+
+    await expect(
+      harness.transport.request({ command: "DOCUMENT_GET", payload: {} }),
+    ).rejects.toThrow(
+      expect.objectContaining({
+        code: ErrorCode.PHOTOSHOP_NOT_CONNECTED,
+        details: { state: "awaiting_ready" },
+      }),
+    );
+
+    // Plugin 에는 Command 가 전달되지 않았다.
+    expect(plugin.received).toEqual([]);
+  });
+
+  it("뒤늦게 ready 가 오면 연결이 확정된다", async () => {
+    const harness = await startTransport();
+    const plugin = await connectPlugin(harness, { skipReady: true });
+    expect(harness.transport.isConnected()).toBe(false);
+
+    plugin.sendReady();
+    await expect.poll(() => harness.transport.isConnected(), { timeout: 2000 }).toBe(true);
+
+    await expect(
+      harness.transport.request({ command: "LAYER_LIST", payload: {} }),
+    ).resolves.toHaveLength(3);
+  });
+
+  it("hello 를 건너뛴 ready 는 무시한다", async () => {
+    const harness = await startTransport();
+
+    // 핸드셰이크를 거치지 않고 ready 만 보낸다.
+    const socket = new WebSocket(harness.url);
+    await new Promise<void>((resolve, reject) => {
+      socket.once("open", () => {
+        resolve();
+      });
+      socket.once("error", reject);
+    });
+    socket.send(JSON.stringify({ type: "ready" }));
+
+    // 상태가 connected 로 넘어가지 않는다.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(harness.transport.state()).toBe("handshaking");
+    expect(harness.transport.isConnected()).toBe(false);
+
+    await new Promise<void>((resolve) => {
+      socket.once("close", () => {
+        resolve();
+      });
+      socket.close();
+    });
   });
 
   it("프로토콜 버전이 다르면 핸드셰이크를 거부한다", async () => {
     const harness = await startTransport();
     const plugin = await connectPlugin(harness, { protocolVersion: PROTOCOL_VERSION + 1 });
 
-    expect(plugin.handshake).toEqual({ ok: false, code: ErrorCode.PROTOCOL_VERSION_MISMATCH });
+    expect(plugin.handshake).toEqual({
+      accepted: false,
+      readySent: false,
+      code: ErrorCode.PROTOCOL_VERSION_MISMATCH,
+    });
     expect(harness.transport.isConnected()).toBe(false);
+    // hello_ack 을 보내지 않았으므로 awaiting_ready 로 가지 않는다.
+    expect(harness.states).toEqual(["handshaking"]);
   });
 
   it("JSON 이 아닌 프레임은 프로토콜 오류로 처리하고 연결을 닫는다", async () => {

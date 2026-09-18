@@ -1,9 +1,4 @@
-import type {
-  CommandMessage,
-  ErrorResponseMessage,
-  HelloMessage,
-  ResponseMessage,
-} from "@photoshop-mcp/photoshop-bridge";
+import type { HelloMessage, ReadyMessage, ResponseMessage } from "@photoshop-mcp/photoshop-bridge";
 import { CommandDispatcher, DispatchError, type CommandPayload } from "../dispatcher/dispatcher.js";
 
 /** PROTOCOL.md §3.3 */
@@ -13,6 +8,12 @@ export const PROTOCOL_VERSION = 1;
 const RECONNECT_INITIAL_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
 
+/**
+ * 연결 수명 상태. PROTOCOL.md §7 의 상태 기계를 Plugin 쪽에서 본 것.
+ *
+ * - `handshaking` — `hello` 를 보내고 `hello_ack` 를 기다린다
+ * - `connected` — `hello_ack` 를 받고 `ready` 를 보냈다
+ */
 export type ClientState = "disconnected" | "connecting" | "handshaking" | "connected";
 
 export interface BridgeClientOptions {
@@ -29,9 +30,18 @@ export interface BridgeClientOptions {
 /**
  * MCP Server 로 접속하는 WebSocket 클라이언트. (PROTOCOL.md §1)
  *
+ * 핸드셰이크는 3단계다. (PROTOCOL.md §3.2~3.4)
+ *
+ * ```text
+ * Plugin → hello
+ * Server → hello_ack
+ * Plugin → ready       ← 이 시점부터 Server 가 Command 를 보낸다
+ * ```
+ *
+ * `ready` 는 Dispatcher 가 Command 를 처리할 수 있음을 뜻한다.
+ * 그러므로 Dispatcher 구성이 끝난 뒤에만 보낸다.
+ *
  * Server 가 아니라 Plugin 이 접속하며, 재접속 책임도 Plugin 쪽에 있다. (PROTOCOL.md §7)
- * 이 클래스는 프레임 송수신과 연결 수명만 다룬다.
- * Command 의 의미 해석은 {@link CommandDispatcher} 가 담당한다.
  */
 export class BridgeClient {
   private readonly options: BridgeClientOptions;
@@ -40,7 +50,6 @@ export class BridgeClient {
   private reconnectDelayMs = RECONNECT_INITIAL_MS;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private stopped = true;
-  private helloSequence = 0;
 
   constructor(options: BridgeClientOptions) {
     this.options = options;
@@ -106,9 +115,9 @@ export class BridgeClient {
     };
   }
 
+  /** 1단계. */
   private sendHello(socket: WebSocket): void {
     const hello: HelloMessage = {
-      id: `hs-${++this.helloSequence}`,
       type: "hello",
       payload: {
         protocolVersion: PROTOCOL_VERSION,
@@ -118,6 +127,12 @@ export class BridgeClient {
       },
     };
     this.send(socket, hello);
+  }
+
+  /** 3단계. Dispatcher 가 준비되었음을 알린다. */
+  private sendReady(socket: WebSocket): void {
+    const ready: ReadyMessage = { type: "ready" };
+    this.send(socket, ready);
   }
 
   private async handleFrame(socket: WebSocket, raw: string): Promise<void> {
@@ -133,30 +148,36 @@ export class BridgeClient {
       return;
     }
 
-    // hello 응답 (welcome 또는 버전 불일치 오류)
-    if (this.currentState === "handshaking" && typeof message["success"] === "boolean") {
-      this.handleWelcome(message);
-      return;
-    }
-
-    if (message["type"] === "command") {
-      await this.handleCommand(socket, message);
-      return;
+    switch (message["type"]) {
+      case "hello_ack":
+        this.handleHelloAck(socket, message);
+        return;
+      case "command":
+        await this.handleCommand(socket, message);
+        return;
+      default:
+        return;
     }
   }
 
-  private handleWelcome(message: Record<string, unknown>): void {
-    if (message["success"] !== true) {
-      const error = isRecord(message["error"]) ? message["error"] : {};
+  /** 2단계 수신 → 3단계 발신. */
+  private handleHelloAck(socket: WebSocket, message: Record<string, unknown>): void {
+    const payload = isRecord(message["payload"]) ? message["payload"] : {};
+
+    if (payload["accepted"] !== true) {
+      const error = isRecord(payload["error"]) ? payload["error"] : {};
       this.log(`핸드셰이크 거부: ${String(error["code"])} ${String(error["message"])}`);
       // 서버가 연결을 닫는다. onclose 에서 백오프 재접속으로 이어진다.
       return;
     }
 
+    // Dispatcher 는 생성 시점에 이미 구성되어 있으므로 바로 ready 를 보낸다.
+    this.sendReady(socket);
+
     // 핸드셰이크 성공 시 백오프를 초기화한다.
     this.reconnectDelayMs = RECONNECT_INITIAL_MS;
     this.setState("connected");
-    this.log("핸드셰이크 완료");
+    this.log("핸드셰이크 완료 (hello → hello_ack → ready)");
   }
 
   private async handleCommand(socket: WebSocket, message: Record<string, unknown>): Promise<void> {
@@ -172,16 +193,16 @@ export class BridgeClient {
 
     try {
       const result = await this.options.dispatcher.dispatch(command, payload);
-      const response: ResponseMessage = { id, type: "response", success: true, result };
+      const response: ResponseMessage = { type: "response", id, success: true, result };
       this.send(socket, response);
     } catch (error) {
       const dispatchError =
         error instanceof DispatchError
           ? error
           : new DispatchError("COMMAND_FAILED", describe(error), { details: { command } });
-      const response: ErrorResponseMessage = {
-        id,
+      const response: ResponseMessage = {
         type: "response",
+        id,
         success: false,
         error: dispatchError.toErrorPayload(),
       };
@@ -189,7 +210,7 @@ export class BridgeClient {
     }
   }
 
-  private send(socket: WebSocket, message: HelloMessage | ResponseMessage | CommandMessage): void {
+  private send(socket: WebSocket, message: HelloMessage | ReadyMessage | ResponseMessage): void {
     if (socket.readyState !== 1 /* OPEN */) {
       return;
     }

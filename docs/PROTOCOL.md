@@ -40,36 +40,62 @@ ws://127.0.0.1:8765
 * 최대 프레임 크기는 **4 MiB**. 초과 시 연결을 닫는다.
   (이미지 픽셀 데이터를 이 채널로 보내지 않는다는 뜻이다.)
 
-파싱 실패나 스키마 불일치는 프로토콜 위반으로 취급한다. 3.5 를 참고한다.
+파싱 실패나 스키마 불일치는 프로토콜 위반으로 취급한다. §3.8 을 참고한다.
 
 ---
 
 ## 3. 메시지
 
-모든 메시지는 `type` 필드로 구분한다.
+모든 메시지는 `type` 필드로 구분한다. 메시지는 두 갈래다.
+
+**Connection lifecycle** — 요청/응답이 아니다. `id` 를 갖지 않는다.
 
 | `type` | 방향 | 용도 |
 |---|---|---|
-| `hello` | Plugin → Server | 접속 직후 핸드셰이크 |
+| `hello` | Plugin → Server | 1단계. Plugin 이 자신을 알린다 |
+| `hello_ack` | Server → Plugin | 2단계. Server 가 수락 또는 거부한다 |
+| `ready` | Plugin → Server | 3단계. Plugin 이 Command 처리 준비를 알린다 |
+
+**Request / response** — `id` 로 짝을 맞춘다.
+
+| `type` | 방향 | 용도 |
+|---|---|---|
 | `command` | Server → Plugin | Command 실행 요청 |
-| `response` | Plugin → Server | `hello` · `command` 에 대한 응답 |
+| `response` | Plugin → Server | `command` 에 대한 응답 |
 | `event` | Plugin → Server | **예약됨.** Phase 11 에서 사용 |
 
-`hello` 와 `command` 는 요청이며 `id` 를 갖는다. `response` 는 대응하는 요청의 `id` 를 되돌려준다.
+### 3.1 핸드셰이크 개요
 
-### 3.1 `id` 규칙
+```text
+Plugin                          Server
+  │                               │
+  │──────── hello ───────────────▶│  handshaking
+  │                               │
+  │◀─────── hello_ack ────────────│  awaiting_ready
+  │                               │
+  │──────── ready ───────────────▶│  connected
+  │                               │
+  │◀─────── command ──────────────│  여기서부터 Command 가 흐른다
+  │──────── response ────────────▶│
+```
 
-* 요청을 보내는 쪽이 생성한다. 연결 수명 안에서 유일해야 한다.
-* 형식은 규정하지 않는다. 구현은 `req-1`, `req-2` … 형태의 순번을 사용한다.
-* 응답의 `id` 가 대기 중인 요청과 일치하지 않으면 **그 응답을 버린다.** 연결은 유지한다.
+**Server 는 `ready` 를 받은 뒤에만 연결을 `connected` 로 보고 Command 를 보낸다.**
+`ready` 이전에 Command 요청이 들어오면 `PHOTOSHOP_NOT_CONNECTED` 로 거부한다.
 
-### 3.2 `hello` — 핸드셰이크
+`ready` 에는 응답이 없다. 따라서 "연결됨" 시점이 양쪽에서 미세하게 다르다.
+
+* Plugin: `ready` 를 **보낸** 시점
+* Server: `ready` 를 **받은** 시점
+
+Command 는 Server → Plugin 방향으로만 흐르므로 이 차이는 문제가 되지 않는다.
+Plugin 이 조금 이르게 "연결됨"으로 표시할 뿐이다.
+
+### 3.2 `hello` — 1단계
 
 Plugin 은 접속 직후 다른 메시지보다 먼저 `hello` 를 보낸다.
 
 ```json
 {
-  "id": "hs-1",
   "type": "hello",
   "payload": {
     "protocolVersion": 1,
@@ -87,33 +113,70 @@ Plugin 은 접속 직후 다른 메시지보다 먼저 `hello` 를 보낸다.
 | `host` | X | Photoshop 호스트 정보 |
 | `commands` | O | Plugin 의 Dispatcher 에 등록된 Command 목록 |
 
-성공 응답:
+### 3.3 `hello_ack` — 2단계
+
+수락:
 
 ```json
 {
-  "id": "hs-1",
-  "success": true,
-  "result": {
+  "type": "hello_ack",
+  "payload": {
+    "accepted": true,
     "protocolVersion": 1,
     "server": { "name": "PhotoshopMCP", "version": "0.1.0" }
   }
 }
 ```
 
-**핸드셰이크가 끝나기 전에는 연결을 "연결됨"으로 취급하지 않는다.** `hello` 이전에
-도착한 `response` 는 버린다. Server 는 Command 도 보내지 않는다.
+거부:
 
-### 3.3 버전 협상
+```json
+{
+  "type": "hello_ack",
+  "payload": {
+    "accepted": false,
+    "protocolVersion": 1,
+    "error": {
+      "code": "PROTOCOL_VERSION_MISMATCH",
+      "message": "프로토콜 버전이 다릅니다. server=1 plugin=2"
+    }
+  }
+}
+```
+
+거부한 경우 Server 는 `hello_ack` 를 보낸 직후 연결을 닫는다.
+Plugin 은 백오프 재접속으로 이어진다. 버전 문제는 재접속으로 해결되지 않으므로
+로그를 남겨 사용자가 원인을 알 수 있게 한다.
+
+### 3.4 `ready` — 3단계
+
+```json
+{ "type": "ready" }
+```
+
+payload 는 없다.
+
+`ready` 는 **Dispatcher 가 Command 를 처리할 수 있다**는 뜻이다.
+그러므로 Plugin 은 Dispatcher 구성이 끝난 뒤에만 보낸다.
+
+Server 는 다음과 같이 다룬다.
+
+* `awaiting_ready` 상태에서 받으면 `connected` 로 전이한다.
+* 그 밖의 상태(`hello` 를 건너뛴 경우 등)에서 받으면 **무시한다.** 연결은 유지한다.
+* 재접속하면 처음부터 다시 `hello` → `hello_ack` → `ready` 를 거친다.
+  Server 는 이전 연결의 상태를 이어받지 않는다.
+
+### 3.5 버전 협상
 
 `PROTOCOL_VERSION` 은 현재 **1** 이다.
 
-* `payload.protocolVersion` 이 Server 의 버전과 다르면 Server 는
-  `PROTOCOL_VERSION_MISMATCH` 오류로 응답하고 연결을 닫는다.
+* `hello.payload.protocolVersion` 이 Server 의 버전과 다르면 Server 는
+  `accepted: false` 와 `PROTOCOL_VERSION_MISMATCH` 로 응답하고 연결을 닫는다.
 * 하위 호환이 필요해지면 Server 가 여러 버전을 수용하는 방식으로 확장한다.
   Plugin 쪽에 분기를 두지 않는다.
 * 호환되지 않는 변경은 반드시 이 버전을 올린다.
 
-### 3.4 `command` — 실행 요청
+### 3.6 `command` — 실행 요청
 
 ```json
 {
@@ -126,8 +189,11 @@ Plugin 은 접속 직후 다른 메시지보다 먼저 `hello` 를 보낸다.
 
 | 필드 | 필수 | 설명 |
 |---|---|---|
+| `id` | O | 요청 식별자. 연결 수명 안에서 유일하다 |
 | `command` | O | Command 식별자. 대문자 스네이크 케이스 |
 | `payload` | O | Command 별 파라미터. 없으면 `{}` |
+
+`id` 는 Server 가 생성한다. 형식은 규정하지 않으며, 구현은 `req-1`, `req-2` … 순번을 쓴다.
 
 `payload` 는 `PhotoshopCommand` 의 `documentId` 와 `params` 를 평탄화한 형태다.
 
@@ -139,24 +205,24 @@ PhotoshopCommand { type, documentId?, params }
 
 Phase 2 의 `DOCUMENT_GET` · `LAYER_LIST` 는 파라미터가 없으므로 `payload` 는 `{}` 다.
 
-### 3.5 `response` — 응답
+### 3.7 `response` — 응답
 
 성공:
 
 ```json
-{ "id": "req-001", "success": true, "result": { } }
+{ "type": "response", "id": "req-001", "success": true, "result": {} }
 ```
 
 실패:
 
 ```json
 {
+  "type": "response",
   "id": "req-001",
   "success": false,
   "error": {
     "code": "DOCUMENT_NOT_FOUND",
     "message": "No active document.",
-    "details": null,
     "recoverable": true
   }
 }
@@ -164,13 +230,22 @@ Phase 2 의 `DOCUMENT_GET` · `LAYER_LIST` 는 파라미터가 없으므로 `pay
 
 | 필드 | 필수 | 설명 |
 |---|---|---|
+| `id` | O | 대응하는 `command` 의 `id` |
 | `success` | O | 성공 여부 |
 | `result` | `success: true` 일 때 | Command 결과 |
 | `error` | `success: false` 일 때 | 5장의 오류 객체 |
 
 `details` 와 `recoverable` 은 생략할 수 있다. 생략 시 `recoverable` 은 `false` 로 본다.
 
----
+응답의 `id` 가 대기 중인 요청과 일치하지 않으면 **그 응답을 버린다.** 연결은 유지한다.
+타임아웃 후 늦게 도착한 응답이 여기 해당한다.
+
+`connected` 이전에 도착한 `response` 도 버린다.
+
+### 3.8 프로토콜 위반
+
+파싱 실패나 스키마 불일치는 프로토콜 위반이다. Server 는 대기 중인 요청을
+`PROTOCOL_ERROR` 로 실패시키고 연결을 닫는다.
 
 ## 4. Phase 2 Command
 
@@ -271,19 +346,31 @@ Opacity 와 Parent 는 Phase 3 에서 추가한다.
 
 ```text
       ┌──────────────┐
-      │ DISCONNECTED │ ←──────────────┐
-      └──────┬───────┘                │
-             │ Plugin 접속            │ close / error
-             ▼                        │
-      ┌──────────────┐                │
-      │  HANDSHAKING │ ───────────────┤
-      └──────┬───────┘  버전 불일치   │
-             │ hello 성공             │
-             ▼                        │
-      ┌──────────────┐                │
-      │  CONNECTED   │ ───────────────┘
+      │ DISCONNECTED │ ◀───────────────────┐
+      └──────┬───────┘                     │
+             │ Plugin 접속                 │
+             ▼                             │
+      ┌──────────────┐                     │
+      │ HANDSHAKING  │ ────────────────────┤  hello_ack(accepted: false)
+      │  hello 대기  │                     │  또는 close / error
+      └──────┬───────┘                     │
+             │ hello 수신 · 버전 일치      │
+             │ → hello_ack(accepted: true) │
+             ▼                             │
+      ┌──────────────┐                     │
+      │AWAITING_READY│ ────────────────────┤  close / error
+      │  ready 대기  │                     │
+      └──────┬───────┘                     │
+             │ ready 수신                  │
+             ▼                             │
+      ┌──────────────┐                     │
+      │  CONNECTED   │ ────────────────────┘  close / error
+      │ Command 허용 │
       └──────────────┘
 ```
+
+Command 는 `CONNECTED` 에서만 보낸다. `HANDSHAKING` 과 `AWAITING_READY` 에서
+Command 요청이 들어오면 `PHOTOSHOP_NOT_CONNECTED` 로 즉시 거부한다.
 
 ### 끊김 처리
 
@@ -295,10 +382,14 @@ Opacity 와 Parent 는 Phase 3 에서 추가한다.
 재접속 책임은 **Plugin 쪽**에 있다. Server 는 계속 listen 한다.
 
 * 지수 백오프를 사용한다. 초기 1초, 최대 30초.
-* 재접속 후에는 `hello` 부터 다시 시작한다.
+* 핸드셰이크가 성공하면 백오프를 초기 값으로 되돌린다.
+* 재접속 후에는 `hello` 부터 다시 시작한다. 세 단계를 모두 거쳐야 한다.
 * Server 는 이전 연결의 상태를 이어받지 않는다. 세션 상태가 없다.
 
----
+### 연결 교체
+
+동시에 하나의 Plugin 연결만 유지한다. 새 연결이 오면 이전 연결을 닫고 대체하며,
+새 연결도 `hello` 부터 시작한다.
 
 ## 8. 보안
 

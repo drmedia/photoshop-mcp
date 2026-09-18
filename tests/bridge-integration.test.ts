@@ -56,6 +56,8 @@ async function connect(
   if (options.plugin !== null) {
     plugin = new FakeUxpPlugin({ url, ...options.plugin });
     await plugin.connect();
+    // ready 에는 ack 가 없으므로 Server 가 처리할 때까지 기다린다. (PROTOCOL.md §3.4)
+    await expect.poll(() => mcp.bridge.isConnected(), { timeout: 2000 }).toBe(true);
   }
 
   const harness: Harness = { client, mcp, plugin, url };
@@ -192,8 +194,8 @@ describe("Phase 2 Bridge 통합", () => {
     const reconnected = new FakeUxpPlugin({ url: harness.url });
     harness.plugin = reconnected;
     await reconnected.connect();
-
-    expect(harness.mcp.bridge.isConnected()).toBe(true);
+    // ready 에는 ack 가 없으므로 Server 가 처리할 때까지 기다린다. (PROTOCOL.md §3.4)
+    await expect.poll(() => harness.mcp.bridge.isConnected(), { timeout: 2000 }).toBe(true);
     expect(
       payload(await harness.client.callTool({ name: "photoshop.layer.list", arguments: {} })),
     ).toEqual({ layers: FAKE_LAYERS });

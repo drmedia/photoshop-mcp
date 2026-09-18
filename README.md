@@ -92,7 +92,7 @@ PHOTOSHOP_MCP_BRIDGE=mock npm run dev    # Mock Bridge. Photoshop·플러그인 
 |---|---|
 | MCP 서버 · Tool · Command Engine | 단위 + 통합 테스트 통과 |
 | `MockPhotoshopBridge` | 단위 테스트 통과 |
-| `WebSocketBridgeTransport` | 통합 테스트 통과 (요청/응답 · 타임아웃 · 끊김 · 재접속 · 버전 협상) |
+| `WebSocketBridgeTransport` | 통합 테스트 통과 (3단계 핸드셰이크 · 요청/응답 · 타임아웃 · 끊김 · 재접속 · 버전 협상) |
 | `UXPPhotoshopBridge` | 통합 테스트 통과 (가짜 플러그인 대상) |
 | UXP `CommandDispatcher` · 열거형 매핑 | 단위 테스트 통과 |
 | **Photoshop DOM 호출부** | **미검증.** Photoshop 실기 확인 필요 |
@@ -141,7 +141,7 @@ extensions → extension-sdk → Core public API
 
 - [아키텍처](docs/ARCHITECTURE.md)
 - [로드맵](docs/ROADMAP.md) — Phase 별 진행 상황
-- [프로토콜](docs/PROTOCOL.md) — Phase 2에서 작성
+- [프로토콜](docs/PROTOCOL.md) — Bridge 메시지 규약과 3단계 핸드셰이크
 - [확장 SDK](docs/EXTENSION_SDK.md) — Phase 5에서 작성
 
 ## 아직 없는 것

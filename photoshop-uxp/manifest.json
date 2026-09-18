@@ -1,6 +1,6 @@
 {
   "manifestVersion": 4,
-  "id": "com.photoshopmcp.plugin",
+  "id": "com.drmedia.photoshopmcp",
   "name": "Photoshop MCP",
   "version": "0.1.0",
   "main": "dist/index.js",
@@ -33,7 +33,10 @@
   ],
   "requiredPermissions": {
     "network": {
-      "domains": ["localhost", "127.0.0.1"]
+      "domains": [
+        "localhost",
+        "127.0.0.1"
+      ]
     }
   }
 }

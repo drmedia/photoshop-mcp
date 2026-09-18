@@ -865,12 +865,15 @@ interface ExtensionContext {
 - [x] `commands` 는 `execute` 만 노출한다. Extension 은 Core Command 를 **호출**할 수 있을 뿐
       등록하거나 대체할 수 없다.
 - [x] `manifest` 추가 — Extension 이 자기 id·version 을 알아야 한다.
-- [ ] `resources` — Phase 12 (MCP Resources) 에서 추가한다.
-- [ ] `capabilities` — Phase 8 (Capability Registry) 에서 추가한다.
+- [x] `capabilities` — Phase 8 에서 런타임이 생겨 추가했다.
+- [x] `jobs` — Phase 10 에서 추가했다.
+- [x] `events` — Phase 11 에서 추가했다. unload 하면 구독이 함께 해제된다.
+- [x] `resources` — Phase 12 에서 추가했다. 자기 namespace 의 URI 만 등록할 수 있다.
 - [ ] `photoshop` — `PhotoshopService` 는 아직 정의된 적이 없다. 정의될 때 추가한다.
 
 대응하는 런타임이 없는 필드는 넣지 않았다. 동작하지 않는 껍데기를 두면 Extension 작성자가
-있는 줄 알고 쓴다.
+있는 줄 알고 쓴다. **이 원칙이 실제로 지켜졌다** — 위 네 개는 전부 런타임이 먼저 생긴
+뒤에 들어갔고, `photoshop` 은 정의된 적이 없어 지금도 비어 있다.
 
 ---
 
@@ -1556,12 +1559,17 @@ CANCELLED
 
 ## Features
 
-- [ ] Job ID
-- [ ] Progress
-- [ ] Result
-- [ ] Cancel
-- [ ] Timeout
-- [ ] Cleanup
+- [x] Job ID — UUID. `start()` 가 **먼저 ID 를 돌려주고** 다음 틱에 실행을 시작한다.
+      그래야 호출자가 그 ID 로 바로 조회할 수 있다.
+- [x] Progress — `{percent, message}`. percent 는 모를 때 `null` 이다. 0 으로 채우지 않는다.
+- [x] Result — 완료 시 `result`, 실패 시 `error`. 종료 상태는 덮어쓰지 않는다 —
+      취소한 Job 이 뒤늦은 완료로 되살아나면 취소가 거짓말이 된다.
+- [x] Cancel — `AbortSignal` 이 자식 프로세스까지 내려가 `SIGKILL` 한다. 신호만 받고
+      계속 돌면 취소가 아니다. `stop()` 은 진행 중인 Job 을 모두 취소한다.
+- [x] Cleanup — 끝난 Job 이 상한을 넘으면 오래된 것부터 버린다.
+- [ ] Timeout — **Job 자체에는 없다.** 외부 처리기 프로세스에 `ProviderConfig.timeoutMs`
+      가 걸려 있어 무한정 매달리는 것은 막히지만, Photoshop 쪽이 응답하지 않는 Job 을
+      끊는 장치는 없다. 필요가 확인되면 연다.
 
 ---
 
@@ -1833,6 +1841,10 @@ Tool: 46 Command: 32
 Extension: example,milky | 워크플로: 2
 막힌 것: 0건
 ```
+
+`registry.tools` 는 **Extension Tool 까지 더한 수**다. 이때는 Core 40 + example 2 +
+milky 4 였다. 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개" 라는 틀린 문장이 문서
+세 곳에 퍼졌다. Core 목록의 기준은 `docs/CORE_API.md` §4 다.
 
 ## 임시 파일 — `photoshop.workspace.usage` · `.delete`
 

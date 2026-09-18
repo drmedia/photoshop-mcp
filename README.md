@@ -2,8 +2,9 @@
 
 Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입니다.
 
-> **현재 상태: Phase 9 (Permission / Safety) · Phase 8 (Capability System) 완료.**
-> Core Tool 46개, Resource 6개. Extension 예제 2개(`example`, `milkyscape`)를 포함해 실기 검증했습니다.
+> **현재 상태: Phase 13 (Production Hardening) 까지 완료. 남은 것은 Phase 14 (Distribution) 입니다.**
+> Core Tool 40개, Resource 6개. Extension 예제 2개(`example` 2개 · `milkyscape` 5개)를 포함해
+> Photoshop 27.8 에서 실기 검증했습니다.
 > 모든 Tool 과 Command 가 권한 레벨을 선언하며, 기본값은 `read` · `edit` 만 허용합니다.
 
 ## 빠른 시작
@@ -201,7 +202,8 @@ Job 은 메모리에만 있어 서버를 다시 띄우면 사라집니다.
 
 ## 지금 동작하는 것
 
-Core Tool 46개, Resource 6개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
+Core Tool 40개, Resource 6개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
+전체 목록과 Permission 기준은 [docs/CORE_API.md](docs/CORE_API.md) 에 있습니다.
 
 **조회**
 
@@ -291,6 +293,14 @@ Photoshop 27.8 + UXP Developer Tool 실기 검증 완료.
 | `WebSocketBridgeTransport` | 통합 테스트 (핸드셰이크 · 타임아웃 · 끊김 · 재접속 · 버전 협상) |
 | `UXPPhotoshopBridge` | 통합 테스트 + **실기** |
 | UXP 플러그인 | **실기** — Load · 패널 · 연결 · 핸드셰이크 · 조회 · 오류 · 재연결 |
+| 파일 왕복 (`export` → 외부 처리기 → `place`) | **실기** — 4032×6048 16비트, 전 구간 16비트 유지 |
+| Capability (StarNet2 · BXT · GraXpert) | **실기** — 67초 · 10초 · 7초 |
+| Job · Workflow | **실기** — 실제 MCP 클라이언트로 81초 워크플로 완주 (60초 타임아웃 없음) |
+| Resource | **실기** — `resources/list` 6개, 구독 후 변경 알림 도착 |
+| 진단 · 임시 파일 정리 | **실기** — `usage`/`delete` 로 1.7GB → 5KB |
+
+Photoshop 변경 알림(`photoshop.*` 이벤트)만 동작하지 않습니다. 등록은 성공하는데
+알림이 오지 않으며, 원인을 찾지 못해 추측으로 코드를 더 넣지 않았습니다.
 
 실기 확인 결과 예시:
 
@@ -369,7 +379,9 @@ Extension 의 namespace 를 쓰면 적재가 거부됩니다. 하나가 잘못�
 - destructive 명령(`layer.delete`, `flatten`, `close`) — 분류 체계는 섰지만 구현은 없습니다
 - Capability 진행률의 실제 퍼센트 — 지금은 단계만 보고합니다
   (StarNet2 의 `--machine-progress` 출력을 파싱하면 가능합니다)
-- MCP Resource (Phase 12), Event 시스템
+- **Photoshop 변경 알림** — `action.addNotificationListener` 등록은 성공하는데 알림이
+  오지 않습니다 (Photoshop 27.8 / manifestVersion 4). `command.*` 이벤트만 신뢰할 수 있습니다
+- Job 의 영속성 — 메모리에만 있어 서버를 다시 띄우면 사라집니다
 - Extension 의 Command 등록 — Extension 은 Core Command 를 호출만 합니다
 - Extension hot reload — 서버 재시작 없이 다시 적재하는 기능은 없습니다
 - 임의 `batchPlay` descriptor 실행, 임의 JavaScript 실행 — **비목표**입니다 (ARCHITECTURE §23, §33)

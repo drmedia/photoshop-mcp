@@ -1,3 +1,5 @@
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { existsSync, writeFileSync } from "node:fs";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -473,5 +475,77 @@ describe("자동 연쇄 처리하지 않는다", () => {
 
     const layers = (await call<{ layers: LayerInfo[] }>(s, "photoshop.layer.list")).layers;
     expect(layers.filter((entry) => entry.name.startsWith("StarNet2_")).length).toBe(2);
+  });
+});
+
+describe("실제 MCP 클라이언트", () => {
+  /**
+   * Extension 의 긴 Tool 을 **서버 내부 API 가 아니라 MCP 로** 부른다.
+   *
+   * `tools.invoke` 에는 타임아웃이 없다. 그래서 실기에서 StarNet2 가 67초 걸렸을 때
+   * 내부 호출로는 멀쩡해 보였고 실제 클라이언트에서만 `-32001` 이 났다.
+   * 긴 Tool 을 추가할 때마다 이 경로로 확인해야 한다. (ROADMAP §14)
+   */
+  async function connect(s: Setup): Promise<{ client: Client; close: () => Promise<void> }> {
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: "milky-test", version: "0.0.0" });
+    await Promise.all([s.mcp.server.start(serverTransport), client.connect(clientTransport)]);
+    return {
+      client,
+      close: async () => {
+        s.mcp.jobs.cancelAll();
+        await client.close();
+        await s.mcp.server.stop();
+      },
+    };
+  }
+
+  function body(result: unknown): Record<string, unknown> {
+    const content = (result as { content?: { type: string; text: string }[] }).content;
+    const first = content?.[0];
+    if (first === undefined || first.type !== "text") {
+      throw new Error("텍스트 content 가 없습니다.");
+    }
+    return JSON.parse(first.text) as Record<string, unknown>;
+  }
+
+  it("긴 Tool 이 짧은 요청 타임아웃 안에 jobId 를 돌려준다", async () => {
+    const s = await setup();
+    const { client, close } = await connect(s);
+    try {
+      // 실제 처리 시간보다 짧은 타임아웃. 기다리는 구현이면 여기서 깨진다.
+      for (const name of ["milky.remove_stars", "milky.remove_gradient"]) {
+        const result = await client.callTool({ name, arguments: {} }, undefined, {
+          timeout: 500,
+        });
+        expect(body(result)["jobId"], `${name} 이 jobId 를 돌려주지 않았습니다`).toEqual(
+          expect.any(String),
+        );
+      }
+    } finally {
+      await close();
+    }
+  });
+
+  it("tools/list 에 milky Tool 5개가 스키마와 함께 나온다", async () => {
+    const s = await setup();
+    const { client, close } = await connect(s);
+    try {
+      const { tools } = await client.listTools();
+      const milky = tools.filter((tool) => tool.name.startsWith("milky."));
+      expect(milky.map((tool) => tool.name).sort()).toEqual([
+        "milky.enhance",
+        "milky.get_state",
+        "milky.remove_gradient",
+        "milky.remove_stars",
+        "milky.restore_stars",
+      ]);
+      for (const tool of milky) {
+        expect(tool.description).toBeTruthy();
+        expect(tool.inputSchema).toBeTruthy();
+      }
+    } finally {
+      await close();
+    }
   });
 });

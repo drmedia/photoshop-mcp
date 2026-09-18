@@ -12,8 +12,14 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 ## 현재 상태
 
-**Phase 9 (Permission / Safety) · Phase 8 (Capability System) 완료.**
-Core Tool 46개. `capability.list` 를 뺀 30개를 실제 Photoshop 27.8 에서 검증했다.
+**Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
+
+Core Tool **40개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+
+Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
+Tool 까지 더한 수다(지금 47). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
+`tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
 - 조회: `ping`, `document.get`, `layer.list`
 - 레이어: create / duplicate / rename / select / set_visibility / set_opacity
@@ -113,10 +119,11 @@ UXP 의 실기 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 
 등록할 수 있고, Photoshop 은 Core Command 로만 건드린다. Bridge 에는 닿지 않는다.
 하나가 실패해도 나머지와 서버는 계속 기동한다.
 
-manifest 의 `permissions` 는 **선언만 받고 강제하지 않는다.** 강제는 Phase 9 다.
-`ExtensionContext` 에는 대응 런타임이 있는 것만 넣는다 — `resources`(Phase 12) ·
-`capabilities`(Phase 8) · `photoshop` 은 아직 없다. 동작하지 않는 껍데기를 두면
-Extension 작성자가 있는 줄 알고 쓴다.
+`ExtensionContext` 에는 **대응 런타임이 있는 것만 넣는다.** 동작하지 않는 껍데기를 두면
+Extension 작성자가 있는 줄 알고 쓴다. 그래서 `capabilities`(Phase 8) · `jobs`(Phase 10) ·
+`events`(Phase 11) · `resources`(Phase 12) 는 각 런타임이 생긴 뒤에 추가했다.
+
+`photoshop` 은 아직 없다. `PhotoshopService` 가 정의된 적이 없다.
 
 왕복이 실기에서 검증되었다 — 4032×6048 16비트 문서로
 `export(tiff) → StarNet2(68초) → place ×2` 를 통과시켰고 16비트가 전 구간 유지된다.

@@ -1,7 +1,11 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createPhotoshopMcp } from "@photoshop-mcp/mcp-core";
-import { ErrorCode, MockPhotoshopBridge } from "@photoshop-mcp/photoshop-bridge";
+import {
+  DEFAULT_MOCK_LAYERS,
+  ErrorCode,
+  MockPhotoshopBridge,
+} from "@photoshop-mcp/photoshop-bridge";
 import { afterEach, describe, expect, it } from "vitest";
 import { EXPECTED_TOOLS } from "./helpers/expected-tools.js";
 
@@ -81,27 +85,7 @@ describe("PhotoshopMcpServer", () => {
       payload(await client.callTool({ name: "photoshop.document.get", arguments: {} })),
     ).toMatchObject({ name: "test.psd", width: 6048 });
     expect(payload(await client.callTool({ name: "photoshop.layer.list", arguments: {} }))).toEqual(
-      {
-        layers: [
-          {
-            id: 10,
-            name: "Background",
-            type: "pixel",
-            visible: true,
-            opacity: 100,
-            parentId: null,
-          },
-          {
-            id: 11,
-            name: "Curves 1",
-            type: "adjustment",
-            visible: true,
-            opacity: 100,
-            parentId: null,
-          },
-          { id: 12, name: "Retouch", type: "pixel", visible: false, opacity: 50, parentId: null },
-        ],
-      },
+      { layers: DEFAULT_MOCK_LAYERS.map((layer) => ({ ...layer })) },
     );
   });
 

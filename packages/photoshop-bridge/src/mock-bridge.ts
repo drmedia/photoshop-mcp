@@ -14,9 +14,33 @@ export const DEFAULT_MOCK_DOCUMENT: DocumentInfo = {
 
 /** ROADMAP §5.5 의 기본 Mock 레이어. */
 export const DEFAULT_MOCK_LAYERS: readonly LayerInfo[] = [
-  { id: 10, name: "Background", type: "pixel", visible: true, opacity: 100, parentId: null },
-  { id: 11, name: "Curves 1", type: "adjustment", visible: true, opacity: 100, parentId: null },
-  { id: 12, name: "Retouch", type: "pixel", visible: false, opacity: 50, parentId: null },
+  {
+    id: 10,
+    name: "Background",
+    type: "pixel",
+    visible: true,
+    opacity: 100,
+    parentId: null,
+    blendMode: "normal",
+  },
+  {
+    id: 11,
+    name: "Curves 1",
+    type: "adjustment",
+    visible: true,
+    opacity: 100,
+    parentId: null,
+    blendMode: "normal",
+  },
+  {
+    id: 12,
+    name: "Retouch",
+    type: "pixel",
+    visible: false,
+    opacity: 50,
+    parentId: null,
+    blendMode: "normal",
+  },
 ];
 
 export interface MockPhotoshopBridgeOptions {
@@ -183,6 +207,23 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
           command.params as { layerId?: number; asSmartFilter?: boolean },
         ) as TResult;
 
+      // ROADMAP 8.6
+      case "LAYER_BLEND_MODE":
+        this.#snapshot("Set blend mode");
+        return this.#setBlendMode(
+          command.params as { layerId?: number; blendMode: LayerInfo["blendMode"] },
+        ) as TResult;
+      case "SELECTION_SET":
+        this.#requireDocument();
+        this.#hasSelection = true;
+        return { hasSelection: true } as TResult;
+      case "ADJUSTMENT_HUE_SATURATION":
+        this.#snapshot("Hue/Saturation");
+        return this.#adjustment("Hue/Saturation", command.params) as TResult;
+      case "ADJUSTMENT_VIBRANCE":
+        this.#snapshot("Vibrance");
+        return this.#adjustment("Vibrance", command.params) as TResult;
+
       default:
         throw new PhotoshopMcpError(
           ErrorCode.COMMAND_NOT_SUPPORTED,
@@ -228,6 +269,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       visible: true,
       opacity: 100,
       parentId: null,
+      blendMode: "normal",
     };
     // Photoshop 은 새 레이어를 맨 위에 넣는다.
     this.#layers.unshift(created);
@@ -308,6 +350,11 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     return { ...updated };
   }
 
+  /** 혼합 모드를 바꾼다. */
+  #setBlendMode(params: { layerId?: number; blendMode: LayerInfo["blendMode"] }): LayerInfo {
+    return this.#mutate(params, (layer) => ({ ...layer, blendMode: params.blendMode }));
+  }
+
   #adjustment(defaultName: string, params: unknown): LayerInfo {
     this.#requireDocument();
     const name = (params as { name?: string }).name ?? defaultName;
@@ -318,6 +365,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       visible: true,
       opacity: 100,
       parentId: null,
+      blendMode: "normal",
     };
     this.#layers.unshift(created);
     this.#activeLayerId = created.id;
@@ -347,6 +395,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       visible: true,
       opacity: 100,
       parentId: null,
+      blendMode: "normal",
     };
     this.#layers.unshift(group);
 

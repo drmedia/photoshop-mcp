@@ -77,6 +77,10 @@ MCP Tool 3개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 �
 | `photoshop.mask.enable` · `disable` | `MASK_ENABLE` · `MASK_DISABLE` | 마스크 유지한 채 전환 |
 | `photoshop.selection.clear` · `invert` | `SELECTION_CLEAR` · `SELECTION_INVERT` | |
 | `photoshop.filter.gaussian_blur` | `FILTER_GAUSSIAN_BLUR` | 기본 스마트 필터 |
+| `photoshop.selection.set` | `SELECTION_SET` | rectangle · ellipse · canvas · layerTransparency |
+| `photoshop.layer.set_blend_mode` | `LAYER_BLEND_MODE` | |
+| `photoshop.adjustment.hue_saturation` | `ADJUSTMENT_HUE_SATURATION` | 조정 레이어 |
+| `photoshop.adjustment.vibrance` | `ADJUSTMENT_VIBRANCE` | 조정 레이어 |
 
 `layerId` 를 생략하면 활성 레이어를 대상으로 합니다.
 편집 Tool 은 변경 후 레이어 상태를 돌려주므로 결과 확인에 목록 재조회가 필요 없습니다.

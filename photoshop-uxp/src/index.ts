@@ -19,6 +19,12 @@ import {
 import { documentGet } from "./dom/document.js";
 import { gaussianBlur } from "./dom/filter.js";
 import {
+  adjustmentHueSaturation,
+  adjustmentVibrance,
+  layerBlendMode,
+  selectionSet,
+} from "./dom/gap-tools.js";
+import {
   maskCreate,
   maskDisable,
   maskEnable,
@@ -110,6 +116,20 @@ export function createDispatcher(): CommandDispatcher {
   // Phase 4 — 필터 (기본 스마트 필터)
   dispatcher.register("FILTER_GAUSSIAN_BLUR", async (p) =>
     gaussianBlur(p as Parameters<typeof gaussianBlur>[0]),
+  );
+
+  // ROADMAP 8.6
+  dispatcher.register("LAYER_BLEND_MODE", async (p) =>
+    layerBlendMode(p as Parameters<typeof layerBlendMode>[0]),
+  );
+  dispatcher.register("SELECTION_SET", async (p) =>
+    selectionSet(p as Parameters<typeof selectionSet>[0]),
+  );
+  dispatcher.register("ADJUSTMENT_HUE_SATURATION", async (p) =>
+    adjustmentHueSaturation(p as Parameters<typeof adjustmentHueSaturation>[0]),
+  );
+  dispatcher.register("ADJUSTMENT_VIBRANCE", async (p) =>
+    adjustmentVibrance(p as Parameters<typeof adjustmentVibrance>[0]),
   );
 
   return dispatcher;

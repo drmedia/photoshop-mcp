@@ -1,7 +1,7 @@
 import { type PhotoshopLayer } from "photoshop";
 import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { requireActiveDocument } from "./document.js";
-import { toLayerType } from "./mappings.js";
+import { toBlendMode, toLayerType } from "./mappings.js";
 import { runModal } from "./modal.js";
 
 /**
@@ -65,6 +65,7 @@ function toArray<T>(value: unknown): T[] {
 
 export function toLayerInfo(layer: PhotoshopLayer, parentId: number | null = null): LayerInfo {
   const kind = toLayerType(layer.kind);
+  const blend = toBlendMode(layer.blendMode);
   return {
     id: layer.id,
     name: layer.name,
@@ -74,6 +75,8 @@ export function toLayerInfo(layer: PhotoshopLayer, parentId: number | null = nul
     // 프로토콜은 0–100 정수로 정의하므로 반올림한다.
     opacity: typeof layer.opacity === "number" ? Math.round(layer.opacity) : 100,
     parentId,
+    blendMode: blend.blendMode,
+    ...(blend.raw === undefined ? {} : { rawBlendMode: blend.raw }),
     ...(kind.raw === undefined ? {} : { rawKind: kind.raw }),
   };
 }

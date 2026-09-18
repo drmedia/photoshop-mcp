@@ -35,6 +35,11 @@ export const EXPECTED_TOOLS = [
   "photoshop.selection.invert",
   // Phase 4 — 필터
   "photoshop.filter.gaussian_blur",
+  // ROADMAP §8.6 — 실기에서 드러난 공백
+  "photoshop.layer.set_blend_mode",
+  "photoshop.selection.set",
+  "photoshop.adjustment.hue_saturation",
+  "photoshop.adjustment.vibrance",
 ] as const;
 
 export const EXPECTED_COMMANDS = [
@@ -59,6 +64,10 @@ export const EXPECTED_COMMANDS = [
   "SELECTION_CLEAR",
   "SELECTION_INVERT",
   "FILTER_GAUSSIAN_BLUR",
+  "LAYER_BLEND_MODE",
+  "SELECTION_SET",
+  "ADJUSTMENT_HUE_SATURATION",
+  "ADJUSTMENT_VIBRANCE",
 ] as const;
 
 /**

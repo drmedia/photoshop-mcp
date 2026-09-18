@@ -4,6 +4,12 @@ import { createBrightnessContrastTool, createCurvesTool, createLevelsTool } from
 import { createDocumentGetTool } from "./document-get.js";
 import { createGaussianBlurTool } from "./filter.js";
 import {
+  createHueSaturationTool,
+  createLayerBlendModeTool,
+  createSelectionSetTool,
+  createVibranceTool,
+} from "./gap-tools.js";
+import {
   createMaskCreateTool,
   createMaskDisableTool,
   createMaskEnableTool,
@@ -31,6 +37,7 @@ export {
 } from "./layer-list.js";
 export * from "./adjustment.js";
 export * from "./filter.js";
+export * from "./gap-tools.js";
 export * from "./group.js";
 export * from "./mask-selection.js";
 export * from "./history.js";
@@ -75,4 +82,10 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
 
   // Phase 4 — 필터 (기본 스마트 필터로 비파괴)
   registry.register(createGaussianBlurTool(engine));
+
+  // ROADMAP §8.6 — 실기에서 드러난 공백
+  registry.register(createLayerBlendModeTool(engine));
+  registry.register(createSelectionSetTool(engine));
+  registry.register(createHueSaturationTool(engine));
+  registry.register(createVibranceTool(engine));
 }

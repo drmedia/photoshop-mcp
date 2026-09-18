@@ -676,6 +676,42 @@ photoshop.document.save_as
 photoshop.document.export
 ```
 
+## 8.6 실기에서 드러난 공백
+
+Phase 4 를 마치고 Phase 5 로 넘어가기 전에 채운다.
+아래는 "기능이 부족한 것" 이 아니라 **이미 있는 기능이 쓸 수 없는 상태**다.
+
+### 선택 영역을 만들 수 없다
+
+`photoshop.mask.create` 에 `from: "fromSelection"` 을 넣어두었지만, 선택 영역을
+**만드는** Tool 이 없어 이 옵션은 실행될 수 없는 코드다. `selection.invert` 도 마찬가지다.
+
+* [x] `photoshop.selection.set` — 사각형 / 타원 / 전체 / 레이어 투명도 기준
+
+### 혼합 모드를 바꿀 수 없다
+
+비파괴 보정에서 혼합 모드는 불투명도만큼 기본이다.
+Phase 6 의 `milky.restore_stars` 는 screen/lighten 혼합이 전제다.
+
+* [x] `photoshop.layer.set_blend_mode`
+* [x] `LayerInfo` 에 `blendMode` 추가
+
+### 색보정 조정이 없다
+
+Curves · Levels · Brightness/Contrast 만으로는 색을 다루지 못한다.
+`makeAdjustmentLayer` 틀에 descriptor 만 더하면 되므로 함께 처리한다.
+
+* [x] `photoshop.adjustment.hue_saturation`
+* [x] `photoshop.adjustment.vibrance`
+
+### 왜 지금인가
+
+Phase 6 의 MilkyScapeTools 가 ROADMAP 이 정한 첫 실제 Extension 인데,
+`create_sky_mask` 는 선택 영역이, `restore_stars` 는 혼합 모드가 있어야 한다.
+Phase 5 에서 Extension SDK 계약을 세운 뒤에 Core 를 고치면 그 계약이 흔들린다.
+
+---
+
 ## Phase 4 Completion Criteria
 
 LLM에서 다음과 같은 기본 보정을 실행할 수 있어야 한다.

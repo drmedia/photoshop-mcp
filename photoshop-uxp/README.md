@@ -101,6 +101,11 @@ modal 밖에서 다시 던진다. modal 안에서 직접 throw 하지 않는다.
 |---|---|---|
 | `Document.mode` | `"RGB"` | `"RGBColorMode"` |
 | `Document.bitsPerChannel` | `"sixteen"` | `"bitDepth16"` |
+| `Layer.blendMode` (그룹) | 문서에 없음 | `"passThrough"` |
+
+그룹 레이어의 기본 혼합 모드는 `passThrough` 다. 열거형에 없어 `rawBlendMode` 로 드러났다.
+`normal` 로 떨어뜨렸다면 그룹의 통과 합성을 일반 합성으로 오인했을 것이다.
+`passThrough` 는 그룹 전용이라 `layer.set_blend_mode` 의 입력에서는 제외한다.
 
 `bitsPerChannel` 은 특히 위험했다. 해석 실패 시 `8` 로 떨어뜨리고 있어서
 **16비트 문서가 8비트로 보고되었고, 그 값이 한 번도 실제 값이 아니었다는 사실이

@@ -23,6 +23,10 @@ export const EXPECTED_TOOLS = [
   "photoshop.group.move_layer",
   // Phase 3 — History
   "photoshop.history.undo",
+  // Phase 4 — 조정 레이어
+  "photoshop.adjustment.curves",
+  "photoshop.adjustment.levels",
+  "photoshop.adjustment.brightness_contrast",
 ] as const;
 
 export const EXPECTED_COMMANDS = [
@@ -38,6 +42,9 @@ export const EXPECTED_COMMANDS = [
   "GROUP_CREATE",
   "GROUP_MOVE_LAYER",
   "HISTORY_UNDO",
+  "ADJUSTMENT_CURVES",
+  "ADJUSTMENT_LEVELS",
+  "ADJUSTMENT_BRIGHTNESS_CONTRAST",
 ] as const;
 
 /**
@@ -55,8 +62,6 @@ export const FORBIDDEN_TOOLS = [
   // Phase 4 이후
   "photoshop.mask.create",
   "photoshop.selection.clear",
-  "photoshop.adjustment.curves",
-  "photoshop.adjustment.levels",
   "photoshop.filter.gaussian_blur",
   "photoshop.document.save",
 ] as const;

@@ -90,6 +90,21 @@ declare module "photoshop" {
     readonly PLACEAFTER: string;
   }
 
+  /**
+   * `batchPlay` 는 Photoshop 의 Action Descriptor 를 직접 실행한다.
+   *
+   * DOM 으로 처리할 수 없는 기능(조정 레이어 등)에만 쓴다. (ARCHITECTURE §13)
+   * descriptor 는 반드시 플러그인이 검증된 파라미터로 조립한다.
+   * 외부에서 받은 descriptor 를 그대로 실행하는 통로를 만들지 않는다. (ARCHITECTURE §23)
+   */
+  export interface PhotoshopAction {
+    batchPlay(
+      descriptors: readonly Record<string, unknown>[],
+      options: Record<string, unknown>,
+    ): Promise<Record<string, unknown>[]>;
+  }
+
+  export const action: PhotoshopAction;
   export const app: PhotoshopApp;
   export const core: PhotoshopCore;
   export const constants: { readonly ElementPlacement: ElementPlacementConstants };

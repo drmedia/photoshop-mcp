@@ -1,4 +1,15 @@
 import type { CommandRegistry } from "@photoshop-mcp/command-engine";
+import {
+  ADJUSTMENT_BRIGHTNESS_CONTRAST,
+  ADJUSTMENT_CURVES,
+  ADJUSTMENT_LEVELS,
+  BrightnessContrastParamsSchema,
+  CurvesParamsSchema,
+  LevelsParamsSchema,
+  brightnessContrastCommand,
+  curvesCommand,
+  levelsCommand,
+} from "./adjustment.js";
 import { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
 import { HISTORY_UNDO, HistoryUndoParamsSchema, historyUndoCommand } from "./history.js";
 import {
@@ -33,6 +44,7 @@ import { LAYER_LIST, layerListCommand } from "./layer-list.js";
 import { PING, pingCommand } from "./ping.js";
 
 export { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
+export * from "./adjustment.js";
 export * from "./group.js";
 export * from "./history.js";
 export * from "./layer-edit.js";
@@ -65,4 +77,13 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
 
   // Phase 3 — History
   registry.register(HISTORY_UNDO, historyUndoCommand, HistoryUndoParamsSchema);
+
+  // Phase 4 — 조정 레이어 (비파괴)
+  registry.register(ADJUSTMENT_CURVES, curvesCommand, CurvesParamsSchema);
+  registry.register(ADJUSTMENT_LEVELS, levelsCommand, LevelsParamsSchema);
+  registry.register(
+    ADJUSTMENT_BRIGHTNESS_CONTRAST,
+    brightnessContrastCommand,
+    BrightnessContrastParamsSchema,
+  );
 }

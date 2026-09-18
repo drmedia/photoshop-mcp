@@ -1,5 +1,6 @@
 import type { CommandEngine } from "@photoshop-mcp/command-engine";
 import type { ToolRegistry } from "@photoshop-mcp/photoshop-bridge";
+import { createBrightnessContrastTool, createCurvesTool, createLevelsTool } from "./adjustment.js";
 import { createDocumentGetTool } from "./document-get.js";
 import { createGroupCreateTool, createGroupMoveLayerTool } from "./group.js";
 import { createHistoryUndoTool } from "./history.js";
@@ -20,6 +21,7 @@ export {
   createLayerListTool,
   type LayerListToolResult,
 } from "./layer-list.js";
+export * from "./adjustment.js";
 export * from "./group.js";
 export * from "./history.js";
 export * from "./layer-edit.js";
@@ -46,4 +48,9 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
 
   // Phase 3 — History
   registry.register(createHistoryUndoTool(engine));
+
+  // Phase 4 — 조정 레이어 (비파괴)
+  registry.register(createCurvesTool(engine));
+  registry.register(createLevelsTool(engine));
+  registry.register(createBrightnessContrastTool(engine));
 }

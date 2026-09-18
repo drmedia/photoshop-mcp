@@ -143,6 +143,17 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       case "HISTORY_UNDO":
         return this.#undo() as TResult;
 
+      // Phase 4 — 조정 레이어
+      case "ADJUSTMENT_CURVES":
+        this.#snapshot("Curves");
+        return this.#adjustment("Curves", command.params) as TResult;
+      case "ADJUSTMENT_LEVELS":
+        this.#snapshot("Levels");
+        return this.#adjustment("Levels", command.params) as TResult;
+      case "ADJUSTMENT_BRIGHTNESS_CONTRAST":
+        this.#snapshot("Brightness/Contrast");
+        return this.#adjustment("Brightness/Contrast", command.params) as TResult;
+
       default:
         throw new PhotoshopMcpError(
           ErrorCode.COMMAND_NOT_SUPPORTED,
@@ -233,6 +244,23 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       layers: this.#layers.map((layer) => ({ ...layer })),
       activeLayerId: this.#activeLayerId,
     });
+  }
+
+  /** 조정 레이어를 만들어 맨 위에 넣는다. 실제 Photoshop 과 같은 위치다. */
+  #adjustment(defaultName: string, params: unknown): LayerInfo {
+    this.#requireDocument();
+    const name = (params as { name?: string }).name ?? defaultName;
+    const created: LayerInfo = {
+      id: this.#nextLayerId++,
+      name,
+      type: "adjustment",
+      visible: true,
+      opacity: 100,
+      parentId: null,
+    };
+    this.#layers.unshift(created);
+    this.#activeLayerId = created.id;
+    return { ...created };
   }
 
   #groupCreate(params: { name?: string; layerIds?: number[] }): LayerInfo {

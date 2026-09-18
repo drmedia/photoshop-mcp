@@ -1,0 +1,223 @@
+import { createPhotoshopMcp } from "@photoshop-mcp/mcp-core";
+import { ErrorCode, MockPhotoshopBridge } from "@photoshop-mcp/photoshop-bridge";
+import { describe, expect, it } from "vitest";
+
+/**
+ * Phase 4 조정 레이어. (ROADMAP §8.3)
+ *
+ * Mock Bridge 위에서 Tool → Command Engine → Bridge 경로와 파라미터 검증을 확인한다.
+ * batchPlay descriptor 조립은 실기 확인 대상이다.
+ */
+
+function setup(): ReturnType<typeof createPhotoshopMcp> & { bridge: MockPhotoshopBridge } {
+  const bridge = new MockPhotoshopBridge();
+  return { ...createPhotoshopMcp({ bridge }), bridge };
+}
+
+const call = async <T = unknown>(
+  mcp: ReturnType<typeof createPhotoshopMcp>,
+  name: string,
+  input: unknown = {},
+): Promise<T> => mcp.tools.invoke<T>(name, input, { requestId: "req-test" });
+
+interface Layer {
+  id: number;
+  name: string;
+  type: string;
+  opacity: number;
+  parentId: number | null;
+}
+
+/** 중간톤 대비를 올리는 S 자 곡선. Phase 4 완료 기준 시나리오에서 쓰는 형태. */
+const S_CURVE = [
+  { input: 0, output: 0 },
+  { input: 64, output: 54 },
+  { input: 192, output: 202 },
+  { input: 255, output: 255 },
+];
+
+describe("Phase 4 조정 Tool", () => {
+  it("조정 Tool 3개를 등록한다", () => {
+    const { tools, commands } = setup();
+    for (const name of [
+      "photoshop.adjustment.curves",
+      "photoshop.adjustment.levels",
+      "photoshop.adjustment.brightness_contrast",
+    ]) {
+      expect(tools.list().map((tool) => tool.name)).toContain(name);
+    }
+    for (const type of [
+      "ADJUSTMENT_CURVES",
+      "ADJUSTMENT_LEVELS",
+      "ADJUSTMENT_BRIGHTNESS_CONTRAST",
+    ]) {
+      expect(commands.list()).toContain(type);
+    }
+  });
+
+  it("조정 레이어를 만들고 맨 위에 넣는다", async () => {
+    const mcp = setup();
+
+    const layer = await call<Layer>(mcp, "photoshop.adjustment.curves", {
+      points: S_CURVE,
+      name: "Curves 1",
+    });
+
+    expect(layer).toMatchObject({ name: "Curves 1", type: "adjustment", parentId: null });
+    const { layers } = await call<{ layers: Layer[] }>(mcp, "photoshop.layer.list");
+    expect(layers[0]?.id).toBe(layer.id);
+  });
+
+  it("이름을 생략하면 기본 이름을 쓴다", async () => {
+    const mcp = setup();
+    await expect(
+      call(mcp, "photoshop.adjustment.curves", { points: S_CURVE }),
+    ).resolves.toMatchObject({ name: "Curves", type: "adjustment" });
+  });
+
+  describe("curves 파라미터 검증", () => {
+    it("제어점이 2개 미만이면 거부한다", async () => {
+      const mcp = setup();
+      await expect(
+        call(mcp, "photoshop.adjustment.curves", { points: [{ input: 0, output: 0 }] }),
+      ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
+    });
+
+    it("input 이 오름차순이 아니면 거부한다", async () => {
+      const mcp = setup();
+      await expect(
+        call(mcp, "photoshop.adjustment.curves", {
+          points: [
+            { input: 0, output: 0 },
+            { input: 200, output: 200 },
+            { input: 100, output: 100 },
+          ],
+        }),
+      ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
+    });
+
+    it("input 이 중복되면 거부한다", async () => {
+      const mcp = setup();
+      await expect(
+        call(mcp, "photoshop.adjustment.curves", {
+          points: [
+            { input: 0, output: 0 },
+            { input: 128, output: 100 },
+            { input: 128, output: 200 },
+          ],
+        }),
+      ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
+    });
+
+    it("0-255 범위를 벗어나면 거부한다", async () => {
+      const mcp = setup();
+      for (const points of [
+        [
+          { input: -1, output: 0 },
+          { input: 255, output: 255 },
+        ],
+        [
+          { input: 0, output: 0 },
+          { input: 255, output: 256 },
+        ],
+      ]) {
+        await expect(call(mcp, "photoshop.adjustment.curves", { points })).rejects.toThrow(
+          expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
+        );
+      }
+    });
+
+    it("채널을 지정할 수 있다", async () => {
+      const mcp = setup();
+      await expect(
+        call(mcp, "photoshop.adjustment.curves", { channel: "red", points: S_CURVE }),
+      ).resolves.toMatchObject({ type: "adjustment" });
+      await expect(
+        call(mcp, "photoshop.adjustment.curves", { channel: "cyan", points: S_CURVE }),
+      ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
+    });
+  });
+
+  describe("levels 파라미터 검증", () => {
+    it("입력 흰점이 검은점보다 작으면 거부한다", async () => {
+      const mcp = setup();
+      await expect(
+        call(mcp, "photoshop.adjustment.levels", { inputShadow: 200, inputHighlight: 100 }),
+      ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
+    });
+
+    it("감마 범위를 검증한다", async () => {
+      const mcp = setup();
+      await expect(call(mcp, "photoshop.adjustment.levels", { gamma: 0 })).rejects.toThrow(
+        expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
+      );
+      await expect(call(mcp, "photoshop.adjustment.levels", { gamma: 1.2 })).resolves.toMatchObject(
+        {
+          type: "adjustment",
+        },
+      );
+    });
+
+    it("전부 생략할 수 있다", async () => {
+      const mcp = setup();
+      await expect(call(mcp, "photoshop.adjustment.levels")).resolves.toMatchObject({
+        name: "Levels",
+      });
+    });
+  });
+
+  describe("brightness_contrast 파라미터 검증", () => {
+    it("범위를 검증한다", async () => {
+      const mcp = setup();
+      await expect(
+        call(mcp, "photoshop.adjustment.brightness_contrast", { brightness: 200 }),
+      ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
+      await expect(
+        call(mcp, "photoshop.adjustment.brightness_contrast", { contrast: -80 }),
+      ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
+      await expect(
+        call(mcp, "photoshop.adjustment.brightness_contrast", { brightness: 20, contrast: 15 }),
+      ).resolves.toMatchObject({ type: "adjustment" });
+    });
+  });
+
+  it("문서가 없으면 DOCUMENT_NOT_FOUND 를 던진다", async () => {
+    const mcp = setup();
+    mcp.bridge.setDocument(null);
+    await expect(call(mcp, "photoshop.adjustment.curves", { points: S_CURVE })).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.DOCUMENT_NOT_FOUND }),
+    );
+  });
+
+  it("Phase 4 완료 기준 시나리오: 복제 → Curves 조정 레이어 → 중간톤 대비", async () => {
+    const mcp = setup();
+
+    const copy = await call<Layer>(mcp, "photoshop.layer.duplicate");
+    const curves = await call<Layer>(mcp, "photoshop.adjustment.curves", {
+      points: S_CURVE,
+      name: "중간톤 대비",
+    });
+
+    expect(curves).toMatchObject({ name: "중간톤 대비", type: "adjustment" });
+
+    const { layers } = await call<{ layers: Layer[] }>(mcp, "photoshop.layer.list");
+    // 조정 레이어가 맨 위, 복제본이 그 아래에 있다.
+    expect(layers[0]?.id).toBe(curves.id);
+    expect(layers.some((layer) => layer.id === copy.id)).toBe(true);
+  });
+
+  it("조정도 undo 로 되돌릴 수 있다", async () => {
+    const mcp = setup();
+    const before = (await call<{ layers: Layer[] }>(mcp, "photoshop.layer.list")).layers.length;
+
+    await call(mcp, "photoshop.adjustment.curves", { points: S_CURVE });
+    expect((await call<{ layers: Layer[] }>(mcp, "photoshop.layer.list")).layers).toHaveLength(
+      before + 1,
+    );
+
+    await call(mcp, "photoshop.history.undo");
+    expect((await call<{ layers: Layer[] }>(mcp, "photoshop.layer.list")).layers).toHaveLength(
+      before,
+    );
+  });
+});

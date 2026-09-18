@@ -11,6 +11,11 @@
  */
 import { entrypoints, host } from "uxp";
 import { CommandDispatcher } from "./dispatcher/dispatcher.js";
+import {
+  adjustmentBrightnessContrast,
+  adjustmentCurves,
+  adjustmentLevels,
+} from "./dom/adjustment.js";
 import { documentGet } from "./dom/document.js";
 import { groupCreate, groupMoveLayer } from "./dom/group.js";
 import { historyUndo } from "./dom/history.js";
@@ -73,6 +78,17 @@ export function createDispatcher(): CommandDispatcher {
 
   // Phase 3 — History
   dispatcher.register("HISTORY_UNDO", async () => historyUndo());
+
+  // Phase 4 — 조정 레이어 (비파괴)
+  dispatcher.register("ADJUSTMENT_CURVES", async (p) =>
+    adjustmentCurves(p as Parameters<typeof adjustmentCurves>[0]),
+  );
+  dispatcher.register("ADJUSTMENT_LEVELS", async (p) =>
+    adjustmentLevels(p as Parameters<typeof adjustmentLevels>[0]),
+  );
+  dispatcher.register("ADJUSTMENT_BRIGHTNESS_CONTRAST", async (p) =>
+    adjustmentBrightnessContrast(p as Parameters<typeof adjustmentBrightnessContrast>[0]),
+  );
 
   return dispatcher;
 }

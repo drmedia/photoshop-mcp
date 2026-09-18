@@ -39,6 +39,7 @@ export {
 
 export {
   ErrorCode,
+  FilenameSchema,
   PERMISSION_LEVELS,
   PermissionLevelSchema,
   PhotoshopMcpError,
@@ -48,10 +49,18 @@ export {
   type DocumentInfo,
   type LayerInfo,
   type LayerType,
+  type CapabilityRequest,
+  type CapabilityResult,
+  type ExtensionCapabilityRegistry,
+  type FlatFormat,
+  type LayeredFormat,
   type PhotoshopCommand,
+  type ProviderAvailability,
+  type SaveResult,
   type ToolContext,
   type ToolDefinition,
   type ToolHandler,
+  type WorkspaceStatus,
 } from "@photoshop-mcp/photoshop-bridge";
 
 /**
@@ -70,7 +79,10 @@ export {
   ADJUSTMENT_HUE_SATURATION,
   ADJUSTMENT_LEVELS,
   ADJUSTMENT_VIBRANCE,
+  DOCUMENT_EXPORT,
   DOCUMENT_GET,
+  DOCUMENT_SAVE,
+  DOCUMENT_SAVE_AS,
   FILTER_GAUSSIAN_BLUR,
   GROUP_CREATE,
   GROUP_MOVE_LAYER,
@@ -80,6 +92,7 @@ export {
   LAYER_DUPLICATE,
   LAYER_LIST,
   LAYER_OPACITY,
+  LAYER_PLACE,
   LAYER_RENAME,
   LAYER_SELECT,
   LAYER_VISIBILITY,
@@ -90,4 +103,5 @@ export {
   SELECTION_CLEAR,
   SELECTION_INVERT,
   SELECTION_SET,
+  WORKSPACE_STATUS,
 } from "@photoshop-mcp/photoshop-tools";

@@ -23,6 +23,9 @@
       "path": "extensions/example-extension"
     },
     {
+      "path": "extensions/milkyscape"
+    },
+    {
       "path": "photoshop-uxp"
     }
   ]

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ExtensionCapabilityRegistry } from "./capability.js";
+import type { ExtensionJobRegistry } from "./job.js";
 import type { ToolDefinition } from "./tool.js";
 
 /**
@@ -112,6 +113,15 @@ export interface ExtensionContext {
    * 실행에는 `photoshop.external` 권한이 필요하다.
    */
   capabilities: ExtensionCapabilityRegistry;
+  /**
+   * 긴 작업. (ARCHITECTURE §25)
+   *
+   * MCP 요청은 60초 안에 끝나야 한다. 외부 처리기는 더 걸린다.
+   * 오래 걸리는 Tool 은 여기에 등록하고 Job ID 를 즉시 돌려준다.
+   *
+   * 자신이 시작한 Job 만 조회할 수 있다.
+   */
+  jobs: ExtensionJobRegistry;
   logger: Logger;
 }
 

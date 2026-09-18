@@ -129,6 +129,45 @@ async function setup(options: { providers?: boolean; approved?: boolean } = {}):
 const call = async <T>(s: Setup, name: string, input: unknown = {}): Promise<T> =>
   s.mcp.tools.invoke<T>(name, input, { requestId: "milky" });
 
+/**
+ * Job 이 끝날 때까지 기다린다.
+ *
+ * `remove_stars` 는 즉시 jobId 를 돌려준다. MCP 요청 안에서 끝낼 수 없기 때문이다.
+ * 테스트는 그 뒤를 확인해야 하므로 여기서 기다린다.
+ */
+async function awaitJob<T>(s: Setup, jobId: string, timeoutMs = 20000): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const record = s.mcp.jobs.get(jobId);
+    if (record === null) {
+      throw new Error(`Job 이 사라졌습니다: ${jobId}`);
+    }
+    if (record.state === "completed") {
+      return record.result as T;
+    }
+    if (record.state === "failed") {
+      const error = record.error;
+      throw Object.assign(new Error(error?.message ?? "Job 실패"), {
+        code: error?.code,
+        details: error?.details,
+      });
+    }
+    if (record.state === "cancelled") {
+      throw new Error("Job 이 취소되었습니다");
+    }
+    if (Date.now() > deadline) {
+      throw new Error(`Job 이 끝나지 않았습니다: ${record.state}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
+/** 별 분리를 시작하고 결과까지 기다린다. */
+async function removeStars<T>(s: Setup): Promise<T> {
+  const { jobId } = await call<{ jobId: string }>(s, "milky.remove_stars");
+  return awaitJob<T>(s, jobId);
+}
+
 describe("적재", () => {
   it("Tool 4개를 등록한다", async () => {
     const s = await setup();
@@ -184,11 +223,11 @@ describe("get_state", () => {
 describe("remove_stars", () => {
   it("별 제거본과 별 레이어를 만든다", async () => {
     const s = await setup();
-    const result = await call<{
+    const result = await removeStars<{
       starless: { id: number; name: string };
       stars: { id: number; name: string; blendMode: string };
       provider: string;
-    }>(s, "milky.remove_stars");
+    }>(s);
 
     expect(result.starless.name).toBe("StarNet2_별제거_01");
     expect(result.stars.name).toBe("StarNet2_별_01");
@@ -201,7 +240,7 @@ describe("remove_stars", () => {
     const s = await setup();
     const before = (await call<{ layers: LayerInfo[] }>(s, "photoshop.layer.list")).layers;
 
-    await call(s, "milky.remove_stars");
+    await removeStars(s);
 
     const after = (await call<{ layers: LayerInfo[] }>(s, "photoshop.layer.list")).layers;
     expect(after.length).toBe(before.length + 2);
@@ -216,8 +255,8 @@ describe("remove_stars", () => {
   it("여러 번 실행하면 번호가 올라간다", async () => {
     // 매번 새 결과를 만든다. 기존 결과를 덮어쓰지 않는다.
     const s = await setup();
-    const first = await call<{ starless: { name: string } }>(s, "milky.remove_stars");
-    const second = await call<{ starless: { name: string } }>(s, "milky.remove_stars");
+    const first = await removeStars<{ starless: { name: string } }>(s);
+    const second = await removeStars<{ starless: { name: string } }>(s);
 
     expect(first.starless.name).toBe("StarNet2_별제거_01");
     expect(second.starless.name).toBe("StarNet2_별제거_02");
@@ -228,7 +267,7 @@ describe("remove_stars", () => {
     // 레이어는 안 만들어져 번호가 그대로다. 임시 파일 이름을 레이어 번호에서
     // 파생하면 재시도가 FILE_ALREADY_EXISTS 로 영구히 막힌다.
     const s = await setup({ providers: false });
-    await expect(call(s, "milky.remove_stars")).rejects.toThrow();
+    await expect(removeStars(s)).rejects.toThrow();
 
     // 처리기를 붙이고 다시 시도하면 성공해야 한다.
     const script = await fakeStarNet();
@@ -248,21 +287,21 @@ describe("remove_stars", () => {
       outputs: { stars: {} },
     });
 
-    await expect(
-      call<{ starless: { name: string } }>(s, "milky.remove_stars"),
-    ).resolves.toMatchObject({ starless: { name: "StarNet2_별제거_01" } });
+    await expect(removeStars<{ starless: { name: string } }>(s)).resolves.toMatchObject({
+      starless: { name: "StarNet2_별제거_01" },
+    });
   });
 
   it("작업 폴더가 없으면 막힌다", async () => {
     const s = await setup({ approved: false });
-    await expect(call(s, "milky.remove_stars")).rejects.toThrow(
+    await expect(removeStars(s)).rejects.toThrow(
       expect.objectContaining({ code: ErrorCode.WORKSPACE_NOT_APPROVED }),
     );
   });
 
   it("처리기가 없으면 COMMAND_NOT_SUPPORTED", async () => {
     const s = await setup({ providers: false });
-    await expect(call(s, "milky.remove_stars")).rejects.toThrow(
+    await expect(removeStars(s)).rejects.toThrow(
       expect.objectContaining({ code: ErrorCode.COMMAND_NOT_SUPPORTED }),
     );
   });
@@ -276,7 +315,7 @@ describe("remove_stars", () => {
 describe("restore_stars", () => {
   it("가장 최근 별 레이어를 스크린으로 만든다", async () => {
     const s = await setup();
-    await call(s, "milky.remove_stars");
+    await removeStars(s);
     await call(s, "photoshop.layer.set_blend_mode", { blendMode: "normal" });
 
     const restored = await call<{ name: string; blendMode: string }>(s, "milky.restore_stars");
@@ -286,7 +325,7 @@ describe("restore_stars", () => {
 
   it("불투명도를 함께 조절할 수 있다", async () => {
     const s = await setup();
-    await call(s, "milky.remove_stars");
+    await removeStars(s);
 
     await expect(
       call<{ opacity: number; blendMode: string }>(s, "milky.restore_stars", { opacity: 60 }),
@@ -324,7 +363,7 @@ describe("자동 연쇄 처리하지 않는다", () => {
   it("enhance 가 remove_stars 결과를 자동으로 먹지 않는다", async () => {
     // 한 기능의 결과를 다음 기능이 알아서 입력으로 삼지 않는다. (개발계획서 §5.2)
     const s = await setup();
-    await call(s, "milky.remove_stars");
+    await removeStars(s);
 
     const result = await call<{ layer: { name: string } }>(s, "milky.enhance");
     // 별 제거본이 아니라 문서 전체를 대상으로 한다.

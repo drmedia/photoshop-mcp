@@ -125,6 +125,12 @@ export async function startPhotoshopMcpServer(
     loadedExtensions,
     loadedProviders,
     stop: async () => {
+      // 진행 중인 Job 을 먼저 취소한다. 그러지 않으면 외부 처리기 프로세스가
+      // 서버보다 오래 살고, 결과를 받을 곳도 없이 몇 분씩 CPU 를 먹는다.
+      const cancelled = mcp.jobs.cancelAll();
+      if (cancelled > 0) {
+        mcp.logger.info(`정지 중 Job ${cancelled}개를 취소했습니다.`);
+      }
       await mcp.server.stop();
       for (const extension of loadedExtensions) {
         await mcp.extensions.unload(extension.manifest.namespace);

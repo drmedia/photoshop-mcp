@@ -12,6 +12,7 @@ export {
   type WorkspaceResolver,
 } from "./capabilities/registry.js";
 export { createConsoleLogger, createSilentLogger } from "./extensions/logger.js";
+export { JobStore, type JobStoreOptions } from "./jobs/store.js";
 export {
   ExtensionManager,
   type DiscoveredExtension,

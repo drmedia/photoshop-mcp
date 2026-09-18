@@ -61,12 +61,14 @@ export interface ProcessOutcome {
   stderr: string;
   stdout: string;
   timedOut: boolean;
+  /** 취소 신호로 죽였는지. */
+  cancelled?: boolean;
 }
 
 export type ProcessRunner = (
   executable: string,
   args: readonly string[],
-  options: { timeoutMs: number },
+  options: { timeoutMs: number; signal?: AbortSignal },
 ) => Promise<ProcessOutcome>;
 
 /** 기본 실행기. shell 을 쓰지 않는다. */
@@ -78,6 +80,15 @@ export const spawnRunner: ProcessRunner = (executable, args, options) =>
     let stdout = "";
     let stderr = "";
     let timedOut = false;
+    let cancelled = false;
+
+    // 취소 신호가 오면 실제로 프로세스를 죽인다. 신호만 받고 계속 돌면
+    // 취소가 거짓말이 된다 — 상태는 cancelled 인데 CPU 는 계속 먹는다.
+    const onAbort = (): void => {
+      cancelled = true;
+      child.kill("SIGKILL");
+    };
+    options.signal?.addEventListener("abort", onAbort, { once: true });
 
     // 출력이 무한정 쌓이지 않도록 자른다. 진단에는 앞부분이면 충분하다.
     const LIMIT = 64 * 1024;
@@ -97,13 +108,17 @@ export const spawnRunner: ProcessRunner = (executable, args, options) =>
       child.kill("SIGKILL");
     }, options.timeoutMs);
 
-    child.once("error", (error) => {
+    const finish = (outcome: ProcessOutcome): void => {
       clearTimeout(timer);
-      resolvePromise({ code: null, stdout, stderr: `${stderr}${String(error)}`, timedOut });
+      options.signal?.removeEventListener("abort", onAbort);
+      resolvePromise(outcome);
+    };
+
+    child.once("error", (error) => {
+      finish({ code: null, stdout, stderr: `${stderr}${String(error)}`, timedOut, cancelled });
     });
     child.once("close", (code) => {
-      clearTimeout(timer);
-      resolvePromise({ code, stdout, stderr, timedOut });
+      finish({ code, stdout, stderr, timedOut, cancelled });
     });
   });
 
@@ -252,7 +267,11 @@ export class CapabilityRegistry implements ExtensionCapabilityRegistry {
    *   - `COMMAND_FAILED` — 프로세스가 0 이 아닌 코드로 끝남
    *   - `COMMAND_TIMEOUT` — 제한 시간 초과
    */
-  async execute(capability: string, request: CapabilityRequest): Promise<CapabilityResult> {
+  async execute(
+    capability: string,
+    request: CapabilityRequest,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<CapabilityResult> {
     const config = this.#select(capability, request.provider);
 
     const problem = await executableProblem(config.executable);
@@ -301,8 +320,19 @@ export class CapabilityRegistry implements ExtensionCapabilityRegistry {
 
     this.#logger.info(`Capability 실행: ${capability} via ${config.id}`);
     const started = Date.now();
-    const outcome = await this.#runner(config.executable, args, { timeoutMs });
+    const outcome = await this.#runner(config.executable, args, {
+      timeoutMs,
+      ...(options.signal === undefined ? {} : { signal: options.signal }),
+    });
     const durationMs = Date.now() - started;
+
+    if (outcome.cancelled === true) {
+      throw new PhotoshopMcpError(
+        ErrorCode.COMMAND_FAILED,
+        `Provider '${config.id}' 실행이 취소되었습니다.`,
+        { recoverable: true, details: { provider: config.id, cancelled: true } },
+      );
+    }
 
     if (outcome.timedOut) {
       throw new PhotoshopMcpError(

@@ -41,6 +41,10 @@ declare module "photoshop" {
     readonly layers: readonly PhotoshopLayer[];
     /** 현재 선택된 레이어들. 대입하면 선택이 바뀐다. */
     activeLayers: readonly PhotoshopLayer[];
+    /** History 항목. 오래된 것부터 최신 순. */
+    readonly historyStates: readonly PhotoshopHistoryState[];
+    /** 현재 History 지점. 대입하면 그 지점으로 되돌린다. */
+    activeHistoryState: PhotoshopHistoryState;
 
     /** 새 픽셀 레이어를 만든다. **비동기다.** */
     createLayer(options?: { name?: string; opacity?: number }): Promise<PhotoshopLayer>;
@@ -50,6 +54,11 @@ declare module "photoshop" {
       name?: string;
       fromLayers?: readonly PhotoshopLayer[];
     }): Promise<PhotoshopLayer>;
+  }
+
+  export interface PhotoshopHistoryState {
+    readonly id: number;
+    readonly name: string;
   }
 
   export interface PhotoshopApp {

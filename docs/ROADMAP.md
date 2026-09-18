@@ -536,12 +536,12 @@ Photoshop의 기본적인 비파괴 작업을 MCP로 수행한다.
 
 구현:
 
-- [ ] `LAYER_CREATE`
-- [ ] `LAYER_DUPLICATE`
-- [ ] `LAYER_RENAME`
-- [ ] `LAYER_SELECT`
-- [ ] `LAYER_VISIBILITY`
-- [ ] `LAYER_OPACITY`
+- [x] `LAYER_CREATE`
+- [x] `LAYER_DUPLICATE`
+- [x] `LAYER_RENAME`
+- [x] `LAYER_SELECT`
+- [x] `LAYER_VISIBILITY`
+- [x] `LAYER_OPACITY`
 
 Tools:
 

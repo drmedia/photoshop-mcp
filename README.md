@@ -2,8 +2,8 @@
 
 Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입니다.
 
-> **현재 상태: Phase 2 (Photoshop Bridge) 완료.**
-> 실제 Photoshop 27.8 에서 문서·레이어 조회가 동작하는 것을 확인했습니다.
+> **현재 상태: Phase 3 (Basic Photoshop Editing) 완료.**
+> 실제 Photoshop 27.8 에서 레이어 생성·복제·이름 변경·그룹·Undo 가 동작합니다.
 
 ## 빠른 시작
 
@@ -43,11 +43,30 @@ npm run format
 
 MCP Tool 3개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
 
-| MCP Tool | 내부 Command | 결과 |
+**조회**
+
+| MCP Tool | Command | 결과 |
 |---|---|---|
 | `photoshop.ping` | `PING` | 서버 상태와 Bridge 연결 여부 |
 | `photoshop.document.get` | `DOCUMENT_GET` | 활성 문서 정보 |
-| `photoshop.layer.list` | `LAYER_LIST` | 레이어 목록 |
+| `photoshop.layer.list` | `LAYER_LIST` | 레이어 목록 (opacity · parentId 포함) |
+
+**편집** — 전부 비파괴입니다. 삭제·병합은 Permission System 과 함께 이후 Phase 에서 추가합니다.
+
+| MCP Tool | Command | 파라미터 |
+|---|---|---|
+| `photoshop.layer.create` | `LAYER_CREATE` | `name?` |
+| `photoshop.layer.duplicate` | `LAYER_DUPLICATE` | `layerId?`, `name?` |
+| `photoshop.layer.rename` | `LAYER_RENAME` | `layerId?`, `name` |
+| `photoshop.layer.select` | `LAYER_SELECT` | `layerId` |
+| `photoshop.layer.set_visibility` | `LAYER_VISIBILITY` | `layerId?`, `visible` |
+| `photoshop.layer.set_opacity` | `LAYER_OPACITY` | `layerId?`, `opacity` |
+| `photoshop.group.create` | `GROUP_CREATE` | `name?`, `layerIds?` |
+| `photoshop.group.move_layer` | `GROUP_MOVE_LAYER` | `layerId`, `groupId` |
+| `photoshop.history.undo` | `HISTORY_UNDO` | 없음 |
+
+`layerId` 를 생략하면 활성 레이어를 대상으로 합니다.
+편집 Tool 은 변경 후 레이어 상태를 돌려주므로 결과 확인에 목록 재조회가 필요 없습니다.
 
 호출 경로는 항상 다음과 같습니다. Tool 은 Bridge 를 직접 호출하지 않습니다.
 

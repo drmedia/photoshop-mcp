@@ -12,17 +12,21 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 ## 현재 상태
 
-**Phase 2 (Photoshop Bridge) 완료.** 실제 Photoshop 27.8 에서 검증했다.
+**Phase 3 (Basic Photoshop Editing) 완료.** 실제 Photoshop 27.8 에서 검증했다.
 
-- Tool: `photoshop.ping`, `photoshop.document.get`, `photoshop.layer.list`
-- Bridge: `MockPhotoshopBridge` (Photoshop 불필요) / `UXPPhotoshopBridge` (WebSocket + UXP)
-- 알 수 없는 열거형 값은 기본값으로 덮지 않는다. `null` + 원본을 함께 반환한다.
+- 조회: `ping`, `document.get`, `layer.list`
+- 편집: `layer.create/duplicate/rename/select/set_visibility/set_opacity`
+- 그룹: `group.create`, `group.move_layer`
+- History: `history.undo` (1단계)
+
+전부 비파괴다. destructive 명령(`layer.delete`, `flatten`)은 Permission System 과 함께
+이후 Phase 에서 추가한다. (ROADMAP §7.4)
 
 UXP 의 실기 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 정리되어 있다.
-특히 `manifestVersion` 은 **4 여야 하고**, `executeAsModal` 안에서 직접 throw 하면
+레이어 생성·복제·그룹·이동이 모두 비동기이고, `executeAsModal` 안에서 throw 하면
 오류 코드를 잃는다. 바꾸기 전에 그 문서를 먼저 읽는다.
 
-다음 작업은 **Phase 3 (Basic Photoshop Editing)** 이다. Phase 3 이전 기능을 선행 구현하지 않는다.
+다음 작업은 **Phase 4 (Extended Photoshop Tools)** 다. 마스크·선택 영역·조정·필터·저장.
 
 ## 스택
 

@@ -21,6 +21,8 @@ export const EXPECTED_TOOLS = [
   // Phase 3 — 그룹
   "photoshop.group.create",
   "photoshop.group.move_layer",
+  // Phase 3 — History
+  "photoshop.history.undo",
 ] as const;
 
 export const EXPECTED_COMMANDS = [
@@ -35,6 +37,7 @@ export const EXPECTED_COMMANDS = [
   "LAYER_OPACITY",
   "GROUP_CREATE",
   "GROUP_MOVE_LAYER",
+  "HISTORY_UNDO",
 ] as const;
 
 /**

@@ -1,5 +1,6 @@
 import type { CommandRegistry } from "@photoshop-mcp/command-engine";
 import { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
+import { HISTORY_UNDO, HistoryUndoParamsSchema, historyUndoCommand } from "./history.js";
 import {
   GROUP_CREATE,
   GROUP_MOVE_LAYER,
@@ -33,6 +34,7 @@ import { PING, pingCommand } from "./ping.js";
 
 export { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
 export * from "./group.js";
+export * from "./history.js";
 export * from "./layer-edit.js";
 export { LAYER_LIST, layerListCommand } from "./layer-list.js";
 export { PING, pingCommand, type PingResult } from "./ping.js";
@@ -60,4 +62,7 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   // Phase 3 — 그룹
   registry.register(GROUP_CREATE, groupCreateCommand, GroupCreateParamsSchema);
   registry.register(GROUP_MOVE_LAYER, groupMoveLayerCommand, GroupMoveLayerParamsSchema);
+
+  // Phase 3 — History
+  registry.register(HISTORY_UNDO, historyUndoCommand, HistoryUndoParamsSchema);
 }

@@ -30,6 +30,8 @@ export const ErrorCode = {
   PROTOCOL_VERSION_MISMATCH: "PROTOCOL_VERSION_MISMATCH",
   /** 프레임 파싱 실패 또는 메시지 스키마 위반. */
   PROTOCOL_ERROR: "PROTOCOL_ERROR",
+  /** 되돌릴 History 항목이 없음. */
+  HISTORY_EMPTY: "HISTORY_EMPTY",
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

@@ -41,6 +41,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   #pendingFailure: PhotoshopMcpError | null = null;
   #activeLayerId: number | null;
   #nextLayerId: number;
+  readonly #history: { name: string; layers: LayerInfo[]; activeLayerId: number | null }[] = [];
 
   /** 이 Bridge 가 처리한 Command 기록. 테스트에서 호출 경로를 검증할 때 사용한다. */
   readonly executedCommands: PhotoshopCommand[] = [];
@@ -99,22 +100,28 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
 
       // Phase 3 — 레이어 편집. 실제 Photoshop 과 같은 의미로 상태를 바꾼다.
       case "LAYER_CREATE":
+        this.#snapshot("Create layer");
         return this.#create(command.params as { name?: string }) as TResult;
       case "LAYER_DUPLICATE":
+        this.#snapshot("Duplicate layer");
         return this.#duplicate(command.params as { layerId?: number; name?: string }) as TResult;
       case "LAYER_RENAME":
+        this.#snapshot("Rename layer");
         return this.#mutate(command.params as { layerId?: number }, (layer) => ({
           ...layer,
           name: (command.params as { name: string }).name,
         })) as TResult;
       case "LAYER_SELECT":
+        this.#snapshot("Select layer");
         return this.#select(command.params as { layerId: number }) as TResult;
       case "LAYER_VISIBILITY":
+        this.#snapshot("Set visibility");
         return this.#mutate(command.params as { layerId?: number }, (layer) => ({
           ...layer,
           visible: (command.params as { visible: boolean }).visible,
         })) as TResult;
       case "LAYER_OPACITY":
+        this.#snapshot("Set opacity");
         return this.#mutate(command.params as { layerId?: number }, (layer) => ({
           ...layer,
           opacity: (command.params as { opacity: number }).opacity,
@@ -122,13 +129,19 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
 
       // Phase 3 — 그룹
       case "GROUP_CREATE":
+        this.#snapshot("Create group");
         return this.#groupCreate(
           command.params as { name?: string; layerIds?: number[] },
         ) as TResult;
       case "GROUP_MOVE_LAYER":
+        this.#snapshot("Move layer");
         return this.#groupMoveLayer(
           command.params as { layerId: number; groupId: number | null },
         ) as TResult;
+
+      // Phase 3 — History
+      case "HISTORY_UNDO":
+        return this.#undo() as TResult;
 
       default:
         throw new PhotoshopMcpError(
@@ -193,6 +206,33 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     this.#layers.splice(index, 0, copy);
     this.#activeLayerId = copy.id;
     return { ...copy };
+  }
+
+  /**
+   * Undo 1단계. 편집 Command 가 남긴 이력을 되돌린다.
+   *
+   * 되돌릴 것이 없으면 실제 Plugin 과 같은 `HISTORY_EMPTY` 로 실패한다.
+   */
+  #undo(): { currentState: string } {
+    this.#requireDocument();
+    const snapshot = this.#history.pop();
+    if (snapshot === undefined) {
+      throw new PhotoshopMcpError(ErrorCode.HISTORY_EMPTY, "되돌릴 작업이 없습니다.", {
+        recoverable: true,
+      });
+    }
+    this.#layers = snapshot.layers.map((layer) => ({ ...layer }));
+    this.#activeLayerId = snapshot.activeLayerId;
+    return { currentState: snapshot.name };
+  }
+
+  /** 편집 전 상태를 기록한다. */
+  #snapshot(name: string): void {
+    this.#history.push({
+      name,
+      layers: this.#layers.map((layer) => ({ ...layer })),
+      activeLayerId: this.#activeLayerId,
+    });
   }
 
   #groupCreate(params: { name?: string; layerIds?: number[] }): LayerInfo {

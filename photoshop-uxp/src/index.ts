@@ -13,6 +13,7 @@ import { entrypoints, host } from "uxp";
 import { CommandDispatcher } from "./dispatcher/dispatcher.js";
 import { documentGet } from "./dom/document.js";
 import { groupCreate, groupMoveLayer } from "./dom/group.js";
+import { historyUndo } from "./dom/history.js";
 import {
   layerCreate,
   layerDuplicate,
@@ -69,6 +70,9 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("GROUP_MOVE_LAYER", async (p) =>
     groupMoveLayer(p as { layerId: number; groupId: number | null }),
   );
+
+  // Phase 3 — History
+  dispatcher.register("HISTORY_UNDO", async () => historyUndo());
 
   return dispatcher;
 }

@@ -339,3 +339,54 @@ describe("Phase 3 그룹 Tool", () => {
     );
   });
 });
+
+describe("Phase 3 History", () => {
+  it("history.undo Tool 을 등록한다", () => {
+    const { tools, commands } = setup();
+    expect(tools.list().map((tool) => tool.name)).toContain("photoshop.history.undo");
+    expect(commands.list()).toContain("HISTORY_UNDO");
+  });
+
+  it("직전 편집을 되돌린다", async () => {
+    const mcp = setup();
+
+    await call(mcp, "photoshop.layer.rename", { layerId: 10, name: "바뀐 이름" });
+    const before = await call<{ layers: Layer[] }>(mcp, "photoshop.layer.list");
+    expect(before.layers.find((layer) => layer.id === 10)?.name).toBe("바뀐 이름");
+
+    await expect(call(mcp, "photoshop.history.undo")).resolves.toMatchObject({
+      currentState: "Rename layer",
+    });
+
+    const after = await call<{ layers: Layer[] }>(mcp, "photoshop.layer.list");
+    expect(after.layers.find((layer) => layer.id === 10)?.name).toBe("Background");
+  });
+
+  it("여러 단계를 차례로 되돌린다", async () => {
+    const mcp = setup();
+
+    await call(mcp, "photoshop.layer.create", { name: "A" });
+    await call(mcp, "photoshop.layer.create", { name: "B" });
+    expect((await call<{ layers: Layer[] }>(mcp, "photoshop.layer.list")).layers).toHaveLength(5);
+
+    await call(mcp, "photoshop.history.undo");
+    expect((await call<{ layers: Layer[] }>(mcp, "photoshop.layer.list")).layers).toHaveLength(4);
+
+    await call(mcp, "photoshop.history.undo");
+    expect((await call<{ layers: Layer[] }>(mcp, "photoshop.layer.list")).layers).toHaveLength(3);
+  });
+
+  it("되돌릴 것이 없으면 HISTORY_EMPTY 를 던진다", async () => {
+    const mcp = setup();
+    await expect(call(mcp, "photoshop.history.undo")).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.HISTORY_EMPTY, recoverable: true }),
+    );
+  });
+
+  it("인자를 받지 않는다", async () => {
+    const mcp = setup();
+    await expect(call(mcp, "photoshop.history.undo", { steps: 3 })).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
+    );
+  });
+});

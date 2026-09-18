@@ -107,6 +107,32 @@ modal 밖에서 다시 던진다. modal 안에서 직접 throw 하지 않는다.
 드러나지 않았다.** 지금은 해석 실패 시 `null` 과 `rawBitDepth` 를 돌려준다.
 모르는 값을 그럴듯한 기본값으로 덮지 않는다. (PROTOCOL.md §4)
 
+### 레이어 생성·복제·그룹·이동은 모두 비동기다
+
+`Document.createLayer()` · `Layer.duplicate()` · `Document.createLayerGroup()` ·
+`Layer.move()` 는 모두 `Promise` 를 돌려준다. 동기로 다루면 Promise 객체의 속성을 읽어
+`id` 와 `name` 이 빠진 결과가 나간다. `runModal` 은 async 콜백을 받는다.
+
+### `Layer.move` 의 기준 객체는 Layer 여야 한다
+
+Document 를 넘기면 Photoshop 이 거부한다.
+
+```
+'{"saveAs":{},"_id":70,...}' is of type object. Expecting type 레이어.
+```
+
+그룹에서 꺼낼 때는 최상위 레이어를 기준으로 `PLACEBEFORE` 한다.
+
+### `historyStates` 는 되돌려도 줄지 않는다
+
+`activeHistoryState` 포인터만 움직인다. 그래서 `states[length - 2]` 같은 절대 위치로
+undo 하면 첫 번째 이후에는 같은 지점에 머문다. 현재 지점의 인덱스를 찾아 한 칸 뒤로 간다.
+
+### 불투명도는 0–255 로 저장된다
+
+`layer.opacity = 50` 을 넣으면 `50.19607843137255` 가 돌아온다. 프로토콜은 0–100 정수이므로
+Plugin 이 반올림한다.
+
 ### 코드 변경은 Reload 가 아니라 Unload → Load
 
 UDT 의 `Reload` 는 변경된 `dist/` 를 반영하지 않는다. 반드시 `Unload` 후 `Load` 한다.

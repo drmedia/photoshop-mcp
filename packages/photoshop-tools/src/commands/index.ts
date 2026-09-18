@@ -70,10 +70,23 @@ import {
   layerSelectCommand,
   layerVisibilityCommand,
 } from "./layer-edit.js";
+import {
+  DOCUMENT_EXPORT,
+  DOCUMENT_SAVE,
+  DOCUMENT_SAVE_AS,
+  ExportParamsSchema,
+  SaveAsParamsSchema,
+  WORKSPACE_STATUS,
+  exportCommand,
+  saveAsCommand,
+  saveCommand,
+  workspaceStatusCommand,
+} from "./document-save.js";
 import { LAYER_LIST, layerListCommand } from "./layer-list.js";
 import { PING, pingCommand } from "./ping.js";
 
 export { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
+export * from "./document-save.js";
 export * from "./adjustment.js";
 export * from "./filter.js";
 export * from "./gap-tools.js";
@@ -207,4 +220,21 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     permission: edit,
     schema: VibranceParamsSchema,
   });
+
+  // Phase 9 — 파일 저장 (ROADMAP §8.5)
+  //
+  // save_as 와 export 는 Photoshop 밖(파일 시스템)에 쓰므로 external 이다.
+  // 덮어쓰지 않으므로 데이터를 잃지 않는다.
+  //
+  // save 는 원본을 덮어쓴다. 되돌릴 수 없으므로 destructive 다.
+  registry.register(WORKSPACE_STATUS, workspaceStatusCommand, { permission: "read" });
+  registry.register(DOCUMENT_SAVE_AS, saveAsCommand, {
+    permission: "external",
+    schema: SaveAsParamsSchema,
+  });
+  registry.register(DOCUMENT_EXPORT, exportCommand, {
+    permission: "external",
+    schema: ExportParamsSchema,
+  });
+  registry.register(DOCUMENT_SAVE, saveCommand, { permission: "destructive" });
 }

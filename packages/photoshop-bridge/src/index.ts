@@ -58,6 +58,18 @@ export {
 } from "./protocol/messages.js";
 export { SERVER_NAME, SERVER_VERSION } from "./protocol/server-info.js";
 export {
+  FilenameSchema,
+  FlatFormatSchema,
+  LayeredFormatSchema,
+  SaveResultSchema,
+  WorkspaceStatusSchema,
+  withExtension,
+  type FlatFormat,
+  type LayeredFormat,
+  type SaveResult,
+  type WorkspaceStatus,
+} from "./protocol/workspace.js";
+export {
   BlendModeSchema,
   DocumentInfoSchema,
   LayerInfoListSchema,

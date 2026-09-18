@@ -42,6 +42,8 @@ import {
   layerVisibility,
 } from "./dom/layer-edit.js";
 import { layerList } from "./dom/layers.js";
+import { documentExport, documentSave, documentSaveAs } from "./dom/save.js";
+import { approveFolder, revokeFolder, workspaceStatus } from "./dom/workspace.js";
 import { BridgeClient, type ClientState } from "./transport/ws-client.js";
 
 const PLUGIN = { name: "photoshop-mcp-uxp", version: "0.1.0" };
@@ -132,6 +134,19 @@ export function createDispatcher(): CommandDispatcher {
     adjustmentVibrance(p as Parameters<typeof adjustmentVibrance>[0]),
   );
 
+  // Phase 9 — 파일 저장 (ROADMAP §8.5)
+  //
+  // 폴더 승인 자체는 Command 가 아니다. getFolder() 가 사용자 제스처를 요구하므로
+  // 패널 버튼에서만 할 수 있다. 서버는 승인을 대신할 수 없다.
+  dispatcher.register("WORKSPACE_STATUS", async () => workspaceStatus());
+  dispatcher.register("DOCUMENT_SAVE_AS", async (p) =>
+    documentSaveAs(p as Parameters<typeof documentSaveAs>[0]),
+  );
+  dispatcher.register("DOCUMENT_EXPORT", async (p) =>
+    documentExport(p as Parameters<typeof documentExport>[0]),
+  );
+  dispatcher.register("DOCUMENT_SAVE", async () => documentSave());
+
   return dispatcher;
 }
 
@@ -150,6 +165,7 @@ export function createClient(url: string = DEFAULT_URL): BridgeClient {
 
 let statusElement: HTMLElement | null = null;
 let errorElement: HTMLElement | null = null;
+let workspaceElement: HTMLElement | null = null;
 
 function renderState(state: ClientState): void {
   const label = STATE_LABEL[state];
@@ -172,6 +188,28 @@ function renderState(state: ClientState): void {
 
 const client = createClient();
 
+/**
+ * 작업 폴더 상태를 패널에 그린다.
+ *
+ * 승인은 여기서만 할 수 있다. `getFolder()` 가 사용자 제스처를 요구하므로
+ * 서버가 소켓으로 띄울 수 없다. (ROADMAP §8.5)
+ */
+async function renderWorkspace(): Promise<void> {
+  if (workspaceElement === null) {
+    return;
+  }
+  try {
+    const status = await workspaceStatus();
+    workspaceElement.textContent = status.approved
+      ? `저장 폴더: ${status.path ?? "(경로 없음)"}`
+      : "저장 폴더: 승인되지 않음";
+  } catch (error) {
+    workspaceElement.textContent = `저장 폴더 확인 실패: ${
+      error instanceof Error ? error.message : String(error)
+    }`;
+  }
+}
+
 /** 패널이 열릴 때 상태 표시 요소를 잡아둔다. */
 export function mountPanel(root: HTMLElement): void {
   root.innerHTML = [
@@ -182,11 +220,42 @@ export function mountPanel(root: HTMLElement): void {
     '<div id="photoshop-mcp-error" style="margin-top:8px;padding:6px;',
     "background:#4a1f1f;color:#ffb4b4;font-size:11px;",
     'word-break:break-all;display:none"></div>',
+    '<div style="margin-top:12px;padding-top:10px;border-top:1px solid #444">',
+    '<div id="photoshop-mcp-workspace" style="font-size:11px;opacity:.85;',
+    'word-break:break-all">저장 폴더: 확인 중</div>',
+    '<div style="margin-top:6px">',
+    '<button id="photoshop-mcp-approve" style="font-size:11px">폴더 승인</button>',
+    '<button id="photoshop-mcp-revoke" style="font-size:11px;margin-left:6px">해제</button>',
+    "</div>",
+    '<div style="margin-top:6px;opacity:.6;font-size:10px">',
+    "MCP 는 승인된 폴더 안에만 저장할 수 있습니다.",
+    "</div>",
+    "</div>",
     "</div>",
   ].join("");
   statusElement = root.querySelector("#photoshop-mcp-state");
   errorElement = root.querySelector("#photoshop-mcp-error");
+  workspaceElement = root.querySelector("#photoshop-mcp-workspace");
+
+  root.querySelector("#photoshop-mcp-approve")?.addEventListener("click", () => {
+    void approveFolder()
+      .catch((error: unknown) => {
+        if (workspaceElement !== null) {
+          workspaceElement.textContent = `승인 실패: ${
+            error instanceof Error ? error.message : String(error)
+          }`;
+        }
+        return null;
+      })
+      .then(() => renderWorkspace());
+  });
+  root.querySelector("#photoshop-mcp-revoke")?.addEventListener("click", () => {
+    revokeFolder();
+    void renderWorkspace();
+  });
+
   renderState(client.state);
+  void renderWorkspace();
 }
 
 /**

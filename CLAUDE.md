@@ -12,7 +12,8 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 ## 현재 상태
 
-**Phase 5 (Extension SDK) 완료.** Core Tool 25개는 실제 Photoshop 27.8 에서 검증했다.
+**Phase 9 (Permission / Safety) 코드 완료. 파일 저장은 실기 미검증.**
+Core Tool 29개. Phase 4 까지의 25개는 실제 Photoshop 27.8 에서 검증했다.
 
 - 조회: `ping`, `document.get`, `layer.list`
 - 레이어: create / duplicate / rename / select / set_visibility / set_opacity
@@ -22,9 +23,41 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 - 필터: gaussian_blur (기본 스마트 필터)
 - §8.6 공백 보완: selection.set · layer.set_blend_mode · adjustment.hue_saturation · vibrance
 
-**전부 비파괴다.** destructive 명령과 문서 저장은 Phase 9 의 Permission System 과
-함께 도입한다. 저장은 UXP 샌드박스가 임의 경로 쓰기를 막아 폴더 승인·토큰 보관이
-필요하고, 그것이 Permission 설계 그 자체이기 때문이다. (ROADMAP §8.5)
+- 파일 저장: `workspace.status` · `document.save_as` · `document.export` · `document.save`
+
+## Permission (ARCHITECTURE §22)
+
+레벨은 `read` · `edit` · `external` · `destructive` 네 가지다. Tool 과 Command 모두
+**필수** 필드로 선언한다. 선택 필드로 두면 새로 추가한 것이 조용히 관대한 값을 갖는다.
+
+**강제 지점은 Command Engine 이다.** Extension 은 Tool 을 거치지 않고 Command 를 직접
+호출한다(ARCHITECTURE §3.2). Tool 의 레벨은 `tools/list` 메타데이터이자 빠른 실패용이다.
+
+기본 허용은 `read` · `edit` 뿐이다. `PHOTOSHOP_MCP_ALLOW` 로 바꾸며, 값을 주면 그것이
+**전체 목록**이다 — 기본값에 더하지 않는다. `read` 만 주면 읽기 전용 서버가 된다.
+
+대화형 승인은 하지 않는다. 서버가 stdio 를 전송에 쓰므로 프롬프트를 띄울 수 없고,
+elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화형 승인은 MCP 클라이언트의 역할이다.
+
+Extension 의 manifest `permissions` 는 **강제된다.** 선언 밖의 Tool 은 등록 자체가
+막히고, Command 호출에도 같은 상한이 걸린다. 선언하지 않으면 아무 권한도 없다.
+
+## 파일 저장 (ROADMAP §8.5)
+
+레이어 편집은 전부 비파괴다. 파일 쓰기만 `external` · `destructive` 다.
+
+저장 폴더는 **사용자가 플러그인 패널 버튼으로 승인한다.** `getFolder()` 가 사용자
+제스처를 요구해서 서버가 대신할 수 없다. 제약이자 안전장치다 — LLM 은 폴더를 고를 수 없고
+파일 이름만 준다. 경로 구분자와 `..` 는 스키마가 거부한다.
+
+토큰은 `createPersistentToken` 으로 만들어 플러그인 `localStorage` 에 둔다.
+저장은 batchPlay 가 아니라 DOM 의 `document.saveAs.*` 를 쓴다 — 이 API 가 경로 문자열이
+아니라 File entry 를 받기 때문에 폴더 제한이 그대로 유지된다.
+
+`save_as` 와 `export` 는 **덮어쓰지 않는다.** 그래서 `external` 로 분류할 수 있다.
+덮어쓰기는 `save` 하나로 모아 `destructive` 로 둔다.
+
+`layer.delete` · `document.flatten` · `document.close` 는 분류 체계만 섰고 구현은 없다.
 
 `batchPlay` 는 조정·마스크·선택·필터에 쓴다. DOM 에 API 가 없는 경우다.
 descriptor 는 반드시 플러그인이 검증된 파라미터로 조립한다.
@@ -43,7 +76,8 @@ manifest 의 `permissions` 는 **선언만 받고 강제하지 않는다.** 강�
 `capabilities`(Phase 8) · `photoshop` 은 아직 없다. 동작하지 않는 껍데기를 두면
 Extension 작성자가 있는 줄 알고 쓴다.
 
-다음 작업은 **Phase 6** 다. 범위는 `docs/ROADMAP.md` 를 따른다.
+다음 작업은 파일 저장의 **실기 검증**, 그다음 **Phase 8 (Capability)** · **Phase 6
+(MilkyScapeTools)** 다. Phase 6 의 외부 도구 연동은 Phase 8 과 파일 접근에 의존한다.
 
 알 수 없는 열거형 값은 기본값으로 덮지 않는다. `null` + 원본(`rawBitDepth` · `rawKind` ·
 `rawBlendMode`)을 함께 반환한다. 이 원칙으로 실기에서 세 번 실제 버그를 잡았다.
@@ -168,6 +202,8 @@ npm run check        # format + lint + build + typecheck:tests + test
 |---|---|---|
 | `PHOTOSHOP_MCP_BRIDGE` | `uxp` | `uxp` 또는 `mock` |
 | `PHOTOSHOP_MCP_PORT` | `8765` | Bridge WebSocket 포트 |
+| `PHOTOSHOP_MCP_EXTENSIONS` | `<cwd>/extensions` | Extension 디렉터리 |
+| `PHOTOSHOP_MCP_ALLOW` | `read,edit` | 허용 권한. `all` · `none` 도 쓸 수 있다 |
 
 Photoshop 없이 돌릴 때는 `PHOTOSHOP_MCP_BRIDGE=mock` 을 사용합니다.
 

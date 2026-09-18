@@ -1,6 +1,7 @@
 import type { PhotoshopBridge } from "./bridge.js";
 import { ErrorCode, PhotoshopMcpError } from "./protocol/errors.js";
 import type { DocumentInfo, LayerInfo, PhotoshopCommand } from "./protocol/types.js";
+import { withExtension, type SaveResult } from "./protocol/workspace.js";
 
 /** ROADMAP §5.5 의 기본 Mock 문서. */
 export const DEFAULT_MOCK_DOCUMENT: DocumentInfo = {
@@ -50,6 +51,14 @@ export interface MockPhotoshopBridgeOptions {
   document?: DocumentInfo | null;
   /** 활성 문서의 레이어 목록. */
   layers?: readonly LayerInfo[];
+  /**
+   * 승인된 작업 폴더 경로. `null` 이면 승인 전 상태를 재현한다.
+   *
+   * 실제 UXP 에서는 사용자가 패널에서 승인해야 값이 생긴다. (ROADMAP §8.5)
+   */
+  workspacePath?: string | null;
+  /** 문서의 저장 경로. `null` 이면 한 번도 저장하지 않은 문서. */
+  documentPath?: string | null;
 }
 
 /**
@@ -67,12 +76,18 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   #nextLayerId: number;
   readonly #history: { name: string; layers: LayerInfo[]; activeLayerId: number | null }[] = [];
   #hasSelection = false;
+  #workspacePath: string | null;
+  #documentPath: string | null;
+  readonly #writtenFiles: string[] = [];
 
   /** 이 Bridge 가 처리한 Command 기록. 테스트에서 호출 경로를 검증할 때 사용한다. */
   readonly executedCommands: PhotoshopCommand[] = [];
 
   constructor(options: MockPhotoshopBridgeOptions = {}) {
     this.#connected = options.connected ?? true;
+    // 기본값은 승인 전 상태다. 실제 UXP 도 사용자가 승인하기 전에는 저장할 수 없다.
+    this.#workspacePath = options.workspacePath ?? null;
+    this.#documentPath = options.documentPath ?? null;
     this.#document =
       options.document === undefined ? { ...DEFAULT_MOCK_DOCUMENT } : options.document;
     this.#layers = [...(options.layers ?? DEFAULT_MOCK_LAYERS)];
@@ -224,6 +239,25 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         this.#snapshot("Vibrance");
         return this.#adjustment("Vibrance", command.params) as TResult;
 
+      // Phase 9 — 파일 저장 (ROADMAP §8.5)
+      case "WORKSPACE_STATUS":
+        return {
+          approved: this.#workspacePath !== null,
+          path: this.#workspacePath,
+        } as TResult;
+      case "DOCUMENT_SAVE_AS":
+        return this.#saveInto(
+          command.params as { filename: string; format?: string },
+          "psd",
+        ) as TResult;
+      case "DOCUMENT_EXPORT":
+        return this.#saveInto(
+          command.params as { filename: string; format?: string },
+          "png",
+        ) as TResult;
+      case "DOCUMENT_SAVE":
+        return this.#save() as TResult;
+
       default:
         throw new PhotoshopMcpError(
           ErrorCode.COMMAND_NOT_SUPPORTED,
@@ -236,6 +270,70 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   /** 활성 레이어 ID. 편집 Command 에서 `layerId` 를 생략했을 때의 대상. */
   get activeLayerId(): number | null {
     return this.#activeLayerId;
+  }
+
+  /** 작업 폴더에 쓰인 파일 이름. 실기 없이 저장 동작을 확인할 때 쓴다. */
+  get writtenFiles(): string[] {
+    return [...this.#writtenFiles];
+  }
+
+  /** 사용자가 패널에서 폴더를 승인한 상황을 재현한다. */
+  approveWorkspace(path: string): void {
+    this.#workspacePath = path;
+  }
+
+  /** 승인을 해제한다. */
+  revokeWorkspace(): void {
+    this.#workspacePath = null;
+  }
+
+  /**
+   * 승인된 폴더에 새 파일로 저장한다.
+   *
+   * 실제 구현과 같은 계약을 지킨다 — **덮어쓰지 않는다.**
+   */
+  #saveInto(params: { filename: string; format?: string }, fallback: string): SaveResult {
+    this.#requireDocument();
+    if (this.#workspacePath === null) {
+      throw new PhotoshopMcpError(
+        ErrorCode.WORKSPACE_NOT_APPROVED,
+        "저장할 작업 폴더가 승인되지 않았습니다.",
+        { recoverable: true },
+      );
+    }
+
+    // Plugin 과 같은 함수를 쓴다. 따로 두면 Mock 과 실기가 어긋난다.
+    const format = params.format ?? fallback;
+    const filename = withExtension(params.filename, format);
+
+    if (this.#writtenFiles.some((name) => name.toLowerCase() === filename.toLowerCase())) {
+      throw new PhotoshopMcpError(
+        ErrorCode.FILE_ALREADY_EXISTS,
+        `같은 이름의 파일이 이미 있습니다: ${filename}. 덮어쓰지 않습니다.`,
+        { recoverable: true, details: { filename } },
+      );
+    }
+
+    this.#writtenFiles.push(filename);
+    return { path: `${this.#workspacePath}/${filename}`, filename, format };
+  }
+
+  /** 원본을 덮어쓴다. */
+  #save(): SaveResult {
+    const document = this.#requireDocument();
+    if (this.#documentPath === null) {
+      throw new PhotoshopMcpError(
+        ErrorCode.DOCUMENT_NOT_SAVED,
+        "한 번도 저장한 적 없는 문서입니다. save_as 를 사용하세요.",
+        { recoverable: true, details: { name: document.name } },
+      );
+    }
+    const dot = document.name.lastIndexOf(".");
+    return {
+      path: this.#documentPath,
+      filename: document.name,
+      format: dot === -1 ? "unknown" : document.name.slice(dot + 1).toLowerCase(),
+    };
   }
 
   #requireLayerIndex(layerId?: number): number {

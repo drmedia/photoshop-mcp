@@ -231,12 +231,29 @@ describe("Core Tool 분류", () => {
     }
   });
 
-  it("현재 Core 에는 external · destructive Command 가 없다", () => {
-    // 전부 비파괴라는 CLAUDE.md 의 주장을 실제로 검증한다.
+  it("위험 등급 Command 목록을 고정한다", () => {
+    // 여기에 무언가 늘어난다는 것은 Photoshop 밖에 쓰거나 되돌릴 수 없는 일을
+    // 하는 통로가 생겼다는 뜻이다. 의도한 변경이어야 한다.
     const mcp = createPhotoshopMcp({ bridge: new MockPhotoshopBridge() });
-    const levels = mcp.commands.list().map((type) => mcp.commands.permissionOf(type));
-    expect(levels).not.toContain("external");
-    expect(levels).not.toContain("destructive");
+    const byLevel = (level: string): string[] =>
+      mcp.commands.list().filter((type) => mcp.commands.permissionOf(type) === level);
+
+    expect(byLevel("external")).toEqual(["DOCUMENT_SAVE_AS", "DOCUMENT_EXPORT"]);
+    expect(byLevel("destructive")).toEqual(["DOCUMENT_SAVE"]);
+  });
+
+  it("Photoshop 문서 편집 Command 는 전부 edit 이하다", () => {
+    // 레이어·조정·마스크·선택·필터는 전부 비파괴라는 주장을 검증한다.
+    const mcp = createPhotoshopMcp({ bridge: new MockPhotoshopBridge() });
+    const editing = mcp.commands
+      .list()
+      .filter((type) => !type.startsWith("DOCUMENT_SAVE") && type !== "DOCUMENT_EXPORT");
+
+    for (const type of editing) {
+      expect(["read", "edit"], `${type} 이 위험 등급입니다`).toContain(
+        mcp.commands.permissionOf(type),
+      );
+    }
   });
 
   it("읽기 전용 정책이면 편집 Tool 이 전부 막힌다", async () => {

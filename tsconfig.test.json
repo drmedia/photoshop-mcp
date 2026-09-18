@@ -1,0 +1,30 @@
+// tests/ 타입체크 전용. `tsc -b` 의 project reference 와 별개로 돈다.
+//
+// 테스트는 패키지 소스를 직접 참조한다 (vitest alias 와 같은 해석).
+// composite 프로젝트로 참조하면 dist 의 .d.ts 를 보게 되어 vitest 와 어긋난다.
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+
+    // photoshop-uxp 는 package.json 기준 CommonJS 라 ESM 규칙과 충돌한다.
+    // vitest 가 어차피 트랜스파일하므로 이 검사에서는 끈다.
+    "verbatimModuleSyntax": false,
+
+    "baseUrl": ".",
+    "paths": {
+      "@photoshop-mcp/photoshop-bridge": ["packages/photoshop-bridge/src/index.ts"],
+      "@photoshop-mcp/command-engine": ["packages/command-engine/src/index.ts"],
+      "@photoshop-mcp/photoshop-tools": ["packages/photoshop-tools/src/index.ts"],
+      "@photoshop-mcp/mcp-core": ["packages/mcp-core/src/index.ts"],
+      "@photoshop-mcp/mcp-server": ["packages/mcp-server/src/index.ts"],
+      "@photoshop-mcp/extension-sdk": ["packages/extension-sdk/src/index.ts"]
+    }
+  },
+  "include": ["tests/**/*"]
+}

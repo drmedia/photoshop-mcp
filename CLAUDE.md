@@ -150,8 +150,14 @@ npm start            # 빌드된 dist 를 bin launcher 로 실행 (프로덕션)
 
 npm test             # vitest run
 npm run lint
-npm run check        # lint + build + test
+npm run typecheck:tests   # tests/ 타입체크 (tsc -b 대상이 아니다)
+npm run check        # format + lint + build + typecheck:tests + test
 ```
+
+`tests/` 는 `tsc -b` 의 project reference 에 들어 있지 않다. 테스트가 패키지 **소스**를
+참조하는데(vitest alias 와 같은 해석), composite 프로젝트로 참조하면 `dist` 의 `.d.ts` 를
+보게 되어 vitest 와 어긋나기 때문이다. 대신 `tsconfig.test.json` 으로 따로 검사한다.
+이것이 없던 동안 테스트 시그니처 오류가 컴파일이 아니라 런타임에서 드러났다.
 
 `npm start` 는 `dist/` 를 참조합니다. 빌드 없이 실행하면 안내 메시지와 함께 종료 코드 1 로
 끝나며, 이는 의도된 동작입니다. 자동 빌드를 걸지 않습니다. 개발 중에는 `npm run dev` 를 사용합니다.

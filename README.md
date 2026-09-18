@@ -35,11 +35,15 @@ npm start
 ### 검증
 
 ```bash
-npm run check        # lint + build + test
+npm run check        # format + lint + build + typecheck:tests + test
 npm test
 npm run lint
+npm run typecheck:tests   # tests/ 타입체크
 npm run format
 ```
+
+`tests/` 는 `tsc -b` 대상이 아니라 `tsconfig.test.json` 으로 따로 타입체크합니다.
+테스트가 패키지 소스를 직접 참조하기 때문입니다.
 
 ## 지금 동작하는 것
 

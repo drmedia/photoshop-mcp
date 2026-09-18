@@ -129,10 +129,14 @@ describe("Phase 1 Core Tools", () => {
     const bridge = new MockPhotoshopBridge();
     const commands = new CommandRegistry();
     const dispatched: string[] = [];
-    commands.register("LAYER_LIST", async (command, context) => {
-      dispatched.push(`${command.type}:${context.requestId}`);
-      return [{ id: 99, name: "Stub", type: "pixel" as const, visible: true }];
-    });
+    commands.register(
+      "LAYER_LIST",
+      async (command, context) => {
+        dispatched.push(`${command.type}:${context.requestId}`);
+        return [{ id: 99, name: "Stub", type: "pixel" as const, visible: true }];
+      },
+      { permission: "read" },
+    );
 
     const engine = new CommandEngine({ registry: commands, bridge });
     const tools = new ToolRegistry();

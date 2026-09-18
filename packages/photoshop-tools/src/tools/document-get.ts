@@ -12,6 +12,7 @@ export function createDocumentGetTool(
   return {
     name: "photoshop.document.get",
     description: "현재 활성 Photoshop 문서의 정보를 반환한다.",
+    permission: "read",
     inputSchema: DocumentGetInputSchema,
     handler: async (_input, context) =>
       engine.execute<DocumentInfo>(

@@ -26,6 +26,12 @@ import {
   createLayerSelectTool,
   createLayerVisibilityTool,
 } from "./layer-edit.js";
+import {
+  createExportTool,
+  createSaveAsTool,
+  createSaveTool,
+  createWorkspaceStatusTool,
+} from "./document-save.js";
 import { createLayerListTool } from "./layer-list.js";
 import { createPingTool } from "./ping.js";
 
@@ -37,6 +43,7 @@ export {
 } from "./layer-list.js";
 export * from "./adjustment.js";
 export * from "./filter.js";
+export * from "./document-save.js";
 export * from "./gap-tools.js";
 export * from "./group.js";
 export * from "./mask-selection.js";
@@ -88,4 +95,13 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createSelectionSetTool(engine));
   registry.register(createHueSaturationTool(engine));
   registry.register(createVibranceTool(engine));
+
+  // Phase 9 — 파일 저장 (ROADMAP §8.5)
+  //
+  // 기본 정책에서는 external · destructive 가 막혀 있으므로 status 만 동작한다.
+  // 목록에는 노출한다. 무엇이 있고 왜 막혔는지 클라이언트가 알아야 한다.
+  registry.register(createWorkspaceStatusTool(engine));
+  registry.register(createSaveAsTool(engine));
+  registry.register(createExportTool(engine));
+  registry.register(createSaveTool(engine));
 }

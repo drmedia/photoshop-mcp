@@ -13,6 +13,16 @@ export {
   type PhotoshopMcpExtension,
 } from "./extension.js";
 export {
+  DEFAULT_ALLOWED_LEVELS,
+  PERMISSION_LEVELS,
+  PermissionLevelSchema,
+  PermissionPolicy,
+  parsePermissionLevels,
+  permissionToLevel,
+  type PermissionSubject,
+  type PermissionLevel,
+} from "./permission.js";
+export {
   DEFAULT_MOCK_DOCUMENT,
   DEFAULT_MOCK_LAYERS,
   MockPhotoshopBridge,
@@ -47,6 +57,18 @@ export {
   type ResponseMessage,
 } from "./protocol/messages.js";
 export { SERVER_NAME, SERVER_VERSION } from "./protocol/server-info.js";
+export {
+  FilenameSchema,
+  FlatFormatSchema,
+  LayeredFormatSchema,
+  SaveResultSchema,
+  WorkspaceStatusSchema,
+  withExtension,
+  type FlatFormat,
+  type LayeredFormat,
+  type SaveResult,
+  type WorkspaceStatus,
+} from "./protocol/workspace.js";
 export {
   BlendModeSchema,
   DocumentInfoSchema,

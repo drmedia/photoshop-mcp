@@ -32,6 +32,7 @@ import {
 function createLayerTool<TParams>(
   name: string,
   description: string,
+  permission: ToolDefinition<TParams, LayerInfo>["permission"],
   inputSchema: ToolDefinition<TParams, LayerInfo>["inputSchema"],
   commandType: string,
   engine: CommandEngine,
@@ -39,6 +40,7 @@ function createLayerTool<TParams>(
   return {
     name,
     description,
+    permission,
     inputSchema,
     handler: async (input, context) =>
       engine.execute<LayerInfo>(
@@ -54,6 +56,7 @@ export function createLayerCreateTool(
   return createLayerTool(
     "photoshop.layer.create",
     "새 픽셀 레이어를 만든다. 이름을 생략하면 Photoshop 기본 이름을 쓴다.",
+    "edit",
     LayerCreateParamsSchema,
     LAYER_CREATE,
     engine,
@@ -66,6 +69,7 @@ export function createLayerDuplicateTool(
   return createLayerTool(
     "photoshop.layer.duplicate",
     "레이어를 복제한다. layerId 를 생략하면 활성 레이어를 복제한다.",
+    "edit",
     LayerDuplicateParamsSchema,
     LAYER_DUPLICATE,
     engine,
@@ -78,6 +82,7 @@ export function createLayerRenameTool(
   return createLayerTool(
     "photoshop.layer.rename",
     "레이어 이름을 바꾼다. layerId 를 생략하면 활성 레이어를 대상으로 한다.",
+    "edit",
     LayerRenameParamsSchema,
     LAYER_RENAME,
     engine,
@@ -90,6 +95,7 @@ export function createLayerSelectTool(
   return createLayerTool(
     "photoshop.layer.select",
     "레이어를 활성 레이어로 선택한다.",
+    "edit",
     LayerSelectParamsSchema,
     LAYER_SELECT,
     engine,
@@ -102,6 +108,7 @@ export function createLayerVisibilityTool(
   return createLayerTool(
     "photoshop.layer.set_visibility",
     "레이어 표시 여부를 바꾼다. layerId 를 생략하면 활성 레이어를 대상으로 한다.",
+    "edit",
     LayerVisibilityParamsSchema,
     LAYER_VISIBILITY,
     engine,
@@ -114,6 +121,7 @@ export function createLayerOpacityTool(
   return createLayerTool(
     "photoshop.layer.set_opacity",
     "레이어 불투명도를 0–100 으로 설정한다. layerId 를 생략하면 활성 레이어를 대상으로 한다.",
+    "edit",
     LayerOpacityParamsSchema,
     LAYER_OPACITY,
     engine,

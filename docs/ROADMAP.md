@@ -648,7 +648,7 @@ photoshop.filter.gaussian_blur
 
 ---
 
-## 8.5 Document — **Phase 9 로 이관**
+## 8.5 Document — Phase 9 에서 해결
 
 저장은 Phase 4 범위에서 제외한다. UXP 샌드박스 제약 때문이다.
 
@@ -675,6 +675,40 @@ photoshop.document.save        원본 덮어쓰기 (destructive)
 photoshop.document.save_as
 photoshop.document.export
 ```
+
+Phase 9 에서 구현했다. 실제 해법:
+
+- 승인은 **플러그인 패널의 버튼**으로만 한다. `getFolder()` 가 사용자 제스처를 요구하므로
+  서버가 소켓으로 띄울 수 없다. 이것은 제약이자 안전장치다 — LLM 은 저장 폴더를 고를 수 없다.
+- `createPersistentToken` 으로 얻은 토큰을 플러그인의 `localStorage` 에 보관한다.
+  Photoshop 재시작 후에도 남는다. 폴더가 사라지면 토큰을 지운다.
+- 저장은 batchPlay 가 아니라 UXP DOM 의 `document.saveAs.*` 를 쓴다. (ARCHITECTURE §13)
+  이 API 는 경로 문자열이 아니라 File entry 를 받으므로, 승인된 폴더 안에서만 파일을
+  만들 수 있다는 성질이 그대로 유지된다.
+- Tool 은 **파일 이름만** 받는다. 경로 구분자와 `..` 를 스키마가 거부한다.
+
+실기 검증 (Photoshop 27.8, 승인 폴더 `E:	est01`):
+
+- [x] 패널 ≡ 메뉴 / 버튼에서 폴더 승인 → persistent token 보관
+- [x] 재연결 후에도 `workspace.status` 가 `approved: true` 와 경로를 보고
+- [x] `export` png · jpg(quality 12) — 실제 파일 생성. 문서 제목이 바뀌지 않음 (asCopy)
+- [x] `save_as` psd · psb — 실제 파일 생성. 문서가 새 파일로 전환됨
+- [x] 같은 이름 재시도 → `FILE_ALREADY_EXISTS` (export · save_as 양쪽)
+- [x] `../탈출` → `INVALID_PARAMETER` (스키마에서 차단, Plugin 까지 가지 않음)
+- [x] `save` — `save_as` 이후 그 파일을 덮어씀
+- [x] `PHOTOSHOP_MCP_ALLOW=read,edit` → export · save 는 `PERMISSION_DENIED`,
+      `workspace.status` 는 허용
+
+실기에서 드러난 것:
+
+- **TIFF 를 뺐다.** UXP DOM 에 `document.saveAs.tif` 가 없다
+  (`document.saveAs.tif is not a function`). 타입 선언에 검증 없이 적어둔 것이 원인이다.
+  batchPlay 로 우회할 수 있지만 검증되지 않은 경로를 늘리지 않는다.
+- 플러그인이 contracts 를 **값으로** import 하면 산출물에 `require("@photoshop-mcp/...")`
+  가 남아 **플러그인 전체가 로드되지 않는다.** 패널이 빈 채로 열린다.
+  타입 검사·빌드는 통과하므로 `tests/uxp-bundle.test.ts` 로 막는다.
+- 도킹된 패널은 사용자가 높이를 못 늘릴 수 있다. 승인 버튼을 맨 위에 두고
+  플라이아웃 메뉴에도 넣었다.
 
 ## 8.6 실기에서 드러난 공백
 
@@ -1140,12 +1174,39 @@ close_without_save
 
 ## Tasks
 
-- [ ] Permission metadata
-- [ ] Tool Permission
-- [ ] Command Permission
-- [ ] Extension Permission
-- [ ] User approval strategy
-- [ ] Destructive protection
+- [x] Permission metadata — `PermissionLevel` 을 Tool · Command 의 **필수** 필드로.
+      선택 필드로 두면 새로 추가한 것이 조용히 관대한 기본값을 갖는다.
+- [x] Tool Permission — `tools/list` 에 요구 권한을 노출하고 호출 전에 빠른 실패
+- [x] Command Permission — **여기가 강제 지점이다.** Extension 은 Tool 을 거치지 않고
+      Command 를 직접 호출한다. (ARCHITECTURE §3.2)
+- [x] Extension Permission — manifest 의 `permissions` 가 선언에서 강제로 바뀌었다.
+      선언 밖의 Tool 은 등록 자체를 막고, Command 호출에도 같은 상한을 씌운다.
+      선언하지 않으면 아무 권한도 없다.
+- [x] User approval strategy — `PHOTOSHOP_MCP_ALLOW` 설정 기반. 대화형 승인은 하지 않는다.
+      MCP 서버는 stdio 를 전송에 쓰므로 프롬프트를 띄울 수 없고, elicitation 은 클라이언트
+      지원이 고르지 않아 안전장치로 삼으면 클라이언트가 무시할 때 보장이 사라진다.
+      대화형 승인은 MCP 클라이언트의 역할로 둔다.
+      파일 저장 폴더 승인만은 UXP 패널에서 사람이 직접 한다 (§8.5).
+- [x] Destructive protection — 기본값은 `read` · `edit` 만 허용.
+      `external` · `destructive` 는 명시적으로 켜야 한다.
+
+Level 배정:
+
+| Command | Level | 근거 |
+|---|---|---|
+| `PING` · `DOCUMENT_GET` · `LAYER_LIST` · `WORKSPACE_STATUS` | `read` | 읽기만 한다 |
+| 레이어 · 그룹 · History · 조정 · 마스크 · 선택 · 필터 (21개) | `edit` | 전부 비파괴 |
+| `DOCUMENT_SAVE_AS` · `DOCUMENT_EXPORT` | `external` | Photoshop 밖에 쓴다. **덮어쓰지 않는다** |
+| `DOCUMENT_SAVE` | `destructive` | 원본을 덮어쓴다 |
+
+덮어쓰기 옵션을 `save_as` 에 두지 않았다. Permission 은 Command 단위로 정적이라 옵션에
+따라 레벨이 달라질 수 없고, 옵션으로 두면 `external` 만 받은 호출자가 파일을 지울 수 있다.
+덮어쓰기는 `save` 하나로 모아 `destructive` 로 분류한다.
+
+아직 남은 것:
+
+- [ ] `layer.delete` · `document.flatten` · `document.close` — 분류 체계는 섰지만
+      각각의 구현은 아직 없다.
 
 ---
 

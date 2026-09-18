@@ -40,6 +40,11 @@ export const EXPECTED_TOOLS = [
   "photoshop.selection.set",
   "photoshop.adjustment.hue_saturation",
   "photoshop.adjustment.vibrance",
+  // Phase 9 — 파일 저장 (ROADMAP §8.5)
+  "photoshop.workspace.status",
+  "photoshop.document.save_as",
+  "photoshop.document.export",
+  "photoshop.document.save",
 ] as const;
 
 export const EXPECTED_COMMANDS = [
@@ -68,27 +73,25 @@ export const EXPECTED_COMMANDS = [
   "SELECTION_SET",
   "ADJUSTMENT_HUE_SATURATION",
   "ADJUSTMENT_VIBRANCE",
+  "WORKSPACE_STATUS",
+  "DOCUMENT_SAVE_AS",
+  "DOCUMENT_EXPORT",
+  "DOCUMENT_SAVE",
 ] as const;
 
 /**
  * 아직 노출하면 안 되는 Tool.
  *
- * destructive 명령은 Permission System 과 함께 이후 Phase 에서 추가한다. (ROADMAP §7.4)
- * 그 밖은 Phase 4 이후 범위다.
+ * `document.save` 는 Phase 9 에서 destructive 로 분류해 추가했다.
+ * 아래 것들은 아직 대응하는 Command 조차 없다.
  */
 export const FORBIDDEN_TOOLS = [
-  // destructive
+  // destructive — 분류만으로는 부족하고 각각 구현이 필요하다
   "photoshop.layer.delete",
   "photoshop.document.flatten",
   "photoshop.document.close",
   "photoshop.group.ungroup",
   // 아직 구현하지 않음
   "photoshop.mask.delete",
-  // 저장 전체를 Phase 9 로 미뤘다. UXP 샌드박스가 임의 경로 쓰기를 막아
-  // 폴더 승인·토큰 보관이 필요하고, 그것이 Permission System 설계 그 자체다.
-  "photoshop.document.save",
-  "photoshop.document.save_as",
-  "photoshop.document.export",
-  // Phase 5 이후
   "photoshop.document.flatten_all",
 ] as const;

@@ -39,8 +39,15 @@ async function connect(): Promise<Harness> {
 }
 
 /** `tools/call` 응답 본문(JSON 텍스트)을 파싱한다. */
-function payload(result: { content?: unknown }): unknown {
-  const content = result.content as Array<{ type: string; text: string }> | undefined;
+/**
+ * Tool 호출 결과에서 JSON 본문을 꺼낸다.
+ *
+ * `callTool` 의 반환 타입은 유니온이라 `content` 가 없는 갈래도 있다.
+ * 좁은 타입을 파라미터로 받으면 타입 오류가 나므로 `unknown` 을 받아 여기서 좁힌다.
+ */
+function payload(result: unknown): unknown {
+  const content = (result as { content?: unknown }).content as
+    { type: string; text: string }[] | undefined;
   const first = content?.[0];
   if (first === undefined || first.type !== "text") {
     throw new Error("텍스트 content 가 없습니다.");

@@ -16,6 +16,7 @@ export function createLayerListTool(
   return {
     name: "photoshop.layer.list",
     description: "현재 활성 Photoshop 문서의 레이어 목록을 반환한다.",
+    permission: "read",
     inputSchema: LayerListInputSchema,
     handler: async (_input, context) => {
       const layers = await engine.execute<LayerInfo[]>(

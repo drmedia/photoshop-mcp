@@ -20,6 +20,7 @@ export function createPingTool(
   return {
     name: "photoshop.ping",
     description: "Photoshop MCP 서버의 상태와 Photoshop Bridge 연결 여부를 반환한다.",
+    permission: "read",
     inputSchema: PingInputSchema,
     handler: async (_input, context) => {
       const result = await engine.execute<PingResult>(

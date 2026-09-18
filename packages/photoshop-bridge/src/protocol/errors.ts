@@ -38,6 +38,16 @@ export const ErrorCode = {
   EXTENSION_NAMESPACE_CONFLICT: "EXTENSION_NAMESPACE_CONFLICT",
   /** Extension 이 자신의 namespace 밖에 Tool 을 등록하려 함. */
   EXTENSION_NAMESPACE_VIOLATION: "EXTENSION_NAMESPACE_VIOLATION",
+  /** 요구 Permission Level 이 허용되어 있지 않음. (ARCHITECTURE §22) */
+  PERMISSION_DENIED: "PERMISSION_DENIED",
+  /** 승인된 작업 폴더가 없음. 패널에서 폴더를 승인해야 한다. (ROADMAP §8.5) */
+  WORKSPACE_NOT_APPROVED: "WORKSPACE_NOT_APPROVED",
+  /** 같은 이름의 파일이 이미 있음. `save_as` 는 덮어쓰지 않는다. */
+  FILE_ALREADY_EXISTS: "FILE_ALREADY_EXISTS",
+  /** 파일 쓰기 실패. 권한 · 디스크 · Photoshop 저장 오류. */
+  FILE_WRITE_FAILED: "FILE_WRITE_FAILED",
+  /** 문서에 저장 경로가 없음. 한 번도 저장한 적 없는 문서. */
+  DOCUMENT_NOT_SAVED: "DOCUMENT_NOT_SAVED",
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

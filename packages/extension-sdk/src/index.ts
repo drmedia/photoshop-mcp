@@ -39,8 +39,11 @@ export {
 
 export {
   ErrorCode,
+  PERMISSION_LEVELS,
+  PermissionLevelSchema,
   PhotoshopMcpError,
   isPhotoshopMcpError,
+  type PermissionLevel,
   type BlendMode,
   type DocumentInfo,
   type LayerInfo,

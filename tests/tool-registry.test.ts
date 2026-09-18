@@ -11,6 +11,7 @@ function makeTool(name: string, result: unknown = { ok: true }): ToolDefinition 
   return {
     name,
     description: `${name} 테스트용 Tool`,
+    permission: "read",
     inputSchema: z.object({}).strict(),
     handler: async () => result,
   };
@@ -79,6 +80,7 @@ describe("ToolRegistry", () => {
     registry.register({
       name: "photoshop.test",
       description: "입력 검증 테스트",
+      permission: "read",
       inputSchema: z.object({ count: z.number().int().positive() }).strict(),
       handler: async (input) => input,
     });
@@ -93,6 +95,7 @@ describe("ToolRegistry", () => {
     registry.register({
       name: "photoshop.test",
       description: "핸들러 전달 테스트",
+      permission: "read",
       inputSchema: z.object({ count: z.number() }).strict(),
       handler: async (input, context) => ({ ...input, requestId: context.requestId }),
     });

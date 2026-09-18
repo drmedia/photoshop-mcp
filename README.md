@@ -2,10 +2,9 @@
 
 Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입니다.
 
-> **현재 상태: Phase 5 (Extension SDK) 완료.**
-> Core Tool 25개가 실제 Photoshop 27.8 에서 동작하고, `extensions/` 에 디렉터리를 추가하는
-> 것만으로 Core 수정 없이 Tool 을 늘릴 수 있습니다.
-> 문서 저장은 UXP 샌드박스 제약으로 Phase 9 (Permission System) 로 이관했습니다.
+> **현재 상태: Phase 9 (Permission / Safety) 완료.**
+> Core Tool 29개 전부 실제 Photoshop 27.8 에서 검증했습니다.
+> 모든 Tool 과 Command 가 권한 레벨을 선언하며, 기본값은 `read` · `edit` 만 허용합니다.
 
 ## 빠른 시작
 
@@ -35,15 +34,52 @@ npm start
 ### 검증
 
 ```bash
-npm run check        # lint + build + test
+npm run check        # format + lint + build + typecheck:tests + test
 npm test
 npm run lint
+npm run typecheck:tests   # tests/ 타입체크
 npm run format
 ```
 
+`tests/` 는 `tsc -b` 대상이 아니라 `tsconfig.test.json` 으로 따로 타입체크합니다.
+테스트가 패키지 소스를 직접 참조하기 때문입니다.
+
+## 권한
+
+모든 Tool 과 Command 가 권한 레벨을 선언합니다. 기본 허용은 `read` 와 `edit` 뿐입니다.
+
+| Level | 내용 | 해당 |
+|---|---|---|
+| `read` | 읽기만 합니다 | `ping`, `document.get`, `layer.list`, `workspace.status` |
+| `edit` | 문서를 바꾸지만 되돌릴 수 있습니다 | 레이어 · 그룹 · 조정 · 마스크 · 선택 · 필터 (21개) |
+| `external` | Photoshop 밖에 씁니다. **덮어쓰지 않습니다** | `document.save_as`, `document.export` |
+| `destructive` | 되돌릴 수 없습니다 | `document.save` (원본 덮어쓰기) |
+
+```bash
+PHOTOSHOP_MCP_ALLOW=read                    # 읽기 전용 서버
+PHOTOSHOP_MCP_ALLOW=read,edit,external      # 저장까지 허용 (덮어쓰기는 제외)
+PHOTOSHOP_MCP_ALLOW=all                     # 전부
+```
+
+값을 주면 그것이 **전체 목록**입니다. 기본값에 더하지 않습니다.
+
+강제 지점은 Command Engine 입니다. Extension 이 Tool 을 거치지 않고 Command 를 직접
+호출할 수 있기 때문입니다. Tool 의 레벨은 `tools/list` 노출용이자 빠른 실패용입니다.
+
+## 파일 저장
+
+저장 폴더는 **사용자가 Photoshop 의 'Photoshop MCP' 패널에서 승인**합니다.
+`getFolder()` 가 사용자 제스처를 요구하므로 서버가 대신할 수 없습니다.
+
+이것은 제약이자 안전장치입니다 — LLM 은 저장 폴더를 고를 수 없고 파일 이름만 줍니다.
+경로 구분자와 `..` 는 스키마가 거부합니다.
+
+`save_as` (psd · psb) 와 `export` (png · jpg) 는 같은 이름이 있으면 덮어쓰지 않고
+실패합니다. 덮어쓰기는 `document.save` 하나뿐이며 `destructive` 입니다.
+
 ## 지금 동작하는 것
 
-Core Tool 25개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
+Core Tool 29개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
 
 **조회**
 
@@ -207,8 +243,7 @@ Extension 의 namespace 를 쓰면 적재가 거부됩니다. 하나가 잘못�
 
 현재 Phase 범위 밖이라 의도적으로 구현하지 않았습니다.
 
-- destructive 명령(`layer.delete`, `flatten`)과 문서 저장 — Permission System 과 함께 (Phase 9)
-- Permission **강제** — manifest 의 `permissions` 는 선언만 받습니다 (Phase 9)
+- destructive 명령(`layer.delete`, `flatten`, `close`) — 분류 체계는 섰지만 구현은 없습니다
 - Capability Registry (Phase 8), MCP Resource (Phase 12), Event · Job 시스템
 - Extension 의 Command 등록 — Extension 은 Core Command 를 호출만 합니다
 - Extension hot reload — 서버 재시작 없이 다시 적재하는 기능은 없습니다

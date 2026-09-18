@@ -1,7 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { startPhotoshopMcpServer, type StartedPhotoshopMcp } from "@photoshop-mcp/mcp-server";
-import { ErrorCode } from "@photoshop-mcp/photoshop-bridge";
+import { ErrorCode, WebSocketBridgeTransport } from "@photoshop-mcp/photoshop-bridge";
 import { afterEach, describe, expect, it } from "vitest";
 import { EXPECTED_TOOLS, FORBIDDEN_TOOLS } from "./helpers/expected-tools.js";
 import { FAKE_DOCUMENT, FAKE_LAYERS, FakeUxpPlugin } from "./helpers/fake-uxp-plugin.js";
@@ -47,10 +47,12 @@ async function connect(
   await client.connect(clientTransport);
 
   const transport = mcp.bridgeTransport;
-  if (transport === null) {
-    throw new Error("uxp 모드인데 bridgeTransport 가 없습니다.");
+  // instanceof 로 좁힌다. BridgeTransport 인터페이스에는 port 가 없다 —
+  // 전송 방식에 따라 포트 개념이 없을 수 있기 때문이다.
+  if (!(transport instanceof WebSocketBridgeTransport)) {
+    throw new Error("uxp 모드인데 WebSocket 전송이 아닙니다.");
   }
-  const port = (transport as { port: number }).port;
+  const port = transport.port;
   const url = `ws://127.0.0.1:${port}`;
 
   let plugin: FakeUxpPlugin | null = null;
@@ -67,8 +69,15 @@ async function connect(
 }
 
 /** `tools/call` 응답 본문(JSON 텍스트)을 파싱한다. */
-function payload(result: { content?: unknown }): unknown {
-  const content = result.content as { type: string; text: string }[] | undefined;
+/**
+ * Tool 호출 결과에서 JSON 본문을 꺼낸다.
+ *
+ * `callTool` 의 반환 타입은 유니온이라 `content` 가 없는 갈래도 있다.
+ * 좁은 타입을 파라미터로 받으면 타입 오류가 나므로 `unknown` 을 받아 여기서 좁힌다.
+ */
+function payload(result: unknown): unknown {
+  const content = (result as { content?: unknown }).content as
+    { type: string; text: string }[] | undefined;
   const first = content?.[0];
   if (first === undefined || first.type !== "text") {
     throw new Error("텍스트 content 가 없습니다.");

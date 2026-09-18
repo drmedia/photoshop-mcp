@@ -17,6 +17,7 @@ export function createGaussianBlurTool(
       "기본은 스마트 필터로 적용해 나중에 수정·제거할 수 있다. " +
       "asSmartFilter: false 를 주면 픽셀에 직접 적용하며 되돌릴 수 없다. " +
       "layerId 를 생략하면 활성 레이어.",
+    permission: "edit",
     inputSchema: GaussianBlurParamsSchema,
     handler: async (input, context) =>
       engine.execute<LayerInfo>(

@@ -53,11 +53,30 @@ declare module "photoshop" {
     /** 새 픽셀 레이어를 만든다. **비동기다.** */
     createLayer(options?: { name?: string; opacity?: number }): Promise<PhotoshopLayer>;
 
-    /** 파일로 저장한다. 전부 비동기다. */
+    /**
+     * 문서의 파일 경로. 한 번도 저장하지 않았으면 비어 있거나 접근 시 예외가 난다.
+     */
+    readonly path?: string;
+
+    /**
+     * 원래 경로에 덮어쓴다. **비파괴가 아니다.**
+     *
+     * 인자 없이 부르면 문서 자신의 경로에 쓴다.
+     */
+    save(): Promise<void>;
+
+    /**
+     * 파일로 저장한다. 전부 비동기다.
+     *
+     * `entry` 는 UXP storage API 로 얻은 File 이어야 한다. 경로 문자열은 받지 않는다.
+     * `asCopy` 가 `true` 면 열려 있는 문서의 경로가 바뀌지 않는다.
+     */
     readonly saveAs: {
-      psd(entry: unknown, options?: Record<string, unknown>): Promise<void>;
-      png(entry: unknown, options?: Record<string, unknown>): Promise<void>;
-      jpg(entry: unknown, options?: { quality?: number }): Promise<void>;
+      psd(entry: unknown, options?: Record<string, unknown>, asCopy?: boolean): Promise<void>;
+      psb(entry: unknown, options?: Record<string, unknown>, asCopy?: boolean): Promise<void>;
+      // tif 는 없다. 실기에서 `document.saveAs.tif is not a function` 으로 확인했다.
+      png(entry: unknown, options?: Record<string, unknown>, asCopy?: boolean): Promise<void>;
+      jpg(entry: unknown, options?: { quality?: number }, asCopy?: boolean): Promise<void>;
     };
 
     /** 레이어 그룹을 만든다. **비동기다.** */
@@ -138,11 +157,58 @@ declare module "uxp" {
   export const entrypoints: {
     setup(config: Record<string, unknown>): void;
   };
+  /** UXP 파일 시스템 항목. */
+  export interface Entry {
+    readonly name: string;
+    readonly isFile: boolean;
+    readonly isFolder: boolean;
+    /** OS 의 실제 경로. 사용자에게 보여줄 때만 쓴다. */
+    readonly nativePath: string;
+  }
+
+  export interface File extends Entry {
+    readonly isFile: true;
+  }
+
+  export interface Folder extends Entry {
+    readonly isFolder: true;
+    /** 폴더 안의 항목. */
+    getEntries(): Promise<Entry[]>;
+    /**
+     * 폴더 안에 파일을 만든다.
+     *
+     * `overwrite` 를 주지 않으면 같은 이름이 있을 때 예외를 던진다.
+     */
+    createFile(name: string, options?: { overwrite?: boolean }): Promise<File>;
+  }
+
   export interface LocalFileSystem {
     /** 기존 파일/폴더를 `file:` URL 로 연다. 없으면 예외를 던진다. */
     getEntryWithUrl(url: string): Promise<unknown>;
     /** `file:` URL 로 새 파일을 만든다. */
     createEntryWithUrl(url: string, options?: { overwrite?: boolean }): Promise<unknown>;
+    /**
+     * 폴더 선택 대화상자를 연다.
+     *
+     * **사용자 제스처가 필요하다.** 소켓 메시지로는 띄울 수 없다.
+     * 사용자가 취소하면 `null` 을 돌려준다.
+     */
+    getFolder(options?: { initialDomain?: unknown }): Promise<Folder | null>;
+    /**
+     * 재시작 후에도 유효한 토큰을 만든다.
+     *
+     * 이 토큰이 있어야 나중에 같은 폴더를 다시 열 수 있다. (ROADMAP §8.5)
+     */
+    createPersistentToken(entry: Entry): Promise<string>;
+    /** 토큰으로 항목을 되찾는다. 폴더가 지워졌으면 예외를 던진다. */
+    getEntryForPersistentToken(token: string): Promise<Entry>;
+    /**
+     * batchPlay 에 넘길 세션 토큰을 만든다.
+     *
+     * Photoshop 의 save 액션은 경로 문자열이 아니라 이 토큰을 요구한다.
+     * 경로를 그대로 넘기면 `invalid file token used` 가 난다. (ROADMAP §8.5)
+     */
+    createSessionToken(entry: Entry): string;
   }
 
   export const storage: { readonly localFileSystem: LocalFileSystem };

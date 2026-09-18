@@ -20,6 +20,9 @@
       "path": "packages/extension-sdk"
     },
     {
+      "path": "extensions/example-extension"
+    },
+    {
       "path": "photoshop-uxp"
     }
   ]

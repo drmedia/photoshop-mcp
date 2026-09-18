@@ -1,0 +1,134 @@
+import { z } from "zod";
+import type { ToolDefinition } from "./tool.js";
+
+/**
+ * Extension 계약. (ARCHITECTURE §14~§17)
+ *
+ * Core 는 Extension 을 참조하지 않는다. 그런데 Extension 을 **적재하는** 쪽(Core)과
+ * **구현하는** 쪽(Extension)이 같은 타입을 알아야 한다. 그래서 `ToolDefinition` 과
+ * 같은 이유로 contracts 계층에 둔다.
+ *
+ * `@photoshop-mcp/extension-sdk` 가 이것을 재노출하며, Extension 작성자는 그 패키지만 쓴다.
+ */
+
+/**
+ * Extension namespace.
+ *
+ * 소문자로 시작하고 소문자·숫자·하이픈만 쓴다. Tool 이름의 앞부분이 되므로
+ * 점을 포함할 수 없다.
+ */
+export const NamespaceSchema = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[a-z][a-z0-9-]*$/u, {
+    message: "namespace 는 소문자로 시작하고 소문자·숫자·하이픈만 쓸 수 있습니다.",
+  });
+
+/** Core 가 예약한 namespace. Extension 이 쓸 수 없다. (ARCHITECTURE §17) */
+export const RESERVED_NAMESPACES = ["photoshop"] as const;
+
+/**
+ * Permission 선언. (ARCHITECTURE §22)
+ *
+ * Phase 5 에서는 **선언만 받고 강제하지 않는다.** Permission System 은 Phase 9 다.
+ * 지금 강제하지 않는다는 사실을 Extension 작성자가 알 수 있도록 필드는 받아둔다.
+ */
+export const PermissionSchema = z.enum([
+  "photoshop.read",
+  "photoshop.edit",
+  "photoshop.external",
+  "photoshop.destructive",
+]);
+
+export type Permission = z.infer<typeof PermissionSchema>;
+
+/** `extension.json`. (ARCHITECTURE §15) */
+export const ExtensionManifestSchema = z
+  .object({
+    /** 역방향 도메인 표기 권장. 예: `com.example.milky-scape` */
+    id: z.string().min(1).max(200),
+    name: z.string().min(1).max(200),
+    /** semver 를 권장하지만 강제하지 않는다. */
+    version: z.string().min(1).max(64),
+    namespace: NamespaceSchema,
+    /** 진입점. 패키지 루트 기준 상대 경로. */
+    main: z.string().min(1).max(512),
+    description: z.string().max(1000).optional(),
+    requires: z
+      .object({
+        /** 요구하는 Core 버전 범위. Phase 9 에서 검증한다. */
+        photoshopMcp: z.string().min(1).max(64),
+      })
+      .optional(),
+    /** Phase 9 의 Permission System 이 강제한다. 지금은 선언만 받는다. */
+    permissions: z.array(PermissionSchema).optional(),
+  })
+  .strict();
+
+export type ExtensionManifest = z.infer<typeof ExtensionManifestSchema>;
+
+/** 진단 로그. correlation ID 추적에 쓴다. (ARCHITECTURE §31) */
+export interface Logger {
+  debug(message: string, details?: unknown): void;
+  info(message: string, details?: unknown): void;
+  warn(message: string, details?: unknown): void;
+  error(message: string, details?: unknown): void;
+}
+
+/**
+ * Extension 에 주어지는 Core 접근 통로. (ARCHITECTURE §16)
+ *
+ * ROADMAP §9.3 은 `resources` · `capabilities` · `photoshop` 도 포함하지만
+ * 각각 Phase 12 · Phase 8 과 아직 정의되지 않은 구성 요소다.
+ * 대응하는 런타임이 생길 때 추가한다. 동작하지 않는 껍데기를 두지 않는다.
+ */
+export interface ExtensionContext {
+  /** 자신의 manifest. namespace 확인 등에 쓴다. */
+  manifest: ExtensionManifest;
+  /**
+   * Tool 등록.
+   *
+   * 전체 `ToolRegistry` 가 아니라 등록에 필요한 것만 준다. 최소 권한 원칙이며,
+   * Extension 이 다른 Tool 을 조회·해제·호출할 수 없게 한다.
+   */
+  tools: ExtensionToolRegistry;
+  /**
+   * Command 실행.
+   *
+   * Extension 은 MCP Tool 을 다시 호출하지 않고 이것을 쓴다. (ARCHITECTURE §3.2)
+   * 타입은 Core 의 `CommandEngine` 이며, 순환을 피하려고 구조만 선언한다.
+   */
+  commands: ExtensionCommandEngine;
+  logger: Logger;
+}
+
+/**
+ * Extension 이 쓰는 Tool 등록 표면.
+ *
+ * 자신의 namespace 로 시작하는 이름만 등록할 수 있다. Manager 가 강제한다.
+ */
+export interface ExtensionToolRegistry {
+  register<TInput, TResult>(tool: ToolDefinition<TInput, TResult>): void;
+  /** 이름이 이미 쓰이는지 확인한다. 중복 등록 전에 볼 수 있다. */
+  has(name: string): boolean;
+}
+
+/**
+ * Extension 이 쓰는 Command Engine 표면.
+ *
+ * `@photoshop-mcp/command-engine` 의 `CommandEngine` 이 이 모양을 만족한다.
+ * contracts 계층이 command-engine 을 참조하면 순환이 생기므로 구조만 선언한다.
+ */
+export interface ExtensionCommandEngine {
+  execute<TResult>(
+    command: { type: string; documentId?: number; params: unknown },
+    options?: { requestId?: string },
+  ): Promise<TResult>;
+}
+
+/** Extension 진입점. (ARCHITECTURE §16) */
+export interface PhotoshopMcpExtension {
+  activate(context: ExtensionContext): Promise<void> | void;
+  deactivate?(): Promise<void> | void;
+}

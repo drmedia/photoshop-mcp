@@ -1,4 +1,8 @@
-import type { CreatePhotoshopMcpOptions, PhotoshopMcp } from "@photoshop-mcp/mcp-core";
+import type {
+  CreatePhotoshopMcpOptions,
+  LoadedExtension,
+  PhotoshopMcp,
+} from "@photoshop-mcp/mcp-core";
 import { createPhotoshopMcp } from "@photoshop-mcp/mcp-core";
 import type { BridgeTransport, ConnectionState } from "@photoshop-mcp/photoshop-bridge";
 import {
@@ -26,6 +30,16 @@ export interface StartOptions extends CreatePhotoshopMcpOptions {
   /** Bridge 연결 상태 변화 알림. */
   onBridgeStateChange?: (state: ConnectionState) => void;
   /**
+   * Extension 을 훑을 디렉터리. (ROADMAP §9.2)
+   *
+   * 생략하면 Extension 을 적재하지 않는다. 디렉터리가 없어도 오류가 아니다.
+   * 하나가 잘못되어도 나머지 Extension 과 서버는 계속 기동한다.
+   *
+   * 서버가 Tool 목록을 노출하기 전에 적재하므로, Extension 의 Tool 도
+   * 첫 `tools/list` 응답에 포함된다.
+   */
+  extensionsDir?: string;
+  /**
    * 사용할 transport. 생략하면 stdio 를 사용한다.
    * 테스트에서 in-memory transport 를 주입할 때 사용한다.
    */
@@ -36,6 +50,8 @@ export interface StartOptions extends CreatePhotoshopMcpOptions {
 export interface StartedPhotoshopMcp extends PhotoshopMcp {
   /** `uxp` 모드에서만 존재한다. `mock` 모드면 `null`. */
   bridgeTransport: BridgeTransport | null;
+  /** 적재에 성공한 Extension. `extensionsDir` 를 주지 않았으면 빈 배열. */
+  loadedExtensions: LoadedExtension[];
   /** MCP 서버와 Bridge 전송을 함께 정지한다. */
   stop(): Promise<void>;
 }
@@ -49,7 +65,14 @@ export interface StartedPhotoshopMcp extends PhotoshopMcp {
 export async function startPhotoshopMcpServer(
   options: StartOptions = {},
 ): Promise<StartedPhotoshopMcp> {
-  const { mode = "uxp", port, onBridgeStateChange, transport, ...coreOptions } = options;
+  const {
+    mode = "uxp",
+    port,
+    onBridgeStateChange,
+    transport,
+    extensionsDir,
+    ...coreOptions
+  } = options;
 
   let bridgeTransport: BridgeTransport | null = null;
   let bridge = coreOptions.bridge;
@@ -71,6 +94,10 @@ export async function startPhotoshopMcpServer(
 
   const mcp = createPhotoshopMcp({ ...coreOptions, bridge });
 
+  // Tool 목록을 노출하기 전에 적재한다.
+  const loadedExtensions =
+    extensionsDir === undefined ? [] : await mcp.extensions.loadAll(extensionsDir);
+
   try {
     await mcp.server.start(transport);
   } catch (error) {
@@ -81,8 +108,12 @@ export async function startPhotoshopMcpServer(
   return {
     ...mcp,
     bridgeTransport,
+    loadedExtensions,
     stop: async () => {
       await mcp.server.stop();
+      for (const extension of loadedExtensions) {
+        await mcp.extensions.unload(extension.manifest.namespace);
+      }
       await bridgeTransport?.stop();
     },
   };

@@ -1,5 +1,18 @@
 export type { PhotoshopBridge } from "./bridge.js";
 export {
+  ExtensionManifestSchema,
+  NamespaceSchema,
+  PermissionSchema,
+  RESERVED_NAMESPACES,
+  type ExtensionCommandEngine,
+  type ExtensionContext,
+  type ExtensionManifest,
+  type ExtensionToolRegistry,
+  type Logger,
+  type Permission,
+  type PhotoshopMcpExtension,
+} from "./extension.js";
+export {
   DEFAULT_MOCK_DOCUMENT,
   DEFAULT_MOCK_LAYERS,
   MockPhotoshopBridge,

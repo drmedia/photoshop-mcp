@@ -2,8 +2,9 @@
 
 Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입니다.
 
-> **현재 상태: Phase 4 (Extended Photoshop Tools) 완료.**
-> 실제 Photoshop 27.8 에서 레이어 편집·그룹·Undo·조정 레이어·마스크·선택·필터가 동작합니다.
+> **현재 상태: Phase 5 (Extension SDK) 완료.**
+> Core Tool 25개가 실제 Photoshop 27.8 에서 동작하고, `extensions/` 에 디렉터리를 추가하는
+> 것만으로 Core 수정 없이 Tool 을 늘릴 수 있습니다.
 > 문서 저장은 UXP 샌드박스 제약으로 Phase 9 (Permission System) 로 이관했습니다.
 
 ## 빠른 시작
@@ -42,7 +43,7 @@ npm run format
 
 ## 지금 동작하는 것
 
-MCP Tool 3개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
+Core Tool 25개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
 
 **조회**
 
@@ -165,7 +166,7 @@ mcp-server → mcp-core → photoshop-tools → command-engine → photoshop-bri
 | `packages/photoshop-tools` | Photoshop Core Tool / Command 정의 | command-engine, photoshop-bridge |
 | `packages/mcp-core` | `PhotoshopMcpServer`, `createPhotoshopMcp()`. **라이브러리 (bin 없음)** | photoshop-tools, command-engine, photoshop-bridge |
 | `packages/mcp-server` | 실행 진입점 `bin/photoshop-mcp` | mcp-core |
-| `packages/extension-sdk` | Extension 용 Core public API 표면 | command-engine, photoshop-bridge |
+| `packages/extension-sdk` | Extension 용 Core public API 표면 | photoshop-tools, command-engine, photoshop-bridge |
 
 `ToolDefinition` / `ToolRegistry` 는 contracts 계층에 있습니다. MCP 서버 구현과 Tool 정의가
 서로를 참조하지 않게 하기 위한 것입니다.
@@ -181,32 +182,38 @@ extensions → extension-sdk → Core public API
 그 밖에:
 
 - `photoshop-uxp/` — Photoshop UXP 플러그인. contracts 만 의존합니다 (Phase 2)
-- `extensions/example-extension/` — 예제 확장 (Phase 5)
+- `extensions/example-extension/` — 예제 확장. `example.hello`, `example.document_summary`
 - `tests/` — 단위/통합 테스트
+
+## Extension
+
+서버는 기동할 때 `extensions/` 를 한 단계 훑어 `<name>/extension.json` 을 찾아 적재합니다.
+`PHOTOSHOP_MCP_EXTENSIONS` 로 다른 디렉터리를 지정할 수 있습니다.
+
+Extension 은 자신의 namespace 로만 Tool 을 등록할 수 있습니다. `photoshop.*` 이나 다른
+Extension 의 namespace 를 쓰면 적재가 거부됩니다. 하나가 잘못되어도 나머지 Extension 과
+서버는 계속 기동합니다.
+
+작성법은 [`packages/extension-sdk/README.md`](packages/extension-sdk/README.md) 를 보세요.
 
 ## 문서
 
 - [아키텍처](docs/ARCHITECTURE.md)
 - [로드맵](docs/ROADMAP.md) — Phase 별 진행 상황
 - [프로토콜](docs/PROTOCOL.md) — Bridge 메시지 규약과 3단계 핸드셰이크
-- [확장 SDK](docs/EXTENSION_SDK.md) — Phase 5에서 작성
+- [확장 SDK](packages/extension-sdk/README.md) — Extension 작성법과 공개 API 표면
 
 ## 아직 없는 것
 
-Phase 2 범위 밖이라 의도적으로 구현하지 않았습니다.
+현재 Phase 범위 밖이라 의도적으로 구현하지 않았습니다.
 
-- 레이어 생성·복제·이름 변경·불투명도·그룹 (Phase 3)
-- 마스크·선택 영역·Curves·Levels·필터·저장 (Phase 4)
-- Extension Manifest / Manager / Context, namespace 검증, Permission 모델 (Phase 5)
-- MCP Resource, Event, Job 시스템
-- 레이어의 Opacity 와 Parent (Phase 3 에서 `LAYER_LIST` 에 추가)
+- destructive 명령(`layer.delete`, `flatten`)과 문서 저장 — Permission System 과 함께 (Phase 9)
+- Permission **강제** — manifest 의 `permissions` 는 선언만 받습니다 (Phase 9)
+- Capability Registry (Phase 8), MCP Resource (Phase 12), Event · Job 시스템
+- Extension 의 Command 등록 — Extension 은 Core Command 를 호출만 합니다
+- Extension hot reload — 서버 재시작 없이 다시 적재하는 기능은 없습니다
 - 임의 `batchPlay` descriptor 실행, 임의 JavaScript 실행 — **비목표**입니다 (ARCHITECTURE §23, §33)
 
-## 다음 단계 (Phase 3)
+## 다음 단계
 
-1. `LAYER_CREATE` · `LAYER_DUPLICATE` · `LAYER_RENAME` · `LAYER_SELECT`
-2. `LAYER_VISIBILITY` · `LAYER_OPACITY`
-3. `GROUP_CREATE` · `GROUP_MOVE_LAYER`
-4. `photoshop.history.undo`
-
-destructive 명령(`layer.delete`, `flatten`)은 Permission System 과 함께 이후 Phase 에 추가합니다.
+[docs/ROADMAP.md](docs/ROADMAP.md) 가 Phase 의 유일한 기준입니다.

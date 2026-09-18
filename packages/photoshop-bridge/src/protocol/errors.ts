@@ -32,6 +32,12 @@ export const ErrorCode = {
   PROTOCOL_ERROR: "PROTOCOL_ERROR",
   /** 되돌릴 History 항목이 없음. */
   HISTORY_EMPTY: "HISTORY_EMPTY",
+  /** Extension 을 적재할 수 없음. manifest 오류, 진입점 오류, activate 실패. */
+  EXTENSION_LOAD_FAILED: "EXTENSION_LOAD_FAILED",
+  /** namespace 가 예약되었거나 이미 사용 중임. */
+  EXTENSION_NAMESPACE_CONFLICT: "EXTENSION_NAMESPACE_CONFLICT",
+  /** Extension 이 자신의 namespace 밖에 Tool 을 등록하려 함. */
+  EXTENSION_NAMESPACE_VIOLATION: "EXTENSION_NAMESPACE_VIOLATION",
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

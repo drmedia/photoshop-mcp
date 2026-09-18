@@ -11,10 +11,15 @@ const RECONNECT_MAX_MS = 30_000;
 /**
  * 연결 수명 상태. PROTOCOL.md §7 의 상태 기계를 Plugin 쪽에서 본 것.
  *
+ * - `connecting` — 소켓을 만들고 open 을 기다린다
  * - `handshaking` — `hello` 를 보내고 `hello_ack` 를 기다린다
  * - `connected` — `hello_ack` 를 받고 `ready` 를 보냈다
+ * - `retrying` — 접속에 실패해 백오프 대기 중이다
+ *
+ * `retrying` 을 따로 둔 이유: 이 상태를 `connecting` 으로 두면 매번 즉시 실패하는
+ * 상황에서도 UI 가 "접속 중" 으로 보여 진단을 방해한다.
  */
-export type ClientState = "disconnected" | "connecting" | "handshaking" | "connected";
+export type ClientState = "disconnected" | "connecting" | "handshaking" | "connected" | "retrying";
 
 export interface BridgeClientOptions {
   url: string;
@@ -50,6 +55,8 @@ export class BridgeClient {
   private reconnectDelayMs = RECONNECT_INITIAL_MS;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private stopped = true;
+  private lastErrorMessage: string | null = null;
+  private nextRetryMs = 0;
 
   constructor(options: BridgeClientOptions) {
     this.options = options;
@@ -57,6 +64,21 @@ export class BridgeClient {
 
   get state(): ClientState {
     return this.currentState;
+  }
+
+  /** 마지막 접속 실패 사유. 패널에 노출해 UDT 콘솔 없이도 원인을 알 수 있게 한다. */
+  get lastError(): string | null {
+    return this.lastErrorMessage;
+  }
+
+  /** `retrying` 상태에서 다음 재시도까지 남은 대기(ms). */
+  get retryDelayMs(): number {
+    return this.nextRetryMs;
+  }
+
+  /** 접속 대상 URL. */
+  get url(): string {
+    return this.options.url;
   }
 
   /** 접속을 시작한다. 실패하면 백오프 후 재시도한다. */
@@ -86,33 +108,55 @@ export class BridgeClient {
     try {
       socket = new WebSocket(this.options.url);
     } catch (error) {
-      this.log(`접속 실패: ${describe(error)}`);
+      // UXP 가 network 권한을 거부하면 생성자에서 던진다.
+      // 조용히 재시도하면 원인을 알 수 없으므로 사유를 남긴다.
+      this.lastErrorMessage = describe(error);
+      this.log(`WebSocket 생성 실패 (${this.options.url}): ${this.lastErrorMessage}`);
       this.scheduleReconnect();
       return;
     }
     this.socket = socket;
 
-    socket.onopen = (): void => {
+    listen(socket, "open", () => {
+      this.lastErrorMessage = null;
       this.setState("handshaking");
       this.sendHello(socket);
-    };
+    });
 
-    socket.onmessage = (event: MessageEvent): void => {
-      void this.handleFrame(socket, String(event.data));
-    };
+    listen(socket, "message", (event) => {
+      void this.handleFrame(socket, String((event as MessageEvent).data));
+    });
 
-    socket.onerror = (): void => {
-      this.log("WebSocket 오류");
-    };
+    listen(socket, "error", () => {
+      this.lastErrorMessage = `WebSocket 오류 (${this.options.url})`;
+      this.log(this.lastErrorMessage);
+      // UXP 는 error 뒤에 close 를 보내지 않을 수 있다.
+      // close 만 믿고 기다리면 connecting 상태로 영구히 멈춘다.
+      this.failCurrent(socket);
+    });
 
-    socket.onclose = (): void => {
-      if (this.socket !== socket) {
-        return;
-      }
-      this.socket = null;
-      this.setState("disconnected");
-      this.scheduleReconnect();
-    };
+    listen(socket, "close", () => {
+      this.failCurrent(socket);
+    });
+  }
+
+  /**
+   * 현재 소켓을 실패 처리하고 재접속을 예약한다.
+   *
+   * `error` 와 `close` 양쪽에서 호출되며, 둘 다 오더라도 한 번만 동작한다.
+   */
+  private failCurrent(socket: WebSocket): void {
+    if (this.socket !== socket) {
+      return;
+    }
+    this.socket = null;
+    try {
+      socket.close();
+    } catch {
+      // 이미 닫혔거나 닫을 수 없는 상태면 무시한다.
+    }
+    this.setState("disconnected");
+    this.scheduleReconnect();
   }
 
   /** 1단계. */
@@ -222,6 +266,8 @@ export class BridgeClient {
       return;
     }
     const delay = this.reconnectDelayMs;
+    this.nextRetryMs = delay;
+    this.setState("retrying");
     this.log(`${delay}ms 후 재접속`);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
@@ -247,6 +293,28 @@ export class BridgeClient {
 
   private log(message: string): void {
     this.options.log?.(message);
+  }
+}
+
+/**
+ * 이벤트 핸들러를 등록한다.
+ *
+ * UXP 에서는 `socket.onopen = ...` 프로퍼티 할당이 동작하는 것이 확인된 방식이므로
+ * 그쪽을 우선한다. 프로퍼티를 받지 않는 구현을 위해 `addEventListener` 로 대체한다.
+ * 둘 다 등록하면 중복 호출되므로 하나만 쓴다.
+ */
+function listen(socket: WebSocket, type: string, handler: (event: Event) => void): void {
+  const target = socket as unknown as {
+    addEventListener?: (type: string, handler: (event: Event) => void) => void;
+  } & Record<string, unknown>;
+
+  const property = `on${type}`;
+  target[property] = handler;
+  if (target[property] === handler) {
+    return;
+  }
+  if (typeof target.addEventListener === "function") {
+    target.addEventListener(type, handler);
   }
 }
 

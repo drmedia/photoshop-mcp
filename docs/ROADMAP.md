@@ -448,12 +448,12 @@ photoshop-uxp/
 
 구현:
 
-- [ ] manifest
-- [ ] plugin bootstrap
-- [ ] WebSocket Client
+- [x] manifest
+- [x] plugin bootstrap
+- [x] WebSocket Client
 - [x] Command Dispatcher
-- [ ] Response Sender
-- [ ] Connection Status UI
+- [x] Response Sender
+- [x] Connection Status UI
 
 ---
 

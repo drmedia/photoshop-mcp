@@ -1,7 +1,8 @@
-import { app, core, type PhotoshopDocument } from "photoshop";
+import { app, type PhotoshopDocument } from "photoshop";
 import type { DocumentInfo } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { toBitDepth, toColorMode } from "./mappings.js";
+import { runModal } from "./modal.js";
 
 /**
  * `DOCUMENT_GET` — 활성 문서 정보. (PROTOCOL.md §4)
@@ -9,9 +10,7 @@ import { toBitDepth, toColorMode } from "./mappings.js";
  * Photoshop DOM API 를 사용한다. batchPlay 를 쓰지 않는다. (ARCHITECTURE §13)
  */
 export async function documentGet(): Promise<DocumentInfo> {
-  return core.executeAsModal(async () => toDocumentInfo(requireActiveDocument()), {
-    commandName: "Get document info",
-  });
+  return runModal("Get document info", () => toDocumentInfo(requireActiveDocument()));
 }
 
 /** 활성 문서를 반환한다. 없으면 `DOCUMENT_NOT_FOUND`. */

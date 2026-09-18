@@ -12,15 +12,15 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 ## 현재 상태
 
-**Phase 2 (Photoshop Bridge) 구현 완료, Photoshop 실기 검증 대기.**
+**Phase 2 (Photoshop Bridge) 완료.** 실제 Photoshop 27.8 에서 검증했다.
 
 - Tool: `photoshop.ping`, `photoshop.document.get`, `photoshop.layer.list`
 - Bridge: `MockPhotoshopBridge` (Photoshop 불필요) / `UXPPhotoshopBridge` (WebSocket + UXP)
-- 미검증: Photoshop DOM 호출부, manifest, 패널, UXP WebSocket 클라이언트
+- 미검증: `bitDepth` 매핑 (8비트 문서로만 확인)
 
-ROADMAP Phase 2 의 `manifest` · `plugin bootstrap` · `WebSocket Client` ·
-`Response Sender` · `Connection Status UI` 는 코드가 있지만 Photoshop 실기 확인이
-끝나지 않아 체크하지 않았다. 확인 후 체크한다.
+UXP 의 실기 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 정리되어 있다.
+특히 `manifestVersion` 은 **4 여야 하고**, `executeAsModal` 안에서 직접 throw 하면
+오류 코드를 잃는다. 바꾸기 전에 그 문서를 먼저 읽는다.
 
 다음 작업은 **Phase 3 (Basic Photoshop Editing)** 이다. Phase 3 이전 기능을 선행 구현하지 않는다.
 

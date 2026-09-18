@@ -55,18 +55,67 @@ Plugin → ready       Dispatcher 준비 완료 — 이 시점부터 Server 가 
 
 `ready` 는 Dispatcher 구성이 끝난 뒤에만 보냅니다. 패널의 상태 표시는 이 단계를 반영합니다.
 
+## UXP 제약 (실기 확인)
+
+Photoshop 27.8 에서 확인한 내용이다. 추측이 아니라 실기에서 드러난 제약이므로
+바꾸기 전에 반드시 재검증한다.
+
+### `manifestVersion` 은 4 여야 한다
+
+`manifestVersion: 5` 에서는 로컬 WebSocket 접속이 거부된다.
+
+```
+Permission denied to the url ws://127.0.0.1:8765. Manifest entry not found.
+```
+
+v5 는 network 권한 집행이 강화되어 `localhost` / `127.0.0.1` 을 허용하지 않는다.
+`domains` 에 어떤 형식을 넣어도(스킴 포함/미포함, 포트 포함/미포함) 통하지 않았다.
+
+### `domains` 는 스킴도 포트도 없는 호스트명
+
+```json
+"requiredPermissions": { "network": { "domains": ["localhost", "127.0.0.1"] } }
+```
+
+`"ws://127.0.0.1:8765"` 같은 전체 URL 형식은 매칭되지 않는다.
+
+### `executeAsModal` 은 오류 객체를 감싼다
+
+`core.executeAsModal()` 안에서 던진 오류는 Photoshop 이 다시 감싸 원래 타입과
+`code` 를 잃는다. `DispatchError("DOCUMENT_NOT_FOUND")` 가 `COMMAND_FAILED` 로
+뭉개졌다.
+
+그래서 `dom/modal.ts` 의 `runModal()` 은 오류를 던지지 않고 **값으로** 돌려받은 뒤
+modal 밖에서 다시 던진다. modal 안에서 직접 throw 하지 않는다.
+
+### `document.layers` 는 배열이 아니다
+
+배열 유사 컬렉션이라 `for...of` 하면 `TypeError: layers is not iterable` 이 난다.
+`dom/layers.ts` 의 `toArray()` 로 변환해서 쓴다.
+
+### 열거형 값이 문서와 다르다
+
+`DocumentMode` 는 `"RGBColorMode"` 형태를 반환한다(`"RGB"` 가 아니다).
+`dom/mappings.ts` 는 모르는 값을 예외 없이 처리하되, `colorMode` 는 원본을 보존한다.
+
+### 코드 변경은 Reload 가 아니라 Unload → Load
+
+UDT 의 `Reload` 는 변경된 `dist/` 를 반영하지 않는다. 반드시 `Unload` 후 `Load` 한다.
+
 ## 검증 상태
 
-| 항목 | 상태 |
-|---|---|
-| TypeScript 컴파일 | 통과 |
-| `CommandDispatcher` | 단위 테스트 통과 (Photoshop 무관) |
-| `dom/mappings.ts` | 단위 테스트 통과 (Photoshop 무관) |
-| 프로토콜 (서버 측) | 통합 테스트 통과 — 같은 프로토콜의 가짜 플러그인 사용 |
-| **Photoshop DOM 호출부** | **미검증.** Photoshop 실기 확인 필요 |
-| **manifest · 패널 · UXP WebSocket** | **미검증.** Photoshop 실기 확인 필요 |
+Photoshop 27.8 / UXP Developer Tool 실기 검증 완료.
 
-`dom/document.ts` 와 `dom/layers.ts` 가 사용하는 Photoshop API 와 `types/photoshop.d.ts` 의
-타입 선언은 Adobe 문서를 근거로 작성했으며 실제 Photoshop 에서 확인하지 않았습니다.
-열거형 값이 선언과 다를 수 있어 `dom/mappings.ts` 는 알 수 없는 값을 예외 없이
-안전한 기본값으로 떨어뜨립니다.
+| 항목 | 결과 |
+|---|---|
+| manifest UDT Load | 통과 |
+| panel entrypoint 생성 | 통과 |
+| WebSocket 연결 | 통과 |
+| 핸드셰이크 `hello → hello_ack → ready` | 통과 |
+| `photoshop.document.get` 실제 문서 | 통과 (`verify.psd` 3000×2000 RGB) |
+| `photoshop.layer.list` 실제 레이어 | 통과 (group · pixel · adjustment · smartObject 매핑 확인) |
+| 문서 없음 → `DOCUMENT_NOT_FOUND` | 통과 (`recoverable: true`) |
+| 연결 끊김 → 재연결 | 통과 (Unload/Load 사이클) |
+
+**미검증**: `bitDepth` 매핑. 8비트 문서로만 확인했다. 매핑 실패 시의 기본값도 `8` 이라
+실제 값인지 fallback 인지 구분되지 않는다. 16/32비트 문서로 확인이 필요하다.

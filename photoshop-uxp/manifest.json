@@ -1,5 +1,5 @@
 {
-  "manifestVersion": 5,
+  "manifestVersion": 4,
   "id": "com.photoshopmcp.plugin",
   "name": "Photoshop MCP",
   "version": "0.1.0",
@@ -33,7 +33,7 @@
   ],
   "requiredPermissions": {
     "network": {
-      "domains": ["ws://127.0.0.1:8765", "ws://localhost:8765"]
+      "domains": ["localhost", "127.0.0.1"]
     }
   }
 }

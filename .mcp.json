@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "photoshop": {
+      "command": "node",
+      "args": ["packages/mcp-server/bin/photoshop-mcp.js"],
+      "env": {
+        "PHOTOSHOP_MCP_BRIDGE": "uxp",
+        "PHOTOSHOP_MCP_PORT": "8765"
+      }
+    },
+    "photoshop-mock": {
+      "command": "node",
+      "args": ["packages/mcp-server/bin/photoshop-mcp.js"],
+      "env": {
+        "PHOTOSHOP_MCP_BRIDGE": "mock"
+      }
+    }
+  }
+}

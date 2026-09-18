@@ -25,6 +25,7 @@ const STATE_LABEL: Record<ClientState, string> = {
   connecting: "접속 중",
   handshaking: "핸드셰이크 중",
   connected: "연결됨",
+  retrying: "재시도 대기",
 };
 
 /** Command 등록. Command 추가 시 이 함수만 수정한다. (ARCHITECTURE §12) */
@@ -49,12 +50,24 @@ export function createClient(url: string = DEFAULT_URL): BridgeClient {
 }
 
 let statusElement: HTMLElement | null = null;
+let errorElement: HTMLElement | null = null;
 
 function renderState(state: ClientState): void {
   const label = STATE_LABEL[state];
-  console.log(`[photoshop-mcp] 상태: ${label}`);
+  const detail =
+    state === "retrying" ? `${label} (${Math.round(client.retryDelayMs / 1000)}초 후)` : label;
+
+  console.log(`[photoshop-mcp] 상태: ${detail}`);
+
   if (statusElement !== null) {
-    statusElement.textContent = label;
+    statusElement.textContent = detail;
+  }
+  // 접속 실패 사유를 패널에 그대로 노출한다.
+  // UXP Developer Tool 콘솔을 열지 않고도 원인을 확인할 수 있어야 한다.
+  if (errorElement !== null) {
+    const message = client.lastError;
+    errorElement.textContent = message ?? "";
+    errorElement.style.display = message === null ? "none" : "block";
   }
 }
 
@@ -66,10 +79,14 @@ export function mountPanel(root: HTMLElement): void {
     '<div style="padding:12px;font-family:sans-serif;font-size:12px">',
     '<div style="font-weight:600;margin-bottom:6px">Photoshop MCP</div>',
     '<div>Bridge: <span id="photoshop-mcp-state">-</span></div>',
-    `<div style="margin-top:6px;opacity:.7;font-size:11px">${DEFAULT_URL}</div>`,
+    `<div style="margin-top:6px;opacity:.7;font-size:11px">${client.url}</div>`,
+    '<div id="photoshop-mcp-error" style="margin-top:8px;padding:6px;',
+    "background:#4a1f1f;color:#ffb4b4;font-size:11px;",
+    'word-break:break-all;display:none"></div>',
     "</div>",
   ].join("");
   statusElement = root.querySelector("#photoshop-mcp-state");
+  errorElement = root.querySelector("#photoshop-mcp-error");
   renderState(client.state);
 }
 

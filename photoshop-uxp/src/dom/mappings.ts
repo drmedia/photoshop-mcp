@@ -42,26 +42,35 @@ export function toBitDepth(value: unknown): number {
 export function toColorMode(value: unknown): string {
   const raw = String(value);
   switch (raw.toLowerCase()) {
+    // 실기 확인: Photoshop 27.8 은 "RGBColorMode" 형태를 반환한다.
     case "rgb":
     case "rgbcolor":
+    case "rgbcolormode":
       return "RGB";
     case "cmyk":
     case "cmykcolor":
+    case "cmykcolormode":
       return "CMYK";
     case "grayscale":
     case "gray":
+    case "grayscalemode":
       return "Grayscale";
     case "lab":
     case "labcolor":
+    case "labcolormode":
       return "Lab";
     case "bitmap":
+    case "bitmapmode":
       return "Bitmap";
     case "indexed":
     case "indexedcolor":
+    case "indexedcolormode":
       return "Indexed";
     case "multichannel":
+    case "multichannelmode":
       return "Multichannel";
     case "duotone":
+    case "duotonemode":
       return "Duotone";
     default:
       return raw;

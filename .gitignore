@@ -3,3 +3,7 @@ dist/
 *.tsbuildinfo
 .DS_Store
 *.log
+
+# 수동 검증용 Photoshop 문서. 픽스처가 아니며 코드가 읽지 않는다.
+# 의도적으로 픽스처를 커밋할 때는 git add -f 를 쓴다.
+*.psd

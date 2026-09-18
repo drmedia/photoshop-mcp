@@ -2,9 +2,8 @@
 
 Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입니다.
 
-> **현재 상태: Phase 2 (Photoshop Bridge) 구현 완료, 실기 검증 대기.**
-> WebSocket Bridge · UXP 플러그인 · 실제 `DOCUMENT_GET` / `LAYER_LIST` 를 구현했습니다.
-> Photoshop DOM 호출부는 Photoshop 실기 확인이 필요합니다. 아래 [검증 상태](#검증-상태) 참고.
+> **현재 상태: Phase 2 (Photoshop Bridge) 완료.**
+> 실제 Photoshop 27.8 에서 문서·레이어 조회가 동작하는 것을 확인했습니다.
 
 ## 빠른 시작
 
@@ -88,18 +87,27 @@ PHOTOSHOP_MCP_BRIDGE=mock npm run dev    # Mock Bridge. Photoshop·플러그인 
 
 ## 검증 상태
 
+Photoshop 27.8 + UXP Developer Tool 실기 검증 완료.
+
 | 계층 | 상태 |
 |---|---|
-| MCP 서버 · Tool · Command Engine | 단위 + 통합 테스트 통과 |
-| `MockPhotoshopBridge` | 단위 테스트 통과 |
-| `WebSocketBridgeTransport` | 통합 테스트 통과 (3단계 핸드셰이크 · 요청/응답 · 타임아웃 · 끊김 · 재접속 · 버전 협상) |
-| `UXPPhotoshopBridge` | 통합 테스트 통과 (가짜 플러그인 대상) |
-| UXP `CommandDispatcher` · 열거형 매핑 | 단위 테스트 통과 |
-| **Photoshop DOM 호출부** | **미검증.** Photoshop 실기 확인 필요 |
-| **manifest · 패널 · UXP WebSocket 클라이언트** | **미검증.** Photoshop 실기 확인 필요 |
+| MCP 서버 · Tool · Command Engine | 단위 + 통합 테스트 |
+| `MockPhotoshopBridge` | 단위 테스트 |
+| `WebSocketBridgeTransport` | 통합 테스트 (핸드셰이크 · 타임아웃 · 끊김 · 재접속 · 버전 협상) |
+| `UXPPhotoshopBridge` | 통합 테스트 + **실기** |
+| UXP 플러그인 | **실기** — Load · 패널 · 연결 · 핸드셰이크 · 조회 · 오류 · 재연결 |
 
-통합 테스트는 PROTOCOL.md 를 구현한 가짜 UXP 플러그인을 실제 WebSocket 으로 붙여
-서버 측 전 구간을 검증합니다. Photoshop 런타임이 필요한 부분은 그 범위 밖입니다.
+실기 확인 결과 예시:
+
+```json
+{ "id": 128, "name": "verify.psd", "width": 3000, "height": 2000,
+  "bitDepth": 8, "colorMode": "RGB" }
+```
+
+문서를 모두 닫으면 `DOCUMENT_NOT_FOUND` (`recoverable: true`) 를 반환합니다.
+
+**미검증**: `bitDepth` 매핑은 8비트 문서로만 확인했습니다.
+자세한 UXP 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 를 참고하세요.
 
 ## 패키지 구성
 

@@ -90,7 +90,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (46개)
+## 4. 구현된 Core API (51개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -115,6 +115,7 @@ P3  확장 기능
 | `photoshop.layer.set_opacity` | EDIT | 0–100 |
 | `photoshop.layer.set_blend_mode` | EDIT | normal · multiply · screen · overlay · softLight 등 |
 | `photoshop.layer.from_background` | EDIT | 배경 → 일반 레이어. id 가 바뀐다 |
+| `photoshop.layer.stamp_visible` | EDIT | 보이는 레이어를 합친 복제본 |
 
 `layerId` 를 생략하면 활성 레이어를 대상으로 한다. 그것이 무엇인지는
 `photoshop.layer.get_active` 로 미리 확인한다.
@@ -150,6 +151,10 @@ P3  확장 기능
 | `photoshop.selection.sky` | EDIT | Photoshop 의 `선택 > 하늘` |
 | `photoshop.selection.clear` | EDIT | |
 | `photoshop.selection.invert` | EDIT | 선택이 없으면 실패한다 |
+| `photoshop.selection.modify` | EDIT | feather · expand · contract · smooth |
+| `photoshop.selection.color_range` | EDIT | 광도 구간 선택 (광도 마스크) |
+| `photoshop.selection.save_channel` | EDIT | 선택을 알파 채널로 저장 |
+| `photoshop.selection.load_channel` | EDIT | 채널에서 불러오기. `invert` 로 반전 |
 
 ### 4.6 필터
 
@@ -278,12 +283,7 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
 | `photoshop.selection.subject` | P1 | EDIT | `선택 > 피사체`. 아래 참조 |
-| `photoshop.selection.feather` | P2 | EDIT | 이미 만든 선택의 페더 조정 |
-| `photoshop.selection.expand` | P2 | EDIT | |
-| `photoshop.selection.contract` | P2 | EDIT | |
 | `photoshop.selection.from_layer` | P2 | EDIT | 레이어 투명도에서 |
-| `photoshop.selection.load_channel` | P2 | EDIT | |
-| `photoshop.selection.save_channel` | P2 | EDIT | |
 
 ### 5.5 Adjustment
 

@@ -1,5 +1,6 @@
 import type { CommandHandler } from "@photoshop-mcp/command-engine";
 import { z } from "zod";
+import { SelectionStateSchema, type SelectionState } from "./state-read.js";
 
 /**
  * Photoshop 의 자동 선택 명령 — `선택 > 하늘`.
@@ -20,25 +21,15 @@ export const SELECTION_SKY = "SELECTION_SKY";
 
 export const SelectionAutoParams = z.object({}).strict();
 
-export interface SelectionResult {
-  hasSelection: boolean;
-  /** 선택 영역의 경계. 선택이 없으면 `null`. */
-  bounds: { left: number; top: number; right: number; bottom: number } | null;
-}
-
-const ResultSchema = z.object({
-  hasSelection: z.boolean(),
-  bounds: z
-    .object({ left: z.number(), top: z.number(), right: z.number(), bottom: z.number() })
-    .nullable(),
-});
+// 선택 영역 상태는 `state-read` 에 이미 있다. 같은 모양을 두 번 적지 않는다.
+export type SelectionResult = SelectionState;
 
 function forward(): CommandHandler<Record<string, never>, SelectionResult> {
   return async (command, context) => {
     const raw = await context.bridge.executeCommand<unknown>(command);
     // 경계를 함께 돌려준다. 자동 선택은 **아무것도 못 찾을 수 있고**, 그때
     // hasSelection 만으로는 "하늘이 없는 사진" 인지 "실패" 인지 구분이 어렵다.
-    return ResultSchema.parse(raw);
+    return SelectionStateSchema.parse(raw);
   };
 }
 

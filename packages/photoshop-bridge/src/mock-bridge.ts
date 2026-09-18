@@ -4,6 +4,13 @@ import type { DocumentInfo, LayerInfo, PhotoshopCommand } from "./protocol/types
 import { withExtension, type SaveResult } from "./protocol/workspace.js";
 
 /** ROADMAP §5.5 의 기본 Mock 문서. */
+interface LayerBounds {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
 export const DEFAULT_MOCK_DOCUMENT: DocumentInfo = {
   id: 1,
   name: "test.psd",
@@ -97,6 +104,8 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   #layers: LayerInfo[];
   #pendingFailure: PhotoshopMcpError | null = null;
   #activeLayerId: number | null;
+  /** 저장된 알파 채널 이름. Mock 은 픽셀을 모르므로 이름만 기억한다. */
+  readonly #channels = new Set<string>();
   #nextLayerId: number;
   readonly #history: { name: string; layers: LayerInfo[]; activeLayerId: number | null }[] = [];
   #hasSelection = false;
@@ -244,18 +253,10 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         return this.#setMask(command.params as { layerId?: number }, false) as TResult;
       // 하늘 선택. Mock 은 픽셀을 모르므로 "문서 전체" 를 고른 것으로 흉내낸다.
       // 실제로는 지평선을 따라 잘리며, 하늘이 없으면 선택이 비어 hasSelection 이 false 다.
-      case "SELECTION_SKY": {
+      case "SELECTION_SKY":
         this.#snapshot("Select sky");
-        const document = this.#document;
-        this.#hasSelection = document !== null;
-        return {
-          hasSelection: this.#hasSelection,
-          bounds:
-            document === null
-              ? null
-              : { left: 0, top: 0, right: document.width, bottom: document.height },
-        } as TResult;
-      }
+        this.#hasSelection = this.#document !== null;
+        return this.#selectionState() as TResult;
       // 워크플로 공백 보완. (ROADMAP §17.8)
       case "ADJUSTMENT_COLOR_BALANCE":
         this.#snapshot("Color Balance");
@@ -284,6 +285,61 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       case "FILTER_MINIMUM_MAXIMUM":
         this.#snapshot("Minimum/Maximum");
         return this.#gaussianBlur(command.params as { layerId?: number }) as TResult;
+      // 선택 영역 조작. Mock 은 픽셀을 모르므로 유무와 채널 이름만 추적한다.
+      // 그래도 "선택이 없으면 실패" 같은 경로는 실제와 같아야 한다.
+      case "SELECTION_SAVE_CHANNEL": {
+        if (!this.#hasSelection) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "선택을 채널로 저장 하려면 선택 영역이 있어야 합니다.",
+            { recoverable: true },
+          );
+        }
+        const name = (command.params as { name: string }).name;
+        this.#channels.add(name);
+        return { name } as TResult;
+      }
+      case "SELECTION_LOAD_CHANNEL": {
+        const { name } = command.params as { name: string };
+        if (!this.#channels.has(name)) {
+          throw new PhotoshopMcpError(
+            ErrorCode.COMMAND_FAILED,
+            `채널 '${name}' 을 찾을 수 없습니다.`,
+            { recoverable: true, details: { name } },
+          );
+        }
+        this.#hasSelection = true;
+        return this.#selectionState() as TResult;
+      }
+      case "SELECTION_MODIFY":
+        if (!this.#hasSelection) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "선택을 다듬기 하려면 선택 영역이 있어야 합니다.",
+            { recoverable: true },
+          );
+        }
+        return this.#selectionState() as TResult;
+      case "SELECTION_COLOR_RANGE":
+        this.#snapshot("Color range");
+        this.#hasSelection = this.#document !== null;
+        return this.#selectionState() as TResult;
+      case "LAYER_STAMP_VISIBLE": {
+        this.#snapshot("Stamp visible");
+        const name = (command.params as { name?: string }).name;
+        const merged: LayerInfo = {
+          id: this.#nextLayerId++,
+          name: name ?? "병합본",
+          type: "pixel",
+          visible: true,
+          opacity: 100,
+          parentId: null,
+          blendMode: "normal",
+        };
+        this.#layers.unshift(merged);
+        this.#activeLayerId = merged.id;
+        return { ...merged } as TResult;
+      }
       case "SELECTION_CLEAR":
         this.#hasSelection = false;
         return { hasSelection: false } as TResult;
@@ -659,6 +715,19 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   }
 
   /** 조정 레이어를 만들어 맨 위에 넣는다. 실제 Photoshop 과 같은 위치다. */
+  /** 선택 영역 상태. 실제 Plugin 과 같은 모양으로 돌려준다. */
+  #selectionState(): { hasSelection: boolean; bounds: LayerBounds | null } {
+    const document = this.#document;
+    if (!this.#hasSelection || document === null) {
+      return { hasSelection: false, bounds: null };
+    }
+    // Mock 은 픽셀을 모르므로 문서 전체를 고른 것으로 본다.
+    return {
+      hasSelection: true,
+      bounds: { left: 0, top: 0, right: document.width, bottom: document.height },
+    };
+  }
+
   /** 선택 영역 유무를 바꾼다. 테스트에서 선택 상태를 만들 때 쓴다. */
   setSelection(present: boolean): void {
     this.#hasSelection = present;

@@ -93,10 +93,25 @@ import {
   LAYER_FROM_BACKGROUND,
   LayerFromBackgroundParams,
   MinimumMaximumParams,
+  ColorRangeParams,
+  LAYER_STAMP_VISIBLE,
+  LoadChannelParams,
+  SELECTION_COLOR_RANGE,
+  SELECTION_LOAD_CHANNEL,
+  SELECTION_MODIFY,
+  SELECTION_SAVE_CHANNEL,
+  SaveChannelParams,
+  SelectionModifyParams,
+  StampVisibleParams,
   adjustmentColorBalanceCommand,
   filterHighPassCommand,
   filterMinimumMaximumCommand,
   layerFromBackgroundCommand,
+  layerStampVisibleCommand,
+  selectionColorRangeCommand,
+  selectionLoadChannelCommand,
+  selectionModifyCommand,
+  selectionSaveChannelCommand,
 } from "./workflow-gaps.js";
 import { LAYER_LIST, layerListCommand } from "./layer-list.js";
 import { LAYER_PLACE, LayerPlaceParamsSchema, layerPlaceCommand } from "./layer-place.js";
@@ -176,6 +191,26 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(FILTER_MINIMUM_MAXIMUM, filterMinimumMaximumCommand, {
     permission: "edit",
     schema: MinimumMaximumParams,
+  });
+  registry.register(SELECTION_SAVE_CHANNEL, selectionSaveChannelCommand, {
+    permission: "edit",
+    schema: SaveChannelParams,
+  });
+  registry.register(SELECTION_LOAD_CHANNEL, selectionLoadChannelCommand, {
+    permission: "edit",
+    schema: LoadChannelParams,
+  });
+  registry.register(SELECTION_MODIFY, selectionModifyCommand, {
+    permission: "edit",
+    schema: SelectionModifyParams,
+  });
+  registry.register(SELECTION_COLOR_RANGE, selectionColorRangeCommand, {
+    permission: "edit",
+    schema: ColorRangeParams,
+  });
+  registry.register(LAYER_STAMP_VISIBLE, layerStampVisibleCommand, {
+    permission: "edit",
+    schema: StampVisibleParams,
   });
 
   // Phase 3 — 레이어 편집 (비파괴)

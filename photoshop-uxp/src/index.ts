@@ -45,6 +45,13 @@ import {
 } from "./dom/layer-edit.js";
 import { layerGetActive, layerList } from "./dom/layers.js";
 import { selectionSky } from "./dom/selection-auto.js";
+import {
+  layerStampVisible,
+  selectionColorRange,
+  selectionLoadChannel,
+  selectionModify,
+  selectionSaveChannel,
+} from "./dom/selection-ops.js";
 import { startNotifications } from "./dom/notifications.js";
 import { historyList, selectionGet } from "./dom/state-read.js";
 import { workspaceDelete, workspaceUsage } from "./dom/workspace-files.js";
@@ -75,6 +82,21 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("LAYER_LIST", async () => layerList());
   dispatcher.register("LAYER_GET_ACTIVE", async () => layerGetActive());
   dispatcher.register("SELECTION_SKY", async () => selectionSky());
+  dispatcher.register("SELECTION_SAVE_CHANNEL", async (p) =>
+    selectionSaveChannel(p as { name: string }),
+  );
+  dispatcher.register("SELECTION_LOAD_CHANNEL", async (p) =>
+    selectionLoadChannel(p as { name: string; invert?: boolean }),
+  );
+  dispatcher.register("SELECTION_MODIFY", async (p) =>
+    selectionModify(p as Parameters<typeof selectionModify>[0]),
+  );
+  dispatcher.register("SELECTION_COLOR_RANGE", async (p) =>
+    selectionColorRange(p as Parameters<typeof selectionColorRange>[0]),
+  );
+  dispatcher.register("LAYER_STAMP_VISIBLE", async (p) =>
+    layerStampVisible(p as { name?: string }),
+  );
   dispatcher.register("LAYER_FROM_BACKGROUND", async (p) =>
     layerFromBackground(p as { name?: string }),
   );

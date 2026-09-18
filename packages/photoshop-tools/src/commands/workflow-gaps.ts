@@ -1,6 +1,8 @@
 import type { CommandHandler } from "@photoshop-mcp/command-engine";
 import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { z } from "zod";
+// 선택 영역 상태는 이미 정의되어 있다. 같은 모양을 두 번 적지 않는다.
+import type { SelectionState } from "./state-read.js";
 
 /**
  * 실제 편집 워크플로를 시험하다 드러난 공백. (ROADMAP §17.8)
@@ -81,3 +83,63 @@ export const adjustmentColorBalanceCommand = forward<z.infer<typeof ColorBalance
 export const layerFromBackgroundCommand = forward<z.infer<typeof LayerFromBackgroundParams>>();
 export const filterHighPassCommand = forward<z.infer<typeof HighPassParams>>();
 export const filterMinimumMaximumCommand = forward<z.infer<typeof MinimumMaximumParams>>();
+
+export const SELECTION_SAVE_CHANNEL = "SELECTION_SAVE_CHANNEL";
+export const SELECTION_LOAD_CHANNEL = "SELECTION_LOAD_CHANNEL";
+export const SELECTION_MODIFY = "SELECTION_MODIFY";
+export const SELECTION_COLOR_RANGE = "SELECTION_COLOR_RANGE";
+export const LAYER_STAMP_VISIBLE = "LAYER_STAMP_VISIBLE";
+
+/** 알파 채널 이름. 경로 구분자를 막을 이유는 없지만 길이는 제한한다. */
+const ChannelName = z.string().trim().min(1).max(64);
+
+export const SaveChannelParams = z.object({ name: ChannelName }).strict();
+export const LoadChannelParams = z
+  .object({
+    name: ChannelName,
+    /** 불러오면서 반전한다. 하늘 채널 하나로 전경까지 얻을 수 있다. */
+    invert: z.boolean().optional(),
+  })
+  .strict();
+
+export const SelectionModifyParams = z
+  .object({
+    operation: z.enum(["feather", "expand", "contract", "smooth"]),
+    /** 픽셀. feather 는 0.1–1000, 나머지는 1–500 이 Photoshop 의 범위다. */
+    radius: z.number().min(0.1).max(1000),
+  })
+  .strict();
+
+export const ColorRangeParams = z
+  .object({
+    range: z.enum(["highlights", "midtones", "shadows"]),
+    /** 경계의 너그러움 0–200. 크면 더 넓게 잡힌다. */
+    fuzziness: z.number().int().min(0).max(200).optional(),
+  })
+  .strict();
+
+export const StampVisibleParams = z
+  .object({ name: z.string().trim().min(1).max(255).optional() })
+  .strict();
+
+function forwardAny<TParams, TResult>(): CommandHandler<TParams, TResult> {
+  return async (command, context) => context.bridge.executeCommand<TResult>(command);
+}
+
+export const selectionSaveChannelCommand = forwardAny<
+  z.infer<typeof SaveChannelParams>,
+  { name: string }
+>();
+export const selectionLoadChannelCommand = forwardAny<
+  z.infer<typeof LoadChannelParams>,
+  SelectionState
+>();
+export const selectionModifyCommand = forwardAny<
+  z.infer<typeof SelectionModifyParams>,
+  SelectionState
+>();
+export const selectionColorRangeCommand = forwardAny<
+  z.infer<typeof ColorRangeParams>,
+  SelectionState
+>();
+export const layerStampVisibleCommand = forwardAny<z.infer<typeof StampVisibleParams>, LayerInfo>();

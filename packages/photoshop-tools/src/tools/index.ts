@@ -46,9 +46,14 @@ import { createLayerGetActiveTool } from "./layer-active.js";
 import { createSelectionSkyTool } from "./selection-auto.js";
 import {
   createColorBalanceTool,
+  createColorRangeTool,
   createHighPassTool,
   createLayerFromBackgroundTool,
+  createLoadChannelTool,
   createMinimumMaximumTool,
+  createSaveChannelTool,
+  createSelectionModifyTool,
+  createStampVisibleTool,
 } from "./workflow-gaps.js";
 import { createLayerListTool } from "./layer-list.js";
 import { createLayerPlaceTool } from "./layer-place.js";
@@ -93,6 +98,11 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createColorBalanceTool(engine));
   registry.register(createHighPassTool(engine));
   registry.register(createMinimumMaximumTool(engine));
+  registry.register(createSaveChannelTool(engine));
+  registry.register(createLoadChannelTool(engine));
+  registry.register(createSelectionModifyTool(engine));
+  registry.register(createColorRangeTool(engine));
+  registry.register(createStampVisibleTool(engine));
 
   // Phase 3 — 레이어 편집 (비파괴)
   registry.register(createLayerCreateTool(engine));

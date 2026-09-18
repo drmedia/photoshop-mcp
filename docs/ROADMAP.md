@@ -2217,17 +2217,50 @@ selection.sky → color_balance            하늘에만 적용 (bounds bottom 45
 수준이라 무엇을 왜 넣어야 하는지 알려주지 못한다. 문제는 "호출자가 고르지 않았다"
 가 아니라 "기본값이 놀라운 일을 한다" 였다.
 
-## 아직 남은 워크플로 공백
+## 남은 공백도 마저 채웠다
 
-| 단계 | 필요한 것 |
+| 워크플로 단계 | 추가한 Tool |
 |---|---|
-| 5 · 6 | `selection.save_channel` / `load_channel` |
-| 9 | 그라디언트 마스크 |
-| 10 | 색상 범위 · 광도 선택 |
-| 12 | 병합본 복제(stamp visible) |
-| 20 | `selection.feather` — 이미 만든 선택의 페더 조정 |
+| 5 · 6 (선택 저장/불러오기) | `selection.save_channel` · `selection.load_channel` |
+| 20 (경계 다듬기) | `selection.modify` — feather · expand · contract · smooth |
+| 10 (광도 마스크) | `selection.color_range` — highlights · midtones · shadows |
+| 12 (병합본) | `layer.stamp_visible` |
 
-`selection.set` 의 `feather` 로 만들 때 페더는 되지만 나중에 조정할 수는 없다.
+`load_channel` 의 `invert` 는 **채널 하나로 전경까지 얻게** 한다. 하늘을 저장해 두면
+반전해서 불러오는 것만으로 전경 선택이 된다 — 채널을 둘 만들 필요가 없다.
+
+실기 확인:
+
+```text
+selection.sky → save_channel("Sky")            {"name":"Sky"}
+clear → load_channel("Sky")                    bounds 0–4497  (하늘)
+modify(feather 30)                             bounds 0–4515  (경계가 번진 만큼 넓어짐)
+load_channel("Sky", invert)                    bounds 3862–6048 (전경)
+color_range(midtones)                          bounds 134–4271
+stamp_visible                                  22:"Merged"(pixel)
+```
+
+### 두 가지는 실패처럼 보였지만 정상이었다
+
+`color_range(highlights)` 가 `hasSelection: false` 를 돌려줬다. descriptor 문제가
+아니라 **어두운 야경에 highlights 가 실제로 없어서**다. fuzziness 를 200 까지 올려도
+같다. 해당 픽셀이 없으면 비는 것이 맞고, 오류가 아니라는 것을 설명에 적었다.
+
+`stamp_visible` 이 `"보이는 레이어 병합" 명령은 현재 사용할 수 없습니다` 로 실패했다.
+보이는 레이어가 하나뿐이면 Photoshop 이 막는다. 원문으로는 왜인지 알 수 없으므로
+먼저 세어 보고 안내한다.
+
+```text
+❌ 보이는 레이어가 1장뿐이라 병합할 것이 없습니다. 2장 이상이어야 합니다
+   — 합칠 필요가 없으면 layer.duplicate 를 쓰세요.
+```
+
+## 아직 없는 것
+
+그라디언트 마스크(9단계)뿐이다. 지평선 쪽만 서서히 밝기를 낮추는 작업인데, 마스크
+채널에 그라디언트를 그려야 해서 지금까지의 것들과 성격이 다르다. 필요가 확인되면 연다.
+
+Core Tool 51개.
 
 ---
 

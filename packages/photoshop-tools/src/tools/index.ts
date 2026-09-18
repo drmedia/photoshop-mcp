@@ -27,6 +27,7 @@ import {
   createLayerVisibilityTool,
 } from "./layer-edit.js";
 import { createCapabilityListTool, type CapabilityLister } from "./capability.js";
+import { createEventRecentTool, type EventReader } from "./event.js";
 import { createWorkflowListTool, createWorkflowRunTool, type WorkflowRunner } from "./workflow.js";
 import {
   createJobCancelTool,
@@ -54,6 +55,7 @@ export * from "./adjustment.js";
 export * from "./filter.js";
 export * from "./capability.js";
 export * from "./job.js";
+export * from "./event.js";
 export * from "./workflow.js";
 export * from "./document-save.js";
 export * from "./layer-place.js";
@@ -144,6 +146,11 @@ export function registerJobTools(registry: ToolRegistry, jobs: JobReader): void 
   registry.register(createJobStatusTool(jobs));
   registry.register(createJobListTool(jobs));
   registry.register(createJobCancelTool(jobs));
+}
+
+/** 이벤트 조회 Tool 을 등록한다. (ROADMAP §15) */
+export function registerEventTools(registry: ToolRegistry, events: EventReader): void {
+  registry.register(createEventRecentTool(events));
 }
 
 /** 워크플로 Tool 을 등록한다. (ROADMAP §11) */

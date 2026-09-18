@@ -16,6 +16,17 @@ export {
 } from "./capability.js";
 export { assertConfigConsistent, buildArgs, placeholdersIn } from "./capability-args.js";
 export {
+  COMMAND_COMPLETED,
+  COMMAND_FAILED,
+  COMMAND_STARTED,
+  EventNameSchema,
+  PHOTOSHOP_UNKNOWN,
+  type EventQuery,
+  type EventRecord,
+  type ExtensionEventBus,
+  type Unsubscribe,
+} from "./event.js";
+export {
   WorkflowConfigSchema,
   WorkflowDefinitionSchema,
   WorkflowIdSchema,

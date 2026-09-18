@@ -152,6 +152,23 @@ declare module "photoshop" {
       descriptors: readonly Record<string, unknown>[],
       options: Record<string, unknown>,
     ): Promise<Record<string, unknown>[]>;
+
+    /**
+     * Photoshop 동작 알림을 구독한다. (ARCHITECTURE §21)
+     *
+     * 이름은 batchPlay 액션 이름이다 — `make` · `delete` · `set`.
+     * 콜백은 그 액션의 descriptor 를 함께 받는다.
+     */
+    addNotificationListener(
+      events: readonly { event: string }[],
+      listener: (event: string, descriptor: Record<string, unknown>) => void,
+    ): Promise<void>;
+
+    /** 구독을 해제한다. 일부 UXP 버전에는 없다. */
+    removeNotificationListener?(
+      events: readonly { event: string }[],
+      listener: (event: string, descriptor: Record<string, unknown>) => void,
+    ): void;
   }
 
   export const action: PhotoshopAction;

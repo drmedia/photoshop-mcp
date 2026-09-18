@@ -254,6 +254,24 @@ export class BridgeClient {
     }
   }
 
+  /**
+   * 이벤트를 보낸다. (PROTOCOL.md §5)
+   *
+   * 응답을 기다리지 않는다. 연결이 없으면 **버린다** — 이벤트는 지금 일어난 일이고
+   * 나중에 연결됐을 때 밀어 넣으면 순서가 뒤엉킨다.
+   */
+  sendEvent(event: string, payload: unknown): void {
+    const socket = this.socket;
+    if (socket === null || this.state !== "connected") {
+      return;
+    }
+    try {
+      socket.send(JSON.stringify({ type: "event", event, payload }));
+    } catch {
+      // 전송 실패는 무시한다. 이벤트 때문에 연결을 끊지 않는다.
+    }
+  }
+
   private send(socket: WebSocket, message: HelloMessage | ReadyMessage | ResponseMessage): void {
     if (socket.readyState !== 1 /* OPEN */) {
       return;

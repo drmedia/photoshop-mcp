@@ -42,6 +42,7 @@ import {
   layerVisibility,
 } from "./dom/layer-edit.js";
 import { layerList } from "./dom/layers.js";
+import { startNotifications } from "./dom/notifications.js";
 import { layerPlace } from "./dom/place.js";
 import { documentExport, documentSave, documentSaveAs } from "./dom/save.js";
 import { approveFolder, revokeFolder, workspaceStatus } from "./dom/workspace.js";
@@ -183,6 +184,11 @@ function renderState(state: ClientState): void {
     state === "retrying" ? `${label} (${Math.round(client.retryDelayMs / 1000)}초 후)` : label;
 
   console.log(`[photoshop-mcp] 상태: ${detail}`);
+
+  // 연결되면 구독 상태를 다시 보낸다. 로드 시점에는 보낼 곳이 없었다.
+  if (state === "connected" && notificationStatus !== null) {
+    client.sendEvent(notificationStatus.event, notificationStatus.payload);
+  }
 
   if (statusElement !== null) {
     // URL 을 같은 줄에 합친다. 도킹된 패널은 줄 하나가 아깝다.
@@ -344,5 +350,32 @@ entrypoints.setup({
 
 // 플러그인이 로드되면 패널을 열지 않아도 접속을 유지한다.
 client.start();
+
+/**
+ * 알림 구독 상태. 연결되면 서버로 보낸다.
+ *
+ * 구독은 플러그인 로드 직후 실행되는데 그때는 아직 WebSocket 연결 전이다.
+ * 그대로 보내면 버려지고, 왜 알림이 안 오는지 알 수 없게 된다.
+ */
+let notificationStatus: { event: string; payload: unknown } | null = null;
+
+// Photoshop 동작 알림을 서버로 흘린다. (ROADMAP §15)
+// 실패해도 Bridge 는 계속 동작해야 하므로 감싼다 — 알림은 부가 기능이다.
+try {
+  startNotifications((event, payload) => {
+    if (event.startsWith("photoshop.notifications.")) {
+      notificationStatus = { event, payload };
+      client.sendEvent(event, payload);
+      return;
+    }
+    client.sendEvent(event, payload);
+  });
+} catch (error) {
+  notificationStatus = {
+    event: "photoshop.notifications.unavailable",
+    payload: { reason: describeError(error), phase: "startup" },
+  };
+  console.error(`[photoshop-mcp] 알림 구독 실패: ${describeError(error)}`);
+}
 
 export { client };

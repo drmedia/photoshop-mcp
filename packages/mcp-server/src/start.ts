@@ -95,14 +95,20 @@ export async function startPhotoshopMcpServer(
 
   let bridgeTransport: BridgeTransport | null = null;
   let bridge = coreOptions.bridge;
+  let pendingEvents: ((event: string, payload: unknown) => void) | null = null;
 
   if (bridge === undefined) {
     if (mode === "mock") {
       bridge = new MockPhotoshopBridge();
     } else {
+      // Plugin 이 보낸 이벤트를 받아둘 곳. Core 를 아직 조립하지 않았으므로
+      // 나중에 채워 넣는다. 그 전에 온 이벤트는 버린다 — 받을 곳이 없다.
       const wsTransport = new WebSocketBridgeTransport({
         port: port ?? DEFAULT_PORT,
         ...(onBridgeStateChange === undefined ? {} : { onStateChange: onBridgeStateChange }),
+        onEvent: (event, payload) => {
+          pendingEvents?.(event, payload);
+        },
       });
       // Photoshop 이 실행 중이 아니어도 수신 대기는 시작한다. (PROTOCOL.md §1)
       await wsTransport.start();
@@ -112,6 +118,12 @@ export async function startPhotoshopMcpServer(
   }
 
   const mcp = createPhotoshopMcp({ ...coreOptions, bridge });
+
+  // 이제 받을 곳이 생겼다. 이름 해석은 EventBus 가 한다 —
+  // 전송 계층은 이벤트의 의미를 알지 못한다.
+  pendingEvents = (event, payload) => {
+    mcp.events.emitFromPlugin(event, payload);
+  };
 
   // Extension 이 Capability 를 쓸 수 있으려면 먼저 등록되어 있어야 한다.
   const loadedProviders =

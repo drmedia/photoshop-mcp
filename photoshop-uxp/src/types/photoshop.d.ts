@@ -51,6 +51,13 @@ declare module "photoshop" {
     /** 새 픽셀 레이어를 만든다. **비동기다.** */
     createLayer(options?: { name?: string; opacity?: number }): Promise<PhotoshopLayer>;
 
+    /** 파일로 저장한다. 전부 비동기다. */
+    readonly saveAs: {
+      psd(entry: unknown, options?: Record<string, unknown>): Promise<void>;
+      png(entry: unknown, options?: Record<string, unknown>): Promise<void>;
+      jpg(entry: unknown, options?: { quality?: number }): Promise<void>;
+    };
+
     /** 레이어 그룹을 만든다. **비동기다.** */
     createLayerGroup(options?: {
       name?: string;
@@ -129,5 +136,12 @@ declare module "uxp" {
   export const entrypoints: {
     setup(config: Record<string, unknown>): void;
   };
-  export const storage: unknown;
+  export interface LocalFileSystem {
+    /** 기존 파일/폴더를 `file:` URL 로 연다. 없으면 예외를 던진다. */
+    getEntryWithUrl(url: string): Promise<unknown>;
+    /** `file:` URL 로 새 파일을 만든다. */
+    createEntryWithUrl(url: string, options?: { overwrite?: boolean }): Promise<unknown>;
+  }
+
+  export const storage: { readonly localFileSystem: LocalFileSystem };
 }

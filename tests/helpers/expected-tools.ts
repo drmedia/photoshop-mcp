@@ -75,9 +75,11 @@ export const FORBIDDEN_TOOLS = [
   "photoshop.group.ungroup",
   // 아직 구현하지 않음
   "photoshop.mask.delete",
-  // save 는 원본 파일을 덮어쓰므로 Permission System 과 함께 도입한다.
-  // save_as 와 export 는 새 파일을 쓰므로 Phase 4 범위다.
+  // 저장 전체를 Phase 9 로 미뤘다. UXP 샌드박스가 임의 경로 쓰기를 막아
+  // 폴더 승인·토큰 보관이 필요하고, 그것이 Permission System 설계 그 자체다.
   "photoshop.document.save",
+  "photoshop.document.save_as",
+  "photoshop.document.export",
   // Phase 5 이후
   "photoshop.document.flatten_all",
 ] as const;

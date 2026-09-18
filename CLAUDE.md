@@ -12,21 +12,28 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 ## 현재 상태
 
-**Phase 3 (Basic Photoshop Editing) 완료.** 실제 Photoshop 27.8 에서 검증했다.
+**Phase 4 (Extended Photoshop Tools) 완료.** 실제 Photoshop 27.8 에서 검증했다.
+Tool 21개.
 
 - 조회: `ping`, `document.get`, `layer.list`
-- 편집: `layer.create/duplicate/rename/select/set_visibility/set_opacity`
-- 그룹: `group.create`, `group.move_layer`
-- History: `history.undo` (1단계)
+- 레이어: create / duplicate / rename / select / set_visibility / set_opacity
+- 그룹: create / move_layer · History: undo
+- 조정 레이어: curves / levels / brightness_contrast
+- 마스크: create / enable / disable · 선택: clear / invert
+- 필터: gaussian_blur (기본 스마트 필터)
 
-전부 비파괴다. destructive 명령(`layer.delete`, `flatten`)은 Permission System 과 함께
-이후 Phase 에서 추가한다. (ROADMAP §7.4)
+**전부 비파괴다.** destructive 명령과 문서 저장은 Phase 9 의 Permission System 과
+함께 도입한다. 저장은 UXP 샌드박스가 임의 경로 쓰기를 막아 폴더 승인·토큰 보관이
+필요하고, 그것이 Permission 설계 그 자체이기 때문이다. (ROADMAP §8.5)
+
+`batchPlay` 는 조정·마스크·선택·필터에 쓴다. DOM 에 API 가 없는 경우다.
+descriptor 는 반드시 플러그인이 검증된 파라미터로 조립한다.
+호출자가 descriptor 를 넘기는 통로를 만들지 않는다. (ARCHITECTURE §13, §23)
 
 UXP 의 실기 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 정리되어 있다.
-레이어 생성·복제·그룹·이동이 모두 비동기이고, `executeAsModal` 안에서 throw 하면
-오류 코드를 잃는다. 바꾸기 전에 그 문서를 먼저 읽는다.
+바꾸기 전에 그 문서를 먼저 읽는다.
 
-다음 작업은 **Phase 4 (Extended Photoshop Tools)** 다. 마스크·선택 영역·조정·필터·저장.
+다음 작업은 **Phase 5 (Extension SDK)** 다.
 
 ## Phase 기준
 

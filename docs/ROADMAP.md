@@ -57,7 +57,7 @@ Phase 0   Project Bootstrap            완료
 Phase 1   MCP Core                     완료
 Phase 2   Photoshop Bridge             완료
 Phase 3   Basic Photoshop Editing      완료
-Phase 4   Extended Photoshop Tools
+Phase 4   Extended Photoshop Tools      완료 (저장은 Phase 9 이관)
 Phase 5   Extension SDK
 Phase 6   MilkyScapeTools Extension
 Phase 7   Workflow System
@@ -648,19 +648,33 @@ photoshop.filter.gaussian_blur
 
 ---
 
-## 8.5 Document
+## 8.5 Document — **Phase 9 로 이관**
 
-추가:
+저장은 Phase 4 범위에서 제외한다. UXP 샌드박스 제약 때문이다.
+
+실기에서 확인한 내용:
 
 ```text
-photoshop.document.save
+storage.createEntryWithUrl("file:///C:/Temp/a.png")
+  → Could not find an entry of 'file:///C:/Temp'
+    (localFileSystem: "fullAccess" 를 주어도 동일)
 
-photoshop.document.save_as
-
-photoshop.document.export
+batchPlay save 에 경로 문자열 전달
+  → invalid file token used
 ```
 
----
+Photoshop 의 save 액션은 UXP 세션 토큰을 요구하고, 토큰은 storage API 로 얻은
+entry 에서만 만들 수 있다. 그런데 그 API 가 임의 경로를 열지 못한다.
+
+자동화와 맞는 유일한 방법은 **사용자가 폴더를 한 번 승인하고 그 토큰을 보관**하는 것이다.
+승인 UI · 토큰 보관 · 만료 처리가 필요하며, 이는 Permission System 설계 그 자체다.
+그래서 Phase 9 에서 다음과 함께 다룬다.
+
+```text
+photoshop.document.save        원본 덮어쓰기 (destructive)
+photoshop.document.save_as
+photoshop.document.export
+```
 
 ## Phase 4 Completion Criteria
 

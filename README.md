@@ -2,8 +2,9 @@
 
 Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입니다.
 
-> **현재 상태: Phase 3 (Basic Photoshop Editing) 완료.**
-> 실제 Photoshop 27.8 에서 레이어 생성·복제·이름 변경·그룹·Undo 가 동작합니다.
+> **현재 상태: Phase 4 (Extended Photoshop Tools) 완료.**
+> 실제 Photoshop 27.8 에서 레이어 편집·그룹·Undo·조정 레이어·마스크·선택·필터가 동작합니다.
+> 문서 저장은 UXP 샌드박스 제약으로 Phase 9 (Permission System) 로 이관했습니다.
 
 ## 빠른 시작
 
@@ -64,6 +65,18 @@ MCP Tool 3개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 �
 | `photoshop.group.create` | `GROUP_CREATE` | `name?`, `layerIds?` |
 | `photoshop.group.move_layer` | `GROUP_MOVE_LAYER` | `layerId`, `groupId` |
 | `photoshop.history.undo` | `HISTORY_UNDO` | 없음 |
+
+**조정 · 마스크 · 선택 · 필터** — 전부 비파괴입니다.
+
+| MCP Tool | Command | 비고 |
+|---|---|---|
+| `photoshop.adjustment.curves` | `ADJUSTMENT_CURVES` | 조정 레이어. `points` 는 {input, output} 제어점 |
+| `photoshop.adjustment.levels` | `ADJUSTMENT_LEVELS` | 조정 레이어 |
+| `photoshop.adjustment.brightness_contrast` | `ADJUSTMENT_BRIGHTNESS_CONTRAST` | 조정 레이어 |
+| `photoshop.mask.create` | `MASK_CREATE` | `revealAll` / `hideAll` / `fromSelection` |
+| `photoshop.mask.enable` · `disable` | `MASK_ENABLE` · `MASK_DISABLE` | 마스크 유지한 채 전환 |
+| `photoshop.selection.clear` · `invert` | `SELECTION_CLEAR` · `SELECTION_INVERT` | |
+| `photoshop.filter.gaussian_blur` | `FILTER_GAUSSIAN_BLUR` | 기본 스마트 필터 |
 
 `layerId` 를 생략하면 활성 레이어를 대상으로 합니다.
 편집 Tool 은 변경 후 레이어 상태를 돌려주므로 결과 확인에 목록 재조회가 필요 없습니다.

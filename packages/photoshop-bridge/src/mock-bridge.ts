@@ -256,6 +256,34 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
               : { left: 0, top: 0, right: document.width, bottom: document.height },
         } as TResult;
       }
+      // 워크플로 공백 보완. (ROADMAP §17.8)
+      case "ADJUSTMENT_COLOR_BALANCE":
+        this.#snapshot("Color Balance");
+        return this.#adjustment("Color Balance", command.params) as TResult;
+      case "LAYER_FROM_BACKGROUND": {
+        this.#snapshot("Layer from background");
+        const index = this.#layers.findIndex((layer) => layer.isBackground === true);
+        if (index < 0) {
+          // 배경이 없으면 아무것도 하지 않는다. 오류가 아니다.
+          return { ...(this.#layers[this.#requireLayerIndex()] as LayerInfo) } as TResult;
+        }
+        const { isBackground: _gone, ...rest } = this.#layers[index] as LayerInfo;
+        const name = (command.params as { name?: string }).name;
+        const promoted: LayerInfo = {
+          ...rest,
+          id: this.#nextLayerId++,
+          name: name ?? "레이어 0",
+        };
+        this.#layers[index] = promoted;
+        this.#activeLayerId = promoted.id;
+        return { ...promoted } as TResult;
+      }
+      case "FILTER_HIGH_PASS":
+        this.#snapshot("High pass");
+        return this.#gaussianBlur(command.params as { layerId?: number }) as TResult;
+      case "FILTER_MINIMUM_MAXIMUM":
+        this.#snapshot("Minimum/Maximum");
+        return this.#gaussianBlur(command.params as { layerId?: number }) as TResult;
       case "SELECTION_CLEAR":
         this.#hasSelection = false;
         return { hasSelection: false } as TResult;

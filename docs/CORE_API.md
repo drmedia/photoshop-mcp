@@ -90,7 +90,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (42개)
+## 4. 구현된 Core API (46개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -114,6 +114,7 @@ P3  확장 기능
 | `photoshop.layer.set_visibility` | EDIT | |
 | `photoshop.layer.set_opacity` | EDIT | 0–100 |
 | `photoshop.layer.set_blend_mode` | EDIT | normal · multiply · screen · overlay · softLight 등 |
+| `photoshop.layer.from_background` | EDIT | 배경 → 일반 레이어. id 가 바뀐다 |
 
 `layerId` 를 생략하면 활성 레이어를 대상으로 한다. 그것이 무엇인지는
 `photoshop.layer.get_active` 로 미리 확인한다.
@@ -134,6 +135,7 @@ P3  확장 기능
 | `photoshop.adjustment.brightness_contrast` | EDIT | −150~150 / −50~100 |
 | `photoshop.adjustment.hue_saturation` | EDIT | hue −180~180 |
 | `photoshop.adjustment.vibrance` | EDIT | vibrance · saturation −100~100 |
+| `photoshop.adjustment.color_balance` | EDIT | 구간별 `[C↔R, M↔G, Y↔B]` |
 
 **전부 조정 레이어로 만든다.** 픽셀을 직접 고치지 않는다. 그래서 EDIT 이다.
 
@@ -154,6 +156,8 @@ P3  확장 기능
 | API | Permission | 비고 |
 |---|---|---|
 | `photoshop.filter.gaussian_blur` | EDIT | 기본은 스마트 필터. radius 0.1–1000 |
+| `photoshop.filter.high_pass` | EDIT | 가장자리만 남긴다. softLight 혼합과 함께 쓴다 |
+| `photoshop.filter.minimum_maximum` | EDIT | 밝은 영역 축소·확장. 별 축소에 쓴다 |
 
 ### 4.7 History
 
@@ -275,7 +279,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
-| `photoshop.adjustment.color_balance` | P1 | EDIT | |
 | `photoshop.adjustment.exposure` | P2 | EDIT | |
 | `photoshop.adjustment.black_white` | P2 | EDIT | |
 | `photoshop.adjustment.photo_filter` | P2 | EDIT | |
@@ -289,13 +292,11 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 |---|---|---|---|
 | `photoshop.filter.sharpen` | P2 | EDIT | |
 | `photoshop.filter.smart_sharpen` | P2 | EDIT | |
-| `photoshop.filter.high_pass` | P2 | EDIT | |
 | `photoshop.filter.motion_blur` | P2 | EDIT | |
 | `photoshop.filter.surface_blur` | P2 | EDIT | |
 | `photoshop.filter.noise_reduce` | P2 | EDIT | |
 | `photoshop.filter.noise_add` | P3 | EDIT | |
 | `photoshop.filter.dust_scratches` | P3 | EDIT | |
-| `photoshop.filter.minimum_maximum` | P3 | EDIT | |
 
 ### 5.7 Transform · Geometry
 

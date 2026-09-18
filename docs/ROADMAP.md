@@ -2125,6 +2125,74 @@ Zod 기본 메시지가 영어다 — `radius: Number must be less than or equal
 
 ---
 
+# 17.8 실제 편집 워크플로가 드러낸 공백
+
+사용자가 천체사진 보정 23단계를 주고 LLM 시점으로 돌려 보게 했다. 제약은
+"Photoshop 네이티브만 · 외부 실행 파일 금지 · 비파괴 우선 · 원본 보존" 이었다.
+
+처음 돌렸을 때 **11단계만 실행되고 9단계가 Tool 부재로 막혔다.** 개별 Tool 을
+하나씩 눌러 보는 방식으로는 이런 목록이 나오지 않는다 — 실제 작업 순서를 따라가야
+무엇이 없는지 드러난다.
+
+## 채운 것
+
+| 워크플로 단계 | 추가한 Tool |
+|---|---|
+| 2 (원본/작업 레이어 정리) | `photoshop.layer.from_background` |
+| 4 (하늘 선택) | `photoshop.selection.sky` (§17.7 참조) |
+| 8 · 22 (색 보정) | `photoshop.adjustment.color_balance` |
+| 12–16 (High Pass 샤프닝) | `photoshop.filter.high_pass` |
+| 18 (별 축소) | `photoshop.filter.minimum_maximum` |
+
+`layer.from_background` 가 없어서 지금까지 배경 레이어 승격은 `set_opacity` 나
+`mask.create` 의 **부작용으로만** 일어났다. 의도를 드러내지 않는 우회였다.
+
+## 실기가 잡은 것 — 필터가 조정 레이어를 망가뜨렸다
+
+`filter.high_pass` 를 조정 레이어가 활성인 상태에서 부르니:
+
+```text
+❌ COMMAND_FAILED | 선택 영역이 비어 있으므로 요청한 사항을 완료할 수 없습니다.
+layer.list → "Sky Color"(adjustment) 가 (smartObject) 로 바뀌어 있다
+```
+
+스마트 오브젝트 변환이 **먼저 성공**한 뒤 필터가 실패한다. 실패로 보고되지만 조정
+레이어는 이미 망가졌다. Photoshop 의 메시지로는 원인을 알 수 없다.
+
+`gaussian_blur` 도 같은 구조였으므로 처음부터 있던 함정이다. 대상을 먼저 검사해
+조정 레이어와 그룹을 거부한다.
+
+```text
+❌ INVALID_PARAMETER | 조정 레이어에는 필터를 적용할 수 없습니다.
+                      픽셀 레이어나 스마트 오브젝트를 layerId 로 지정하세요.
+```
+
+수정 뒤 조정 레이어는 그대로 남는다.
+
+## 실기 검증
+
+```text
+layer.from_background → 배경 "배경" → "Work"(배경 플래그 해제, id 변경)
+color_balance          → Sky Color 조정 레이어
+high_pass(15) → softLight → opacity 30   샤프닝 블록 성립
+minimum(0.4)                             별 축소 성립
+selection.sky → color_balance            하늘에만 적용 (bounds bottom 4507)
+```
+
+## 아직 남은 워크플로 공백
+
+| 단계 | 필요한 것 |
+|---|---|
+| 5 · 6 | `selection.save_channel` / `load_channel` |
+| 9 | 그라디언트 마스크 |
+| 10 | 색상 범위 · 광도 선택 |
+| 12 | 병합본 복제(stamp visible) |
+| 20 | `selection.feather` — 이미 만든 선택의 페더 조정 |
+
+`selection.set` 의 `feather` 로 만들 때 페더는 되지만 나중에 조정할 수는 없다.
+
+---
+
 # 18. Phase 14 — Distribution
 
 검토 대상:

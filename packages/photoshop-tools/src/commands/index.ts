@@ -84,6 +84,20 @@ import {
 } from "./document-save.js";
 import { LAYER_GET_ACTIVE, layerGetActiveCommand } from "./layer-active.js";
 import { SELECTION_SKY, selectionSkyCommand } from "./selection-auto.js";
+import {
+  ADJUSTMENT_COLOR_BALANCE,
+  ColorBalanceParams,
+  FILTER_HIGH_PASS,
+  FILTER_MINIMUM_MAXIMUM,
+  HighPassParams,
+  LAYER_FROM_BACKGROUND,
+  LayerFromBackgroundParams,
+  MinimumMaximumParams,
+  adjustmentColorBalanceCommand,
+  filterHighPassCommand,
+  filterMinimumMaximumCommand,
+  layerFromBackgroundCommand,
+} from "./workflow-gaps.js";
 import { LAYER_LIST, layerListCommand } from "./layer-list.js";
 import { LAYER_PLACE, LayerPlaceParamsSchema, layerPlaceCommand } from "./layer-place.js";
 import {
@@ -121,6 +135,7 @@ export {
   type ActiveLayerState,
 } from "./layer-active.js";
 export { LAYER_LIST, layerListCommand } from "./layer-list.js";
+export * from "./workflow-gaps.js";
 export {
   SELECTION_SKY,
   SelectionAutoParams,
@@ -146,6 +161,22 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_LIST, layerListCommand, { permission: "read" });
   registry.register(LAYER_GET_ACTIVE, layerGetActiveCommand, { permission: "read" });
   registry.register(SELECTION_SKY, selectionSkyCommand, { permission: "edit" });
+  registry.register(LAYER_FROM_BACKGROUND, layerFromBackgroundCommand, {
+    permission: "edit",
+    schema: LayerFromBackgroundParams,
+  });
+  registry.register(ADJUSTMENT_COLOR_BALANCE, adjustmentColorBalanceCommand, {
+    permission: "edit",
+    schema: ColorBalanceParams,
+  });
+  registry.register(FILTER_HIGH_PASS, filterHighPassCommand, {
+    permission: "edit",
+    schema: HighPassParams,
+  });
+  registry.register(FILTER_MINIMUM_MAXIMUM, filterMinimumMaximumCommand, {
+    permission: "edit",
+    schema: MinimumMaximumParams,
+  });
 
   // Phase 3 — 레이어 편집 (비파괴)
   const edit = "edit" as const;

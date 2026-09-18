@@ -17,10 +17,12 @@ import {
   adjustmentLevels,
 } from "./dom/adjustment.js";
 import { documentGet } from "./dom/document.js";
-import { gaussianBlur } from "./dom/filter.js";
+import { gaussianBlur, highPass, minimumMaximum } from "./dom/filter.js";
 import {
   adjustmentHueSaturation,
+  adjustmentColorBalance,
   adjustmentVibrance,
+  layerFromBackground,
   layerBlendMode,
   selectionSet,
 } from "./dom/gap-tools.js";
@@ -73,6 +75,18 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("LAYER_LIST", async () => layerList());
   dispatcher.register("LAYER_GET_ACTIVE", async () => layerGetActive());
   dispatcher.register("SELECTION_SKY", async () => selectionSky());
+  dispatcher.register("LAYER_FROM_BACKGROUND", async (p) =>
+    layerFromBackground(p as { name?: string }),
+  );
+  dispatcher.register("ADJUSTMENT_COLOR_BALANCE", async (p) =>
+    adjustmentColorBalance(p as Parameters<typeof adjustmentColorBalance>[0]),
+  );
+  dispatcher.register("FILTER_HIGH_PASS", async (p) =>
+    highPass(p as { layerId?: number; radius: number; asSmartFilter?: boolean }),
+  );
+  dispatcher.register("FILTER_MINIMUM_MAXIMUM", async (p) =>
+    minimumMaximum(p as Parameters<typeof minimumMaximum>[0]),
+  );
 
   // Phase 3 — 레이어 편집 (비파괴)
   // payload 는 Server 의 Command Engine 이 이미 검증했다. (ARCHITECTURE §3.2)

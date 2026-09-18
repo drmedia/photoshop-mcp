@@ -4,6 +4,8 @@ import { makeAdjustmentLayer } from "./adjustment.js";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
 import { findLayerById, mutate } from "./layer-edit.js";
+import { flattenLayers } from "./layers.js";
+import { resolveMutatedLayer } from "./mutation-result.js";
 import { hasSelection } from "./mask-selection.js";
 import { runModal } from "./modal.js";
 
@@ -164,4 +166,99 @@ export async function adjustmentVibrance(params: {
     },
     params.name,
   );
+}
+
+/**
+ * Color Balance 조정 레이어.
+ *
+ * 세 구간(그림자·중간톤·하이라이트)마다 세 축을 준다 — 각각
+ * `[cyan↔red, magenta↔green, yellow↔blue]` 이고 −100~100 이다.
+ *
+ * 천체사진에서 특히 필요하다. 야경의 green/cyan cast 를 빼면서 중성~차가운 밤하늘을
+ * 유지하는 작업이 Curves 만으로는 어렵다. 워크플로 시험에서 두 단계가 이것 때문에
+ * 막혔다.
+ */
+export async function adjustmentColorBalance(params: {
+  shadows?: [number, number, number];
+  midtones?: [number, number, number];
+  highlights?: [number, number, number];
+  preserveLuminosity?: boolean;
+  name?: string;
+}): Promise<LayerInfo> {
+  const zero: [number, number, number] = [0, 0, 0];
+  return makeAdjustmentLayer(
+    "Color Balance adjustment",
+    {
+      _obj: "colorBalance",
+      shadowLevels: params.shadows ?? zero,
+      midtoneLevels: params.midtones ?? zero,
+      highlightLevels: params.highlights ?? zero,
+      // 기본 켜짐. 색을 옮기면서 밝기가 따라 바뀌면 다른 조정이 어긋난다.
+      preserveLuminosity: params.preserveLuminosity ?? true,
+    },
+    params.name,
+  );
+}
+
+/**
+ * 배경 레이어를 일반 레이어로 바꾼다.
+ *
+ * 배경은 이름을 못 바꾸고, 마스크도 불투명도도 가질 수 없다. 평탄화된 이미지로
+ * 시작하는 작업은 **거의 항상 첫 단계가 이 변환**인데 명시적인 방법이 없었다.
+ * 지금까지는 `set_opacity` 나 `mask.create` 의 부작용으로만 일어났다 — 의도를
+ * 드러내지 않는 우회다.
+ *
+ * 이미 일반 레이어면 아무것도 하지 않고 그대로 돌려준다. 되돌릴 수 없는 작업이
+ * 아니므로 오류로 만들지 않는다.
+ */
+export async function layerFromBackground(params: { name?: string }): Promise<LayerInfo> {
+  return runModal("Layer from background", async () => {
+    const document = requireActiveDocument();
+    const before = flattenLayers(document.layers);
+    const background = before.find((entry) => entry.isBackground === true);
+    if (background === undefined) {
+      const active = document.activeLayers[0];
+      if (active === undefined) {
+        throw new DispatchError("LAYER_NOT_FOUND", "활성 레이어가 없습니다.", {
+          recoverable: true,
+        });
+      }
+      return before.find((entry) => entry.id === active.id) ?? before[0]!;
+    }
+
+    // 이 descriptor 는 이름을 받지 않는다. 변환 뒤에 따로 바꾼다.
+    await play("Layer from background", {
+      _obj: "set",
+      _target: [{ _ref: "layer", _property: "background" }],
+      to: {
+        _obj: "layer",
+        opacity: { _unit: "percentUnit", _value: 100 },
+        mode: { _enum: "blendMode", _value: "normal" },
+      },
+    });
+
+    const resolved = resolveMutatedLayer(
+      before.map((entry) => entry.id),
+      flattenLayers(document.layers),
+      background.id,
+    );
+    if (resolved === null) {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        "변환은 되었지만 결과 레이어를 확인하지 못했습니다. layer.list 로 확인하세요.",
+        { recoverable: true },
+      );
+    }
+
+    if (params.name === undefined) {
+      return resolved;
+    }
+    const promoted = findLayerById(document.layers, resolved.id);
+    if (promoted === null) {
+      return resolved;
+    }
+    return mutate(document, promoted, (layer) => {
+      layer.name = params.name as string;
+    });
+  });
 }

@@ -29,6 +29,12 @@ export interface WebSocketBridgeTransportOptions {
   timeoutMs?: number;
   /** 연결 상태 변화 알림. 로깅용. */
   onStateChange?: (state: ConnectionState) => void;
+  /**
+   * Plugin 이 보낸 이벤트. (ROADMAP §15)
+   *
+   * 전송 계층은 이벤트의 의미를 알지 못한다. 이름과 payload 를 그대로 올린다.
+   */
+  onEvent?: (event: string, payload: unknown) => void;
 }
 
 interface PendingRequest {
@@ -66,6 +72,7 @@ export class WebSocketBridgeTransport implements BridgeTransport {
   readonly #host: string;
   readonly #timeoutMs: number;
   readonly #onStateChange: ((state: ConnectionState) => void) | undefined;
+  readonly #onEvent: ((event: string, payload: unknown) => void) | undefined;
 
   #server: WebSocketServer | null = null;
   #socket: WebSocket | null = null;
@@ -79,6 +86,7 @@ export class WebSocketBridgeTransport implements BridgeTransport {
     this.#host = options.host ?? DEFAULT_HOST;
     this.#timeoutMs = options.timeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS;
     this.#onStateChange = options.onStateChange;
+    this.#onEvent = options.onEvent;
   }
 
   /** 실제로 바인딩된 포트. `port: 0` 으로 기동한 경우 확인에 사용한다. */
@@ -253,7 +261,10 @@ export class WebSocketBridgeTransport implements BridgeTransport {
         this.#handleReady();
         return;
       case "event":
-        // Phase 11 예약. 현재는 무시한다.
+        // 핸드셰이크 전에 온 이벤트는 버린다. 아직 우리 연결이 아니다.
+        if (this.#state === "connected") {
+          this.#onEvent?.(message.event, message.payload);
+        }
         return;
       case "response":
         // 핸드셰이크 완료 전에 도착한 응답은 버린다. (PROTOCOL.md §3.5)

@@ -12,6 +12,7 @@ export {
   type WorkspaceResolver,
 } from "./capabilities/registry.js";
 export { createConsoleLogger, createSilentLogger } from "./extensions/logger.js";
+export { EventBus, type EventBusOptions } from "./events/bus.js";
 export { JobStore, type JobStoreOptions } from "./jobs/store.js";
 export { WorkflowRegistry, type WorkflowRegistryOptions } from "./workflows/registry.js";
 export {

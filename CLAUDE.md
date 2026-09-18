@@ -149,6 +149,20 @@ Job 은 메모리에만 있다. 서버를 다시 띄우면 사라진다.
 **긴 Tool 을 새로 만들 때는 반드시 실제 MCP 클라이언트(`client.callTool`)로 확인한다.**
 `tools.invoke` 로 서버 내부를 직접 부르면 타임아웃을 놓친다.
 
+## Event (ROADMAP §15)
+
+**Command 수명 이벤트는 동작한다** — `command.started` · `command.completed` ·
+`command.failed`. Photoshop 연결이 없어도 난다.
+
+**Photoshop 알림은 아직 미검증이다.** 실기에서 하나도 오지 않았고 원인을 모른다.
+`photoshop.notifications.started` · `.unavailable` 로 구독 상태를 보고하게 해두었다.
+
+LLM 은 구독하지 않고 `photoshop.event.recent` 로 조회한다. MCP 에 임의 이벤트 통로가
+없기 때문이다. Extension 은 `context.events.on()` 으로 구독하며 unload 때 자동 해제된다.
+
+이름을 짐작하지 않는다. 해석하지 못한 알림은 `photoshop.unknown` 으로 두고 원본을
+보존한다.
+
 ## Workflow (ROADMAP §11)
 
 `workflows.json` 에 Tool 순서를 선언한다. Extension 을 만들려면 TypeScript 를 쓰고

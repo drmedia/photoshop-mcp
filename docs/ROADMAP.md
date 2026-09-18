@@ -1550,6 +1550,67 @@ CANCELLED
 
 Photoshop 변경 사항을 시스템에서 감지할 수 있도록 한다.
 
+## 설계
+
+### LLM 은 구독하지 않고 조회한다
+
+MCP 에는 임의 이벤트를 클라이언트로 밀어주는 통로가 없다. `notifications/progress`
+처럼 정해진 알림만 있고, LLM 이 구독할 수 있는 일반 이벤트 채널은 스펙에 없다.
+
+- **Extension** — `context.events.on(...)` 으로 구독한다. 서버 안에서 즉시 받는다.
+- **LLM** — `photoshop.event.recent` 로 조회한다. `after: lastSeq` 로 새 것만 받는다.
+
+조회 결과가 비어 있어도 `lastSeq` 를 함께 준다. 그러지 않으면 폴링이 앞으로 못 간다.
+
+### 이름을 짐작하지 않는다
+
+UXP 알림은 batchPlay 액션 이름(`make` · `delete` · `set`)으로 오지 `layer.created`
+같은 친절한 이름으로 오지 않는다. 같은 `make` 가 레이어일 수도 문서일 수도 있고
+구분은 descriptor 안에 있다.
+
+확신할 수 있는 조합만 해석하고 나머지는 `photoshop.unknown` 으로 두되 **원본을
+보존한다.** 이 프로젝트는 `bitDepth` · `layer.kind` · `blendMode` 에서 같은 방식으로
+세 번 실제 버그를 잡았다.
+
+### 구독은 Extension 과 함께 사라진다
+
+리스너를 남기면 unload 된 Extension 의 코드가 계속 불린다. namespace 로 묶어두고
+unload 때 한꺼번에 해제한다.
+
+### 구독자 오류를 삼킨다
+
+한 Extension 의 버그가 다른 구독자와 이벤트 흐름 전체를 막으면 안 된다.
+
+## 상태
+
+**Command 수명 이벤트는 실기 검증했다.**
+
+```text
+photoshop.layer.create → command.started, command.completed
+photoshop.layer.rename → command.started, command.completed
+```
+
+Photoshop 연결이 없어도 발생한다. 권한으로 거부된 호출은 `started` 를 내지 않는다 —
+거부된 것까지 기록하면 로그가 시끄러워진다.
+
+**Photoshop 알림은 미검증이다.** 실기에서 레이어 생성·이름 변경을 했는데
+`photoshop.*` 이벤트가 하나도 오지 않았다.
+
+원인을 아직 모른다. 처음 구현이 등록 실패를 조용히 삼켜 진단이 불가능했다 —
+Bridge 를 보호하려던 것이 원인 파악을 막았다. 지금은 구독 성공·실패를
+`photoshop.notifications.started` · `photoshop.notifications.unavailable` 로 보고한다.
+구독은 플러그인 로드 직후 실행되어 아직 연결 전이므로, 연결되면 다시 보낸다.
+
+다음 실기에서 확인할 것:
+
+- `action.addNotificationListener` 가 이 UXP 버전에 있는지
+- 있다면 등록이 성공하는지
+- 성공했는데도 알림이 안 온다면, Photoshop 이 플러그인 자신의 DOM 호출에 대해서는
+  알림을 내지 않는 것인지
+
+세 번째라면 사용자의 직접 편집으로 확인해야 한다. 그래도 안 온다면 이 UXP 버전에서
+지원하지 않는 것으로 보고 **명시한다.** 동작하지 않는 기능을 있는 척하지 않는다.
+
 예:
 
 ```text

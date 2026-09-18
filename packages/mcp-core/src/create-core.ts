@@ -8,6 +8,7 @@ import {
 import type { Logger } from "@photoshop-mcp/photoshop-bridge";
 import {
   registerCapabilityTools,
+  registerEventTools,
   registerJobTools,
   registerWorkflowTools,
   registerPhotoshopCommands,
@@ -15,6 +16,7 @@ import {
 } from "@photoshop-mcp/photoshop-tools";
 import { CapabilityRegistry } from "./capabilities/registry.js";
 import { ExtensionManager } from "./extensions/manager.js";
+import { EventBus } from "./events/bus.js";
 import { JobStore } from "./jobs/store.js";
 import { WorkflowRegistry } from "./workflows/registry.js";
 import { createConsoleLogger } from "./extensions/logger.js";
@@ -55,6 +57,8 @@ export interface PhotoshopMcp {
   jobs: JobStore;
   /** 선언으로 정의한 Tool 순서. `loadConfig(path)` 로 등록한다. (ROADMAP §11) */
   workflows: WorkflowRegistry;
+  /** Photoshop 과 Command 의 변화. (ROADMAP §15) */
+  events: EventBus;
   logger: Logger;
 }
 
@@ -65,6 +69,9 @@ export interface PhotoshopMcp {
  * 실행(진입점·프로세스 관리)은 `@photoshop-mcp/mcp-server` 가 담당한다.
  */
 export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): PhotoshopMcp {
+  // 로거를 먼저 만든다. 아래 구성 요소들이 모두 이것을 받는다.
+  const logger = options.logger ?? createConsoleLogger();
+
   const bridge = options.bridge ?? new MockPhotoshopBridge();
 
   const commands = new CommandRegistry();
@@ -72,12 +79,20 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
 
   const policy = options.policy ?? new PermissionPolicy();
 
-  const engine = new CommandEngine({ registry: commands, bridge, policy });
+  const events = new EventBus({ logger });
+
+  const engine = new CommandEngine({
+    registry: commands,
+    bridge,
+    policy,
+    // Command 수명 이벤트. Photoshop 연결이 없어도 발생한다.
+    onEvent: (name, data) => {
+      events.emit(name, data);
+    },
+  });
 
   const tools = new ToolRegistry(policy);
   registerPhotoshopTools(tools, engine);
-
-  const logger = options.logger ?? createConsoleLogger();
 
   const server = new PhotoshopMcpServer({
     registry: tools,
@@ -107,6 +122,7 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
 
   registerCapabilityTools(tools, capabilities);
   registerJobTools(tools, jobs);
+  registerEventTools(tools, events);
 
   const workflows = new WorkflowRegistry({ tools, jobs, logger });
   registerWorkflowTools(tools, workflows);
@@ -116,6 +132,7 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
     commands: engine,
     capabilities,
     jobs,
+    events,
     logger,
   });
 
@@ -129,6 +146,7 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
     capabilities,
     jobs,
     workflows,
+    events,
     logger,
     policy,
   };

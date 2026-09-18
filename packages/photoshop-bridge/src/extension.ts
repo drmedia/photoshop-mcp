@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ExtensionCapabilityRegistry } from "./capability.js";
+import type { ExtensionEventBus } from "./event.js";
 import type { ExtensionJobRegistry } from "./job.js";
 import type { ToolDefinition } from "./tool.js";
 
@@ -122,6 +123,13 @@ export interface ExtensionContext {
    * 자신이 시작한 Job 만 조회할 수 있다.
    */
   jobs: ExtensionJobRegistry;
+  /**
+   * Photoshop 과 Command 의 변화. (ARCHITECTURE §21)
+   *
+   * 구독은 Extension 이 unload 될 때 자동으로 해제된다.
+   * 발행은 노출하지 않는다 — 일어난 일을 들을 수 있을 뿐이다.
+   */
+  events: ExtensionEventBus;
   logger: Logger;
 }
 

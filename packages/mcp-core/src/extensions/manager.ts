@@ -6,6 +6,7 @@ import type {
   CapabilityResult,
   ExtensionCapabilityRegistry,
   ExtensionCommandEngine,
+  ExtensionEventBus,
   ExtensionJobRegistry,
   ExtensionContext,
   ExtensionManifest,
@@ -23,6 +24,7 @@ import {
   permissionToLevel,
 } from "@photoshop-mcp/photoshop-bridge";
 import type { CommandEngine } from "@photoshop-mcp/command-engine";
+import type { EventBus } from "../events/bus.js";
 import type { JobStore } from "../jobs/store.js";
 
 /**
@@ -52,6 +54,8 @@ export interface ExtensionManagerOptions {
   capabilities: ExtensionCapabilityRegistry;
   /** 긴 작업. (ARCHITECTURE §25) */
   jobs: JobStore;
+  /** Photoshop 과 Command 의 변화. (ARCHITECTURE §21) */
+  events: EventBus;
   logger: Logger;
 }
 
@@ -66,6 +70,7 @@ export class ExtensionManager {
   readonly #commands: CommandEngine;
   readonly #capabilities: ExtensionCapabilityRegistry;
   readonly #jobs: JobStore;
+  readonly #events: EventBus;
   readonly #logger: Logger;
   readonly #loaded = new Map<string, LoadedExtension>();
 
@@ -74,6 +79,7 @@ export class ExtensionManager {
     this.#commands = options.commands;
     this.#capabilities = options.capabilities;
     this.#jobs = options.jobs;
+    this.#events = options.events;
     this.#logger = options.logger;
   }
 
@@ -251,8 +257,12 @@ export class ExtensionManager {
     for (const name of loaded.registeredTools) {
       this.#tools.unregister(name);
     }
+    // 리스너를 남기면 사라진 Extension 의 코드가 계속 불린다.
+    const removed = this.#events.offOwner(namespace);
     this.#loaded.delete(namespace);
-    this.#logger.info(`Extension 해제: ${namespace}`);
+    this.#logger.info(
+      `Extension 해제: ${namespace}${removed > 0 ? ` (구독 ${removed}개 정리)` : ""}`,
+    );
     return true;
   }
 
@@ -367,12 +377,21 @@ export class ExtensionManager {
       get: (id) => store.get(id, namespace),
     };
 
+    // 구독은 namespace 로 묶어두고 unload 때 한꺼번에 해제한다.
+    // Extension 이 사라졌는데 리스너가 남으면 죽은 코드가 계속 불린다.
+    const bus = this.#events;
+    const events: ExtensionEventBus = {
+      on: (name, listener) => bus.on(name, listener, { owner: namespace }),
+      recent: (query) => bus.recent(query ?? {}),
+    };
+
     return {
       manifest: loaded.manifest,
       tools: scoped,
       commands,
       capabilities,
       jobs,
+      events,
       logger: this.#logger,
     };
   }

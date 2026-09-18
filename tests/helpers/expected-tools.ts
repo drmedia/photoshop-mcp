@@ -59,6 +59,8 @@ export const EXPECTED_TOOLS = [
   "photoshop.job.list",
   "photoshop.job.cancel",
   // ROADMAP §11 — 선언으로 정의한 Tool 순서
+  // ROADMAP §15 — 이벤트. LLM 은 구독하지 않고 조회한다
+  "photoshop.event.recent",
   "photoshop.workflow.list",
   "photoshop.workflow.run",
 ] as const;

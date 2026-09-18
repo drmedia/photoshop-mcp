@@ -22,6 +22,13 @@ export interface CommandEngineOptions {
    * 이 엔진을 직접 호출하므로(ARCHITECTURE §3.2), Tool 에서만 막으면 우회로가 생긴다.
    */
   policy?: PermissionPolicy;
+  /**
+   * Command 수명 이벤트를 받는 곳. (ARCHITECTURE §21)
+   *
+   * 생략하면 이벤트를 만들지 않는다. command-engine 은 Event Bus 구현을 알지 못하고
+   * 함수 하나만 받는다 — 계층을 섞지 않기 위함이다.
+   */
+  onEvent?: (name: string, data: Record<string, unknown>) => void;
 }
 
 export interface ExecuteOptions {
@@ -49,6 +56,7 @@ export class CommandEngine {
   readonly #bridge: PhotoshopBridge;
   readonly #requestIdFactory: () => string;
   readonly #policy: PermissionPolicy;
+  readonly #onEvent: ((name: string, data: Record<string, unknown>) => void) | null;
   #sequence = 0;
 
   constructor(options: CommandEngineOptions) {
@@ -56,6 +64,7 @@ export class CommandEngine {
     this.#bridge = options.bridge;
     this.#requestIdFactory = options.requestIdFactory ?? (() => `req-${++this.#sequence}`);
     this.#policy = options.policy ?? new PermissionPolicy();
+    this.#onEvent = options.onEvent ?? null;
   }
 
   /** 이 엔진에 걸린 Permission 정책. */
@@ -126,10 +135,32 @@ export class CommandEngine {
       requestId: options.requestId ?? this.#requestIdFactory(),
     };
 
+    // 수명 이벤트는 검증과 권한 검사를 통과한 뒤에만 낸다.
+    // 거부된 호출까지 started 로 기록하면 로그가 시끄러워진다.
+    const startedAt = Date.now();
+    this.#onEvent?.("command.started", { command: command.type, requestId: context.requestId });
+
     try {
-      return (await entry.handler(validated as PhotoshopCommand<never>, context)) as TResult;
+      const result = (await entry.handler(
+        validated as PhotoshopCommand<never>,
+        context,
+      )) as TResult;
+      this.#onEvent?.("command.completed", {
+        command: command.type,
+        requestId: context.requestId,
+        durationMs: Date.now() - startedAt,
+      });
+      return result;
     } catch (error) {
-      throw PhotoshopMcpError.from(error, ErrorCode.COMMAND_FAILED);
+      const normalized = PhotoshopMcpError.from(error, ErrorCode.COMMAND_FAILED);
+      this.#onEvent?.("command.failed", {
+        command: command.type,
+        requestId: context.requestId,
+        durationMs: Date.now() - startedAt,
+        code: normalized.code,
+        message: normalized.message,
+      });
+      throw normalized;
     }
   }
 

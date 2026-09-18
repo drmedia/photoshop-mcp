@@ -280,6 +280,10 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         ) as TResult;
       case "DOCUMENT_SAVE":
         return this.#save() as TResult;
+      case "WORKSPACE_USAGE":
+        return this.#usage(command.params as { limit?: number }) as TResult;
+      case "WORKSPACE_DELETE":
+        return this.#deleteFiles(command.params as { filenames: string[] }) as TResult;
       case "LAYER_PLACE":
         this.#snapshot("Place file");
         return this.#place(command.params as { filename: string; name?: string }) as TResult;
@@ -373,6 +377,70 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       result.bitDepth = requested ?? this.#document?.bitDepth ?? null;
     }
     return result;
+  }
+
+  /** 작업 폴더 사용량. 크기는 파일 이름 길이로 흉내 낸다 — 실제 크기는 없다. */
+  #usage(params: { limit?: number }): {
+    path: string;
+    fileCount: number;
+    totalBytes: number;
+    files: { name: string; size: number | null; modifiedAt: number | null }[];
+  } {
+    if (this.#workspacePath === null) {
+      throw new PhotoshopMcpError(
+        ErrorCode.WORKSPACE_NOT_APPROVED,
+        "작업 폴더가 승인되지 않았습니다.",
+        { recoverable: true },
+      );
+    }
+    const files = this.#writtenFiles.map((name) => ({
+      name,
+      size: name.length * 1024,
+      modifiedAt: null,
+    }));
+    return {
+      path: this.#workspacePath,
+      fileCount: files.length,
+      totalBytes: files.reduce((sum, file) => sum + file.size, 0),
+      files: files.slice(0, params.limit ?? 20),
+    };
+  }
+
+  /** 이름을 명시한 파일만 지운다. 실제 구현과 같은 계약을 지킨다. */
+  #deleteFiles(params: { filenames: string[] }): {
+    deleted: string[];
+    failed: { name: string; reason: string }[];
+  } {
+    if (this.#workspacePath === null) {
+      throw new PhotoshopMcpError(
+        ErrorCode.WORKSPACE_NOT_APPROVED,
+        "작업 폴더가 승인되지 않았습니다.",
+        { recoverable: true },
+      );
+    }
+
+    const deleted: string[] = [];
+    const failed: { name: string; reason: string }[] = [];
+
+    for (const filename of params.filenames) {
+      const index = this.#writtenFiles.findIndex(
+        (name) => name.toLowerCase() === filename.toLowerCase(),
+      );
+      if (index < 0) {
+        failed.push({ name: filename, reason: "파일이 없습니다." });
+        continue;
+      }
+      deleted.push(this.#writtenFiles[index] as string);
+      this.#writtenFiles.splice(index, 1);
+    }
+
+    if (deleted.length === 0 && failed.length > 0) {
+      throw new PhotoshopMcpError(ErrorCode.FILE_NOT_FOUND, "지운 파일이 없습니다.", {
+        recoverable: true,
+        details: { failed },
+      });
+    }
+    return { deleted, failed };
   }
 
   /**

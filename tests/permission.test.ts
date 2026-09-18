@@ -239,7 +239,7 @@ describe("Core Tool 분류", () => {
       mcp.commands.list().filter((type) => mcp.commands.permissionOf(type) === level);
 
     expect(byLevel("external")).toEqual(["DOCUMENT_SAVE_AS", "DOCUMENT_EXPORT", "LAYER_PLACE"]);
-    expect(byLevel("destructive")).toEqual(["DOCUMENT_SAVE"]);
+    expect(byLevel("destructive")).toEqual(["DOCUMENT_SAVE", "WORKSPACE_DELETE"]);
   });
 
   it("그 목록에 없는 Command 는 전부 edit 이하다", () => {
@@ -262,10 +262,13 @@ describe("Core Tool 분류", () => {
         mcp.commands.permissionOf(type),
       );
     }
-    // 위험 등급이 문서 저장·가져오기 말고 늘어나지 않았는지 확인한다.
-    expect([...risky].every((type) => type.startsWith("DOCUMENT_") || type === "LAYER_PLACE")).toBe(
-      true,
-    );
+    // 위험 등급이 문서 저장·가져오기·파일 삭제 말고 늘어나지 않았는지 확인한다.
+    expect(
+      [...risky].every(
+        (type) =>
+          type.startsWith("DOCUMENT_") || type === "LAYER_PLACE" || type === "WORKSPACE_DELETE",
+      ),
+    ).toBe(true);
   });
 
   it("읽기 전용 정책이면 편집 Tool 이 전부 막힌다", async () => {

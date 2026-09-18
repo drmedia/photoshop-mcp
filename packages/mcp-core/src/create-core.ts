@@ -8,6 +8,7 @@ import {
 import type { Logger } from "@photoshop-mcp/photoshop-bridge";
 import {
   registerCapabilityTools,
+  registerDiagnosticsTool,
   registerEventTools,
   registerJobTools,
   registerWorkflowTools,
@@ -88,6 +89,20 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
     // Command 수명 이벤트. Photoshop 연결이 없어도 발생한다.
     onEvent: (name, data) => {
       events.emit(name, data);
+
+      // correlation ID 추적. (ROADMAP §17 Logging)
+      //
+      // 기본적으로 조용하다. stdout 은 MCP 전송이 점유하고 stderr 도 시끄러우면
+      // 진짜 오류가 묻힌다. PHOTOSHOP_MCP_DEBUG=1 일 때만 나온다.
+      const id = String(data["requestId"] ?? "?");
+      const command = String(data["command"] ?? "?");
+      if (name === "command.failed") {
+        // 실패는 디버그가 아니어도 남긴다. 조용히 실패하면 원인을 못 찾는다.
+        logger.warn(`[${id}] ${command} 실패: ${String(data["code"] ?? "")}`);
+      } else {
+        const suffix = data["durationMs"] === undefined ? "" : ` (${String(data["durationMs"])}ms)`;
+        logger.debug(`[${id}] ${command} ${name.replace("command.", "")}${suffix}`);
+      }
     },
   });
 
@@ -120,13 +135,6 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
     },
   });
 
-  registerCapabilityTools(tools, capabilities);
-  registerJobTools(tools, jobs);
-  registerEventTools(tools, events);
-
-  const workflows = new WorkflowRegistry({ tools, jobs, logger });
-  registerWorkflowTools(tools, workflows);
-
   const extensions = new ExtensionManager({
     tools,
     commands: engine,
@@ -134,6 +142,38 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
     jobs,
     events,
     logger,
+  });
+
+  registerCapabilityTools(tools, capabilities);
+  registerJobTools(tools, jobs);
+  registerEventTools(tools, events);
+
+  const workflows = new WorkflowRegistry({ tools, jobs, logger });
+  registerWorkflowTools(tools, workflows);
+
+  // 진단은 다른 모든 구성 요소를 들여다보므로 마지막에 붙인다.
+  registerDiagnosticsTool(tools, {
+    bridgeConnected: () => bridge.isConnected(),
+    bridgeState: () => (bridge.isConnected() ? "connected" : "disconnected"),
+    allowedPermissions: () => policy.allowed,
+    toolCount: () => tools.size,
+    commandCount: () => commands.size,
+    providers: async () => capabilities.describeAsync(),
+    workflows: () => workflows.list(),
+    extensions: () =>
+      extensions.list().map((loaded) => ({
+        namespace: loaded.manifest.namespace,
+        name: loaded.manifest.name,
+        tools: loaded.registeredTools,
+      })),
+    jobCounts: () => {
+      const counts: Record<string, number> = {};
+      for (const record of jobs.list()) {
+        counts[record.state] = (counts[record.state] ?? 0) + 1;
+      }
+      return counts;
+    },
+    eventCount: () => events.size,
   });
 
   return {

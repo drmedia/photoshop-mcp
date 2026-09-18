@@ -198,6 +198,13 @@ declare module "uxp" {
   export const entrypoints: {
     setup(config: Record<string, unknown>): void;
   };
+  /** 항목의 부가 정보. 일부 필드는 환경에 따라 없을 수 있다. */
+  export interface EntryMetadata {
+    readonly size?: number;
+    readonly dateCreated?: Date;
+    readonly dateModified?: Date;
+  }
+
   /** UXP 파일 시스템 항목. */
   export interface Entry {
     readonly name: string;
@@ -205,6 +212,10 @@ declare module "uxp" {
     readonly isFolder: boolean;
     /** OS 의 실제 경로. 사용자에게 보여줄 때만 쓴다. */
     readonly nativePath: string;
+    /** 크기·수정 시각. 실패할 수 있다. */
+    getMetadata(): Promise<EntryMetadata>;
+    /** 항목을 지운다. */
+    delete(): Promise<void>;
   }
 
   export interface File extends Entry {

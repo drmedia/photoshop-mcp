@@ -4,7 +4,7 @@
       "id": "graxpert",
       "capability": "gradientRemoval",
       "label": "GraXpert 3.0.2 (background-extraction)",
-      "executable": "C:/Users/drmedia/AppData/Local/Programs/GraXpert/GraXpert.exe",
+      "executable": "C:/Users/<사용자>/AppData/Local/Programs/GraXpert/GraXpert.exe",
       "args": [
         "-cmd",
         "background-extraction",

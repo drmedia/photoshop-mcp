@@ -78,6 +78,10 @@ Extension 은 특정 프로그램이 아니라 기능을 요청한다 — `ctx.c
 Tool 은 `photoshop.capability.list` (조회) 하나만 노출한다. 실행 Tool 은 만들지 않는다 —
 Capability 실행은 전체 흐름의 가운데 토막이고, 그 흐름을 아는 것은 Extension 이다.
 
+출력이 여럿인 처리기가 있다. StarNet2 는 별 제거본과 별 이미지를 함께 만든다.
+`ProviderConfig.outputs` 로 선언하고 템플릿에서 `{{output.stars}}` 로 참조한다.
+선언·요청·실제 생성 세 가지가 모두 맞는지 검사한다.
+
 동기 실행만 한다. 진행률·취소는 Phase 10 이다.
 
 `photoshop.layer.place` 가 돌아오는 길이다. 승인된 폴더의 파일을 스마트 오브젝트로
@@ -104,8 +108,13 @@ manifest 의 `permissions` 는 **선언만 받고 강제하지 않는다.** 강�
 `capabilities`(Phase 8) · `photoshop` 은 아직 없다. 동작하지 않는 껍데기를 두면
 Extension 작성자가 있는 줄 알고 쓴다.
 
-다음 작업은 **Phase 6 (MilkyScapeTools)** 다. 내보내기 → 외부 처리 → 가져오기 왕복이
-이어졌으므로 막는 것은 없다.
+왕복이 실기에서 검증되었다 — 4032×6048 16비트 문서로
+`export(tiff) → StarNet2(68초) → place ×2` 를 통과시켰고 16비트가 전 구간 유지된다.
+
+**GraXpert 는 아직 못 쓴다.** CLI 가 FITS 만 출력하고 Photoshop 이 못 읽는다.
+기존 CEP 패널이 JS 로 구현해 둔 FITS → TIFF 변환(약 450줄)이 따로 필요하다.
+
+다음 작업은 **Phase 6 (MilkyScapeTools)** 또는 **GraXpert FITS 변환**이다.
 
 알 수 없는 열거형 값은 기본값으로 덮지 않는다. `null` + 원본(`rawBitDepth` · `rawKind` ·
 `rawBlendMode`)을 함께 반환한다. 이 원칙으로 실기에서 세 번 실제 버그를 잡았다.

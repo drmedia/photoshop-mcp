@@ -114,7 +114,17 @@ Extension 작성자가 있는 줄 알고 쓴다.
 **GraXpert 는 아직 못 쓴다.** CLI 가 FITS 만 출력하고 Photoshop 이 못 읽는다.
 기존 CEP 패널이 JS 로 구현해 둔 FITS → TIFF 변환(약 450줄)이 따로 필요하다.
 
-다음 작업은 **Phase 6 (MilkyScapeTools)** 또는 **GraXpert FITS 변환**이다.
+**Phase 6 첫 슬라이스 완료.** `extensions/milkyscape` 에 별 워크플로 Tool 4개가 있고
+실기 검증했다 — StarNet2 67초, BXT 10초.
+
+`create_sky_mask` · `create_foreground_mask` 는 **범위에서 뺐다.** 기존 MilkyScape 는
+하늘 마스크를 만들지 않고 사용자가 만든 것을 소비한다. 짐작으로 알고리즘을 만들지 않는다.
+
+Extension 은 워크스페이스 안에 있어야 한다. 밖에 두면 `@photoshop-mcp/extension-sdk`
+해석이 실패한다.
+
+다음 작업은 **GraXpert FITS 변환** 또는 MilkyScape 의 나머지 기능(노이즈 감소 ·
+Stretch · 은하수 보정 · 경계 보정)이다.
 
 알 수 없는 열거형 값은 기본값으로 덮지 않는다. `null` + 원본(`rawBitDepth` · `rawKind` ·
 `rawBlendMode`)을 함께 반환한다. 이 원칙으로 실기에서 세 번 실제 버그를 잡았다.

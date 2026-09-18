@@ -73,6 +73,21 @@ function slug(name: string): string {
   return cleaned.length > 0 ? cleaned : "doc";
 }
 
+/**
+ * 임시 파일 이름의 기준.
+ *
+ * 레이어 번호에서 파생하지 않는다. 실행이 중간에 실패하면 내보낸 파일은 남는데
+ * 레이어는 만들어지지 않아 번호가 그대로다. 그러면 재시도할 때마다 같은 이름으로
+ * 내보내려다 `FILE_ALREADY_EXISTS` 로 **영구히 막힌다.** 실기에서 확인했다.
+ *
+ * 임시 파일은 중간 산출물이고 레이어 이름은 사용자가 보는 결과다. 둘을 같은
+ * 카운터에서 파생하면 하나의 실패가 다른 하나를 오염시킨다.
+ */
+function runStem(documentName: string, feature: string): string {
+  const token = Date.now().toString(36).slice(-6);
+  return `${slug(documentName)}-${feature}-${token}`;
+}
+
 export function activate(context: ExtensionContext): void {
   const { commands, tools, capabilities, logger, manifest } = context;
 
@@ -150,7 +165,7 @@ export function activate(context: ExtensionContext): void {
 
       const starlessName = nextName(before, STARLESS);
       const starsName = nextName(before, STARS);
-      const stem = `${slug(document.name)}-${starlessName}`;
+      const stem = runStem(document.name, "starnet");
 
       // 1) 16비트 TIFF 로 내보낸다. 8비트로 떨어지면 계조가 무너진다.
       const exported = await exec<SaveResult>(
@@ -276,7 +291,7 @@ export function activate(context: ExtensionContext): void {
       const before = await listLayers(requestId);
 
       const name = nextName(before, SHARPENED);
-      const stem = `${slug(document.name)}-${name}`;
+      const stem = runStem(document.name, "bxt");
 
       const exported = await exec<SaveResult>(
         DOCUMENT_EXPORT,

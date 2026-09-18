@@ -963,23 +963,37 @@ MilkyScapeTools 로직은 Photoshop MCP Core에 넣지 않는다.
 
 ## Initial Tools
 
-1차 후보:
+1차 후보였던 목록과 실제 결과:
 
-```text
-milky.get_state
+- [x] `milky.get_state` — 문서·작업 폴더·처리기·기존 결과 + **막힌 이유**
+- [x] `milky.remove_stars` — TIFF 내보내기 → StarNet2 → 별 제거본·별 두 레이어
+- [x] `milky.restore_stars` — 별 레이어 스크린 혼합 + 불투명도
+- [x] `milky.enhance` — BlurXTerminator 선명화
+- [ ] `milky.remove_gradient` — GraXpert CLI 가 Photoshop 이 못 읽는 FITS 만 출력한다
+- [ ] ~~`milky.create_sky_mask`~~ · ~~`milky.create_foreground_mask`~~ — **범위에서 뺀다**
 
-milky.create_sky_mask
+### 하늘/전경 마스크를 빼는 이유
 
-milky.create_foreground_mask
+이 두 항목은 실제 도메인을 보기 전에 쓰인 추정이었다. 기존 MilkyScape 패널에는
+대응물이 없다.
 
-milky.remove_gradient
+패널 코드는 `"하늘 선택 영역이나 현재 레이어 마스크가 없습니다"` 라고 말한다 —
+하늘 마스크를 **만들지 않고 사용자가 만든 것을 소비한다.** 실제 워크플로는 사용자가
+하늘·전경 두 사진을 정렬해 합성 마스크를 만들고, 패널은 거기서 경계 띠를 유도한다.
+(MilkyScape 개발계획서 §6.9, §15~§18)
 
-milky.remove_stars
+Photoshop 자체 '하늘 선택' 기능은 별개다. 그것은 **Photoshop 기능이지 이 도메인의
+지식이 아니므로** Core 에 속한다. (ARCHITECTURE §1)
 
-milky.enhance
+짐작으로 마스크 생성 알고리즘을 만들면 그럴듯하지만 틀린 결과가 나온다.
 
-milky.restore_stars
-```
+### 기존 패널에서 옮긴 원칙
+
+MilkyScape 개발계획서 §2, §5.2 를 따른다. 셋 다 테스트로 고정했다.
+
+- 매번 **새 결과 레이어**를 만든다. 기존 결과와 사용자 수정을 덮어쓰거나 지우지 않는다
+- 이름에 도구·기능·실행 번호를 넣는다 — `StarNet2_별제거_01`
+- **자동 연쇄 처리하지 않는다.** `enhance` 가 `remove_stars` 결과를 알아서 먹지 않는다
 
 ---
 
@@ -997,7 +1011,49 @@ BXT
 
 이들은 Core가 아니라 MilkyScapeTools 또는 Capability Provider로 구현한다.
 
+Phase 8 의 Capability Provider 로 구현했다. 실기에서 확인한 것:
+
+| 도구 | 입출력 | 상태 |
+|---|---|---|
+| StarNet2 | `.tif` → `.tif` ×2 | 동작. 4032×6048 16비트에서 67초 |
+| BlurXTerminator | `.tif` → `.tif` | CLI 2.6.9, ML5 정식 라이선스 |
+| GraXpert | `.tif` → **`.fits`** | **막힘.** Photoshop 이 FITS 를 못 읽는다 |
+
+GraXpert 3.0.2 CLI 에는 출력 형식 옵션이 없다(`-h` 로 확인). `-output out.tif` 를 줘도
+`out.tif.fits` 가 나온다. 기존 CEP 패널은 FITS → TIFF 변환을 JS 로 직접 구현해 두었다
+(`GraXpert-Photoshop-Panel/client/main.js` 2607~3050행, 약 450줄).
+
 ---
+
+## 실기 검증
+
+Photoshop 27.8, 문서 `새비재01_04.tif` 4032×6048 16비트 RGB.
+
+```text
+milky.get_state    문서·폴더·처리기·결과 + 막힌 이유 2건 정확히 보고
+milky.remove_stars StarNet2 67초 → StarNet2_별제거_01 · StarNet2_별_01(screen)
+milky.restore_stars opacity 80 적용
+milky.enhance      BXT 10초 → BXT_선명화_01
+```
+
+BlurXTerminator CLI 2.6.9, ML5 정식 라이선스. 예제 설정의 인자가 `--help` 와 일치하는
+것을 확인했다.
+
+### 실기가 잡은 설계 결함
+
+**실패한 실행이 이름을 영구히 오염시켰다.**
+
+내보내기는 성공했는데 Capability 단계에서 실패하면 TIFF 는 남고 레이어는 만들어지지
+않는다. 레이어 번호가 그대로이므로 재시도할 때마다 같은 파일 이름으로 내보내려다
+`FILE_ALREADY_EXISTS` 로 막힌다. 사용자 입장에서는 **한 번 실패하면 그 기능을 다시 쓸
+수 없는** 상태다.
+
+원인은 임시 파일 이름을 레이어 번호에서 파생한 것이었다. 임시 파일은 중간 산출물이고
+레이어 이름은 사용자가 보는 결과인데, 둘을 같은 카운터에서 뽑으니 하나의 실패가 다른
+하나를 오염시켰다. 임시 파일은 실행마다 고유 토큰을 쓰도록 고쳤다.
+
+Mock 테스트는 이것을 잡지 못했다 — 실패 후 재시도를 검증하는 테스트가 없었다.
+그 테스트를 함께 추가했다.
 
 ## Phase 6 Completion Criteria
 

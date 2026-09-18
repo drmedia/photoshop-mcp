@@ -223,6 +223,36 @@ describe("remove_stars", () => {
     expect(second.starless.name).toBe("StarNet2_별제거_02");
   });
 
+  it("실패한 실행이 다음 시도를 막지 않는다", async () => {
+    // 실기에서 나온 문제다. 내보내기는 성공했는데 처리기에서 실패하면 파일은 남고
+    // 레이어는 안 만들어져 번호가 그대로다. 임시 파일 이름을 레이어 번호에서
+    // 파생하면 재시도가 FILE_ALREADY_EXISTS 로 영구히 막힌다.
+    const s = await setup({ providers: false });
+    await expect(call(s, "milky.remove_stars")).rejects.toThrow();
+
+    // 처리기를 붙이고 다시 시도하면 성공해야 한다.
+    const script = await fakeStarNet();
+    s.mcp.capabilities.register({
+      id: "starnet2",
+      capability: "starRemoval",
+      executable: process.execPath,
+      args: [
+        script,
+        "--input",
+        "{{input}}",
+        "--output",
+        "{{output}}",
+        "--unscreen",
+        "{{output.stars}}",
+      ],
+      outputs: { stars: {} },
+    });
+
+    await expect(
+      call<{ starless: { name: string } }>(s, "milky.remove_stars"),
+    ).resolves.toMatchObject({ starless: { name: "StarNet2_별제거_01" } });
+  });
+
   it("작업 폴더가 없으면 막힌다", async () => {
     const s = await setup({ approved: false });
     await expect(call(s, "milky.remove_stars")).rejects.toThrow(

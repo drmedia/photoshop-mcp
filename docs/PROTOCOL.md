@@ -269,10 +269,26 @@ Phase 2 의 `DOCUMENT_GET` · `LAYER_LIST` 는 파라미터가 없으므로 `pay
 | 필드 | 형 | 설명 |
 |---|---|---|
 | `id` | number | Photoshop 문서 ID |
-| `name` | string | 문서 이름 |
+| `name` | string | 문서 이름. 저장 전이면 `"제목 없음-1"` 같은 임시 이름 |
 | `width` · `height` | number | 픽셀 크기 |
-| `bitDepth` | number | 8 / 16 / 32 |
+| `bitDepth` | number \| null | 1 / 8 / 16 / 32. 해석 실패 시 `null` |
+| `rawBitDepth` | string? | `bitDepth` 가 `null` 일 때만 포함. Photoshop 원본 값 |
 | `colorMode` | string | `RGB` · `CMYK` · `Grayscale` · `Lab` 등 |
+
+### 알 수 없는 값 처리
+
+Plugin 은 Photoshop 의 열거형을 해석하지 못해도 **그럴듯한 기본값으로 채우지 않는다.**
+
+```json
+{ "bitDepth": null, "rawBitDepth": "bitDepth64", "colorMode": "RGB" }
+```
+
+기본값으로 덮으면 호출자가 틀린 값을 사실로 받아들인다. 실제로 이전 구현은 해석 실패 시
+`8` 로 떨어뜨렸고, 그 결과 16비트 문서가 8비트로 보고되었다. `null` 과 원본을 함께 주면
+호출자가 "모른다" 는 사실과 원본 값을 모두 알 수 있다.
+
+`colorMode` 도 같은 원칙이며, 매핑에 없는 값은 원본 문자열을 그대로 돌려준다.
+`layer.type` 은 열거형이 고정되어 있어 분류 불가 시 `pixel` 로 떨어진다. (Phase 3 재검토 대상)
 
 활성 문서가 없으면 `DOCUMENT_NOT_FOUND`.
 

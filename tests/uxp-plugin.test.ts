@@ -94,18 +94,27 @@ describe("CommandDispatcher", () => {
 });
 
 describe("Photoshop 열거형 매핑", () => {
-  it("bitsPerChannel 문자열과 숫자를 모두 처리한다", () => {
-    expect(toBitDepth("eight")).toBe(8);
-    expect(toBitDepth("sixteen")).toBe(16);
-    expect(toBitDepth("thirtyTwo")).toBe(32);
-    expect(toBitDepth("one")).toBe(1);
-    expect(toBitDepth(16)).toBe(16);
+  it("실기에서 관측된 bitDepthNN 형식을 처리한다", () => {
+    // Photoshop 27.8 실제 반환 값
+    expect(toBitDepth("bitDepth8")).toEqual({ bitDepth: 8 });
+    expect(toBitDepth("bitDepth16")).toEqual({ bitDepth: 16 });
+    expect(toBitDepth("bitDepth32")).toEqual({ bitDepth: 32 });
   });
 
-  it("알 수 없는 bitsPerChannel 은 8 로 떨어진다", () => {
-    expect(toBitDepth("sixtyFour")).toBe(8);
-    expect(toBitDepth(undefined)).toBe(8);
-    expect(toBitDepth(Number.NaN)).toBe(8);
+  it("bitsPerChannel 문자열과 숫자를 모두 처리한다", () => {
+    expect(toBitDepth("eight")).toEqual({ bitDepth: 8 });
+    expect(toBitDepth("sixteen")).toEqual({ bitDepth: 16 });
+    expect(toBitDepth("thirtyTwo")).toEqual({ bitDepth: 32 });
+    expect(toBitDepth("one")).toEqual({ bitDepth: 1 });
+    expect(toBitDepth(16)).toEqual({ bitDepth: 16 });
+  });
+
+  it("알 수 없는 bitsPerChannel 은 null 과 원본을 돌려준다", () => {
+    // 8 로 떨어뜨리면 16/32비트 문서를 8비트로 오인하게 만든다.
+    // 실기에서 실제로 16비트 문서가 8 로 보고되었다.
+    expect(toBitDepth("sixtyFour")).toEqual({ bitDepth: null, raw: "sixtyFour" });
+    expect(toBitDepth(undefined)).toEqual({ bitDepth: null, raw: "undefined" });
+    expect(toBitDepth(Number.NaN)).toEqual({ bitDepth: null, raw: "NaN" });
   });
 
   it("DocumentMode 를 프로토콜 표기로 정규화한다", () => {

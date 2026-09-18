@@ -93,10 +93,19 @@ modal 밖에서 다시 던진다. modal 안에서 직접 throw 하지 않는다.
 배열 유사 컬렉션이라 `for...of` 하면 `TypeError: layers is not iterable` 이 난다.
 `dom/layers.ts` 의 `toArray()` 로 변환해서 쓴다.
 
-### 열거형 값이 문서와 다르다
+### 열거형 값이 Adobe 문서와 다르다
 
-`DocumentMode` 는 `"RGBColorMode"` 형태를 반환한다(`"RGB"` 가 아니다).
-`dom/mappings.ts` 는 모르는 값을 예외 없이 처리하되, `colorMode` 는 원본을 보존한다.
+실기에서 확인한 실제 반환 값이다. 문서만 보고 작성했던 매핑이 **둘 다 틀렸다.**
+
+| 속성 | Adobe 문서 표기 | 실제 반환 값 |
+|---|---|---|
+| `Document.mode` | `"RGB"` | `"RGBColorMode"` |
+| `Document.bitsPerChannel` | `"sixteen"` | `"bitDepth16"` |
+
+`bitsPerChannel` 은 특히 위험했다. 해석 실패 시 `8` 로 떨어뜨리고 있어서
+**16비트 문서가 8비트로 보고되었고, 그 값이 한 번도 실제 값이 아니었다는 사실이
+드러나지 않았다.** 지금은 해석 실패 시 `null` 과 `rawBitDepth` 를 돌려준다.
+모르는 값을 그럴듯한 기본값으로 덮지 않는다. (PROTOCOL.md §4)
 
 ### 코드 변경은 Reload 가 아니라 Unload → Load
 
@@ -117,5 +126,6 @@ Photoshop 27.8 / UXP Developer Tool 실기 검증 완료.
 | 문서 없음 → `DOCUMENT_NOT_FOUND` | 통과 (`recoverable: true`) |
 | 연결 끊김 → 재연결 | 통과 (Unload/Load 사이클) |
 
-**미검증**: `bitDepth` 매핑. 8비트 문서로만 확인했다. 매핑 실패 시의 기본값도 `8` 이라
-실제 값인지 fallback 인지 구분되지 않는다. 16/32비트 문서로 확인이 필요하다.
+| `bitDepth` 매핑 | 통과 (8비트 → `8`, 16비트 → `16`) |
+| 저장 전 문서 이름 | 통과 (`"제목 없음-1"`) |
+| 알 수 없는 값 → `null` + `rawBitDepth` | 통과 |

@@ -106,7 +106,10 @@ Photoshop 27.8 + UXP Developer Tool 실기 검증 완료.
 
 문서를 모두 닫으면 `DOCUMENT_NOT_FOUND` (`recoverable: true`) 를 반환합니다.
 
-**미검증**: `bitDepth` 매핑은 8비트 문서로만 확인했습니다.
+`bitDepth` 는 8비트·16비트 문서에서 모두 확인했습니다.
+Plugin 이 Photoshop 의 값을 해석하지 못하면 기본값으로 덮지 않고
+`bitDepth: null` 과 원본 `rawBitDepth` 를 함께 반환합니다.
+
 자세한 UXP 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 를 참고하세요.
 
 ## 패키지 구성

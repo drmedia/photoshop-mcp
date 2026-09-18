@@ -16,7 +16,7 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 - Tool: `photoshop.ping`, `photoshop.document.get`, `photoshop.layer.list`
 - Bridge: `MockPhotoshopBridge` (Photoshop 불필요) / `UXPPhotoshopBridge` (WebSocket + UXP)
-- 미검증: `bitDepth` 매핑 (8비트 문서로만 확인)
+- 알 수 없는 열거형 값은 기본값으로 덮지 않는다. `null` + 원본을 함께 반환한다.
 
 UXP 의 실기 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 정리되어 있다.
 특히 `manifestVersion` 은 **4 여야 하고**, `executeAsModal` 안에서 직접 throw 하면

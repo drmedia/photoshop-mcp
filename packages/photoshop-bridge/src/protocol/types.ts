@@ -23,13 +23,20 @@ export interface PhotoshopCommand<TParams = unknown> {
   params: TParams;
 }
 
-/** 문서 정보. (PROTOCOL.md §4) */
+/**
+ * 문서 정보. (PROTOCOL.md §4)
+ *
+ * `bitDepth` 가 `null` 이면 Plugin 이 Photoshop 의 값을 해석하지 못한 것이며,
+ * 그때 `rawBitDepth` 에 원본이 담긴다. 임의의 기본값으로 채우지 않는다 —
+ * 8비트로 단정하면 16/32비트 문서를 8비트로 오인하게 만든다.
+ */
 export const DocumentInfoSchema = z.object({
   id: z.number().int(),
   name: z.string(),
   width: z.number(),
   height: z.number(),
-  bitDepth: z.number().int(),
+  bitDepth: z.number().int().nullable(),
+  rawBitDepth: z.string().optional(),
   colorMode: z.string(),
 });
 

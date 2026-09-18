@@ -25,12 +25,14 @@ export function requireActiveDocument(): PhotoshopDocument {
 }
 
 export function toDocumentInfo(document: PhotoshopDocument): DocumentInfo {
+  const depth = toBitDepth(document.bitsPerChannel);
   return {
     id: document.id,
     name: document.name,
     width: Math.round(document.width),
     height: Math.round(document.height),
-    bitDepth: toBitDepth(document.bitsPerChannel),
+    bitDepth: depth.bitDepth,
+    ...(depth.raw === undefined ? {} : { rawBitDepth: depth.raw }),
     colorMode: toColorMode(document.mode),
   };
 }

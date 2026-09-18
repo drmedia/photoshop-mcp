@@ -10,27 +10,50 @@ import type { LayerType } from "@photoshop-mcp/photoshop-bridge";
  * 조회 한 건의 알 수 없는 값 때문에 목록 전체를 실패시키지 않기 위함이다.
  */
 
+/** {@link toBitDepth} 결과. 해석 실패 시 `bitDepth` 는 `null` 이고 `raw` 가 채워진다. */
+export interface BitDepthResult {
+  bitDepth: number | null;
+  raw?: string;
+}
+
 /**
  * `Constants.BitsPerChannelType` 를 숫자로 바꾼다.
  *
  * UXP 버전에 따라 문자열 열거형 또는 숫자가 올 수 있어 양쪽을 처리한다.
- * 알 수 없는 값은 8 로 본다.
+ *
+ * 해석하지 못하면 `null` 과 원본을 돌려준다. 예전에는 8 로 떨어뜨렸는데,
+ * 실기에서 16비트 문서가 8비트로 보고되는 문제가 있었다. 모르는 값을
+ * 그럴듯한 기본값으로 덮으면 호출자가 틀린 값을 사실로 받아들인다.
  */
-export function toBitDepth(value: unknown): number {
+export function toBitDepth(value: unknown): BitDepthResult {
   if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
+    return { bitDepth: value };
   }
-  switch (value) {
+
+  const raw = String(value);
+
+  // 실기 확인: Photoshop 27.8 은 "bitDepth8" / "bitDepth16" / "bitDepth32" 를 반환한다.
+  // 숫자를 뽑아내므로 새 값이 생겨도 대응된다.
+  const matched = /^bitDepth(\d+)$/i.exec(raw);
+  if (matched !== null) {
+    const parsed = Number.parseInt(matched[1] ?? "", 10);
+    if (Number.isInteger(parsed) && parsed > 0) {
+      return { bitDepth: parsed };
+    }
+  }
+
+  // Adobe 문서에 나오는 표기. 실기에서는 관측되지 않았지만 버전에 따라 올 수 있다.
+  switch (raw) {
     case "one":
-      return 1;
+      return { bitDepth: 1 };
     case "eight":
-      return 8;
+      return { bitDepth: 8 };
     case "sixteen":
-      return 16;
+      return { bitDepth: 16 };
     case "thirtyTwo":
-      return 32;
+      return { bitDepth: 32 };
     default:
-      return 8;
+      return { bitDepth: null, raw };
   }
 }
 

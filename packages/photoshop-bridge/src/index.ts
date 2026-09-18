@@ -16,6 +16,18 @@ export {
 } from "./capability.js";
 export { assertConfigConsistent, buildArgs, placeholdersIn } from "./capability-args.js";
 export {
+  WorkflowConfigSchema,
+  WorkflowDefinitionSchema,
+  WorkflowIdSchema,
+  WorkflowStepSchema,
+  type WorkflowConfig,
+  type WorkflowDefinition,
+  type WorkflowResult,
+  type WorkflowStep,
+  type WorkflowStepResult,
+} from "./workflow.js";
+export { assertWorkflowConsistent, referencesIn, resolveInput } from "./workflow-refs.js";
+export {
   JobStateSchema,
   TERMINAL_STATES,
   isTerminal,

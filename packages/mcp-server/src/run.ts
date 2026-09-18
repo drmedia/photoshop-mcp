@@ -37,12 +37,14 @@ function log(message: string): void {
  * - `PHOTOSHOP_MCP_EXTENSIONS` — Extension 디렉터리 (기본 `<cwd>/extensions`)
  * - `PHOTOSHOP_MCP_ALLOW` — 허용할 Permission Level (기본 `read,edit`)
  * - `PHOTOSHOP_MCP_CAPABILITIES` — 외부 처리기 설정 (기본 `<cwd>/capabilities.json`)
+ * - `PHOTOSHOP_MCP_WORKFLOWS` — 워크플로 설정 (기본 `<cwd>/workflows.json`)
  */
 export function readOptionsFromEnv(env: Record<string, string | undefined> = process.env): {
   mode: BridgeMode;
   port: number;
   extensionsDir: string;
   capabilityConfig: string;
+  workflowConfig: string;
   policy: PermissionPolicy;
 } {
   const mode: BridgeMode = env["PHOTOSHOP_MCP_BRIDGE"] === "mock" ? "mock" : "uxp";
@@ -69,18 +71,29 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
   // 파일이 없으면 조용히 넘어간다. 외부 처리기가 없는 것은 정상이다.
   const capabilityConfig = resolve(env["PHOTOSHOP_MCP_CAPABILITIES"] ?? "capabilities.json");
 
-  return { mode, port, extensionsDir, capabilityConfig, policy: new PermissionPolicy(levels) };
+  const workflowConfig = resolve(env["PHOTOSHOP_MCP_WORKFLOWS"] ?? "workflows.json");
+
+  return {
+    mode,
+    port,
+    extensionsDir,
+    capabilityConfig,
+    workflowConfig,
+    policy: new PermissionPolicy(levels),
+  };
 }
 
 /** CLI 진입점. 오류를 스스로 처리하며 예외를 던지지 않는다. */
 export async function main(): Promise<void> {
-  const { mode, port, extensionsDir, capabilityConfig, policy } = readOptionsFromEnv();
+  const { mode, port, extensionsDir, capabilityConfig, workflowConfig, policy } =
+    readOptionsFromEnv();
 
   const options: StartOptions = {
     mode,
     port,
     extensionsDir,
     capabilityConfig,
+    workflowConfig,
     policy,
     onBridgeStateChange: (state) => {
       log(`Bridge: ${STATE_LABEL[state] ?? state}`);
@@ -101,6 +114,14 @@ export async function main(): Promise<void> {
     log(`허용 권한: ${policy.allowed.join(", ") || "(없음)"}`);
     if (mcp.loadedProviders > 0) {
       log(`외부 처리기 ${mcp.loadedProviders}개: ${mcp.capabilities.list().join(", ")}`);
+    }
+    if (mcp.loadedWorkflows > 0) {
+      log(
+        `워크플로 ${mcp.loadedWorkflows}개: ${mcp.workflows
+          .list()
+          .map((w) => w.id)
+          .join(", ")}`,
+      );
     }
     if (mcp.loadedExtensions.length > 0) {
       const extensionNames = mcp.loadedExtensions

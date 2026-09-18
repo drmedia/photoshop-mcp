@@ -1136,14 +1136,79 @@ Star Restore
 
 ---
 
+## 범위 재검토 (2026-09-18)
+
+위 예시는 실제 도메인을 보기 전에 쓰였다. `Create Sky Mask` 와 `Gradient Removal` 은
+각각 범위에서 뺐고 GraXpert 에 막혀 있다. (§10 참조)
+
+그리고 **Extension 이 이미 워크플로다.** `milky.remove_stars` 는 문서 조회 → 내보내기 →
+외부 처리 → 가져오기 ×2 → 혼합까지 5단계를 한 Job 으로 묶고 진행률도 보고한다.
+
+그래서 이 계층이 실제로 더하는 것은 **코드를 쓰지 않고 선언으로 정의하는 것**이다.
+Extension 을 만들려면 TypeScript 를 쓰고 빌드해야 하는데, 자주 하는 순서만 바꾸고
+싶을 때는 과하다.
+
 ## Requirements
 
-- [ ] Workflow Definition
-- [ ] Sequential Command execution
-- [ ] Failure handling
-- [ ] Rollback strategy 검토
-- [ ] Workflow result
-- [ ] Progress event
+- [x] Workflow Definition — `workflows.json` 에 JSON 으로 적는다
+- [x] Sequential Command execution — 단계를 순서대로 실행하고 앞 단계 결과를 넘긴다
+- [x] Failure handling — 실패하면 멈추고 뒤 단계는 `skipped`. 어느 단계가 왜
+      실패했는지 결과에 담는다
+- [x] Rollback strategy 검토 — **되돌리지 않기로 했다.** 아래에 근거를 적었다
+- [x] Workflow result — 단계별 상태·결과·오류·소요 시간
+- [x] Progress event — Job 진행률로 `3/5 별 분리` 처럼 보고한다.
+      진짜 이벤트(push)는 Phase 11 이다
+
+## 값 전달의 안전 원칙
+
+batchPlay descriptor · Capability argv 와 같다. (ARCHITECTURE §23.2)
+
+`{{steps.0.result.layer.id}}` 형태만 허용한다. 앞 단계 결과에서 **경로로 꺼내는
+것**뿐이며 임의 식을 평가하지 않는다. `{{1 + 1}}` 이나 `{{env.PATH}}` 는 등록 시점에
+거부한다 — 식을 평가하는 순간 워크플로가 실행 엔진이 되고, "LLM 이 임의 코드를
+실행할 수 없다" 는 규칙이 무너진다.
+
+값 전체가 참조 하나면 **타입을 유지한다.** `"{{steps.0.result.id}}"` 는 숫자 `42` 가
+되지 문자열 `"42"` 가 되지 않는다. 문자열로 바꾸면 Tool 의 스키마 검증이 엉뚱하게
+실패한다.
+
+## Rollback 을 하지 않는 이유
+
+되돌리려면 Photoshop History 를 되감아야 하는데, 워크플로가 도는 동안 사용자가 한
+편집까지 함께 날아간다. 워크플로는 몇 분씩 걸리고 그 사이 사용자는 Photoshop 을
+쓸 수 있다.
+
+대신 **무엇이 어디까지 됐는지 정확히 알려주고 판단은 사용자에게 맡긴다.**
+앞 단계가 만든 레이어와 파일은 그대로 남는다. 이는 기존 MilkyScape 패널의
+"기존 결과 및 사용자가 수정한 레이어를 덮어쓰거나 자동 삭제하지 않는다" 와 같은 태도다.
+(개발계획서 §2-9)
+
+## Job 을 부르는 단계
+
+`awaitJob: true` 를 **명시적으로** 적어야 안쪽 Job 을 기다린다. 결과에 `jobId` 가
+있다고 알아서 기다리면, 우연히 그 이름의 필드를 가진 결과까지 기다리게 된다.
+
+적었는데 Tool 이 `jobId` 를 돌려주지 않으면 그 단계는 실패한다. 조용히 넘기면 다음
+단계가 아직 없는 결과를 참조한다.
+
+워크플로를 취소하면 안쪽 Job 도 취소한다. 그러지 않으면 외부 프로세스가 워크플로보다
+오래 산다.
+
+## 실기 검증
+
+Photoshop 27.8, 4032×6048 16비트. 실제 MCP 클라이언트로 전 구간을 확인했다.
+
+```text
+[0초]  workflow.run → jobId 8d0d7774        즉시 반환
+[3초]  running | 0%  1/3 별 분리
+[72초] running | 67% 3/3 선명화
+[81초] completed | ok=true 총 81초
+       0 별 분리 → completed (70초)          awaitJob 으로 안쪽 Job 대기
+       1 별 없는 레이어 선택 → completed      {{steps.0.result.starless.id}} 해석
+       2 선명화 → completed (11초)
+```
+
+`workflows.example.json` 의 `starless-sharpen` 을 그대로 썼다.
 
 ---
 

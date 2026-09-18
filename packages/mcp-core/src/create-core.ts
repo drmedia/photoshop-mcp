@@ -9,12 +9,14 @@ import type { Logger } from "@photoshop-mcp/photoshop-bridge";
 import {
   registerCapabilityTools,
   registerJobTools,
+  registerWorkflowTools,
   registerPhotoshopCommands,
   registerPhotoshopTools,
 } from "@photoshop-mcp/photoshop-tools";
 import { CapabilityRegistry } from "./capabilities/registry.js";
 import { ExtensionManager } from "./extensions/manager.js";
 import { JobStore } from "./jobs/store.js";
+import { WorkflowRegistry } from "./workflows/registry.js";
 import { createConsoleLogger } from "./extensions/logger.js";
 import { PhotoshopMcpServer } from "./server/mcp-server.js";
 
@@ -51,6 +53,8 @@ export interface PhotoshopMcp {
   capabilities: CapabilityRegistry;
   /** 긴 작업. MCP 60초 타임아웃을 넘는 것은 여기로 보낸다. (ROADMAP §14) */
   jobs: JobStore;
+  /** 선언으로 정의한 Tool 순서. `loadConfig(path)` 로 등록한다. (ROADMAP §11) */
+  workflows: WorkflowRegistry;
   logger: Logger;
 }
 
@@ -104,6 +108,9 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
   registerCapabilityTools(tools, capabilities);
   registerJobTools(tools, jobs);
 
+  const workflows = new WorkflowRegistry({ tools, jobs, logger });
+  registerWorkflowTools(tools, workflows);
+
   const extensions = new ExtensionManager({
     tools,
     commands: engine,
@@ -121,6 +128,7 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
     extensions,
     capabilities,
     jobs,
+    workflows,
     logger,
     policy,
   };

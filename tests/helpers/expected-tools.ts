@@ -58,6 +58,9 @@ export const EXPECTED_TOOLS = [
   "photoshop.job.status",
   "photoshop.job.list",
   "photoshop.job.cancel",
+  // ROADMAP §11 — 선언으로 정의한 Tool 순서
+  "photoshop.workflow.list",
+  "photoshop.workflow.run",
 ] as const;
 
 export const EXPECTED_COMMANDS = [

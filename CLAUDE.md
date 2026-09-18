@@ -149,6 +149,23 @@ Job 은 메모리에만 있다. 서버를 다시 띄우면 사라진다.
 **긴 Tool 을 새로 만들 때는 반드시 실제 MCP 클라이언트(`client.callTool`)로 확인한다.**
 `tools.invoke` 로 서버 내부를 직접 부르면 타임아웃을 놓친다.
 
+## Workflow (ROADMAP §11)
+
+`workflows.json` 에 Tool 순서를 선언한다. Extension 을 만들려면 TypeScript 를 쓰고
+빌드해야 하는데, 순서만 바꾸고 싶을 때는 과하다.
+
+**Extension 이 이미 워크플로다.** `milky.remove_stars` 가 5단계를 한 Job 으로 묶는다.
+이 계층은 코드 없이 정의하는 경우만 더한다.
+
+값 전달은 `{{steps.0.result.layer.id}}` 형태만 허용한다. 임의 식을 평가하지 않는다 —
+그 순간 워크플로가 실행 엔진이 되고 §23 이 무너진다. 값 전체가 참조면 타입을 유지한다.
+
+**되돌리지 않는다.** History 를 되감으면 워크플로가 도는 동안 사용자가 한 편집까지
+날아간다. 무엇이 어디까지 됐는지 알려주고 판단은 사용자에게 맡긴다.
+
+Job 을 부르는 단계는 `awaitJob: true` 를 명시한다. 알아서 기다리면 우연히 `jobId`
+필드를 가진 결과까지 기다리게 된다.
+
 알 수 없는 열거형 값은 기본값으로 덮지 않는다. `null` + 원본(`rawBitDepth` · `rawKind` ·
 `rawBlendMode`)을 함께 반환한다. 이 원칙으로 실기에서 세 번 실제 버그를 잡았다.
 
@@ -283,6 +300,7 @@ npm run check        # format + lint + build + typecheck:tests + test
 | `PHOTOSHOP_MCP_EXTENSIONS` | `<cwd>/extensions` | Extension 디렉터리 |
 | `PHOTOSHOP_MCP_ALLOW` | `read,edit` | 허용 권한. `all` · `none` 도 쓸 수 있다 |
 | `PHOTOSHOP_MCP_CAPABILITIES` | `<cwd>/capabilities.json` | 외부 처리기 설정 |
+| `PHOTOSHOP_MCP_WORKFLOWS` | `<cwd>/workflows.json` | 워크플로 설정 |
 
 Photoshop 없이 돌릴 때는 `PHOTOSHOP_MCP_BRIDGE=mock` 을 사용합니다.
 

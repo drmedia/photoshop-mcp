@@ -1,0 +1,38 @@
+{
+  "workflows": [
+    {
+      "id": "starless-sharpen",
+      "name": "별 분리 후 선명화",
+      "description": "별을 분리하고, 별 없는 레이어를 기준으로 선명화합니다. StarNet2와 BlurXTerminator가 필요합니다.",
+      "steps": [
+        {
+          "tool": "milky.remove_stars",
+          "label": "별 분리",
+          "awaitJob": true
+        },
+        {
+          "tool": "photoshop.layer.select",
+          "label": "별 없는 레이어 선택",
+          "input": { "layerId": "{{steps.0.result.starless.id}}" }
+        },
+        {
+          "tool": "milky.enhance",
+          "label": "선명화",
+          "input": { "nonstellar": 0.4 }
+        }
+      ]
+    },
+    {
+      "id": "export-preview",
+      "name": "미리보기 내보내기",
+      "description": "현재 문서를 png로 내보냅니다. 외부 처리기가 필요 없습니다.",
+      "steps": [
+        {
+          "tool": "photoshop.document.export",
+          "label": "png 내보내기",
+          "input": { "filename": "preview", "format": "png" }
+        }
+      ]
+    }
+  ]
+}

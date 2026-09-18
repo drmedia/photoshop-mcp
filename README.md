@@ -99,6 +99,32 @@ cp capabilities.example.json capabilities.json   # 실행 파일 경로를 고�
 실행 파일은 설정 파일에서만 오고(절대 경로), 인자는 선언된 파라미터로만 조립되며,
 shell 을 거치지 않고, 입출력은 승인된 작업 폴더 안의 파일 이름뿐입니다.
 
+## 워크플로
+
+자주 하는 Tool 순서를 `workflows.json` 에 선언합니다. Extension 을 만들려면 TypeScript 를
+쓰고 빌드해야 하는데, 순서만 바꾸고 싶을 때는 과합니다.
+
+```json
+{
+  "workflows": [{
+    "id": "starless-sharpen",
+    "name": "별 분리 후 선명화",
+    "steps": [
+      { "tool": "milky.remove_stars", "label": "별 분리", "awaitJob": true },
+      { "tool": "photoshop.layer.select",
+        "input": { "layerId": "{{steps.0.result.starless.id}}" } },
+      { "tool": "milky.enhance", "input": { "nonstellar": 0.4 } }
+    ]
+  }]
+}
+```
+
+값 전달은 `{{steps.N.result.<경로>}}` 형태만 허용합니다. **임의 식을 평가하지 않습니다** —
+`{{1 + 1}}` 은 등록 시점에 거부됩니다. 식을 평가하는 순간 워크플로가 실행 엔진이 됩니다.
+
+한 단계가 실패하면 멈추고 뒤 단계는 건너뜁니다. **앞 단계가 만든 것은 되돌리지 않습니다** —
+되돌리려면 History 를 되감아야 하는데 그 사이 사용자가 한 편집까지 날아갑니다.
+
 ## 긴 작업 (Job)
 
 **MCP 기본 요청 타임아웃은 60초**인데 외부 처리기는 더 걸립니다. 실기에서 StarNet2가

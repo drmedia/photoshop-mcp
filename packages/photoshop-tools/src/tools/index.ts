@@ -27,6 +27,7 @@ import {
   createLayerVisibilityTool,
 } from "./layer-edit.js";
 import { createCapabilityListTool, type CapabilityLister } from "./capability.js";
+import { createWorkflowListTool, createWorkflowRunTool, type WorkflowRunner } from "./workflow.js";
 import {
   createJobCancelTool,
   createJobListTool,
@@ -53,6 +54,7 @@ export * from "./adjustment.js";
 export * from "./filter.js";
 export * from "./capability.js";
 export * from "./job.js";
+export * from "./workflow.js";
 export * from "./document-save.js";
 export * from "./layer-place.js";
 export * from "./gap-tools.js";
@@ -142,4 +144,10 @@ export function registerJobTools(registry: ToolRegistry, jobs: JobReader): void 
   registry.register(createJobStatusTool(jobs));
   registry.register(createJobListTool(jobs));
   registry.register(createJobCancelTool(jobs));
+}
+
+/** 워크플로 Tool 을 등록한다. (ROADMAP §11) */
+export function registerWorkflowTools(registry: ToolRegistry, workflows: WorkflowRunner): void {
+  registry.register(createWorkflowListTool(workflows));
+  registry.register(createWorkflowRunTool(workflows));
 }

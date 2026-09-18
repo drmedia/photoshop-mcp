@@ -133,6 +133,25 @@ undo 하면 첫 번째 이후에는 같은 지점에 머문다. 현재 지점의
 `layer.opacity = 50` 을 넣으면 `50.19607843137255` 가 돌아온다. 프로토콜은 0–100 정수이므로
 Plugin 이 반올림한다.
 
+### 임의 경로에 파일을 쓸 수 없다
+
+`localFileSystem: "fullAccess"` 를 주어도 `storage.createEntryWithUrl` 이
+플러그인 밖 경로의 부모 폴더를 찾지 못한다.
+
+```
+Could not find an entry of 'file:///C:/Temp'
+```
+
+Photoshop 의 `save` 액션도 경로 문자열을 받지 않는다.
+
+```
+invalid file token used
+```
+
+세션 토큰이 필요한데 그 토큰은 storage API 로 얻은 entry 에서만 만들 수 있다.
+자동화하려면 사용자가 폴더를 한 번 승인하고 persistent token 을 보관해야 한다.
+그래서 문서 저장은 Phase 9 의 Permission System 과 함께 다룬다. (ROADMAP §8.5)
+
 ### 코드 변경은 Reload 가 아니라 Unload → Load
 
 UDT 의 `Reload` 는 변경된 `dist/` 를 반영하지 않는다. 반드시 `Unload` 후 `Load` 한다.

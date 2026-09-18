@@ -11,7 +11,20 @@
  */
 import { entrypoints, host } from "uxp";
 import { CommandDispatcher } from "./dispatcher/dispatcher.js";
+import {
+  adjustmentBrightnessContrast,
+  adjustmentCurves,
+  adjustmentLevels,
+} from "./dom/adjustment.js";
 import { documentGet } from "./dom/document.js";
+import { gaussianBlur } from "./dom/filter.js";
+import {
+  maskCreate,
+  maskDisable,
+  maskEnable,
+  selectionClear,
+  selectionInvert,
+} from "./dom/mask-selection.js";
 import { groupCreate, groupMoveLayer } from "./dom/group.js";
 import { historyUndo } from "./dom/history.js";
 import {
@@ -73,6 +86,31 @@ export function createDispatcher(): CommandDispatcher {
 
   // Phase 3 — History
   dispatcher.register("HISTORY_UNDO", async () => historyUndo());
+
+  // Phase 4 — 조정 레이어 (비파괴)
+  dispatcher.register("ADJUSTMENT_CURVES", async (p) =>
+    adjustmentCurves(p as Parameters<typeof adjustmentCurves>[0]),
+  );
+  dispatcher.register("ADJUSTMENT_LEVELS", async (p) =>
+    adjustmentLevels(p as Parameters<typeof adjustmentLevels>[0]),
+  );
+  dispatcher.register("ADJUSTMENT_BRIGHTNESS_CONTRAST", async (p) =>
+    adjustmentBrightnessContrast(p as Parameters<typeof adjustmentBrightnessContrast>[0]),
+  );
+
+  // Phase 4 — 마스크 · 선택 영역
+  dispatcher.register("MASK_CREATE", async (p) =>
+    maskCreate(p as Parameters<typeof maskCreate>[0]),
+  );
+  dispatcher.register("MASK_ENABLE", async (p) => maskEnable(p as { layerId?: number }));
+  dispatcher.register("MASK_DISABLE", async (p) => maskDisable(p as { layerId?: number }));
+  dispatcher.register("SELECTION_CLEAR", async () => selectionClear());
+  dispatcher.register("SELECTION_INVERT", async () => selectionInvert());
+
+  // Phase 4 — 필터 (기본 스마트 필터)
+  dispatcher.register("FILTER_GAUSSIAN_BLUR", async (p) =>
+    gaussianBlur(p as Parameters<typeof gaussianBlur>[0]),
+  );
 
   return dispatcher;
 }

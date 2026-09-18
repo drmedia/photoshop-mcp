@@ -41,6 +41,8 @@ declare module "photoshop" {
     readonly layers: readonly PhotoshopLayer[];
     /** 현재 선택된 레이어들. 대입하면 선택이 바뀐다. */
     activeLayers: readonly PhotoshopLayer[];
+    /** 선택 영역. `bounds` 가 없으면 선택이 없다. */
+    readonly selection?: { readonly bounds?: unknown };
     /** History 항목. 오래된 것부터 최신 순. */
     readonly historyStates: readonly PhotoshopHistoryState[];
     /** 현재 History 지점. 대입하면 그 지점으로 되돌린다. */
@@ -48,6 +50,13 @@ declare module "photoshop" {
 
     /** 새 픽셀 레이어를 만든다. **비동기다.** */
     createLayer(options?: { name?: string; opacity?: number }): Promise<PhotoshopLayer>;
+
+    /** 파일로 저장한다. 전부 비동기다. */
+    readonly saveAs: {
+      psd(entry: unknown, options?: Record<string, unknown>): Promise<void>;
+      png(entry: unknown, options?: Record<string, unknown>): Promise<void>;
+      jpg(entry: unknown, options?: { quality?: number }): Promise<void>;
+    };
 
     /** 레이어 그룹을 만든다. **비동기다.** */
     createLayerGroup(options?: {
@@ -90,6 +99,21 @@ declare module "photoshop" {
     readonly PLACEAFTER: string;
   }
 
+  /**
+   * `batchPlay` 는 Photoshop 의 Action Descriptor 를 직접 실행한다.
+   *
+   * DOM 으로 처리할 수 없는 기능(조정 레이어 등)에만 쓴다. (ARCHITECTURE §13)
+   * descriptor 는 반드시 플러그인이 검증된 파라미터로 조립한다.
+   * 외부에서 받은 descriptor 를 그대로 실행하는 통로를 만들지 않는다. (ARCHITECTURE §23)
+   */
+  export interface PhotoshopAction {
+    batchPlay(
+      descriptors: readonly Record<string, unknown>[],
+      options: Record<string, unknown>,
+    ): Promise<Record<string, unknown>[]>;
+  }
+
+  export const action: PhotoshopAction;
   export const app: PhotoshopApp;
   export const core: PhotoshopCore;
   export const constants: { readonly ElementPlacement: ElementPlacementConstants };
@@ -112,5 +136,12 @@ declare module "uxp" {
   export const entrypoints: {
     setup(config: Record<string, unknown>): void;
   };
-  export const storage: unknown;
+  export interface LocalFileSystem {
+    /** 기존 파일/폴더를 `file:` URL 로 연다. 없으면 예외를 던진다. */
+    getEntryWithUrl(url: string): Promise<unknown>;
+    /** `file:` URL 로 새 파일을 만든다. */
+    createEntryWithUrl(url: string, options?: { overwrite?: boolean }): Promise<unknown>;
+  }
+
+  export const storage: { readonly localFileSystem: LocalFileSystem };
 }

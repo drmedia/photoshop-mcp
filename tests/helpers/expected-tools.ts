@@ -23,6 +23,18 @@ export const EXPECTED_TOOLS = [
   "photoshop.group.move_layer",
   // Phase 3 — History
   "photoshop.history.undo",
+  // Phase 4 — 조정 레이어
+  "photoshop.adjustment.curves",
+  "photoshop.adjustment.levels",
+  "photoshop.adjustment.brightness_contrast",
+  // Phase 4 — 마스크 · 선택
+  "photoshop.mask.create",
+  "photoshop.mask.enable",
+  "photoshop.mask.disable",
+  "photoshop.selection.clear",
+  "photoshop.selection.invert",
+  // Phase 4 — 필터
+  "photoshop.filter.gaussian_blur",
 ] as const;
 
 export const EXPECTED_COMMANDS = [
@@ -38,6 +50,15 @@ export const EXPECTED_COMMANDS = [
   "GROUP_CREATE",
   "GROUP_MOVE_LAYER",
   "HISTORY_UNDO",
+  "ADJUSTMENT_CURVES",
+  "ADJUSTMENT_LEVELS",
+  "ADJUSTMENT_BRIGHTNESS_CONTRAST",
+  "MASK_CREATE",
+  "MASK_ENABLE",
+  "MASK_DISABLE",
+  "SELECTION_CLEAR",
+  "SELECTION_INVERT",
+  "FILTER_GAUSSIAN_BLUR",
 ] as const;
 
 /**
@@ -52,11 +73,13 @@ export const FORBIDDEN_TOOLS = [
   "photoshop.document.flatten",
   "photoshop.document.close",
   "photoshop.group.ungroup",
-  // Phase 4 이후
-  "photoshop.mask.create",
-  "photoshop.selection.clear",
-  "photoshop.adjustment.curves",
-  "photoshop.adjustment.levels",
-  "photoshop.filter.gaussian_blur",
+  // 아직 구현하지 않음
+  "photoshop.mask.delete",
+  // 저장 전체를 Phase 9 로 미뤘다. UXP 샌드박스가 임의 경로 쓰기를 막아
+  // 폴더 승인·토큰 보관이 필요하고, 그것이 Permission System 설계 그 자체다.
   "photoshop.document.save",
+  "photoshop.document.save_as",
+  "photoshop.document.export",
+  // Phase 5 이후
+  "photoshop.document.flatten_all",
 ] as const;

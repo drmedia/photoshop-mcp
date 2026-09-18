@@ -141,7 +141,7 @@ describe("MockPhotoshopBridge", () => {
 
     it("지원하지 않는 Command 는 COMMAND_NOT_SUPPORTED 를 던진다", async () => {
       await expect(
-        new MockPhotoshopBridge().executeCommand({ type: "MASK_CREATE", params: {} }),
+        new MockPhotoshopBridge().executeCommand({ type: "NONEXISTENT_COMMAND", params: {} }),
       ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.COMMAND_NOT_SUPPORTED }));
     });
   });

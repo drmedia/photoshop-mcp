@@ -1,5 +1,32 @@
 import type { CommandRegistry } from "@photoshop-mcp/command-engine";
+import {
+  ADJUSTMENT_BRIGHTNESS_CONTRAST,
+  ADJUSTMENT_CURVES,
+  ADJUSTMENT_LEVELS,
+  BrightnessContrastParamsSchema,
+  CurvesParamsSchema,
+  LevelsParamsSchema,
+  brightnessContrastCommand,
+  curvesCommand,
+  levelsCommand,
+} from "./adjustment.js";
 import { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
+import { FILTER_GAUSSIAN_BLUR, GaussianBlurParamsSchema, gaussianBlurCommand } from "./filter.js";
+import {
+  MASK_CREATE,
+  MASK_DISABLE,
+  MASK_ENABLE,
+  MaskCreateParamsSchema,
+  MaskToggleParamsSchema,
+  SELECTION_CLEAR,
+  SELECTION_INVERT,
+  SelectionParamsSchema,
+  maskCreateCommand,
+  maskDisableCommand,
+  maskEnableCommand,
+  selectionClearCommand,
+  selectionInvertCommand,
+} from "./mask-selection.js";
 import { HISTORY_UNDO, HistoryUndoParamsSchema, historyUndoCommand } from "./history.js";
 import {
   GROUP_CREATE,
@@ -33,7 +60,10 @@ import { LAYER_LIST, layerListCommand } from "./layer-list.js";
 import { PING, pingCommand } from "./ping.js";
 
 export { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
+export * from "./adjustment.js";
+export * from "./filter.js";
 export * from "./group.js";
+export * from "./mask-selection.js";
 export * from "./history.js";
 export * from "./layer-edit.js";
 export { LAYER_LIST, layerListCommand } from "./layer-list.js";
@@ -65,4 +95,25 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
 
   // Phase 3 — History
   registry.register(HISTORY_UNDO, historyUndoCommand, HistoryUndoParamsSchema);
+
+  // Phase 4 — 조정 레이어 (비파괴)
+  registry.register(ADJUSTMENT_CURVES, curvesCommand, CurvesParamsSchema);
+  registry.register(ADJUSTMENT_LEVELS, levelsCommand, LevelsParamsSchema);
+  registry.register(
+    ADJUSTMENT_BRIGHTNESS_CONTRAST,
+    brightnessContrastCommand,
+    BrightnessContrastParamsSchema,
+  );
+
+  // Phase 4 — 마스크 (비파괴)
+  registry.register(MASK_CREATE, maskCreateCommand, MaskCreateParamsSchema);
+  registry.register(MASK_ENABLE, maskEnableCommand, MaskToggleParamsSchema);
+  registry.register(MASK_DISABLE, maskDisableCommand, MaskToggleParamsSchema);
+
+  // Phase 4 — 선택 영역
+  registry.register(SELECTION_CLEAR, selectionClearCommand, SelectionParamsSchema);
+  registry.register(SELECTION_INVERT, selectionInvertCommand, SelectionParamsSchema);
+
+  // Phase 4 — 필터 (기본 스마트 필터로 비파괴)
+  registry.register(FILTER_GAUSSIAN_BLUR, gaussianBlurCommand, GaussianBlurParamsSchema);
 }

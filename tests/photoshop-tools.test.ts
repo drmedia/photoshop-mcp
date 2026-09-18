@@ -169,7 +169,7 @@ describe("Phase 1 Core Tools", () => {
   it("알 수 없는 Tool 은 TOOL_NOT_FOUND 를 던진다", async () => {
     const mcp = setup();
 
-    await expect(call(mcp, "photoshop.mask.create")).rejects.toThrow(
+    await expect(call(mcp, "photoshop.nonexistent.tool")).rejects.toThrow(
       expect.objectContaining({ code: ErrorCode.TOOL_NOT_FOUND }),
     );
   });

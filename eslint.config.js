@@ -18,10 +18,17 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/bin/**"],
+    // 실행 스크립트. Node 전역을 쓰고 결과를 사람이 읽도록 stdout 에 찍는다.
+    // 서버가 아니므로 stdout 을 MCP 전송이 점유하지 않는다.
+    files: ["**/bin/**", "scripts/**"],
     languageOptions: {
       sourceType: "module",
-      globals: { process: "readonly", console: "readonly", URL: "readonly" },
+      globals: {
+        process: "readonly",
+        console: "readonly",
+        URL: "readonly",
+        setTimeout: "readonly",
+      },
     },
     rules: { "no-console": "off", "@typescript-eslint/no-unused-vars": "off" },
   },

@@ -283,6 +283,16 @@ PHOTOSHOP_MCP_BRIDGE=mock npm run dev    # Mock Bridge. Photoshop·플러그인 
 순서는 상관없습니다. 플러그인이 지수 백오프로 재접속합니다.
 자세한 내용은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 를 참고하세요.
 
+제대로 붙었는지는 한 번에 확인할 수 있습니다.
+
+```bash
+npm run build && npm run verify:live
+```
+
+실제 MCP 클라이언트를 stdio 로 붙여 서버 기동 · Photoshop 연결 · Resource 읽기 ·
+권한 경계 · stdout 오염을 확인합니다. 실패하면 서버 로그를 함께 출력하고 종료 코드
+1 로 끝납니다. Photoshop 이 필요하므로 `npm test` 에는 들어 있지 않습니다.
+
 ## 검증 상태
 
 Photoshop 27.8 + UXP Developer Tool 실기 검증 완료.

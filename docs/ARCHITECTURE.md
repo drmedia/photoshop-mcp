@@ -970,155 +970,94 @@ MilkyScapeTools/
 
 ---
 
-# 28. Initial Core Tools
+# 28. Core Tool 노출 순서
 
-초기 버전에서는 Tool 수를 제한한다.
+기능이 안정되기 전에 Photoshop API 전체를 MCP Tool 로 노출하지 않는다.
+Phase 번호와 범위는 `docs/ROADMAP.md` 를 따른다.
 
-Phase 1:
+**Phase 1 — 조회** (구현 완료)
 
 ```text
 photoshop.ping
-
 photoshop.document.get
-
 photoshop.layer.list
 ```
 
-Phase 2:
+**Phase 3 — 비파괴 편집** (구현 완료)
 
 ```text
 photoshop.layer.create
-
 photoshop.layer.duplicate
-
 photoshop.layer.rename
-
+photoshop.layer.select
+photoshop.layer.set_visibility
+photoshop.layer.set_opacity
 photoshop.group.create
+photoshop.group.move_layer
+photoshop.history.undo
 ```
 
-Phase 3:
+**Phase 4 — 마스크 · 선택 · 조정 · 필터 · 저장**
 
 ```text
 photoshop.mask.create
-
+photoshop.mask.enable
+photoshop.mask.disable
 photoshop.selection.clear
-
+photoshop.selection.invert
 photoshop.adjustment.curves
-
 photoshop.adjustment.levels
+photoshop.adjustment.brightness_contrast
+photoshop.filter.gaussian_blur
+photoshop.document.save
+photoshop.document.save_as
+photoshop.document.export
 ```
 
-기능이 안정되기 전에 Photoshop API 전체를 MCP Tool로 노출하지 않는다.
+Phase 2 는 Tool 을 추가하지 않는다. Phase 1 의 세 Tool 을 Mock 에서
+실제 Photoshop 으로 연결하는 단계다.
+
+destructive Tool (`photoshop.layer.delete`, `photoshop.document.flatten`,
+`photoshop.document.close`) 은 Phase 9 의 Permission System 과 함께 도입한다.
+그전에는 노출하지 않는다. (§23)
 
 ---
 
 # 29. Development Phases
 
-## Phase 1 — MCP Core
+Phase 의 **기준은 `docs/ROADMAP.md`** 다. 이 절은 구조를 이해하기 위한 요약이며,
+항목별 진행 상황과 완료 기준은 ROADMAP 의 체크박스를 따른다.
 
-구현:
+번호나 범위가 ROADMAP 과 달라지면 ROADMAP 이 맞다.
 
-```text
-MCP bootstrap
+| Phase | 범위 | 상태 |
+|---|---|---|
+| 0 | Project Bootstrap — 모노레포, TypeScript, Lint, Test, CI | 완료 |
+| 1 | MCP Core — ToolRegistry, CommandRegistry, CommandEngine, MockPhotoshopBridge | 완료 |
+| 2 | Photoshop Bridge — WebSocket Transport, UXP Plugin, 실제 `DOCUMENT_GET` / `LAYER_LIST` | 완료 |
+| 3 | Basic Photoshop Editing — 레이어 생성·복제·이름·선택·표시·불투명도, 그룹, Undo | 완료 |
+| 4 | Extended Photoshop Tools — Mask, Selection, Curves / Levels, Filter, Save / Export | |
+| 5 | Extension SDK — Manifest, Manager, Context, namespace 검증 | |
+| 6 | MilkyScapeTools Extension — 첫 실제 Extension | |
+| 7 | Workflow System | |
+| 8 | Capability System | |
+| 9 | Permission / Safety | |
+| 10 | Job System | |
+| 11 | Events | |
+| 12 | MCP Resources | |
+| 13 | Production Hardening | |
+| 14 | Distribution | |
 
-ToolRegistry
+## 원칙
 
-CommandRegistry
+Phase 2 까지는 Photoshop 을 **읽기만** 한다. Phase 3 부터 상태를 바꾸되
+비파괴 작업으로 제한한다.
 
-CommandEngine
+destructive 작업(`layer.delete`, `flatten`, `close_without_save`)은 Phase 9 의
+Permission System 과 함께 도입한다. 그전에는 Tool 로 노출하지 않는다. (§23)
 
-MockPhotoshopBridge
-
-photoshop.ping
-
-photoshop.document.get
-
-photoshop.layer.list
-```
-
-실제 Photoshop 연결은 하지 않는다.
-
----
-
-## Phase 2 — Photoshop Bridge
-
-구현:
-
-```text
-WebSocket Transport
-
-UXP Plugin
-
-Command Dispatcher
-
-Photoshop Document Info
-
-Photoshop Layer List
-```
-
-이 단계에서 처음으로 실제 Photoshop과 연결한다.
-
----
-
-## Phase 3 — Basic Editing
-
-구현:
-
-```text
-Create Layer
-
-Duplicate Layer
-
-Rename Layer
-
-Create Group
-
-Opacity
-
-Curves
-
-Mask
-```
-
----
-
-## Phase 4 — Extension SDK
-
-구현:
-
-```text
-Extension Manifest
-
-Extension Manager
-
-Extension Context
-
-Namespace Validation
-
-Permission Model
-
-Capability Registry
-```
-
----
-
-## Phase 5 — First Real Extension
-
-MilkyScapeTools를 첫 실제 Extension으로 사용한다.
-
-예:
-
-```text
-milky.create_sky_mask
-
-milky.remove_gradient
-
-milky.remove_stars
-
-milky.enhance
-```
-
-MilkyScapeTools 관련 로직은 Photoshop MCP Core에 추가하지 않는다.
+Extension 관련 기능은 Core 가 안정된 뒤(Phase 5)에 시작한다.
+MilkyScapeTools 로직은 어느 Phase 에서도 Core 에 넣지 않는다. (§1)
 
 ---
 

@@ -49,55 +49,28 @@ product.*
 
 # 3. Phase Overview
 
+이 목록이 Phase 의 유일한 기준이다. 아래 상세 섹션과 번호·이름이 일치해야 한다.
+`docs/ARCHITECTURE.md` 는 구조와 원칙을 다루며, 진행 기준은 이 문서를 따른다.
+
 ```text
-Phase 0
-Project Bootstrap
-
-    ↓
-
-Phase 1
-MCP Core
-
-    ↓
-
-Phase 2
-Photoshop Bridge
-
-    ↓
-
-Phase 3
-Basic Photoshop Editing
-
-    ↓
-
-Phase 4
-Extended Photoshop Tools
-
-    ↓
-
-Phase 5
-Extension SDK
-
-    ↓
-
-Phase 6
-MilkyScapeTools Extension
-
-    ↓
-
-Phase 7
-Workflow / Capability System
-
-    ↓
-
-Phase 8
-Safety / Permission / Job System
-
-    ↓
-
-Phase 9
-Production Hardening
+Phase 0   Project Bootstrap            완료
+Phase 1   MCP Core                     완료
+Phase 2   Photoshop Bridge             완료
+Phase 3   Basic Photoshop Editing      완료
+Phase 4   Extended Photoshop Tools
+Phase 5   Extension SDK
+Phase 6   MilkyScapeTools Extension
+Phase 7   Workflow System
+Phase 8   Capability System
+Phase 9   Permission / Safety
+Phase 10  Job System
+Phase 11  Events
+Phase 12  MCP Resources
+Phase 13  Production Hardening
+Phase 14  Distribution
 ```
+
+각 Phase 의 항목별 진행 상황은 해당 섹션의 체크박스로 추적한다.
 
 ---
 

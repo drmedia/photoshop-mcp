@@ -28,6 +28,14 @@ UXP 의 실기 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 
 
 다음 작업은 **Phase 4 (Extended Photoshop Tools)** 다. 마스크·선택 영역·조정·필터·저장.
 
+## Phase 기준
+
+**`docs/ROADMAP.md` 가 Phase 의 유일한 기준이다.** 번호·범위·완료 여부 모두 그 문서를 따른다.
+`docs/ARCHITECTURE.md` 는 구조와 원칙을 다루며, Phase 관련 기술이 ROADMAP 과 어긋나면
+ROADMAP 이 맞다. 어긋난 것을 발견하면 ARCHITECTURE 를 고친다.
+
+완료 판단은 ROADMAP 해당 섹션의 체크박스로 한다. 체크는 실제로 검증된 항목에만 한다.
+
 ## 스택
 
 - TypeScript 5.9 / Node 22.12+ / ESM (`module: NodeNext`)

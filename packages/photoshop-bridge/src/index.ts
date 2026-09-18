@@ -15,6 +15,7 @@ export {
   type ProviderConfig,
 } from "./capability.js";
 export { assertConfigConsistent, buildArgs, placeholdersIn } from "./capability-args.js";
+export { describeZodIssues } from "./protocol/zod-message.js";
 export {
   COMMAND_COMPLETED,
   COMMAND_FAILED,

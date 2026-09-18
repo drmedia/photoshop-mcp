@@ -19,7 +19,8 @@ export function createCurvesTool(engine: CommandEngine): ToolDefinition<CurvesPa
     name: "photoshop.adjustment.curves",
     description:
       "Curves 조정 레이어를 만든다. points 는 {input, output} (0-255) 제어점 배열이며 input 오름차순이어야 한다. " +
-      "중간톤 대비를 올리려면 어두운 쪽 점을 내리고 밝은 쪽 점을 올린다. 예: [{input:0,output:0},{input:64,output:54},{input:192,output:202},{input:255,output:255}]",
+      "중간톤 대비를 올리려면 어두운 쪽 점을 내리고 밝은 쪽 점을 올린다. 예: [{input:0,output:0},{input:64,output:54},{input:192,output:202},{input:255,output:255}]." +
+      " 선택 영역이 있으면 Photoshop 이 그것을 마스크로 만들어 붙이고 **선택 영역을 소비한다** — 이후 mask.create 의 fromSelection 은 실패한다.",
     permission: "edit",
     inputSchema: CurvesParamsSchema,
     handler: async (input, context) =>
@@ -34,7 +35,8 @@ export function createLevelsTool(engine: CommandEngine): ToolDefinition<LevelsPa
   return {
     name: "photoshop.adjustment.levels",
     description:
-      "Levels 조정 레이어를 만든다. 입력 검은점/흰점, 감마(1 이 기본), 출력 검은점/흰점을 지정한다.",
+      "Levels 조정 레이어를 만든다. 입력 검은점/흰점, 감마(1 이 기본), 출력 검은점/흰점을 지정한다." +
+      " 선택 영역이 있으면 Photoshop 이 그것을 마스크로 만들어 붙이고 **선택 영역을 소비한다** — 이후 mask.create 의 fromSelection 은 실패한다.",
     permission: "edit",
     inputSchema: LevelsParamsSchema,
     handler: async (input, context) =>
@@ -51,7 +53,8 @@ export function createBrightnessContrastTool(
   return {
     name: "photoshop.adjustment.brightness_contrast",
     description:
-      "Brightness/Contrast 조정 레이어를 만든다. brightness -150~150, contrast -50~100. 둘 다 0 이 기본.",
+      "Brightness/Contrast 조정 레이어를 만든다. brightness -150~150, contrast -50~100. 둘 다 0 이 기본." +
+      " 선택 영역이 있으면 Photoshop 이 그것을 마스크로 만들어 붙이고 **선택 영역을 소비한다** — 이후 mask.create 의 fromSelection 은 실패한다.",
     permission: "edit",
     inputSchema: BrightnessContrastParamsSchema,
     handler: async (input, context) =>

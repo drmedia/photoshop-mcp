@@ -160,3 +160,55 @@ describe("Phase 1 Core Tools", () => {
     );
   });
 });
+
+describe("검증 오류 메시지", () => {
+  /**
+   * 검증 실패는 **호출자가 고칠 수 있는 유일한 종류의 오류**다. 무엇이 왜 잘못됐는지
+   * 말해주면 바로 고쳐 다시 부른다.
+   *
+   * 예전에는 전부 같은 문장이었다 — "Tool 입력이 올바르지 않습니다: <이름>".
+   * bounds 를 빠뜨렸는지, 곡선 제어점 순서가 틀렸는지, 반지름이 범위를 넘었는지
+   * 구분할 수 없었다. 정확한 설명은 details.issues 에 있었지만 호출자는 message 를
+   * 먼저 읽는다. LLM 으로 테스트하다 세 가지 다른 실수가 똑같은 문장을 내는 것을
+   * 보고 고쳤다.
+   */
+  function setup(): ReturnType<typeof createPhotoshopMcp> {
+    return createPhotoshopMcp({ bridge: new MockPhotoshopBridge() });
+  }
+
+  const call = (mcp: ReturnType<typeof createPhotoshopMcp>, name: string, input: unknown) =>
+    mcp.tools.invoke(name, input, { requestId: "req-validation" });
+
+  it("무엇이 잘못됐는지 message 에 담는다", async () => {
+    const mcp = setup();
+    await expect(call(mcp, "photoshop.selection.set", { shape: "rectangle" })).rejects.toThrow(
+      /bounds/u,
+    );
+  });
+
+  it("서로 다른 실수는 서로 다른 메시지를 낸다", async () => {
+    const mcp = setup();
+    const messages: string[] = [];
+    for (const [name, input] of [
+      ["photoshop.selection.set", { shape: "rectangle" }],
+      ["photoshop.filter.gaussian_blur", { radius: 5000 }],
+      ["photoshop.layer.set_opacity", { opacity: 500 }],
+    ] as const) {
+      try {
+        await call(mcp, name, input);
+        expect.unreachable(`${name} 이 거부되지 않았습니다`);
+      } catch (error) {
+        messages.push((error as Error).message);
+      }
+    }
+    expect(new Set(messages).size).toBe(3);
+  });
+
+  it("고쳐서 다시 부를 수 있는 오류로 표시한다", async () => {
+    // recoverable: false 면 호출자가 포기한다. 입력만 바로잡으면 되는 오류다.
+    const mcp = setup();
+    await expect(
+      call(mcp, "photoshop.selection.set", { shape: "rectangle" }),
+    ).rejects.toMatchObject({ code: ErrorCode.INVALID_PARAMETER, recoverable: true });
+  });
+});

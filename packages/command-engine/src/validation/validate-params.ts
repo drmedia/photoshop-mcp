@@ -1,4 +1,4 @@
-import { ErrorCode, PhotoshopMcpError } from "@photoshop-mcp/photoshop-bridge";
+import { ErrorCode, PhotoshopMcpError, describeZodIssues } from "@photoshop-mcp/photoshop-bridge";
 import type { ZodType } from "zod";
 import { ZodError } from "zod";
 
@@ -22,8 +22,8 @@ export function validateParams<TParams>(
     if (error instanceof ZodError) {
       throw new PhotoshopMcpError(
         ErrorCode.INVALID_PARAMETER,
-        `Command 파라미터가 올바르지 않습니다: ${type}`,
-        { details: { type, issues: error.issues }, cause: error },
+        `Command 파라미터가 올바르지 않습니다: ${type} — ${describeZodIssues(error)}`,
+        { details: { type, issues: error.issues }, recoverable: true, cause: error },
       );
     }
     throw PhotoshopMcpError.from(error, ErrorCode.INVALID_PARAMETER);

@@ -102,13 +102,27 @@ async function setMaskEnabled(
     const document = requireActiveDocument();
     const targetId = activate(document, layerId);
 
-    await play(commandName, [
-      {
-        _obj: "set",
-        _target: [{ _ref: "layer", _enum: "ordinal", _value: "targetEnum" }],
-        to: { _obj: "layer", userMaskEnabled: enabled },
-      },
-    ]);
+    try {
+      await play(commandName, [
+        {
+          _obj: "set",
+          _target: [{ _ref: "layer", _enum: "ordinal", _value: "targetEnum" }],
+          to: { _obj: "layer", userMaskEnabled: enabled },
+        },
+      ]);
+    } catch (error) {
+      // 마스크가 없는 레이어면 Photoshop 이 `"설정" 명령은 현재 사용할 수 없습니다`
+      // 라고 답한다. 원문만으로는 무엇을 해야 할지 알 수 없다 — 실기에서 LLM 으로
+      // 테스트하다 이 벽을 만났다. 가장 흔한 원인을 짚어 준다.
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        `마스크 상태를 바꾸지 못했습니다. 이 레이어에 마스크가 없을 수 있습니다 — ` +
+          `mask.create 로 먼저 만드세요. (Photoshop: ${String(
+            (error as { message?: unknown })?.message ?? error,
+          )})`,
+        { recoverable: true, details: { layerId: targetId, enabled } },
+      );
+    }
 
     const layer = findLayerById(document.layers, targetId);
     if (layer === null) {

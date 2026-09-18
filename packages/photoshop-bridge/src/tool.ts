@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import type { PermissionLevel } from "./permission.js";
 import { PermissionPolicy } from "./permission.js";
 import { ErrorCode, PhotoshopMcpError } from "./protocol/errors.js";
+import { describeZodIssues } from "./protocol/zod-message.js";
 
 /** Tool 핸들러에 전달되는 컨텍스트. */
 export interface ToolContext {
@@ -143,8 +144,9 @@ export class ToolRegistry {
       if (error instanceof ZodError) {
         throw new PhotoshopMcpError(
           ErrorCode.INVALID_PARAMETER,
-          `Tool 입력이 올바르지 않습니다: ${name}`,
-          { details: { name, issues: error.issues }, cause: error },
+          `Tool 입력이 올바르지 않습니다: ${name} — ${describeZodIssues(error)}`,
+          // 고쳐서 다시 부를 수 있는 오류다. 입력만 바로잡으면 된다.
+          { details: { name, issues: error.issues }, recoverable: true, cause: error },
         );
       }
       throw PhotoshopMcpError.from(error, ErrorCode.INVALID_PARAMETER);

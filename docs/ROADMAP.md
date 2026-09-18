@@ -2039,6 +2039,67 @@ set_opacity {opacity:80} → ✅ {"id":2,"name":"레이어 0","opacity":80}  바
 
 ---
 
+# 17.7 LLM 시점 테스트 — Core 기본 기능
+
+외부 처리기가 아니라 **Core 편집 기능**을 Tool 설명만 보고 써 보았다. 조정·마스크·
+선택·필터·그룹·되돌리기를 실제 문서에서 돌렸다.
+
+## 가장 큰 것 — 검증 오류가 전부 같은 문장이었다
+
+```text
+bounds 누락      → "Tool 입력이 올바르지 않습니다: photoshop.selection.set"
+제어점 순서 오류  → "Tool 입력이 올바르지 않습니다: photoshop.adjustment.curves"
+반지름 범위 초과  → "Tool 입력이 올바르지 않습니다: photoshop.filter.gaussian_blur"
+```
+
+세 가지 다른 실수가 구분되지 않는다. 정확한 설명은 `details.issues` 에 있었지만
+**호출자는 `message` 를 먼저 읽는다.**
+
+검증 실패는 **호출자가 고칠 수 있는 유일한 종류의 오류**인데 정작 그것만 안내가
+없었다. 게다가 `recoverable: false` 로 표시되어 "포기해라" 는 신호까지 주고 있었다.
+
+Zod 메시지를 최상위로 올리고 `recoverable: true` 로 바꿨다. Tool 과 Command 두
+계층이 같은 문제라 `describeZodIssues` 로 공유한다.
+
+```text
+Tool 입력이 올바르지 않습니다: photoshop.selection.set — bounds: rectangle 에는 bounds 가 필요합니다.
+Tool 입력이 올바르지 않습니다: photoshop.adjustment.curves — points.1.input: 제어점의 input 은 오름차순이어야 하며 중복될 수 없습니다.
+```
+
+## 마스크 오류가 해독 불가였다
+
+```text
+mask.enable {layerId:1}  →  "Photoshop MCP: "설정" 명령은 현재 사용할 수 없습니다."
+```
+
+배경 레이어에 마스크가 없어 난 오류인데 원문만으로는 알 수 없다. 가장 흔한 원인을
+앞에 붙이고 원문은 괄호로 남긴다.
+
+## 설명에 없던 부작용 셋 — 전부 Tool 설명에 적었다
+
+| 무엇 | 실기에서 확인한 동작 |
+|---|---|
+| 조정 레이어 생성 | **선택 영역을 소비한다.** Photoshop 이 자동으로 마스크를 붙인다 |
+| `filter.gaussian_blur` | 대상을 **스마트 오브젝트로 바꾼다.** id 와 type 이 달라진다 |
+| 배경 레이어 | `set_opacity` 는 승격 또는 무시, `rename`·`set_blend_mode` 는 거부 |
+
+첫 번째가 특히 나빴다. `selection.set` 설명이 "만든 선택은 mask.create 의
+fromSelection 으로 쓸 수 있다" 고만 해서 **오히려 오해를 부른다.** 그 순서대로 하면
+조정 레이어가 선택을 먹은 뒤라 반드시 실패한다.
+
+## 잘 동작한 것
+
+조정 레이어 5종, `group.create` 의 중첩(`parentId` 정확), `history.undo`,
+`selection.set` 과 `photoshop://selection` 의 일치, `LAYER_NOT_FOUND` 계열 메시지는
+모두 정확하고 행동 가능했다.
+
+## 남은 것
+
+Zod 기본 메시지가 영어다 — `radius: Number must be less than or equal to 1000`.
+직접 쓴 메시지는 한글이라 섞인다. 번역 정책을 정하면 `errorMap` 한 곳에서 처리한다.
+
+---
+
 # 18. Phase 14 — Distribution
 
 검토 대상:

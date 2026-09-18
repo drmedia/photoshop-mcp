@@ -367,30 +367,35 @@ describe("Phase 4 필터 Tool", () => {
     expect(commands.list()).toContain("FILTER_GAUSSIAN_BLUR");
   });
 
-  it("기본은 스마트 필터라 대상이 스마트 오브젝트가 된다", async () => {
+  it("기본은 레이어 종류를 바꾸지 않는다", async () => {
+    // Photoshop 자신의 동작과 같다. 기본으로 변환하면 호출자가 요청하지 않은 일을
+    // 하고 id·type 이 달라져 추적을 놓친다. 비파괴는 layer.duplicate 로 얻는다.
     const mcp = setup();
 
-    // 기본값은 비파괴다. 픽셀 레이어가 스마트 오브젝트로 바뀐다.
     await expect(
       call(mcp, "photoshop.filter.gaussian_blur", { layerId: 10, radius: 5 }),
-    ).resolves.toMatchObject({ id: 10, type: "smartObject" });
+    ).resolves.toMatchObject({ id: 10, type: "pixel" });
   });
 
-  it("asSmartFilter: false 는 레이어 종류를 바꾸지 않는다", async () => {
+  it("asSmartFilter: true 라야 스마트 오브젝트로 바뀐다", async () => {
     const mcp = setup();
 
     await expect(
       call(mcp, "photoshop.filter.gaussian_blur", {
         layerId: 10,
         radius: 5,
-        asSmartFilter: false,
+        asSmartFilter: true,
       }),
-    ).resolves.toMatchObject({ id: 10, type: "pixel" });
+    ).resolves.toMatchObject({ id: 10, type: "smartObject" });
   });
 
   it("이미 스마트 오브젝트면 변환하지 않는다", async () => {
     const mcp = setup();
-    await call(mcp, "photoshop.filter.gaussian_blur", { layerId: 11, radius: 3 });
+    await call(mcp, "photoshop.filter.gaussian_blur", {
+      layerId: 11,
+      radius: 3,
+      asSmartFilter: true,
+    });
     await expect(
       call(mcp, "photoshop.filter.gaussian_blur", { layerId: 11, radius: 3 }),
     ).resolves.toMatchObject({ id: 11, type: "smartObject" });

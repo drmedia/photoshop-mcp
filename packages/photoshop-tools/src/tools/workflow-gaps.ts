@@ -73,9 +73,7 @@ export function createHighPassTool(
     "High Pass 필터. 가장자리만 남기고 나머지를 중간 회색으로 만든다. " +
       "**혼자서는 쓸모가 없다** — 복제한 레이어에 적용한 뒤 softLight 나 overlay 혼합으로 " +
       "겹쳐야 선명도가 올라간다. 선명화에는 radius 10~20 px 가 흔하다. " +
-      "기본은 스마트 필터라 대상이 스마트 오브젝트로 바뀌며 id 와 type 이 달라진다." +
-      " **asSmartFilter: false 는 id 와 type 을 유지해** 여러 단계를 이어갈 때 추적이 쉽다. 대신 픽셀에 구워지므로 되돌릴 수 없다 — 비파괴를 지키려면 layer.duplicate 한 복제본에 적용한다. " +
-      "조정 레이어와 그룹에는 적용할 수 없다.",
+      "**기본은 픽셀에 직접 적용한다** — Photoshop 자신의 동작과 같고, 레이어 id 와 type 이 그대로라 여러 단계를 이어갈 때 추적하기 쉽다. 대신 되돌릴 수 없으므로 **비파괴가 필요하면 layer.duplicate 한 복제본에 적용한다.** asSmartFilter: true 를 주면 대상을 스마트 오브젝트로 바꿔 나중에 수정·제거할 수 있는 스마트 필터로 붙이지만, 그때는 id 와 type 이 달라지므로 반환값의 id 를 그대로 써야 한다. 조정 레이어와 그룹에는 적용할 수 없다.",
     HighPassParams,
   );
 }
@@ -90,9 +88,7 @@ export function createMinimumMaximumTool(
     "Minimum(밝은 영역 축소) 또는 Maximum(확장) 필터. " +
       "천체사진의 별 축소가 minimum 을 아주 작은 radius(0.3~0.5 px)로 쓰는 것이다. " +
       "preserveShape 는 roundness(기본, 별에 적합) 또는 squareness. " +
-      "기본은 스마트 필터라 대상이 스마트 오브젝트로 바뀌며 id 와 type 이 달라진다." +
-      " **asSmartFilter: false 는 id 와 type 을 유지해** 여러 단계를 이어갈 때 추적이 쉽다. 대신 픽셀에 구워지므로 되돌릴 수 없다 — 비파괴를 지키려면 layer.duplicate 한 복제본에 적용한다. " +
-      "조정 레이어와 그룹에는 적용할 수 없다.",
+      "**기본은 픽셀에 직접 적용한다** — Photoshop 자신의 동작과 같고, 레이어 id 와 type 이 그대로라 여러 단계를 이어갈 때 추적하기 쉽다. 대신 되돌릴 수 없으므로 **비파괴가 필요하면 layer.duplicate 한 복제본에 적용한다.** asSmartFilter: true 를 주면 대상을 스마트 오브젝트로 바꿔 나중에 수정·제거할 수 있는 스마트 필터로 붙이지만, 그때는 id 와 type 이 달라지므로 반환값의 id 를 그대로 써야 한다. 조정 레이어와 그룹에는 적용할 수 없다.",
     MinimumMaximumParams,
   );
 }

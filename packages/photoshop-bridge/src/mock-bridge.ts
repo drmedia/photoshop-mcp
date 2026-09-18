@@ -695,13 +695,14 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   /**
    * 가우시안 블러. 픽셀은 흉내내지 않는다.
    *
-   * 스마트 필터로 적용하면 대상이 스마트 오브젝트로 바뀌는 것만 반영한다.
+   * `asSmartFilter: true` 일 때 대상이 스마트 오브젝트로 바뀌는 것만 반영한다.
    * 호출자가 결과의 `type` 으로 비파괴 여부를 확인할 수 있어야 하기 때문이다.
    */
   #gaussianBlur(params: { layerId?: number; asSmartFilter?: boolean }): LayerInfo {
     const index = this.#requireLayerIndex(params.layerId);
     const layer = this.#layers[index] as LayerInfo;
-    const asSmartFilter = params.asSmartFilter ?? true;
+    // 기본은 픽셀 직접 적용. 실제 Plugin 과 같아야 한다.
+    const asSmartFilter = params.asSmartFilter ?? false;
     const updated: LayerInfo =
       asSmartFilter && layer.type !== "smartObject" ? { ...layer, type: "smartObject" } : layer;
     this.#layers[index] = updated;

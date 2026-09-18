@@ -26,7 +26,7 @@ Tool 까지 더한 수다(지금 47). 한동안 이 값을 Core 개수로 옮겨
 - 그룹: create / move_layer · History: undo
 - 조정 레이어: curves / levels / brightness_contrast
 - 마스크: create / enable / disable · 선택: clear / invert
-- 필터: gaussian_blur (기본 스마트 필터)
+- 필터: gaussian_blur · high_pass · minimum_maximum (기본은 픽셀 직접 적용)
 - §8.6 공백 보완: selection.set · layer.set_blend_mode · adjustment.hue_saturation · vibrance
 
 - 파일 저장: `workspace.status` · `document.save_as` · `document.export` · `document.save`

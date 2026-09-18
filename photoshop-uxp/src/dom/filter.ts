@@ -11,8 +11,8 @@ import { resolveMutatedLayer } from "./mutation-result.js";
 /**
  * Phase 4 필터. (ROADMAP §8.4)
  *
- * 기본은 스마트 필터다. 대상이 스마트 오브젝트가 아니면 먼저 변환한다.
- * `asSmartFilter: false` 일 때만 픽셀에 직접 적용한다.
+ * **기본은 픽셀에 직접 적용이다.** `asSmartFilter: true` 일 때만 스마트 오브젝트로
+ * 변환해 재편집 가능한 스마트 필터로 붙인다. 이유는 `applyFilter` 의 주석에 있다.
  *
  * batchPlay descriptor 는 이 모듈이 검증된 파라미터로 조립한다. (ARCHITECTURE §13, §23)
  */
@@ -83,7 +83,13 @@ async function applyFilter(
     // 변환 전에 id 목록을 떠 둔다. 변환 뒤에는 어느 것이 새로 생긴 것인지 알 수 없다.
     const before = flattenLayers(document.layers).map((entry) => entry.id);
 
-    const asSmartFilter = params.asSmartFilter ?? true;
+    // **기본은 스마트 필터가 아니다.** Photoshop 자신의 동작과 같다 — 필터를 걸면
+    // 픽셀에 적용되고, 스마트 필터는 '고급 필터용으로 변환' 을 명시적으로 고를 때만이다.
+    //
+    // 기본으로 변환하면 호출자가 요청하지 않은 일을 한다. 레이어가 스마트
+    // 오브젝트로 바뀌고 id 와 type 이 달라져 호출자가 추적을 놓친다. 실기 한 번에
+    // id 가 세 번 바뀌었다. 비파괴는 `layer.duplicate` 로 얻는 것이 더 명확하고 싸다.
+    const asSmartFilter = params.asSmartFilter ?? false;
     const alreadySmart = String(target.kind).toLowerCase() === "smartobject";
 
     // 스마트 오브젝트로 변환하면 이후 필터가 스마트 필터로 붙는다. 픽셀은 보존된다.

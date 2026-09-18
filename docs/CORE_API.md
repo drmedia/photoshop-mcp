@@ -153,9 +153,19 @@ P3  확장 기능
 
 ### 4.6 필터
 
+**기본은 픽셀에 직접 적용한다.** Photoshop 자신의 동작과 같다 — 필터를 걸면 픽셀에
+적용되고, 스마트 필터는 `필터 > 고급 필터용으로 변환` 을 명시적으로 고를 때만이다.
+
+기본으로 변환하면 호출자가 요청하지 않은 일을 한다. 레이어가 스마트 오브젝트로
+바뀌고 **id 와 type 이 달라져 호출자가 추적을 놓친다** — 실기 한 번에 id 가 세 번
+바뀌었다. 비파괴는 `layer.duplicate` 로 얻는 것이 의도가 드러나고 더 싸다.
+
+`asSmartFilter: true` 는 **재편집 가능한 필터가 필요할 때** 고른다.
+조정 레이어와 그룹에는 어느 쪽이든 적용할 수 없다.
+
 | API | Permission | 비고 |
 |---|---|---|
-| `photoshop.filter.gaussian_blur` | EDIT | 기본은 스마트 필터. radius 0.1–1000 |
+| `photoshop.filter.gaussian_blur` | EDIT | radius 0.1–1000. 기본은 픽셀 직접 적용 |
 | `photoshop.filter.high_pass` | EDIT | 가장자리만 남긴다. softLight 혼합과 함께 쓴다 |
 | `photoshop.filter.minimum_maximum` | EDIT | 밝은 영역 축소·확장. 별 축소에 쓴다 |
 

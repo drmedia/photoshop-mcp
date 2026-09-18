@@ -24,6 +24,12 @@ export const ErrorCode = {
   DUPLICATE_COMMAND: "DUPLICATE_COMMAND",
   /** 등록되지 않은 Tool. */
   TOOL_NOT_FOUND: "TOOL_NOT_FOUND",
+  /** 타임아웃 내에 Plugin 응답이 없음. */
+  COMMAND_TIMEOUT: "COMMAND_TIMEOUT",
+  /** Plugin 과 Server 의 프로토콜 버전이 다름. */
+  PROTOCOL_VERSION_MISMATCH: "PROTOCOL_VERSION_MISMATCH",
+  /** 프레임 파싱 실패 또는 메시지 스키마 위반. */
+  PROTOCOL_ERROR: "PROTOCOL_ERROR",
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

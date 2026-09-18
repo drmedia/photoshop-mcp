@@ -9,7 +9,8 @@
   },
   "workspaces": [
     "packages/*",
-    "extensions/*"
+    "extensions/*",
+    "photoshop-uxp"
   ],
   "scripts": {
     "build": "tsc -b",
@@ -23,11 +24,12 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run lint && npm run build && npm test"
+    "check": "npm run format:check && npm run lint && npm run build && npm test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.9.0",
+    "@types/ws": "^8.18.1",
     "eslint": "^10.10.0",
     "prettier": "^3.3.3",
     "tsx": "^4.23.13",

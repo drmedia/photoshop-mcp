@@ -1,0 +1,19 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    "module": "CommonJS",
+    "moduleResolution": "Node10",
+    "verbatimModuleSyntax": false,
+    "lib": ["ES2022", "DOM"],
+    "types": []
+  },
+  "include": ["src/**/*"],
+  "references": [
+    {
+      "path": "../packages/photoshop-bridge"
+    }
+  ]
+}

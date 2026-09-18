@@ -6,7 +6,12 @@
  *
  * CLI 전용 부트스트랩(`run.ts`)은 이 표면에 포함하지 않는다.
  */
-export { startPhotoshopMcpServer, type StartOptions } from "./start.js";
+export {
+  startPhotoshopMcpServer,
+  type BridgeMode,
+  type StartOptions,
+  type StartedPhotoshopMcp,
+} from "./start.js";
 
 export {
   createPhotoshopMcp,

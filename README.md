@@ -2,9 +2,8 @@
 
 Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입니다.
 
-> **현재 상태: Phase 1 (MCP Core) 완료.**
-> 실제 Photoshop 연결은 없습니다. `MockPhotoshopBridge` 로 동작합니다.
-> 실제 연결(WebSocket + UXP 플러그인)은 Phase 2 범위입니다.
+> **현재 상태: Phase 2 (Photoshop Bridge) 완료.**
+> 실제 Photoshop 27.8 에서 문서·레이어 조회가 동작하는 것을 확인했습니다.
 
 ## 빠른 시작
 
@@ -42,7 +41,7 @@ npm run format
 
 ## 지금 동작하는 것
 
-Mock Bridge 위에서 MCP Tool 3개가 동작합니다.
+MCP Tool 3개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
 
 | MCP Tool | 내부 Command | 결과 |
 |---|---|---|
@@ -54,7 +53,64 @@ Mock Bridge 위에서 MCP Tool 3개가 동작합니다.
 
 ```text
 MCP Client → Tool Handler → Command Engine → Photoshop Bridge
+                                                   │
+                            ┌──────────────────────┴───────────────────┐
+                            │                                          │
+                   MockPhotoshopBridge                      UXPPhotoshopBridge
+                   (Photoshop 불필요)                                  │
+                                                          WebSocketBridgeTransport
+                                                                   ═ WebSocket ═
+                                                              Photoshop UXP Plugin
+                                                                       │
+                                                                   Photoshop
 ```
+
+Photoshop 이 실행 중이 아니어도 MCP 서버는 정상 기동합니다.
+이때 Photoshop 이 필요한 Tool 은 `PHOTOSHOP_NOT_CONNECTED` 를 반환합니다.
+
+Bridge 는 환경 변수로 고릅니다.
+
+```bash
+npm run dev                              # UXP Bridge (기본). ws://127.0.0.1:8765 대기
+PHOTOSHOP_MCP_BRIDGE=mock npm run dev    # Mock Bridge. Photoshop·플러그인 불필요
+```
+
+## Photoshop 연결
+
+1. MCP 서버를 띄웁니다. `npm run build && npm start`
+2. `npm run build` 로 `photoshop-uxp/dist/` 를 만듭니다.
+3. Adobe UXP Developer Tool 에서 `photoshop-uxp/manifest.json` 을 Add → Load 합니다.
+4. Photoshop 패널 `플러그인 > Photoshop MCP` 에서 Bridge 상태를 확인합니다.
+
+순서는 상관없습니다. 플러그인이 지수 백오프로 재접속합니다.
+자세한 내용은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 를 참고하세요.
+
+## 검증 상태
+
+Photoshop 27.8 + UXP Developer Tool 실기 검증 완료.
+
+| 계층 | 상태 |
+|---|---|
+| MCP 서버 · Tool · Command Engine | 단위 + 통합 테스트 |
+| `MockPhotoshopBridge` | 단위 테스트 |
+| `WebSocketBridgeTransport` | 통합 테스트 (핸드셰이크 · 타임아웃 · 끊김 · 재접속 · 버전 협상) |
+| `UXPPhotoshopBridge` | 통합 테스트 + **실기** |
+| UXP 플러그인 | **실기** — Load · 패널 · 연결 · 핸드셰이크 · 조회 · 오류 · 재연결 |
+
+실기 확인 결과 예시:
+
+```json
+{ "id": 128, "name": "verify.psd", "width": 3000, "height": 2000,
+  "bitDepth": 8, "colorMode": "RGB" }
+```
+
+문서를 모두 닫으면 `DOCUMENT_NOT_FOUND` (`recoverable: true`) 를 반환합니다.
+
+`bitDepth` 는 8비트·16비트 문서에서 모두 확인했습니다.
+Plugin 이 Photoshop 의 값을 해석하지 못하면 기본값으로 덮지 않고
+`bitDepth: null` 과 원본 `rawBitDepth` 를 함께 반환합니다.
+
+자세한 UXP 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 를 참고하세요.
 
 ## 패키지 구성
 
@@ -96,22 +152,25 @@ extensions → extension-sdk → Core public API
 
 - [아키텍처](docs/ARCHITECTURE.md)
 - [로드맵](docs/ROADMAP.md) — Phase 별 진행 상황
-- [프로토콜](docs/PROTOCOL.md) — Phase 2에서 작성
+- [프로토콜](docs/PROTOCOL.md) — Bridge 메시지 규약과 3단계 핸드셰이크
 - [확장 SDK](docs/EXTENSION_SDK.md) — Phase 5에서 작성
 
 ## 아직 없는 것
 
-Phase 1 범위 밖이라 의도적으로 구현하지 않았습니다.
+Phase 2 범위 밖이라 의도적으로 구현하지 않았습니다.
 
-- WebSocket transport, UXP 플러그인, 실제 Photoshop 연결 (Phase 2)
-- 레이어 생성·복제·마스크·Curves 등 편집 Command (Phase 3~4)
+- 레이어 생성·복제·이름 변경·불투명도·그룹 (Phase 3)
+- 마스크·선택 영역·Curves·Levels·필터·저장 (Phase 4)
 - Extension Manifest / Manager / Context, namespace 검증, Permission 모델 (Phase 5)
 - MCP Resource, Event, Job 시스템
+- 레이어의 Opacity 와 Parent (Phase 3 에서 `LAYER_LIST` 에 추가)
 - 임의 `batchPlay` descriptor 실행, 임의 JavaScript 실행 — **비목표**입니다 (ARCHITECTURE §23, §33)
 
-## 다음 단계 (Phase 2)
+## 다음 단계 (Phase 3)
 
-1. `docs/PROTOCOL.md` 작성
-2. `packages/photoshop-bridge/src/transport/` — WebSocket 서버, 요청 ID, 타임아웃, 재연결
-3. `photoshop-uxp/` — 플러그인 부트스트랩, WebSocket 클라이언트, Command Dispatcher
-4. `MockPhotoshopBridge` → `UXPPhotoshopBridge` 교체 (인터페이스 유지)
+1. `LAYER_CREATE` · `LAYER_DUPLICATE` · `LAYER_RENAME` · `LAYER_SELECT`
+2. `LAYER_VISIBILITY` · `LAYER_OPACITY`
+3. `GROUP_CREATE` · `GROUP_MOVE_LAYER`
+4. `photoshop.history.undo`
+
+destructive 명령(`layer.delete`, `flatten`)은 Permission System 과 함께 이후 Phase 에 추가합니다.

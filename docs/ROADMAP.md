@@ -387,7 +387,7 @@ Photoshop
 
 작성:
 
-- [ ] `docs/PROTOCOL.md`
+- [x] `docs/PROTOCOL.md`
 
 Request 형식:
 
@@ -429,12 +429,12 @@ Error:
 
 구현:
 
-- [ ] WebSocket Server
-- [ ] UXP Connection tracking
-- [ ] Request ID
-- [ ] Timeout
-- [ ] Response routing
-- [ ] Reconnect handling
+- [x] WebSocket Server
+- [x] UXP Connection tracking
+- [x] Request ID
+- [x] Timeout
+- [x] Response routing
+- [x] Reconnect handling
 
 ---
 
@@ -448,12 +448,12 @@ photoshop-uxp/
 
 구현:
 
-- [ ] manifest
-- [ ] plugin bootstrap
-- [ ] WebSocket Client
-- [ ] Command Dispatcher
-- [ ] Response Sender
-- [ ] Connection Status UI
+- [x] manifest
+- [x] plugin bootstrap
+- [x] WebSocket Client
+- [x] Command Dispatcher
+- [x] Response Sender
+- [x] Connection Status UI
 
 ---
 
@@ -502,13 +502,13 @@ Parent
 
 ## 6.6 Tests
 
-- [ ] WebSocket Request / Response
-- [ ] Timeout
-- [ ] Disconnect
-- [ ] Reconnect
-- [ ] Unknown command
-- [ ] Photoshop not connected
-- [ ] No active document
+- [x] WebSocket Request / Response
+- [x] Timeout
+- [x] Disconnect
+- [x] Reconnect
+- [x] Unknown command
+- [x] Photoshop not connected
+- [x] No active document
 
 ---
 

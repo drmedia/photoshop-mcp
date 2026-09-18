@@ -1,5 +1,21 @@
 export type { PhotoshopBridge } from "./bridge.js";
 export {
+  BUILTIN_PLACEHOLDERS,
+  CapabilityConfigSchema,
+  CapabilityIdSchema,
+  ParameterSpecSchema,
+  ProviderConfigSchema,
+  ProviderIdSchema,
+  type CapabilityConfig,
+  type CapabilityRequest,
+  type CapabilityResult,
+  type ExtensionCapabilityRegistry,
+  type ParameterSpec,
+  type ProviderAvailability,
+  type ProviderConfig,
+} from "./capability.js";
+export { assertConfigConsistent, buildArgs, placeholdersIn } from "./capability-args.js";
+export {
   ExtensionManifestSchema,
   NamespaceSchema,
   PermissionSchema,

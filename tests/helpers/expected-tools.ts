@@ -45,6 +45,10 @@ export const EXPECTED_TOOLS = [
   "photoshop.document.save_as",
   "photoshop.document.export",
   "photoshop.document.save",
+  // Phase 8 — 외부 처리기 (ROADMAP §12)
+  //
+  // 조회만 노출한다. 실행은 Extension 이 전체 흐름의 일부로 호출한다.
+  "photoshop.capability.list",
 ] as const;
 
 export const EXPECTED_COMMANDS = [

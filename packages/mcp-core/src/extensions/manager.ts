@@ -2,6 +2,9 @@ import { readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type {
+  CapabilityRequest,
+  CapabilityResult,
+  ExtensionCapabilityRegistry,
   ExtensionCommandEngine,
   ExtensionContext,
   ExtensionManifest,
@@ -43,6 +46,8 @@ export interface LoadedExtension {
 export interface ExtensionManagerOptions {
   tools: ToolRegistry;
   commands: CommandEngine;
+  /** 외부 처리기. (ARCHITECTURE §19) */
+  capabilities: ExtensionCapabilityRegistry;
   logger: Logger;
 }
 
@@ -55,12 +60,14 @@ export interface DiscoveredExtension {
 export class ExtensionManager {
   readonly #tools: ToolRegistry;
   readonly #commands: CommandEngine;
+  readonly #capabilities: ExtensionCapabilityRegistry;
   readonly #logger: Logger;
   readonly #loaded = new Map<string, LoadedExtension>();
 
   constructor(options: ExtensionManagerOptions) {
     this.#tools = options.tools;
     this.#commands = options.commands;
+    this.#capabilities = options.capabilities;
     this.#logger = options.logger;
   }
 
@@ -326,10 +333,28 @@ export class ExtensionManager {
         }),
     };
 
+    // Capability 실행은 external 이다. Command 와 같은 상한을 씌운다.
+    // Extension 이 manifest 에 photoshop.external 을 선언하지 않았으면 실행할 수 없다.
+    const source = this.#capabilities;
+    const capabilities: ExtensionCapabilityRegistry = {
+      list: () => source.list(),
+      has: (capability) => source.has(capability),
+      describe: (capability) => source.describe(capability),
+      execute: async (capability, request: CapabilityRequest): Promise<CapabilityResult> => {
+        scopedPolicy.assert("external", {
+          kind: "command",
+          name: `capability:${capability}`,
+          namespace,
+        });
+        return source.execute(capability, request);
+      },
+    };
+
     return {
       manifest: loaded.manifest,
       tools: scoped,
       commands,
+      capabilities,
       logger: this.#logger,
     };
   }

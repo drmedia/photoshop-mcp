@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ExtensionCapabilityRegistry } from "./capability.js";
 import type { ToolDefinition } from "./tool.js";
 
 /**
@@ -79,9 +80,11 @@ export interface Logger {
 /**
  * Extension 에 주어지는 Core 접근 통로. (ARCHITECTURE §16)
  *
- * ROADMAP §9.3 은 `resources` · `capabilities` · `photoshop` 도 포함하지만
- * 각각 Phase 12 · Phase 8 과 아직 정의되지 않은 구성 요소다.
- * 대응하는 런타임이 생길 때 추가한다. 동작하지 않는 껍데기를 두지 않는다.
+ * ROADMAP §9.3 은 `resources` · `photoshop` 도 포함하지만 각각 Phase 12 와
+ * 아직 정의되지 않은 구성 요소다. 대응하는 런타임이 생길 때 추가한다.
+ * 동작하지 않는 껍데기를 두지 않는다.
+ *
+ * `capabilities` 는 Phase 8 에서 추가했다.
  */
 export interface ExtensionContext {
   /** 자신의 manifest. namespace 확인 등에 쓴다. */
@@ -100,6 +103,15 @@ export interface ExtensionContext {
    * 타입은 Core 의 `CommandEngine` 이며, 순환을 피하려고 구조만 선언한다.
    */
   commands: ExtensionCommandEngine;
+  /**
+   * 외부 처리기. (ARCHITECTURE §19)
+   *
+   * Extension 은 특정 프로그램이 아니라 기능을 요청한다.
+   * 등록·설정 변경은 노출하지 않는다 — 요청만 할 수 있다.
+   *
+   * 실행에는 `photoshop.external` 권한이 필요하다.
+   */
+  capabilities: ExtensionCapabilityRegistry;
   logger: Logger;
 }
 

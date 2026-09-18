@@ -6,7 +6,12 @@ import {
   ToolRegistry,
 } from "@photoshop-mcp/photoshop-bridge";
 import type { Logger } from "@photoshop-mcp/photoshop-bridge";
-import { registerPhotoshopCommands, registerPhotoshopTools } from "@photoshop-mcp/photoshop-tools";
+import {
+  registerCapabilityTools,
+  registerPhotoshopCommands,
+  registerPhotoshopTools,
+} from "@photoshop-mcp/photoshop-tools";
+import { CapabilityRegistry } from "./capabilities/registry.js";
 import { ExtensionManager } from "./extensions/manager.js";
 import { createConsoleLogger } from "./extensions/logger.js";
 import { PhotoshopMcpServer } from "./server/mcp-server.js";
@@ -40,6 +45,8 @@ export interface PhotoshopMcp {
   policy: PermissionPolicy;
   /** Extension 적재. `loadAll(dir)` 로 Extension 을 붙인다. (ROADMAP §9.2) */
   extensions: ExtensionManager;
+  /** 외부 처리기. `loadConfig(path)` 로 Provider 를 등록한다. (ROADMAP §12) */
+  capabilities: CapabilityRegistry;
   logger: Logger;
 }
 
@@ -70,7 +77,27 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
     ...(options.version === undefined ? {} : { version: options.version }),
   });
 
-  const extensions = new ExtensionManager({ tools, commands: engine, logger });
+  // 외부 처리기의 입출력은 승인된 작업 폴더 안으로 가둔다. (ROADMAP §8.5)
+  // Bridge 를 직접 알면 계층이 섞이므로 조회 함수만 주입한다.
+  const capabilities = new CapabilityRegistry({
+    logger,
+    resolveWorkspace: async () => {
+      try {
+        const status = await engine.execute<{ approved: boolean; path: string | null }>({
+          type: "WORKSPACE_STATUS",
+          params: {},
+        });
+        return status.approved ? status.path : null;
+      } catch {
+        // Photoshop 이 연결되지 않았거나 권한이 없으면 승인되지 않은 것으로 본다.
+        return null;
+      }
+    },
+  });
 
-  return { bridge, commands, engine, tools, server, extensions, logger, policy };
+  registerCapabilityTools(tools, capabilities);
+
+  const extensions = new ExtensionManager({ tools, commands: engine, capabilities, logger });
+
+  return { bridge, commands, engine, tools, server, extensions, capabilities, logger, policy };
 }

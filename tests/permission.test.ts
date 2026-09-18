@@ -414,6 +414,57 @@ describe("Extension Permission", () => {
     });
   });
 
+  it("Capability 실행도 manifest 선언으로 가둔다", async () => {
+    // 외부 프로그램 실행은 external 이다. Command 와 같은 상한이 걸려야 한다.
+    const mcp = setup();
+    const directory = await fixture(
+      "onlyread",
+      ["photoshop.read"],
+      [
+        "export function activate(context) {",
+        "  context.tools.register({",
+        '    name: "onlyread.run",',
+        '    description: "선언 밖의 Capability 를 실행한다",',
+        '    permission: "read",',
+        `    inputSchema: ${SCHEMA_STUB},`,
+        "    handler: async () =>",
+        '      context.capabilities.execute("gradientRemoval", { input: "a", output: "b" }),',
+        "  });",
+        "}",
+      ].join("\n"),
+    );
+    await mcp.extensions.load({ directory, manifestPath: join(directory, "extension.json") });
+
+    // 서버 정책은 external 을 허용한다. 그런데도 Extension 선언이 read 뿐이라 막힌다.
+    expect(mcp.policy.isAllowed("external")).toBe(true);
+    await expect(mcp.tools.invoke("onlyread.run", {}, { requestId: "r" })).rejects.toThrow(denied);
+  });
+
+  it("Capability 조회는 권한 없이도 된다", async () => {
+    // 무엇이 있는지도 못 보게 하면 사용자가 원인을 알 수 없다.
+    const mcp = setup();
+    const directory = await fixture(
+      "peek",
+      ["photoshop.read"],
+      [
+        "export function activate(context) {",
+        "  context.tools.register({",
+        '    name: "peek.list",',
+        '    description: "Capability 목록",',
+        '    permission: "read",',
+        `    inputSchema: ${SCHEMA_STUB},`,
+        "    handler: async () => ({ names: context.capabilities.list() }),",
+        "  });",
+        "}",
+      ].join("\n"),
+    );
+    await mcp.extensions.load({ directory, manifestPath: join(directory, "extension.json") });
+
+    await expect(mcp.tools.invoke("peek.list", {}, { requestId: "r" })).resolves.toEqual({
+      names: [],
+    });
+  });
+
   it("서버 정책이 좁으면 Extension 선언이 넓어도 막힌다", async () => {
     const mcp = createPhotoshopMcp({
       bridge: new MockPhotoshopBridge(),

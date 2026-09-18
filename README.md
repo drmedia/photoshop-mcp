@@ -2,8 +2,8 @@
 
 Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입니다.
 
-> **현재 상태: Phase 9 (Permission / Safety) 완료.**
-> Core Tool 29개 전부 실제 Photoshop 27.8 에서 검증했습니다.
+> **현재 상태: Phase 9 (Permission / Safety) · Phase 8 (Capability System) 완료.**
+> Core Tool 30개. Phase 9 까지의 29개는 실제 Photoshop 27.8 에서 검증했습니다.
 > 모든 Tool 과 Command 가 권한 레벨을 선언하며, 기본값은 `read` · `edit` 만 허용합니다.
 
 ## 빠른 시작
@@ -77,9 +77,27 @@ PHOTOSHOP_MCP_ALLOW=all                     # 전부
 `save_as` (psd · psb) 와 `export` (png · jpg) 는 같은 이름이 있으면 덮어쓰지 않고
 실패합니다. 덮어쓰기는 `document.save` 하나뿐이며 `destructive` 입니다.
 
+## 외부 처리기 (Capability)
+
+Extension 은 특정 프로그램이 아니라 **기능**을 요청합니다 — `gradientRemoval`, `starRemoval`.
+
+```bash
+cp capabilities.example.json capabilities.json   # 실행 파일 경로를 고쳐서 쓰세요
+```
+
+`photoshop.capability.list` 로 무엇이 설정되어 있고 쓸 수 있는지 확인합니다.
+쓸 수 없으면 이유(`실행 파일을 찾을 수 없습니다` 등)를 함께 줍니다.
+
+**실행 Tool 은 없습니다.** Capability 실행은 "내보내기 → 외부 처리 → 되돌리기" 흐름의
+가운데 토막이라, LLM 이 직접 부르면 앞뒤가 빠집니다. 실행은 Extension 이 합니다.
+
+안전 규칙은 batchPlay 와 같습니다 — 임의의 프로그램과 인자를 실행할 수 없습니다.
+실행 파일은 설정 파일에서만 오고(절대 경로), 인자는 선언된 파라미터로만 조립되며,
+shell 을 거치지 않고, 입출력은 승인된 작업 폴더 안의 파일 이름뿐입니다.
+
 ## 지금 동작하는 것
 
-Core Tool 29개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
+Core Tool 30개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
 
 **조회**
 
@@ -244,7 +262,9 @@ Extension 의 namespace 를 쓰면 적재가 거부됩니다. 하나가 잘못�
 현재 Phase 범위 밖이라 의도적으로 구현하지 않았습니다.
 
 - destructive 명령(`layer.delete`, `flatten`, `close`) — 분류 체계는 섰지만 구현은 없습니다
-- Capability Registry (Phase 8), MCP Resource (Phase 12), Event · Job 시스템
+- 처리된 파일을 Photoshop 으로 되돌리는 Command (`layer.place`) — Phase 6
+- Capability 의 비동기 실행 · 진행률 · 취소 — Job System (Phase 10)
+- MCP Resource (Phase 12), Event 시스템
 - Extension 의 Command 등록 — Extension 은 Core Command 를 호출만 합니다
 - Extension hot reload — 서버 재시작 없이 다시 적재하는 기능은 없습니다
 - 임의 `batchPlay` descriptor 실행, 임의 JavaScript 실행 — **비목표**입니다 (ARCHITECTURE §23, §33)

@@ -77,13 +77,9 @@ describe("인자 조립", () => {
       args: ["-c", "{{mode}}", "-o", "{{output}}", "{{input}}"],
       params: { mode: { type: "enum", values: ["a", "b"], default: "a" } },
     };
-    expect(buildArgs({ config, inputPath: "/w/in.tif", outputPath: "/w/out.tif" })).toEqual([
-      "-c",
-      "a",
-      "-o",
-      "/w/out.tif",
-      "/w/in.tif",
-    ]);
+    expect(
+      buildArgs({ config, inputPath: "/w/in.tif", outputPaths: { output: "/w/out.tif" } }),
+    ).toEqual(["-c", "a", "-o", "/w/out.tif", "/w/in.tif"]);
   });
 
   it("허용 목록 밖의 enum 값을 거부한다", () => {
@@ -94,7 +90,12 @@ describe("인자 조립", () => {
       params: { mode: { type: "enum", values: ["a", "b"] } },
     };
     expect(() =>
-      buildArgs({ config, inputPath: "/w/i", outputPath: "/w/o", params: { mode: "--악성" } }),
+      buildArgs({
+        config,
+        inputPath: "/w/i",
+        outputPaths: { output: "/w/o" },
+        params: { mode: "--악성" },
+      }),
     ).toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
   });
 
@@ -105,7 +106,12 @@ describe("인자 조립", () => {
       params: { n: { type: "number", min: 1, max: 10, integer: true } },
     };
     const call = (n: unknown): string[] =>
-      buildArgs({ config, inputPath: "/w/i", outputPath: "/w/o", params: { n: n as number } });
+      buildArgs({
+        config,
+        inputPath: "/w/i",
+        outputPaths: { output: "/w/o" },
+        params: { n: n as number },
+      });
 
     expect(call(5)).toEqual(["5"]);
     for (const bad of [0, 11, 1.5, "3", true]) {
@@ -121,7 +127,7 @@ describe("인자 조립", () => {
       buildArgs({
         config,
         inputPath: "/w/i",
-        outputPath: "/w/o",
+        outputPaths: { output: "/w/o" },
         params: { 오타: "값" },
       }),
     ).toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
@@ -133,7 +139,7 @@ describe("인자 조립", () => {
       args: ["{{mode}}"],
       params: { mode: { type: "enum", values: ["a"] } },
     };
-    expect(() => buildArgs({ config, inputPath: "/w/i", outputPath: "/w/o" })).toThrow(
+    expect(() => buildArgs({ config, inputPath: "/w/i", outputPaths: { output: "/w/o" } })).toThrow(
       expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
     );
   });
@@ -148,11 +154,167 @@ describe("인자 조립", () => {
     const args = buildArgs({
       config,
       inputPath: "/w/i",
-      outputPath: "/w/o",
+      outputPaths: { output: "/w/o" },
       params: { mode: 'a" && del /f /q C:\\ && echo "' },
     });
     expect(args).toHaveLength(1);
     expect(args[0]).toBe('a" && del /f /q C:\\ && echo "');
+  });
+});
+
+describe("다중 출력", () => {
+  /**
+   * StarNet2 는 별을 지운 이미지와 별만 남긴 이미지를 함께 만든다.
+   *
+   *     --input <in> --output <starless> --unscreen <stars>
+   *
+   * `restore_stars` 워크플로에 별 이미지가 필요하므로 출력 하나로는 부족하다.
+   */
+  const starnet: ProviderConfig = {
+    id: "starnet2",
+    capability: "starRemoval",
+    executable: process.execPath,
+    args: ["--input", "{{input}}", "--output", "{{output}}", "--unscreen", "{{output.stars}}"],
+    outputs: { stars: { description: "별만 남긴 이미지" } },
+  };
+
+  it("추가 출력 자리표시자를 치환한다", () => {
+    expect(
+      buildArgs({
+        config: starnet,
+        inputPath: "/w/in.tif",
+        outputPaths: { output: "/w/starless.tif", stars: "/w/stars.tif" },
+      }),
+    ).toEqual([
+      "--input",
+      "/w/in.tif",
+      "--output",
+      "/w/starless.tif",
+      "--unscreen",
+      "/w/stars.tif",
+    ]);
+  });
+
+  it("추가 출력 이름을 빠뜨리면 실행 전에 막는다", () => {
+    // 빠진 채로 실행하면 빈 문자열이 인자로 들어가 처리기가 엉뚱하게 동작한다.
+    expect(() =>
+      buildArgs({ config: starnet, inputPath: "/w/i", outputPaths: { output: "/w/o" } }),
+    ).toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
+  });
+
+  it("선언했는데 args 에서 쓰지 않으면 설정 오류다", () => {
+    // 선언만 하고 인자에 넣지 않으면 그 파일은 만들어지지 않는다.
+    expect(() =>
+      assertConfigConsistent({
+        ...starnet,
+        args: ["--input", "{{input}}", "--output", "{{output}}"],
+      }),
+    ).toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
+  });
+
+  it("Provider 가 만들지 않는 출력을 요청하면 거부한다", async () => {
+    const registry = setup(
+      [{ ...starnet, args: ["{{input}}", "{{output}}"], outputs: {} }],
+      undefined,
+      workspace,
+    );
+    await writeFile(join(workspace, "in.tif"), "x", "utf8");
+
+    await expect(
+      registry.execute("starRemoval", {
+        input: "in.tif",
+        output: "out.tif",
+        outputs: { 오타: "x.tif" },
+      }),
+    ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
+  });
+
+  it("추가 출력도 승인된 폴더를 벗어날 수 없다", async () => {
+    const registry = setup([starnet], undefined, workspace);
+    await writeFile(join(workspace, "in.tif"), "x", "utf8");
+
+    await expect(
+      registry.execute("starRemoval", {
+        input: "in.tif",
+        output: "out.tif",
+        outputs: { stars: "../탈출.tif" },
+      }),
+    ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }));
+  });
+
+  it("추가 출력이 만들어지지 않으면 실패로 본다", async () => {
+    // 주 출력만 만들고 끝나는 경우가 있다. 다음 단계가 없는 파일을 읽게 두지 않는다.
+    const registry = setup(
+      [starnet],
+      async () => ({ code: 0, stdout: "", stderr: "", timedOut: false }),
+      workspace,
+    );
+    await writeFile(join(workspace, "in.tif"), "x", "utf8");
+    await writeFile(join(workspace, "starless.tif"), "x", "utf8");
+    // stars.tif 는 만들지 않는다
+
+    await expect(
+      registry.execute("starRemoval", {
+        input: "in.tif",
+        output: "starless.tif",
+        outputs: { stars: "stars.tif" },
+      }),
+    ).rejects.toThrow(expect.objectContaining({ code: ErrorCode.COMMAND_FAILED }));
+  });
+
+  it("실제 프로세스로 두 파일을 만든다", async () => {
+    // StarNet2 와 같은 인자 모양으로 실행 경로 전체를 확인한다.
+    const script = join(workspace, "starnet흉내.cjs");
+    await writeFile(
+      script,
+      [
+        "const fs = require('node:fs');",
+        "const a = process.argv.slice(2);",
+        "const get = (flag) => a[a.indexOf(flag) + 1];",
+        "const src = fs.readFileSync(get('--input'), 'utf8');",
+        "fs.writeFileSync(get('--output'), 'starless:' + src);",
+        "fs.writeFileSync(get('--unscreen'), 'stars:' + src);",
+      ].join("\n"),
+      "utf8",
+    );
+    await writeFile(join(workspace, "in.tif"), "원본", "utf8");
+
+    const registry = setup(
+      [
+        {
+          ...starnet,
+          args: [
+            script,
+            "--input",
+            "{{input}}",
+            "--output",
+            "{{output}}",
+            "--unscreen",
+            "{{output.stars}}",
+          ],
+        },
+      ],
+      undefined,
+      workspace,
+    );
+
+    const result = await registry.execute("starRemoval", {
+      input: "in.tif",
+      output: "starless.tif",
+      outputs: { stars: "stars.tif" },
+    });
+
+    expect(result.outputPaths).toEqual({
+      output: join(workspace, "starless.tif"),
+      stars: join(workspace, "stars.tif"),
+    });
+    await expect(readFile(join(workspace, "starless.tif"), "utf8")).resolves.toBe("starless:원본");
+    await expect(readFile(join(workspace, "stars.tif"), "utf8")).resolves.toBe("stars:원본");
+  });
+
+  it("describe 가 추가 출력을 알려준다", () => {
+    const registry = setup([starnet]);
+    expect(registry.describe()[0]?.extraOutputs).toEqual(["stars"]);
   });
 });
 
@@ -477,7 +639,7 @@ describe("설정 파일", () => {
     const example = new URL("../capabilities.example.json", import.meta.url);
     const loaded = await registry.loadConfig(example.pathname.replace(/^\/([A-Za-z]:)/u, "$1"));
     expect(loaded).toBe(2);
-    expect(registry.list()).toEqual(["gradientRemoval", "starRemoval"]);
+    expect(registry.list()).toEqual(["deconvolution", "starRemoval"]);
   });
 
   it("하나가 잘못되어도 나머지는 등록한다", async () => {

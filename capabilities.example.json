@@ -1,35 +1,41 @@
 {
   "providers": [
     {
-      "id": "graxpert",
-      "capability": "gradientRemoval",
-      "label": "GraXpert",
-      "executable": "C:/Program Files/GraXpert/GraXpert.exe",
-      "args": ["-cli", "-correction", "{{correction}}", "-output", "{{output}}", "{{input}}"],
-      "params": {
-        "correction": {
-          "type": "enum",
-          "values": ["Subtraction", "Division"],
-          "default": "Subtraction"
-        }
-      },
-      "timeoutMs": 900000,
-      "priority": 10
-    },
-    {
       "id": "starnet2",
       "capability": "starRemoval",
       "label": "StarNet++ v2",
-      "executable": "C:/Program Files/StarNet2/StarNetv2CLI.exe",
-      "args": ["{{input}}", "{{output}}", "{{stride}}"],
+      "executable": "C:/Program Files/StarNet2/bin/starnet2.exe",
+      "args": [
+        "--input",
+        "{{input}}",
+        "--output",
+        "{{output}}",
+        "--unscreen",
+        "{{output.stars}}",
+        "--machine-progress"
+      ],
+      "outputs": {
+        "stars": { "description": "별만 남긴 이미지. restore_stars 에 쓴다." }
+      },
+      "timeoutMs": 1800000,
+      "priority": 10
+    },
+    {
+      "id": "bxt",
+      "capability": "deconvolution",
+      "label": "BlurXTerminator (RC-Astro CLI)",
+      "executable": "C:/Program Files/RC-Astro/CLI/rc-astro.exe",
+      "args": [
+        "bxt",
+        "{{input}}",
+        "--sharpen-nonstellar",
+        "{{nonstellar}}",
+        "--output",
+        "{{output}}",
+        "--overwrite"
+      ],
       "params": {
-        "stride": {
-          "type": "number",
-          "integer": true,
-          "min": 32,
-          "max": 256,
-          "default": 128
-        }
+        "nonstellar": { "type": "number", "min": 0, "max": 1, "default": 0.5 }
       },
       "timeoutMs": 1800000,
       "priority": 10

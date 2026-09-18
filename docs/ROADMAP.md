@@ -1158,9 +1158,38 @@ Command 와 같은 상한이다.
 - 활성 레이어의 **opacity 를 물려받는다** (기준 40 → 결과 40)
 
 Mock 만 보고 만들었으면 조용히 어긋난 채로 남았을 것들이다. Mock 을 실기에 맞췄다.
-- GraXpert · StarNet2 의 실제 인자는 검증하지 않았다. `capabilities.example.json` 은
-  예시이며 각 프로그램의 CLI 문서를 확인하고 고쳐 써야 한다. 검증하지 않은 것을
-  동작한다고 적지 않는다.
+## 실기 검증 — 왕복 전체
+
+Photoshop 27.8, 문서 4032×6048 16비트 RGB, StarNet++ v2 로 확인했다.
+
+```text
+export(tiff, 16bit) → StarNet2(68초) → layer.place ×2
+레이어 1 → 3 (별 제거 · 별만, 둘 다 smartObject)
+```
+
+파일 헤더를 직접 파싱해 **16비트가 전 구간 유지**되는 것을 확인했다.
+
+| 파일 | 크기 | BitsPerSample | 압축 |
+|---|---|---|---|
+| 입력 | 139.6MB | 16,16,16 | 없음 |
+| starless | 120.2MB | 16,16,16 | LZW |
+| stars | 49.2MB | 16,16,16 | LZW |
+
+Provider 설정은 기존 CEP 패널에서 가져온 실제 인자다. `capabilities.example.json` 의
+두 Provider 모두 실행 파일이 존재하는 것을 확인했다.
+
+**GraXpert 는 예제에서 뺐다.** 3.0.2 CLI 에는 출력 형식 옵션이 없고 항상 FITS 를 쓴다
+(`-h` 로 확인). `-output out.tif` 를 줘도 `out.tif.fits` 가 나온다. Photoshop 이 못 여는
+형식이라 FITS → TIFF 변환 없이는 왕복이 성립하지 않는다. 동작하지 않는 설정을 예제에
+두면 복사해서 쓰는 사람이 속는다.
+
+기존 CEP 패널(`GraXpert-Photoshop-Panel`)은 이 변환을 JS 로 직접 구현해 두었다
+(`client/main.js` 2607~3050행, 약 450줄: BITPIX · NAXIS · BSCALE/BZERO · 채널 축 배치 ·
+정규화). GraXpert 를 붙이려면 이만큼의 작업이 따로 필요하다.
+
+첫 검증에서 StarNet2 가 `Image size is too small for the window!` 로 거부했다.
+319×226 테스트 문서였기 때문이다. 오류 설계가 의도대로 동작해 stderr 가 그대로
+전달되어 원인이 바로 보였다.
 
 ---
 

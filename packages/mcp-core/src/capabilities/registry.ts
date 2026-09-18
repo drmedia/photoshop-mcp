@@ -228,6 +228,7 @@ export class CapabilityRegistry implements ExtensionCapabilityRegistry {
       executable: config.executable,
       priority: config.priority ?? 0,
       parameters: Object.keys(config.params ?? {}),
+      extraOutputs: Object.keys(config.outputs ?? {}),
     }));
   }
 
@@ -265,14 +266,35 @@ export class CapabilityRegistry implements ExtensionCapabilityRegistry {
 
     const folder = await this.#requireWorkspace();
     const inputPath = resolveInside(folder, request.input, "input");
-    const outputPath = resolveInside(folder, request.output, "output");
+
+    // 주 출력과 추가 출력을 함께 해석한다. 전부 승인된 폴더 안이어야 한다.
+    const outputPaths: Record<string, string> = {
+      output: resolveInside(folder, request.output, "output"),
+    };
+    for (const [name, filename] of Object.entries(request.outputs ?? {})) {
+      outputPaths[name] = resolveInside(folder, filename, `outputs.${name}`);
+    }
+
+    // 선언하지 않은 추가 출력을 조용히 무시하지 않는다. 오타를 알아야 한다.
+    const declaredOutputs = new Set(Object.keys(config.outputs ?? {}));
+    const undeclared = Object.keys(request.outputs ?? {}).filter(
+      (name) => !declaredOutputs.has(name),
+    );
+    if (undeclared.length > 0) {
+      throw new PhotoshopMcpError(
+        ErrorCode.INVALID_PARAMETER,
+        `Provider '${config.id}' 가 만들지 않는 출력입니다: ${undeclared.join(", ")}. ` +
+          `만드는 것: ${[...declaredOutputs].join(", ") || "(주 출력뿐)"}`,
+        { details: { provider: config.id, undeclared, declared: [...declaredOutputs] } },
+      );
+    }
 
     await assertReadable(inputPath, request.input);
 
     const args = buildArgs({
       config,
       inputPath,
-      outputPath,
+      outputPaths,
       ...(request.params === undefined ? {} : { params: request.params }),
     });
     const timeoutMs = config.timeoutMs ?? 10 * 60 * 1000;
@@ -306,13 +328,23 @@ export class CapabilityRegistry implements ExtensionCapabilityRegistry {
     }
 
     // 종료 코드가 0 이어도 출력이 없으면 실패다. 다음 단계가 없는 파일을 읽게 두지 않는다.
-    await assertReadable(
-      outputPath,
-      request.output,
-      `Provider '${config.id}' 가 성공했다고 보고했지만 출력 파일이 없습니다`,
-    );
+    // 추가 출력도 함께 확인한다 — 하나만 만들어지고 끝나는 경우가 있다.
+    const names: Record<string, string> = { output: request.output, ...(request.outputs ?? {}) };
+    for (const [key, path] of Object.entries(outputPaths)) {
+      await assertReadable(
+        path,
+        names[key] ?? key,
+        `Provider '${config.id}' 가 성공했다고 보고했지만 출력 파일이 없습니다`,
+      );
+    }
 
-    return { capability, provider: config.id, outputPath, durationMs };
+    return {
+      capability,
+      provider: config.id,
+      outputPath: outputPaths["output"] as string,
+      outputPaths,
+      durationMs,
+    };
   }
 
   // -------------------------------------------------------------------------

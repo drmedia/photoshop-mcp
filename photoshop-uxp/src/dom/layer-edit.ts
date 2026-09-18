@@ -3,6 +3,7 @@ import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
 import { flattenLayers, toLayerInfo } from "./layers.js";
+import { withMaskStateAsync } from "./mask-state.js";
 import { opacityApplied, resolveMutatedLayer } from "./mutation-result.js";
 import { runModal } from "./modal.js";
 
@@ -111,11 +112,11 @@ export function describeLayer(document: PhotoshopDocument, layer: PhotoshopLayer
  * 그때 예외가 올라가면 변경은 일어났는데 실패로 보고된다. 실기에서 그렇게 틀렸다.
  * 자세한 것은 `resolveMutatedLayer` 의 주석에 있다.
  */
-export function mutate(
+export async function mutate(
   document: PhotoshopDocument,
   layer: PhotoshopLayer,
   apply: (layer: PhotoshopLayer) => void,
-): LayerInfo {
+): Promise<LayerInfo> {
   const before = flattenLayers(document.layers);
   // id 는 변경 전에 읽어 둔다. 변경 뒤에는 읽다가 던질 수 있다.
   const originalId = readId(layer);
@@ -129,7 +130,10 @@ export function mutate(
     originalId,
   );
   if (resolved !== null) {
-    return resolved;
+    // **마스크 상태를 함께 담는다.** `layer.list` 는 담는데 편집 결과가 안 담으면
+    // 같은 레이어에 대해 답이 둘이 된다 — 호출자는 마스크가 사라졌다고 읽는다.
+    // 실기에서 set_opacity 뒤에 그렇게 보였다.
+    return (await withMaskStateAsync([resolved]))[0] as LayerInfo;
   }
 
   // 어느 레이어가 되었는지 알 수 없다. 변경은 일어났으므로 실패로 만들지 않는다 —
@@ -177,10 +181,10 @@ export async function layerDuplicate(params: TargetParams & { name?: string }): 
 }
 
 export async function layerRename(params: TargetParams & { name: string }): Promise<LayerInfo> {
-  return runModal("Rename layer", () => {
+  return runModal("Rename layer", async () => {
     const document = requireActiveDocument();
     const layer = resolveLayer(document, params.layerId);
-    return mutate(document, layer, (target) => {
+    return await mutate(document, layer, (target) => {
       target.name = params.name;
     });
   });
@@ -198,21 +202,21 @@ export async function layerSelect(params: { layerId: number }): Promise<LayerInf
 export async function layerVisibility(
   params: TargetParams & { visible: boolean },
 ): Promise<LayerInfo> {
-  return runModal("Set layer visibility", () => {
+  return runModal("Set layer visibility", async () => {
     const document = requireActiveDocument();
     const layer = resolveLayer(document, params.layerId);
-    return mutate(document, layer, (target) => {
+    return await mutate(document, layer, (target) => {
       target.visible = params.visible;
     });
   });
 }
 
 export async function layerOpacity(params: TargetParams & { opacity: number }): Promise<LayerInfo> {
-  return runModal("Set layer opacity", () => {
+  return runModal("Set layer opacity", async () => {
     const document = requireActiveDocument();
     const layer = resolveLayer(document, params.layerId);
     // 배경 레이어에 불투명도를 주면 Photoshop 이 일반 레이어로 승격시키고 id 를 바꾼다.
-    const result = mutate(document, layer, (target) => {
+    const result = await mutate(document, layer, (target) => {
       target.opacity = params.opacity;
     });
 

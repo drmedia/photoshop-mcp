@@ -2289,7 +2289,72 @@ from == to:        그라디언트에는 길이가 필요합니다 (스키마에
 
 같은 점을 주면 Photoshop 이 조용히 아무것도 안 할 수 있어 호출자가 적용된 줄 안다.
 
-Core Tool 52개. **천체사진 워크플로 23단계가 전부 실행 가능하다.**
+Core Tool 52개.
+
+## 완주 시험 — 23단계를 처음부터 끝까지
+
+Tool 을 다 채운 뒤 새 문서에서 전 구간을 순서대로 돌렸다. **35/35 성공.**
+
+```text
+1·2   from_background → duplicate("Work")
+4·5   selection.sky → save_channel("Sky")
+3     group.create("MilkyWay_Edit")
+7     load_channel("Sky") → curves("Sky Tone")
+8     load_channel("Sky") → color_balance("Sky Color")  midtones [0,-14,10]
+9     curves("Light Pollution") → mask.gradient(아래→위)
+10    color_range(midtones) → save_channel("MilkyWay")
+11    curves("MW Contrast")
+17    load_channel("MilkyWay") → hue_saturation(+10)
+12    stamp_visible("Sharpen")
+13-16 high_pass(15) → softLight → mask.create(fromSelection) → opacity 30
+18    minimum(0.4)
+19·20 load_channel("Sky", invert) → modify(feather 40) → curves("Foreground Lift")
+21·22 clear → curves("Global Tone") → color_balance(highlights)
+23    save_as(psd)
+```
+
+제약도 전부 지켜졌다 — Photoshop 네이티브만, 외부 실행 파일 없음, 조정 레이어 중심,
+`Original` 레이어 무손상.
+
+### 순서가 하나 걸렸다 — 그룹이 활성이면 하늘 선택이 막힌다
+
+처음 돌릴 때 `group.create` 직후 `selection.sky` 가 실패했다.
+
+```text
+❌ "하늘 선택" 명령은 현재 사용할 수 없습니다.
+```
+
+**그룹이 활성 레이어일 때만** 그렇다. 조정 레이어는 괜찮다는 것을 레이어 종류별로
+확인했다. 워크플로 순서상 흔히 걸리는 자리다 — 그룹을 만들면 그룹이 활성이 되고
+바로 다음이 하늘 선택인 경우가 많다.
+
+원문으로는 왜인지 알 수 없으므로 미리 검사해 안내한다.
+
+```text
+❌ 그룹이 활성 레이어면 하늘을 선택할 수 없습니다.
+   layer.select 로 픽셀 레이어나 조정 레이어를 먼저 고르세요.
+```
+
+### 없는 채널을 부르면 Mock 이 실기보다 친절했다
+
+```text
+Mock: 채널 'Sky' 을 찾을 수 없습니다.
+실기: "설정" 명령은 현재 사용할 수 없습니다.       ← 이름이 틀렸는지도 알 수 없다
+```
+
+실기를 Mock 에 맞췄다. 원래 첫 실행에서 `save_channel` 이 실패해 채널이 없는 상태로
+불러오다 이 벽을 만났다.
+
+### 같은 레이어인데 답이 둘이었다
+
+```text
+set_opacity 결과    50:"Sharpen"(pixel,op30,softLight)         ← mask 표시 없음
+layer.list          50:"Sharpen"(pixel,op30,softLight,maskon)  ← mask 있음
+```
+
+마스크는 멀쩡한데 편집 결과만 그 정보를 안 담았다. `layer.list` 와 `mask.*` 만
+마스크 상태를 채웠기 때문이다. 호출자는 마스크가 사라졌다고 읽는다.
+`mutate()` 가 결과에 마스크 상태를 함께 담도록 했다.
 
 ---
 

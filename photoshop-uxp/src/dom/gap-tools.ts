@@ -122,7 +122,7 @@ export async function layerBlendMode(params: {
 
     // DOM 으로 처리할 수 있으므로 batchPlay 를 쓰지 않는다. (ARCHITECTURE §13)
     // 배경 레이어에 혼합 모드를 주면 불투명도와 마찬가지로 승격되어 id 가 바뀐다.
-    return mutate(document, target, (layer) => {
+    return await mutate(document, target, (layer) => {
       layer.blendMode = params.blendMode;
     });
   });
@@ -257,7 +257,7 @@ export async function layerFromBackground(params: { name?: string }): Promise<La
     if (promoted === null) {
       return resolved;
     }
-    return mutate(document, promoted, (layer) => {
+    return await mutate(document, promoted, (layer) => {
       layer.name = params.name as string;
     });
   });

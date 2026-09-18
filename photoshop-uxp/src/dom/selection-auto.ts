@@ -2,6 +2,7 @@ import { action } from "photoshop";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
 import { hasSelection } from "./mask-selection.js";
+import { toLayerType } from "./mappings.js";
 import { runModal } from "./modal.js";
 import { selectionBounds } from "./state-read.js";
 
@@ -43,7 +44,23 @@ function describeSelection(): SelectionResult {
 
 export async function selectionSky(): Promise<SelectionResult> {
   return runModal("Select sky", async () => {
-    requireActiveDocument();
+    const document = requireActiveDocument();
+
+    // **그룹이 활성이면 Photoshop 이 거부한다.** 조정 레이어는 괜찮다.
+    // 원문("'하늘 선택' 명령은 현재 사용할 수 없습니다")으로는 왜인지 알 수 없다.
+    //
+    // 워크플로 순서상 흔히 걸린다 — 그룹을 만들면 그룹이 활성이 되고, 바로 다음이
+    // 하늘 선택인 경우가 많다. 실기에서 그렇게 막혔다.
+    const active = document.activeLayers[0];
+    if (active !== undefined && toLayerType(active.kind).type === "group") {
+      throw new DispatchError(
+        "INVALID_PARAMETER",
+        "그룹이 활성 레이어면 하늘을 선택할 수 없습니다. " +
+          "layer.select 로 픽셀 레이어나 조정 레이어를 먼저 고르세요.",
+        { recoverable: true, details: { layerId: active.id } },
+      );
+    }
+
     await play("Select sky", { _obj: "selectSky" });
     return describeSelection();
   });

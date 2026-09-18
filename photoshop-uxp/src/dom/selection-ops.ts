@@ -76,12 +76,24 @@ export async function selectionLoadChannel(params: {
 }): Promise<SelectionResult> {
   return runModal("Load selection from channel", async () => {
     requireActiveDocument();
-    await play("Load selection", {
-      _obj: "set",
-      _target: [{ _ref: "channel", _property: "selection" }],
-      to: { _ref: "channel", _name: params.name },
-      ...(params.invert === true ? { invert: true } : {}),
-    });
+    try {
+      await play("Load selection", {
+        _obj: "set",
+        _target: [{ _ref: "channel", _property: "selection" }],
+        to: { _ref: "channel", _name: params.name },
+        ...(params.invert === true ? { invert: true } : {}),
+      });
+    } catch {
+      // 없는 채널이면 Photoshop 이 `"설정" 명령은 현재 사용할 수 없습니다` 라고
+      // 답한다. 원문으로는 이름이 틀렸는지조차 알 수 없다. 실기에서 저장이 실패해
+      // 채널이 없는 상태로 불러오다 이 벽을 만났다.
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        `채널 '${params.name}' 을 불러올 수 없습니다. ` +
+          "selection.save_channel 로 저장한 이름인지 확인하세요.",
+        { recoverable: true, details: { name: params.name } },
+      );
+    }
     return describeSelection();
   });
 }

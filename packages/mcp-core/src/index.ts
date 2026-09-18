@@ -13,6 +13,12 @@ export {
 } from "./capabilities/registry.js";
 export { createConsoleLogger, createSilentLogger } from "./extensions/logger.js";
 export { EventBus, type EventBusOptions } from "./events/bus.js";
+export {
+  ResourceRegistry,
+  affectedResources,
+  type ResourceDefinition,
+  type ResourceRegistryOptions,
+} from "./resources/registry.js";
 export { JobStore, type JobStoreOptions } from "./jobs/store.js";
 export { WorkflowRegistry, type WorkflowRegistryOptions } from "./workflows/registry.js";
 export {

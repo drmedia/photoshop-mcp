@@ -3,7 +3,7 @@
 Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입니다.
 
 > **현재 상태: Phase 9 (Permission / Safety) · Phase 8 (Capability System) 완료.**
-> Core Tool 46개. Extension 예제 2개(`example`, `milkyscape`)를 포함해 실기 검증했습니다.
+> Core Tool 46개, Resource 6개. Extension 예제 2개(`example`, `milkyscape`)를 포함해 실기 검증했습니다.
 > 모든 Tool 과 Command 가 권한 레벨을 선언하며, 기본값은 `read` · `edit` 만 허용합니다.
 
 ## 빠른 시작
@@ -99,6 +99,21 @@ cp capabilities.example.json capabilities.json   # 실행 파일 경로를 고�
 실행 파일은 설정 파일에서만 오고(절대 경로), 인자는 선언된 파라미터로만 조립되며,
 shell 을 거치지 않고, 입출력은 승인된 작업 폴더 안의 파일 이름뿐입니다.
 
+## 리소스
+
+문서·레이어·선택 영역·History·외부 처리기·Extension 을 MCP Resource 로 노출합니다.
+Tool 이 **행동**이라면 Resource 는 **맥락**입니다 — 클라이언트가 미리 읽어 대화에
+붙일 수 있습니다.
+
+```
+photoshop://document/current   photoshop://layers
+photoshop://selection          photoshop://history
+photoshop://capabilities       photoshop://extensions
+```
+
+구독하면 문서를 바꾸는 작업이 끝날 때 `notifications/resources/updated` 가 옵니다.
+폴링이 필요 없습니다. 읽기 작업은 알리지 않습니다.
+
 ## 문제가 생기면
 
 ```
@@ -181,7 +196,7 @@ Job 은 메모리에만 있어 서버를 다시 띄우면 사라집니다.
 
 ## 지금 동작하는 것
 
-Core Tool 46개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
+Core Tool 46개, Resource 6개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
 
 **조회**
 

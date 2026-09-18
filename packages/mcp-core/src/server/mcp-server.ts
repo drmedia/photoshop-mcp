@@ -1,7 +1,14 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  CallToolRequestSchema,
+  ListResourcesRequestSchema,
+  ListToolsRequestSchema,
+  ReadResourceRequestSchema,
+  SubscribeRequestSchema,
+  UnsubscribeRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 import type { ToolRegistry } from "@photoshop-mcp/photoshop-bridge";
 import {
   ErrorCode,
@@ -18,6 +25,29 @@ export interface PhotoshopMcpServerOptions {
   version?: string;
   /** 노출할 Tool 레지스트리. */
   registry: ToolRegistry;
+  /**
+   * 노출할 Resource 레지스트리. (ROADMAP §16)
+   *
+   * 생략하면 `resources/*` 를 지원하지 않는다고 선언한다. 빈 목록을 돌려주면
+   * 클라이언트가 있는 줄 알고 구독을 시도한다.
+   */
+  resources?: ResourceSource;
+}
+
+/**
+ * Resource 노출에 필요한 최소 표면. `ResourceRegistry` 가 이 모양을 만족한다.
+ *
+ * MCP 서버가 mcp-core 의 구현을 직접 알지 않도록 좁게 받는다.
+ */
+export interface ResourceSource {
+  list(): { uri: string; name: string; description?: string; mimeType?: string }[];
+  read(uri: string): Promise<{
+    definition: { uri: string; mimeType?: string };
+    contents: unknown;
+  }>;
+  subscribe(uri: string): void;
+  unsubscribe(uri: string): void;
+  setNotifier(notify: (uri: string) => void): void;
 }
 
 /**
@@ -28,18 +58,28 @@ export interface PhotoshopMcpServerOptions {
  */
 export class PhotoshopMcpServer {
   readonly #registry: ToolRegistry;
+  readonly #resources: ResourceSource | null;
   readonly #server: Server;
   #transport: Transport | null = null;
   #requestSequence = 0;
 
   constructor(options: PhotoshopMcpServerOptions) {
     this.#registry = options.registry;
+    this.#resources = options.resources ?? null;
     this.#server = new Server(
       {
         name: options.name ?? SERVER_NAME,
         version: options.version ?? SERVER_VERSION,
       },
-      { capabilities: { tools: {} } },
+      {
+        capabilities: {
+          tools: {},
+          // 구독까지 지원한다고 선언한다. Command 가 문서를 바꾸면 알린다.
+          ...(options.resources === undefined
+            ? {}
+            : { resources: { subscribe: true, listChanged: false } }),
+        },
+      },
     );
     this.#registerHandlers();
   }
@@ -64,7 +104,72 @@ export class PhotoshopMcpServer {
     this.#transport = null;
   }
 
+  /**
+   * `resources/*` 핸들러. (ROADMAP §16)
+   *
+   * 레지스트리를 주지 않았으면 아무것도 등록하지 않는다 — 지원한다고 선언하지도
+   * 않았으므로 클라이언트가 부르지 않는다.
+   */
+  #registerResourceHandlers(): void {
+    const resources = this.#resources;
+    if (resources === null) {
+      return;
+    }
+
+    this.#server.setRequestHandler(ListResourcesRequestSchema, () => ({
+      resources: resources.list().map((entry) => ({
+        uri: entry.uri,
+        name: entry.name,
+        ...(entry.description === undefined ? {} : { description: entry.description }),
+        mimeType: entry.mimeType ?? "application/json",
+      })),
+    }));
+
+    this.#server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+      const { uri } = request.params;
+      try {
+        const { definition, contents } = await resources.read(uri);
+        return {
+          contents: [
+            {
+              uri,
+              mimeType: definition.mimeType ?? "application/json",
+              text: JSON.stringify(contents, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        // Tool 과 달리 Resource 는 isError 를 돌려줄 수 없다. 오류로 던져야
+        // 클라이언트가 실패를 안다. 코드와 메시지를 담고 원인도 붙인다 —
+        // 서버 쪽에서 스택을 추적할 수 있어야 한다.
+        const normalized = PhotoshopMcpError.from(error, ErrorCode.COMMAND_FAILED);
+        throw new Error(`${normalized.code}: ${normalized.message}`, { cause: error });
+      }
+    });
+
+    this.#server.setRequestHandler(SubscribeRequestSchema, (request) => {
+      resources.subscribe(request.params.uri);
+      return {};
+    });
+
+    this.#server.setRequestHandler(UnsubscribeRequestSchema, (request) => {
+      resources.unsubscribe(request.params.uri);
+      return {};
+    });
+
+    // 레지스트리가 변경을 알리면 MCP 알림으로 내보낸다.
+    // 전송이 붙기 전에 부르면 SDK 가 던지므로 삼킨다 — 알림 때문에 Command 가
+    // 실패하면 안 된다.
+    resources.setNotifier((uri) => {
+      void this.#server.sendResourceUpdated({ uri }).catch(() => {
+        // 클라이언트가 이미 끊겼을 수 있다.
+      });
+    });
+  }
+
   #registerHandlers(): void {
+    this.#registerResourceHandlers();
+
     this.#server.setRequestHandler(ListToolsRequestSchema, () => ({
       tools: this.#registry.list().map((tool) => ({
         name: tool.name,

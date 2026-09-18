@@ -1642,6 +1642,55 @@ command.failed
 
 # 16. Phase 12 — MCP Resources
 
+## Tool 과 무엇이 다른가
+
+Tool 은 **행동**이고 Resource 는 **맥락**이다. 데이터가 겹쳐도 쓰임이 다르다 —
+클라이언트가 미리 읽어 대화에 붙일 수 있고, LLM 이 매번 Tool 을 부르지 않아도 된다.
+
+## Phase 11 에서 못 한 것을 되찾았다
+
+Phase 11 에서 "MCP 에 push 통로가 없다" 고 적었는데 정확하지 않았다.
+**임의 이벤트** 통로가 없는 것이고 `notifications/resources/updated` 는 있다.
+
+문서를 바꾸는 Command 가 끝나면 관련 리소스가 낡았다고 알린다. 구독한 클라이언트는
+폴링 없이 안다. Photoshop 알림이 동작하지 않는 환경에서도 **우리가 만든 변경**은
+알릴 수 있다 — 우리는 언제 무엇을 바꿨는지 알기 때문이다.
+
+읽기 Command 는 알리지 않는다. 알림 범위는 `affectedResources` 가 정한다.
+모르는 Command 는 바꿨다고 본다 — 덜 보내면 클라이언트가 낡은 값을 계속 쓴다.
+
+작업 중 버그 하나를 잡았다. 접두사 검사를 먼저 해서 `SELECTION_GET`(읽기)이
+`SELECTION_` 에 걸려 변경으로 분류되었다. 읽기 목록을 먼저 거르도록 고쳤다.
+
+## 데이터 없는 리소스를 만들지 않는다
+
+`photoshop://selection` 과 `photoshop://history` 를 만들다가 뒷받침할 Command 가
+없다는 것을 알았다 — 선택 영역과 History 는 **바꾸는** Command 만 있고 **읽는**
+Command 가 없었다. `SELECTION_GET` 과 `HISTORY_LIST` 를 추가했다.
+
+있는 척하면 호출자가 쓰다가 빈 것을 받는다.
+
+## Extension Resource
+
+Phase 5 에서 "Phase 12 에 추가한다" 며 비워둔 `ExtensionContext.resources` 를 채웠다.
+
+Extension 은 자기 namespace 의 URI 만 등록할 수 있다 (`milky://state`). Tool 이름
+규칙과 같은 이유다. unload 하면 함께 해제되고, 남의 리소스가 바뀌었다고 알릴 수 없다.
+
+## 실기 검증
+
+Photoshop 27.8, 문서 4032×6048 16비트. 실제 MCP 클라이언트로 확인했다.
+
+```text
+resources/list                 6개 노출
+document/current → {"name":"새비재01_04.tif","width":4032,"bitDepth":16,...}
+selection        → {"hasSelection":false,"bounds":null}
+history          → 항목 29개, 현재 28 = "선택 해제"
+
+구독 후 layer.create → 알림 ["photoshop://layers"]
+구독 후 layer.list   → 알림 [] (읽기는 알리지 않음)
+```
+
 Core:
 
 ```text

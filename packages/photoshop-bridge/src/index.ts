@@ -57,6 +57,7 @@ export {
   type ExtensionCommandEngine,
   type ExtensionContext,
   type ExtensionManifest,
+  type ExtensionResourceRegistry,
   type ExtensionToolRegistry,
   type Logger,
   type Permission,

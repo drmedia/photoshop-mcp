@@ -8,6 +8,7 @@ import type {
   ExtensionCommandEngine,
   ExtensionEventBus,
   ExtensionJobRegistry,
+  ExtensionResourceRegistry,
   ExtensionContext,
   ExtensionManifest,
   ExtensionToolRegistry,
@@ -25,6 +26,7 @@ import {
 } from "@photoshop-mcp/photoshop-bridge";
 import type { CommandEngine } from "@photoshop-mcp/command-engine";
 import type { EventBus } from "../events/bus.js";
+import type { ResourceRegistry } from "../resources/registry.js";
 import type { JobStore } from "../jobs/store.js";
 
 /**
@@ -44,6 +46,8 @@ export interface LoadedExtension {
   directory: string;
   /** 이 Extension 이 등록한 Tool 이름. deactivate 진단에 쓴다. */
   registeredTools: string[];
+  /** 이 Extension 이 등록한 Resource URI. unload 때 되돌린다. */
+  registeredResources: string[];
   instance: PhotoshopMcpExtension;
 }
 
@@ -56,6 +60,8 @@ export interface ExtensionManagerOptions {
   jobs: JobStore;
   /** Photoshop 과 Command 의 변화. (ARCHITECTURE §21) */
   events: EventBus;
+  /** MCP Resource. (ARCHITECTURE §20) */
+  resources: ResourceRegistry;
   logger: Logger;
 }
 
@@ -71,6 +77,7 @@ export class ExtensionManager {
   readonly #capabilities: ExtensionCapabilityRegistry;
   readonly #jobs: JobStore;
   readonly #events: EventBus;
+  readonly #resources: ResourceRegistry;
   readonly #logger: Logger;
   readonly #loaded = new Map<string, LoadedExtension>();
 
@@ -80,6 +87,7 @@ export class ExtensionManager {
     this.#capabilities = options.capabilities;
     this.#jobs = options.jobs;
     this.#events = options.events;
+    this.#resources = options.resources;
     this.#logger = options.logger;
   }
 
@@ -205,6 +213,7 @@ export class ExtensionManager {
       manifest,
       directory: discovered.directory,
       registeredTools: [],
+      registeredResources: [],
       instance,
     };
 
@@ -257,6 +266,9 @@ export class ExtensionManager {
     for (const name of loaded.registeredTools) {
       this.#tools.unregister(name);
     }
+    for (const uri of loaded.registeredResources) {
+      this.#resources.unregister(uri);
+    }
     // 리스너를 남기면 사라진 Extension 의 코드가 계속 불린다.
     const removed = this.#events.offOwner(namespace);
     this.#loaded.delete(namespace);
@@ -274,9 +286,12 @@ export class ExtensionManager {
     try {
       await loaded.instance.activate(context);
     } catch (error) {
-      // 활성화 중 등록한 Tool 을 되돌린다.
+      // 활성화 중 등록한 것을 되돌린다.
       for (const name of loaded.registeredTools) {
         this.#tools.unregister(name);
+      }
+      for (const uri of loaded.registeredResources) {
+        this.#resources.unregister(uri);
       }
       throw new PhotoshopMcpError(
         ErrorCode.EXTENSION_LOAD_FAILED,
@@ -385,6 +400,31 @@ export class ExtensionManager {
       recent: (query) => bus.recent(query ?? {}),
     };
 
+    // Resource 도 namespace 로 가둔다. `milky://` 만 쓸 수 있다.
+    // Tool 이름 규칙과 같은 이유다 — Core 나 다른 Extension 의 것을 덮어쓸 수 없다.
+    const resourceRegistry = this.#resources;
+    const scheme = `${namespace}://`;
+    const resources: ExtensionResourceRegistry = {
+      register: (definition) => {
+        if (!definition.uri.startsWith(scheme)) {
+          throw new PhotoshopMcpError(
+            ErrorCode.EXTENSION_NAMESPACE_VIOLATION,
+            "Extension 은 자신의 namespace 로만 Resource 를 등록할 수 있습니다. " +
+              `기대: ${scheme}* / 실제: ${definition.uri}`,
+            { details: { namespace, uri: definition.uri } },
+          );
+        }
+        resourceRegistry.register(definition);
+        loaded.registeredResources.push(definition.uri);
+      },
+      touch: (uri) => {
+        // 남의 리소스가 바뀌었다고 알릴 수 없다.
+        if (uri.startsWith(scheme)) {
+          resourceRegistry.touch(uri);
+        }
+      },
+    };
+
     return {
       manifest: loaded.manifest,
       tools: scoped,
@@ -392,6 +432,7 @@ export class ExtensionManager {
       capabilities,
       jobs,
       events,
+      resources,
       logger: this.#logger,
     };
   }

@@ -82,11 +82,11 @@ export interface Logger {
 /**
  * Extension 에 주어지는 Core 접근 통로. (ARCHITECTURE §16)
  *
- * ROADMAP §9.3 은 `resources` · `photoshop` 도 포함하지만 각각 Phase 12 와
- * 아직 정의되지 않은 구성 요소다. 대응하는 런타임이 생길 때 추가한다.
- * 동작하지 않는 껍데기를 두지 않는다.
+ * ROADMAP §9.3 의 `photoshop` 은 아직 정의되지 않은 구성 요소다. 대응하는 런타임이
+ * 생길 때 추가한다. 동작하지 않는 껍데기를 두지 않는다.
  *
- * `capabilities` 는 Phase 8 에서 추가했다.
+ * `capabilities` 는 Phase 8, `jobs` 는 Phase 10, `events` 는 Phase 11,
+ * `resources` 는 Phase 12 에서 각각 런타임이 생겼을 때 추가했다.
  */
 export interface ExtensionContext {
   /** 자신의 manifest. namespace 확인 등에 쓴다. */
@@ -130,7 +130,32 @@ export interface ExtensionContext {
    * 발행은 노출하지 않는다 — 일어난 일을 들을 수 있을 뿐이다.
    */
   events: ExtensionEventBus;
+  /**
+   * MCP Resource. (ARCHITECTURE §20)
+   *
+   * Extension 은 자기 namespace 의 URI 만 등록할 수 있다 — `milky://state` 처럼.
+   * Tool 의 namespace 규칙과 같은 이유다. unload 하면 함께 해제된다.
+   */
+  resources: ExtensionResourceRegistry;
   logger: Logger;
+}
+
+/**
+ * Extension 이 쓰는 Resource 등록 표면.
+ *
+ * 읽기·구독은 노출하지 않는다. Extension 은 자기 리소스를 **제공**할 뿐,
+ * 다른 Extension 이나 Core 의 리소스를 들여다볼 수 없다. (ARCHITECTURE §17)
+ */
+export interface ExtensionResourceRegistry {
+  register(definition: {
+    uri: string;
+    name: string;
+    description?: string;
+    mimeType?: string;
+    read: () => Promise<unknown>;
+  }): void;
+  /** 이 리소스가 바뀌었다고 알린다. 구독한 클라이언트에게 전달된다. */
+  touch(uri: string): void;
 }
 
 /**

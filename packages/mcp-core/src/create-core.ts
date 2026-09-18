@@ -18,6 +18,7 @@ import {
 import { CapabilityRegistry } from "./capabilities/registry.js";
 import { ExtensionManager } from "./extensions/manager.js";
 import { EventBus } from "./events/bus.js";
+import { ResourceRegistry, affectedResources } from "./resources/registry.js";
 import { JobStore } from "./jobs/store.js";
 import { WorkflowRegistry } from "./workflows/registry.js";
 import { createConsoleLogger } from "./extensions/logger.js";
@@ -60,7 +61,73 @@ export interface PhotoshopMcp {
   workflows: WorkflowRegistry;
   /** Photoshop 과 Command 의 변화. (ROADMAP §15) */
   events: EventBus;
+  /** MCP Resource. 문서·레이어 등을 맥락으로 노출한다. (ROADMAP §16) */
+  resources: ResourceRegistry;
   logger: Logger;
+}
+
+/**
+ * Core Resource 를 등록한다. (ROADMAP §16, ARCHITECTURE §20)
+ *
+ * 모두 읽기 전용이며 읽을 때마다 실제 상태를 조회한다. 캐시하지 않는다 —
+ * Photoshop 상태는 계속 바뀐다.
+ *
+ * Tool 과 데이터가 겹치지만 쓰임이 다르다. Tool 은 행동이고 Resource 는 맥락이다.
+ * 클라이언트가 미리 읽어 대화에 붙일 수 있다.
+ */
+function registerCoreResources(input: {
+  resources: ResourceRegistry;
+  engine: CommandEngine;
+  capabilities: CapabilityRegistry;
+  extensions: () => { manifest: { namespace: string; name: string; version: string } }[];
+}): void {
+  const { resources, engine, capabilities } = input;
+  const run = <T>(type: string): Promise<T> => engine.execute<T>({ type, params: {} });
+
+  resources.register({
+    uri: "photoshop://document/current",
+    name: "현재 문서",
+    description: "활성 Photoshop 문서의 이름·크기·비트 심도·색상 모드",
+    read: async () => run("DOCUMENT_GET"),
+  });
+  resources.register({
+    uri: "photoshop://layers",
+    name: "레이어 목록",
+    description: "활성 문서의 레이어. 위에서부터, opacity·parentId·blendMode 포함",
+    read: async () => ({ layers: await run("LAYER_LIST") }),
+  });
+  resources.register({
+    uri: "photoshop://selection",
+    name: "선택 영역",
+    description: "선택 영역 유무와 경계",
+    read: async () => run("SELECTION_GET"),
+  });
+  resources.register({
+    uri: "photoshop://history",
+    name: "History",
+    description: "History 항목과 현재 지점. 되돌려도 목록은 줄지 않는다",
+    read: async () => run("HISTORY_LIST"),
+  });
+  resources.register({
+    uri: "photoshop://capabilities",
+    name: "외부 처리기",
+    description: "설정된 외부 처리기와 사용 가능 여부",
+    // Photoshop 연결이 없어도 읽을 수 있다. 설정 확인은 연결과 무관하다.
+    read: async () => ({ providers: await capabilities.describeAsync() }),
+  });
+  resources.register({
+    uri: "photoshop://extensions",
+    name: "Extension",
+    description: "적재된 Extension 과 버전",
+    read: () =>
+      Promise.resolve({
+        extensions: input.extensions().map((loaded) => ({
+          namespace: loaded.manifest.namespace,
+          name: loaded.manifest.name,
+          version: loaded.manifest.version,
+        })),
+      }),
+  });
 }
 
 /**
@@ -81,6 +148,7 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
   const policy = options.policy ?? new PermissionPolicy();
 
   const events = new EventBus({ logger });
+  const resources = new ResourceRegistry({ logger });
 
   const engine = new CommandEngine({
     registry: commands,
@@ -94,6 +162,14 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
       //
       // 기본적으로 조용하다. stdout 은 MCP 전송이 점유하고 stderr 도 시끄러우면
       // 진짜 오류가 묻힌다. PHOTOSHOP_MCP_DEBUG=1 일 때만 나온다.
+      // 문서를 바꾼 Command 는 관련 Resource 가 낡았다고 알린다. (ROADMAP §16)
+      //
+      // MCP 에 임의 이벤트를 미는 통로는 없지만 resources/updated 는 있다.
+      // 구독한 클라이언트는 폴링 없이 안다.
+      if (name === "command.completed") {
+        resources.touch(...affectedResources(String(data["command"] ?? "")));
+      }
+
       const id = String(data["requestId"] ?? "?");
       const command = String(data["command"] ?? "?");
       if (name === "command.failed") {
@@ -111,6 +187,7 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
 
   const server = new PhotoshopMcpServer({
     registry: tools,
+    resources,
     ...(options.name === undefined ? {} : { name: options.name }),
     ...(options.version === undefined ? {} : { version: options.version }),
   });
@@ -141,7 +218,16 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
     capabilities,
     jobs,
     events,
+    resources,
     logger,
+  });
+
+  // Resource 는 capabilities · extensions 를 들여다보므로 그들이 만들어진 뒤에 등록한다.
+  registerCoreResources({
+    resources,
+    engine,
+    capabilities,
+    extensions: () => extensions.list(),
   });
 
   registerCapabilityTools(tools, capabilities);
@@ -187,6 +273,7 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
     jobs,
     workflows,
     events,
+    resources,
     logger,
     policy,
   };

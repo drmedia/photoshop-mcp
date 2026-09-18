@@ -43,6 +43,7 @@ import {
 } from "./dom/layer-edit.js";
 import { layerList } from "./dom/layers.js";
 import { startNotifications } from "./dom/notifications.js";
+import { historyList, selectionGet } from "./dom/state-read.js";
 import { workspaceDelete, workspaceUsage } from "./dom/workspace-files.js";
 import { layerPlace } from "./dom/place.js";
 import { documentExport, documentSave, documentSaveAs } from "./dom/save.js";
@@ -162,6 +163,10 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("WORKSPACE_DELETE", async (p) =>
     workspaceDelete(p as Parameters<typeof workspaceDelete>[0]),
   );
+
+  // ROADMAP §16 — MCP Resource 를 뒷받침하는 읽기
+  dispatcher.register("SELECTION_GET", async () => selectionGet());
+  dispatcher.register("HISTORY_LIST", async () => historyList());
 
   return dispatcher;
 }

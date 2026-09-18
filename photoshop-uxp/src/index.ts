@@ -42,6 +42,7 @@ import {
   layerVisibility,
 } from "./dom/layer-edit.js";
 import { layerList } from "./dom/layers.js";
+import { layerPlace } from "./dom/place.js";
 import { documentExport, documentSave, documentSaveAs } from "./dom/save.js";
 import { approveFolder, revokeFolder, workspaceStatus } from "./dom/workspace.js";
 import { BridgeClient, type ClientState } from "./transport/ws-client.js";
@@ -146,6 +147,11 @@ export function createDispatcher(): CommandDispatcher {
     documentExport(p as Parameters<typeof documentExport>[0]),
   );
   dispatcher.register("DOCUMENT_SAVE", async () => documentSave());
+
+  // 외부 처리 결과를 Photoshop 으로 되돌리는 길. (Phase 8 과 짝을 이룬다)
+  dispatcher.register("LAYER_PLACE", async (p) =>
+    layerPlace(p as Parameters<typeof layerPlace>[0]),
+  );
 
   return dispatcher;
 }

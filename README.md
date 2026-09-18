@@ -3,7 +3,7 @@
 Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입니다.
 
 > **현재 상태: Phase 9 (Permission / Safety) · Phase 8 (Capability System) 완료.**
-> Core Tool 30개. Phase 9 까지의 29개는 실제 Photoshop 27.8 에서 검증했습니다.
+> Core Tool 31개. `capability.list` 를 뺀 30개를 실제 Photoshop 27.8 에서 검증했습니다.
 > 모든 Tool 과 Command 가 권한 레벨을 선언하며, 기본값은 `read` · `edit` 만 허용합니다.
 
 ## 빠른 시작
@@ -97,7 +97,7 @@ shell 을 거치지 않고, 입출력은 승인된 작업 폴더 안의 파일 �
 
 ## 지금 동작하는 것
 
-Core Tool 30개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
+Core Tool 31개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
 
 **조회**
 
@@ -262,7 +262,6 @@ Extension 의 namespace 를 쓰면 적재가 거부됩니다. 하나가 잘못�
 현재 Phase 범위 밖이라 의도적으로 구현하지 않았습니다.
 
 - destructive 명령(`layer.delete`, `flatten`, `close`) — 분류 체계는 섰지만 구현은 없습니다
-- 처리된 파일을 Photoshop 으로 되돌리는 Command (`layer.place`) — Phase 6
 - Capability 의 비동기 실행 · 진행률 · 취소 — Job System (Phase 10)
 - MCP Resource (Phase 12), Event 시스템
 - Extension 의 Command 등록 — Extension 은 Core Command 를 호출만 합니다

@@ -13,7 +13,7 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 ## 현재 상태
 
 **Phase 9 (Permission / Safety) · Phase 8 (Capability System) 완료.**
-Core Tool 30개. Phase 9 까지의 29개는 실제 Photoshop 27.8 에서 검증했다.
+Core Tool 31개. `capability.list` 를 뺀 30개를 실제 Photoshop 27.8 에서 검증했다.
 
 - 조회: `ping`, `document.get`, `layer.list`
 - 레이어: create / duplicate / rename / select / set_visibility / set_opacity
@@ -73,8 +73,14 @@ Extension 은 특정 프로그램이 아니라 기능을 요청한다 — `ctx.c
 Tool 은 `photoshop.capability.list` (조회) 하나만 노출한다. 실행 Tool 은 만들지 않는다 —
 Capability 실행은 전체 흐름의 가운데 토막이고, 그 흐름을 아는 것은 Extension 이다.
 
-동기 실행만 한다. 진행률·취소는 Phase 10 이다. 처리된 파일을 Photoshop 으로 되돌리는
-Command 는 아직 없다 (Phase 6).
+동기 실행만 한다. 진행률·취소는 Phase 10 이다.
+
+`photoshop.layer.place` 가 돌아오는 길이다. 승인된 폴더의 파일을 스마트 오브젝트로
+가져온다. 권한은 `external` — `export` 가 쓰기로 넘듯 읽기로 경계를 넘는다.
+
+실기에서 확인한 `place` 동작: 문서 맨 위가 아니라 **활성 레이어 바로 위**에 놓이고,
+활성 레이어가 그룹 안이면 같은 그룹으로 들어가며, **opacity 를 물려받는다.**
+셋 다 처음 가정과 달랐다. 위치가 중요하면 먼저 `layer.select` 한다.
 
 `batchPlay` 는 조정·마스크·선택·필터에 쓴다. DOM 에 API 가 없는 경우다.
 descriptor 는 반드시 플러그인이 검증된 파라미터로 조립한다.
@@ -93,9 +99,8 @@ manifest 의 `permissions` 는 **선언만 받고 강제하지 않는다.** 강�
 `capabilities`(Phase 8) · `photoshop` 은 아직 없다. 동작하지 않는 껍데기를 두면
 Extension 작성자가 있는 줄 알고 쓴다.
 
-다음 작업은 **Phase 6 (MilkyScapeTools)** 다. 그 전에 처리된 파일을 Photoshop 으로
-되돌리는 Command(`layer.place` 같은 것)가 필요하다 — 지금은 내보내기와 외부 실행까지만
-이어지고 돌아오는 길이 없다.
+다음 작업은 **Phase 6 (MilkyScapeTools)** 다. 내보내기 → 외부 처리 → 가져오기 왕복이
+이어졌으므로 막는 것은 없다.
 
 알 수 없는 열거형 값은 기본값으로 덮지 않는다. `null` + 원본(`rawBitDepth` · `rawKind` ·
 `rawBlendMode`)을 함께 반환한다. 이 원칙으로 실기에서 세 번 실제 버그를 잡았다.

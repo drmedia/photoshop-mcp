@@ -83,10 +83,12 @@ import {
   workspaceStatusCommand,
 } from "./document-save.js";
 import { LAYER_LIST, layerListCommand } from "./layer-list.js";
+import { LAYER_PLACE, LayerPlaceParamsSchema, layerPlaceCommand } from "./layer-place.js";
 import { PING, pingCommand } from "./ping.js";
 
 export { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
 export * from "./document-save.js";
+export * from "./layer-place.js";
 export * from "./adjustment.js";
 export * from "./filter.js";
 export * from "./gap-tools.js";
@@ -237,4 +239,11 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     schema: ExportParamsSchema,
   });
   registry.register(DOCUMENT_SAVE, saveCommand, { permission: "destructive" });
+
+  // 외부 처리 결과를 되돌리는 길. 승인된 폴더 안이라도 Photoshop 밖 파일을 읽으므로
+  // export 와 같은 external 이다.
+  registry.register(LAYER_PLACE, layerPlaceCommand, {
+    permission: "external",
+    schema: LayerPlaceParamsSchema,
+  });
 }

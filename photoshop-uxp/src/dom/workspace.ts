@@ -23,7 +23,7 @@ const TOKEN_KEY = "photoshop-mcp.workspace-token";
  * **플러그인 전체가 로드에 실패한다.** Bridge 연결까지 같이 죽는다.
  * 저장은 부가 기능이고 Bridge 는 본체다. 부가 기능의 문제가 본체를 막으면 안 된다.
  */
-function fileSystem(): LocalFileSystem {
+export function fileSystem(): LocalFileSystem {
   const api = (uxp as { storage?: { localFileSystem?: LocalFileSystem } }).storage?.localFileSystem;
   if (api === undefined) {
     throw new DispatchError(

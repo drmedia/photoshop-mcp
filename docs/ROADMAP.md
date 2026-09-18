@@ -57,12 +57,12 @@ Phase 0   Project Bootstrap            완료
 Phase 1   MCP Core                     완료
 Phase 2   Photoshop Bridge             완료
 Phase 3   Basic Photoshop Editing      완료
-Phase 4   Extended Photoshop Tools      완료 (저장은 Phase 9 이관)
-Phase 5   Extension SDK
-Phase 6   MilkyScapeTools Extension
+Phase 4   Extended Photoshop Tools     완료 (저장은 Phase 9 에서 처리)
+Phase 5   Extension SDK                완료
+Phase 6   MilkyScapeTools Extension    보류 — 외부 도구가 Phase 8 에 의존
 Phase 7   Workflow System
-Phase 8   Capability System
-Phase 9   Permission / Safety
+Phase 8   Capability System            다음
+Phase 9   Permission / Safety          완료
 Phase 10  Job System
 Phase 11  Events
 Phase 12  MCP Resources
@@ -71,6 +71,12 @@ Phase 14  Distribution
 ```
 
 각 Phase 의 항목별 진행 상황은 해당 섹션의 체크박스로 추적한다.
+
+번호 순서대로 진행하지 않는다. Phase 6 의 Tool 7개 중 4개(`remove_gradient` ·
+`remove_stars` · `restore_stars` · `enhance`)가 GraXpert · StarNet2 · BXT 같은 외부
+프로그램을 필요로 하는데, ROADMAP 자신이 "외부 도구는 Capability Provider 로 구현한다"
+(§12) 고 정하고 있다. 그래서 Phase 9 → Phase 8 → Phase 6 순으로 간다.
+파일 접근이 Phase 9 에서 풀렸으므로 외부 프로그램에 픽셀을 넘길 통로도 생겼다.
 
 ---
 

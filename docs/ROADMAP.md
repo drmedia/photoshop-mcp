@@ -59,11 +59,11 @@ Phase 2   Photoshop Bridge             완료
 Phase 3   Basic Photoshop Editing      완료
 Phase 4   Extended Photoshop Tools     완료 (저장은 Phase 9 에서 처리)
 Phase 5   Extension SDK                완료
-Phase 6   MilkyScapeTools Extension    보류 — 외부 도구가 Phase 8 에 의존
-Phase 7   Workflow System
-Phase 8   Capability System            다음
+Phase 6   MilkyScapeTools Extension    완료 (범위 축소 — §10 참조)
+Phase 7   Workflow System              완료
+Phase 8   Capability System            완료
 Phase 9   Permission / Safety          완료
-Phase 10  Job System
+Phase 10  Job System                   완료
 Phase 11  Events
 Phase 12  MCP Resources
 Phase 13  Production Hardening
@@ -72,11 +72,19 @@ Phase 14  Distribution
 
 각 Phase 의 항목별 진행 상황은 해당 섹션의 체크박스로 추적한다.
 
-번호 순서대로 진행하지 않는다. Phase 6 의 Tool 7개 중 4개(`remove_gradient` ·
-`remove_stars` · `restore_stars` · `enhance`)가 GraXpert · StarNet2 · BXT 같은 외부
-프로그램을 필요로 하는데, ROADMAP 자신이 "외부 도구는 Capability Provider 로 구현한다"
-(§12) 고 정하고 있다. 그래서 Phase 9 → Phase 8 → Phase 6 순으로 간다.
-파일 접근이 Phase 9 에서 풀렸으므로 외부 프로그램에 픽셀을 넘길 통로도 생겼다.
+번호 순서대로 진행하지 않았다. Phase 6 의 Tool 이 외부 프로그램을 필요로 하는데
+ROADMAP 자신이 "외부 도구는 Capability Provider 로 구현한다"(§12)고 정하고 있어,
+실제로는 **9 → 8 → 6 → 10 → 7** 순으로 진행했다.
+
+각 Phase 가 다음 Phase 의 필요를 실측으로 드러냈다.
+
+- Phase 9 가 파일 접근을 풀어 외부 프로그램에 픽셀을 넘길 통로가 생겼다
+- Phase 6 이 StarNet2 실측 67초를 만들었고, MCP 기본 타임아웃 60초를 넘겨 Phase 10 이
+  필요하다는 것이 증명되었다
+- Phase 10 의 Job 이 있어야 Phase 7 의 긴 워크플로가 성립한다
+
+남은 것: Phase 11 Events · Phase 12 MCP Resources · Phase 13 Production Hardening ·
+Phase 14 Distribution. GraXpert 연동은 FITS → TIFF 변환이 필요하다. (§10, §12)
 
 ---
 

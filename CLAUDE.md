@@ -13,7 +13,7 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 ## 현재 상태
 
 **Phase 9 (Permission / Safety) · Phase 8 (Capability System) 완료.**
-Core Tool 34개. `capability.list` 를 뺀 30개를 실제 Photoshop 27.8 에서 검증했다.
+Core Tool 36개. `capability.list` 를 뺀 30개를 실제 Photoshop 27.8 에서 검증했다.
 
 - 조회: `ping`, `document.get`, `layer.list`
 - 레이어: create / duplicate / rename / select / set_visibility / set_opacity

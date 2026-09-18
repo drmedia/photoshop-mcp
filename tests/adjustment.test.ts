@@ -287,14 +287,43 @@ describe("Phase 4 마스크 · 선택 Tool", () => {
   });
 
   describe("mask.enable / disable", () => {
-    it("대상 레이어를 돌려준다", async () => {
+    it("마스크 상태를 결과에 담는다", async () => {
+      // 호출자가 "마스크를 만들었는지" 를 확인하는 유일한 수단이다.
+      // disable 은 마스크를 지우지 않고 끄기만 한다 — 그래서 필드가 둘이다.
       const mcp = setup();
+      await expect(call(mcp, "photoshop.mask.create", { layerId: 11 })).resolves.toMatchObject({
+        id: 11,
+        hasMask: true,
+        maskEnabled: true,
+      });
       await expect(call(mcp, "photoshop.mask.disable", { layerId: 11 })).resolves.toMatchObject({
         id: 11,
+        hasMask: true,
+        maskEnabled: false,
       });
       await expect(call(mcp, "photoshop.mask.enable", { layerId: 11 })).resolves.toMatchObject({
         id: 11,
+        hasMask: true,
+        maskEnabled: true,
       });
+    });
+
+    it("마스크가 없으면 무엇을 해야 하는지 알려준다", async () => {
+      // 실기에서 Photoshop 원문은 `"설정" 명령은 현재 사용할 수 없습니다` 였다.
+      // 그것만으로는 마스크가 없어서 난 오류라는 것을 알 수 없다.
+      const mcp = setup();
+      await expect(call(mcp, "photoshop.mask.enable", { layerId: 11 })).rejects.toThrow(
+        /mask\.create/u,
+      );
+    });
+
+    it("마스크를 만들지 않은 레이어는 hasMask 가 서지 않는다", async () => {
+      const mcp = setup();
+      const { layers } = await call<{ layers: { hasMask?: boolean }[] }>(
+        mcp,
+        "photoshop.layer.list",
+      );
+      expect(layers.every((layer) => layer.hasMask !== true)).toBe(true);
     });
   });
 

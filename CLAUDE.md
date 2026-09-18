@@ -153,6 +153,10 @@ descriptor 는 반드시 플러그인이 검증된 파라미터로 조립한다.
 UXP 의 실기 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 정리되어 있다.
 바꾸기 전에 그 문서를 먼저 읽는다.
 
+**플러그인 적재는 UXP DevTools CLI 로 자동화할 수 있다.** 사람에게 Reload 를 부탁하지
+않아도 된다. 설치에 Adobe 패키징 버그 우회가 필요하며 저장소 의존성에는 넣지 않았다 —
+설치법과 `load` → `reload` 순서는 위 README 에 있다.
+
 **Extension.** 서버는 기동 시 `extensions/` 를 한 단계 훑어 `<name>/extension.json` 을 적재한다.
 `PHOTOSHOP_MCP_EXTENSIONS` 로 디렉터리를 바꾼다. Extension 은 자신의 namespace 로만 Tool 을
 등록할 수 있고, Photoshop 은 Core Command 로만 건드린다. Bridge 에는 닿지 않는다.

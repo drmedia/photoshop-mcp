@@ -125,6 +125,19 @@ export const LayerInfoSchema = z.object({
    * 없는 것을 `false` 로 덮으면 "배경이 아니다" 라는 틀린 사실을 말하게 된다.
    */
   isBackground: z.boolean().optional(),
+  /**
+   * 레이어 마스크가 있는지.
+   *
+   * 마스크를 만들었는지 호출자가 확인할 방법이 없었다. "하늘만 어둡게" 같은 작업은
+   * 마스크가 붙어야 완성인데 결과를 볼 수 없으면 스스로 검증할 수 없다.
+   * `mask.enable` 을 마스크 없는 레이어에 불러 막히는 일도 미리 피할 수 없었다.
+   *
+   * **Photoshop 이 알려줄 때만 담는다.** UXP DOM 에 없어서 batchPlay 로 읽으며,
+   * 읽지 못하면 필드가 아예 없다. (`isBackground` 와 같은 원칙)
+   */
+  hasMask: z.boolean().optional(),
+  /** 마스크가 켜져 있는지. `hasMask` 가 `true` 일 때만 의미가 있다. */
+  maskEnabled: z.boolean().optional(),
 });
 
 export type LayerInfo = z.infer<typeof LayerInfoSchema>;

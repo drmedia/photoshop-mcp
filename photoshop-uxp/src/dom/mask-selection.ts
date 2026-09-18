@@ -2,8 +2,11 @@ import { action, app } from "photoshop";
 import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
-import { describeLayer, findLayerById } from "./layer-edit.js";
+import { findLayerById } from "./layer-edit.js";
+import { flattenLayers } from "./layers.js";
 import { runModal } from "./modal.js";
+import { withMaskStateAsync } from "./mask-state.js";
+import { resolveMutatedLayer } from "./mutation-result.js";
 
 /**
  * Phase 4 마스크와 선택 영역. (ROADMAP §8.1, §8.2)
@@ -71,6 +74,10 @@ export async function maskCreate(params: {
       });
     }
 
+    // 배경 레이어에 마스크를 붙이면 Photoshop 이 일반 레이어로 승격시키고 id 를
+    // 바꾼다. 그래서 변경 **전에** id 목록을 떠 둔다. (`resolveMutatedLayer` 참조)
+    const before = flattenLayers(document.layers).map((entry) => entry.id);
+
     await play("Create mask", [
       {
         _obj: "make",
@@ -83,13 +90,18 @@ export async function maskCreate(params: {
       },
     ]);
 
-    const layer = findLayerById(document.layers, targetId);
-    if (layer === null) {
-      throw new DispatchError("COMMAND_FAILED", "마스크를 만든 뒤 레이어를 찾을 수 없습니다.", {
-        details: { layerId: targetId },
-      });
+    const resolved = resolveMutatedLayer(before, flattenLayers(document.layers), targetId);
+    if (resolved === null) {
+      // 마스크는 이미 만들어졌다. 실패로 보고하면 호출자가 되돌리려다 더 망친다.
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        "마스크는 만들어졌지만 결과 레이어를 확인하지 못했습니다. layer.list 로 확인하세요.",
+        { recoverable: true, details: { layerId: targetId } },
+      );
     }
-    return describeLayer(document, layer);
+    // 마스크를 만든 결과를 돌려주는 자리다. 마스크 상태가 빠지면 호출자가
+    // 확인하려고 layer.list 를 또 불러야 한다.
+    return (await withMaskStateAsync([resolved]))[0] as LayerInfo;
   });
 }
 
@@ -101,6 +113,7 @@ async function setMaskEnabled(
   return runModal(commandName, async () => {
     const document = requireActiveDocument();
     const targetId = activate(document, layerId);
+    const before = flattenLayers(document.layers).map((entry) => entry.id);
 
     try {
       await play(commandName, [
@@ -124,13 +137,15 @@ async function setMaskEnabled(
       );
     }
 
-    const layer = findLayerById(document.layers, targetId);
-    if (layer === null) {
-      throw new DispatchError("COMMAND_FAILED", "레이어를 찾을 수 없습니다.", {
-        details: { layerId: targetId },
-      });
+    const resolved = resolveMutatedLayer(before, flattenLayers(document.layers), targetId);
+    if (resolved === null) {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        "마스크 상태는 바뀌었지만 결과 레이어를 확인하지 못했습니다. layer.list 로 확인하세요.",
+        { recoverable: true, details: { layerId: targetId } },
+      );
     }
-    return describeLayer(document, layer);
+    return (await withMaskStateAsync([resolved]))[0] as LayerInfo;
   });
 }
 

@@ -159,7 +159,70 @@ invalid file token used
 
 ### 코드 변경은 Reload 가 아니라 Unload → Load
 
-UDT 의 `Reload` 는 변경된 `dist/` 를 반영하지 않는다. 반드시 `Unload` 후 `Load` 한다.
+UDT **앱**의 `Reload` 는 변경된 `dist/` 를 반영하지 않는다. 반드시 `Unload` 후 `Load` 한다.
+
+CLI 의 `plugin reload` 는 다르다 — 바뀐 `dist/` 가 반영되는 것을 확인했다. 아래 참조.
+
+## UXP DevTools CLI 로 적재 자동화
+
+사람이 UDT 앱에서 버튼을 누르지 않아도 된다. 실기 검증을 반복할 때 이것이 없으면
+코드를 고칠 때마다 사람을 기다려야 한다.
+
+**이 저장소의 의존성에 넣지 않았다.** Adobe 패키지의 `postinstall` 이 깨져 있어
+`npm install` 전체를 실패시키기 때문이다. 쓸 사람만 따로 설치한다.
+
+### 설치 — Adobe 패키징 버그 우회
+
+`@adobe/uxp-devtools-helper` 의 `postinstall` 이 `tar` 를 `require` 하는데 의존성에
+`tar` 가 없다. 그대로 설치하면 네이티브 애드온이 빠져 CLI 가 전부 실패한다.
+
+```text
+Error: No native build was found for platform=win32 arch=x64 runtime=electron ...
+```
+
+별도 디렉터리에서 스크립트를 건너뛰고 설치한 뒤 setup 을 직접 돌린다.
+
+```bash
+npm install --ignore-scripts @adobe/uxp-devtools-cli tar
+node node_modules/@adobe/uxp-devtools-helper/scripts/devtools_setup.js
+# → Adobe devToolsJS native add-on setup successfull.
+```
+
+### 사용
+
+```bash
+UXP=<설치경로>/node_modules/@adobe/uxp-devtools-cli/src/uxp.js
+
+node $UXP apps list                      # Photoshop 이 붙었는지 확인
+cd photoshop-uxp && node $UXP plugin load   # 최초 1회
+node $UXP plugin reload                  # 이후 코드 변경 때마다
+node $UXP plugin watch                    # 폴더 감시 후 자동 reload
+```
+
+### 검증용 문서도 명령으로 연다
+
+실행 파일을 명시해야 한다. 파일만 주면 **기본 연결 프로그램**(다른 이미지 뷰어)이 뜬다.
+
+```bash
+powershell -NoProfile -Command   "Start-Process -FilePath 'C:/Program Files/Adobe/Adobe Photoshop 2026/Photoshop.exe'    -ArgumentList '<이미지 경로>'"
+```
+
+큰 TIFF 는 여는 데 시간이 걸리므로 `photoshop.document.get` 이 성공할 때까지 기다린다.
+
+### `reload` 전에 반드시 `load` 를 해야 한다
+
+CLI 는 **자기가 적재한 세션**만 다룬다. UDT 앱이 적재한 것은 별개 세션이라 바로
+`reload` 하면 이렇게 실패한다.
+
+```text
+Command 'plugin reload' failed.
+TypeError: Cannot read properties of undefined (reading 'sessions')
+```
+
+`uxp plugin load` 를 한 번 하면 그 뒤로 `reload` 가 동작한다.
+
+`load` 는 플러그인 디렉터리에 `.uxprc` 를 만들어 세션 id 를 보관한다. 기기마다 다르고
+`load` 할 때 다시 생기므로 `.gitignore` 에 있다.
 
 ## 검증 상태
 

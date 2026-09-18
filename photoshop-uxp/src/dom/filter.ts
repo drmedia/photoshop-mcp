@@ -2,8 +2,10 @@ import { action } from "photoshop";
 import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
-import { describeLayer, findLayerById } from "./layer-edit.js";
+import { findLayerById } from "./layer-edit.js";
+import { flattenLayers } from "./layers.js";
 import { runModal } from "./modal.js";
+import { resolveMutatedLayer } from "./mutation-result.js";
 
 /**
  * Phase 4 필터. (ROADMAP §8.4)
@@ -58,6 +60,9 @@ export async function gaussianBlur(params: {
       target = { id: layer.id, kind: layer.kind };
     }
 
+    // 변환 전에 id 목록을 떠 둔다. 변환 뒤에는 어느 것이 새로 생긴 것인지 알 수 없다.
+    const before = flattenLayers(document.layers).map((entry) => entry.id);
+
     const asSmartFilter = params.asSmartFilter ?? true;
     const alreadySmart = String(target.kind).toLowerCase() === "smartobject";
 
@@ -71,15 +76,16 @@ export async function gaussianBlur(params: {
       radius: { _unit: "pixelsUnit", _value: params.radius },
     });
 
-    // 변환했다면 레이어 id 가 바뀔 수 있으므로 활성 레이어를 다시 읽는다.
-    const active = document.activeLayers[0];
-    const resolvedId = active === undefined ? target.id : active.id;
-    const layer = findLayerById(document.layers, resolvedId);
-    if (layer === null) {
-      throw new DispatchError("COMMAND_FAILED", "필터 적용 후 레이어를 찾을 수 없습니다.", {
-        details: { layerId: resolvedId },
-      });
+    // 스마트 오브젝트로 변환되면 id 가 바뀐다. 활성 레이어로 추정하지 않고
+    // **이번에 생긴 id** 로 찾는다 — 다른 이유로 활성 레이어가 바뀌었을 수 있다.
+    const resolved = resolveMutatedLayer(before, flattenLayers(document.layers), target.id);
+    if (resolved === null) {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        "필터는 적용되었지만 결과 레이어를 확인하지 못했습니다. layer.list 로 확인하세요.",
+        { recoverable: true },
+      );
     }
-    return describeLayer(document, layer);
+    return resolved;
   });
 }

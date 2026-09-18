@@ -23,7 +23,9 @@ export function createMaskCreateTool(
   return {
     name: "photoshop.mask.create",
     description:
-      "레이어에 마스크를 추가한다. from 은 revealAll(기본, 전부 보임) / hideAll(전부 가림) / fromSelection(현재 선택 영역). layerId 를 생략하면 활성 레이어.",
+      "레이어에 마스크를 추가한다. from 은 revealAll(기본, 전부 보임) / hideAll(전부 가림) / fromSelection(현재 선택 영역). layerId 를 생략하면 활성 레이어. " +
+      "결과의 hasMask · maskEnabled 로 실제로 붙었는지 확인할 수 있다. " +
+      "배경 레이어는 마스크를 가질 수 없어 Photoshop 이 일반 레이어로 승격시키며 id 가 바뀐다.",
     permission: "edit",
     inputSchema: MaskCreateParamsSchema,
     handler: async (input, context) =>
@@ -39,7 +41,9 @@ export function createMaskEnableTool(
 ): ToolDefinition<MaskToggleParams, LayerInfo> {
   return {
     name: "photoshop.mask.enable",
-    description: "레이어 마스크를 활성화한다. layerId 를 생략하면 활성 레이어.",
+    description:
+      "레이어 마스크를 활성화한다. layerId 를 생략하면 활성 레이어. " +
+      "마스크가 없는 레이어에는 쓸 수 없다 — layer.list 의 hasMask 로 먼저 확인한다.",
     permission: "edit",
     inputSchema: MaskToggleParamsSchema,
     handler: async (input, context) =>
@@ -56,7 +60,8 @@ export function createMaskDisableTool(
   return {
     name: "photoshop.mask.disable",
     description:
-      "레이어 마스크를 일시 해제한다. 마스크는 유지된다. layerId 를 생략하면 활성 레이어.",
+      "레이어 마스크를 일시 해제한다. 마스크는 유지된다(hasMask 는 true, maskEnabled 만 false). " +
+      "layerId 를 생략하면 활성 레이어.",
     permission: "edit",
     inputSchema: MaskToggleParamsSchema,
     handler: async (input, context) =>

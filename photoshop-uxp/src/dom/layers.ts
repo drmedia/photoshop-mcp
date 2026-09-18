@@ -1,6 +1,7 @@
 import { type PhotoshopLayer } from "photoshop";
 import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { orderActiveLayers } from "./active-order.js";
+import { readMaskState, withMaskState } from "./mask-state.js";
 import { requireActiveDocument } from "./document.js";
 import { toBlendMode, toLayerType } from "./mappings.js";
 import { runModal } from "./modal.js";
@@ -14,7 +15,11 @@ import { runModal } from "./modal.js";
  * Parent 는 Phase 3 범위이므로 여기서는 계층 관계를 보고하지 않는다.
  */
 export async function layerList(): Promise<LayerInfo[]> {
-  return runModal("List layers", () => flattenLayers(requireActiveDocument().layers));
+  return runModal("List layers", async () => {
+    const layers = flattenLayers(requireActiveDocument().layers);
+    // 마스크 상태는 DOM 에 없어 따로 읽는다. 실패하면 그 필드만 빠진다.
+    return withMaskState(layers, await readMaskState(layers.map((entry) => entry.id)));
+  });
 }
 
 /**
@@ -99,16 +104,17 @@ export function toLayerInfo(layer: PhotoshopLayer, parentId: number | null = nul
  * 레이어를 골라 둔 사용자가 최상위 레이어라고 보고받는다.
  */
 export async function layerGetActive(): Promise<LayerInfo[]> {
-  return runModal("Get active layers", () => {
+  return runModal("Get active layers", async () => {
     const document = requireActiveDocument();
     const active = toArray<PhotoshopLayer>(document.activeLayers);
     if (active.length === 0) {
       return [];
     }
-    return orderActiveLayers(
+    const ordered = orderActiveLayers(
       active.map((layer) => layer.id),
       flattenLayers(document.layers),
       active.map((layer) => toLayerInfo(layer)),
     );
+    return withMaskState(ordered, await readMaskState(ordered.map((entry) => entry.id)));
   });
 }

@@ -10,3 +10,10 @@ dist/
 
 # 외부 처리기 설정은 기기마다 경로가 다르다. 예시만 커밋한다.
 capabilities.json
+
+# 실기 검증용 이미지. 한 장이 140MB 라 저장소에 넣지 않는다.
+# 경로는 고정이며 테스트 스크립트가 아니라 사람이 Photoshop 에서 연다.
+testimage/
+
+# UXP DevTools CLI 가 만드는 세션 파일. 기기마다 다르고 load 할 때 다시 생긴다.
+.uxprc

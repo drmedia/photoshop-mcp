@@ -235,7 +235,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       // Phase 4 — 마스크 · 선택 영역
       case "MASK_CREATE":
         this.#snapshot("Create mask");
-        return this.#setMask(command.params as { layerId?: number }, true) as TResult;
+        return this.#setMask(command.params as { layerId?: number }, true, true) as TResult;
       case "MASK_ENABLE":
         this.#snapshot("Enable mask");
         return this.#setMask(command.params as { layerId?: number }, true) as TResult;
@@ -625,12 +625,29 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   /**
    * 마스크 상태를 바꾼다.
    *
-   * Mock 은 마스크의 픽셀을 흉내내지 않는다. 대상 레이어가 존재하는지와
-   * 오류 경로만 검증할 수 있으면 충분하다.
+   * 마스크의 **픽셀**은 흉내내지 않는다. 그러나 유무와 활성 여부는 반영한다 —
+   * 호출자가 "마스크를 만들었는지" 를 결과로 확인하는 유일한 수단이기 때문이다.
+   * Mock 이 이것을 빠뜨리면 그 확인 경로가 테스트에 나오지 않는다.
+   *
+   * `create` 는 마스크를 만들고 켠다. `enable`/`disable` 은 **있는 마스크만** 토글한다 —
+   * 실기에서 마스크 없는 레이어에 `enable` 하면 Photoshop 이 거부했다.
    */
-  #setMask(params: { layerId?: number }, _enabled: boolean): LayerInfo {
+  #setMask(params: { layerId?: number }, enabled: boolean, create = false): LayerInfo {
     const index = this.#requireLayerIndex(params.layerId);
-    return { ...(this.#layers[index] as LayerInfo) };
+    const layer = this.#layers[index] as LayerInfo;
+
+    if (!create && layer.hasMask !== true) {
+      throw new PhotoshopMcpError(
+        ErrorCode.COMMAND_FAILED,
+        "마스크 상태를 바꾸지 못했습니다. 이 레이어에 마스크가 없을 수 있습니다 — " +
+          "mask.create 로 먼저 만드세요.",
+        { recoverable: true, details: { layerId: layer.id } },
+      );
+    }
+
+    const updated: LayerInfo = { ...layer, hasMask: true, maskEnabled: enabled };
+    this.#layers[index] = updated;
+    return { ...updated };
   }
 
   /**

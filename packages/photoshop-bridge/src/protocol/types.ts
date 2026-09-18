@@ -1,8 +1,13 @@
+import { z } from "zod";
+
 /**
  * Photoshop Bridge 프로토콜 타입.
  *
  * 이 모듈은 MCP·Command Engine·Bridge 구현이 공통으로 사용하는 자료 구조만 정의한다.
  * Photoshop API 나 전송 방식(WebSocket 등)에 의존하지 않는다.
+ *
+ * Plugin 은 별도 프로세스이므로 응답 형태를 신뢰할 수 없다.
+ * 그래서 자료 구조를 zod 스키마로 정의하고 타입을 거기서 파생시킨다.
  */
 
 /**
@@ -18,23 +23,38 @@ export interface PhotoshopCommand<TParams = unknown> {
   params: TParams;
 }
 
-/** 문서 정보. Phase 1 은 Mock Bridge 가 제공하는 최소 필드만 다룬다. */
-export interface DocumentInfo {
-  id: number;
-  name: string;
-  width: number;
-  height: number;
-  bitDepth: number;
-  colorMode: string;
-}
+/** 문서 정보. (PROTOCOL.md §4) */
+export const DocumentInfoSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  width: z.number(),
+  height: z.number(),
+  bitDepth: z.number().int(),
+  colorMode: z.string(),
+});
 
-/** 레이어 종류. Phase 1 Mock 이 표현할 수 있는 범위로 제한한다. */
-export type LayerType = "pixel" | "adjustment" | "group" | "text" | "shape" | "smartObject";
+export type DocumentInfo = z.infer<typeof DocumentInfoSchema>;
 
-/** 레이어 정보. Opacity / Parent 는 실제 Photoshop 연결(Phase 2)에서 추가한다. */
-export interface LayerInfo {
-  id: number;
-  name: string;
-  type: LayerType;
-  visible: boolean;
-}
+/** 레이어 종류. (PROTOCOL.md §4) */
+export const LayerTypeSchema = z.enum([
+  "pixel",
+  "adjustment",
+  "group",
+  "text",
+  "shape",
+  "smartObject",
+]);
+
+export type LayerType = z.infer<typeof LayerTypeSchema>;
+
+/** 레이어 정보. Opacity 와 Parent 는 Phase 3 에서 추가한다. */
+export const LayerInfoSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  type: LayerTypeSchema,
+  visible: z.boolean(),
+});
+
+export type LayerInfo = z.infer<typeof LayerInfoSchema>;
+
+export const LayerInfoListSchema = z.array(LayerInfoSchema);

@@ -12,6 +12,48 @@ export {
   type PhotoshopMcpErrorOptions,
   type SerializedPhotoshopMcpError,
 } from "./protocol/errors.js";
+export {
+  DEFAULT_COMMAND_TIMEOUT_MS,
+  EventMessageSchema,
+  HelloMessageSchema,
+  InboundMessageSchema,
+  MAX_FRAME_BYTES,
+  PROTOCOL_VERSION,
+  ResponseMessageSchema,
+  type CommandMessage,
+  type ConnectionState,
+  type ErrorResponseMessage,
+  type EventMessage,
+  type HelloMessage,
+  type InboundMessage,
+  type OutboundMessage,
+  type ResponseMessage,
+  type WelcomeMessage,
+  type WelcomeResult,
+} from "./protocol/messages.js";
 export { SERVER_NAME, SERVER_VERSION } from "./protocol/server-info.js";
-export type { DocumentInfo, LayerInfo, LayerType, PhotoshopCommand } from "./protocol/types.js";
+export {
+  DocumentInfoSchema,
+  LayerInfoListSchema,
+  LayerInfoSchema,
+  LayerTypeSchema,
+  type DocumentInfo,
+  type LayerInfo,
+  type LayerType,
+  type PhotoshopCommand,
+} from "./protocol/types.js";
 export { ToolRegistry, type ToolContext, type ToolDefinition, type ToolHandler } from "./tool.js";
+export type { BridgeTransport, SendOptions } from "./transport/transport.js";
+export {
+  DEFAULT_HOST,
+  DEFAULT_PORT,
+  WebSocketBridgeTransport,
+  type PluginInfo,
+  type WebSocketBridgeTransportOptions,
+} from "./transport/websocket-transport.js";
+export {
+  DOCUMENT_GET,
+  LAYER_LIST,
+  UXPPhotoshopBridge,
+  type UXPPhotoshopBridgeOptions,
+} from "./uxp-bridge.js";

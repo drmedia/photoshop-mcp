@@ -2,14 +2,38 @@
   "manifestVersion": 5,
   "id": "com.photoshopmcp.plugin",
   "name": "Photoshop MCP",
-  "version": "0.0.1",
-  "main": "src/index.js",
+  "version": "0.1.0",
+  "main": "dist/index.js",
   "host": [
     {
       "app": "PS",
       "minVersion": "24.0.0"
     }
   ],
-  "entrypoints": [],
-  "requiredPermissions": {}
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "photoshopMcpPanel",
+      "label": {
+        "default": "Photoshop MCP"
+      },
+      "minimumSize": {
+        "width": 230,
+        "height": 120
+      },
+      "preferredDockedSize": {
+        "width": 260,
+        "height": 160
+      },
+      "preferredFloatingSize": {
+        "width": 320,
+        "height": 200
+      }
+    }
+  ],
+  "requiredPermissions": {
+    "network": {
+      "domains": ["ws://127.0.0.1:8765", "ws://localhost:8765"]
+    }
+  }
 }

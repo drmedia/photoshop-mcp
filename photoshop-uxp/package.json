@@ -1,0 +1,12 @@
+{
+  "name": "@photoshop-mcp/photoshop-uxp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Photoshop UXP 플러그인 (Bridge 구현체)",
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "devDependencies": {
+    "@photoshop-mcp/photoshop-bridge": "0.1.0"
+  }
+}

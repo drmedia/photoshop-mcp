@@ -8,6 +8,9 @@
   "include": ["src/**/*"],
   "references": [
     {
+      "path": "../photoshop-bridge"
+    },
+    {
       "path": "../mcp-core"
     }
   ]

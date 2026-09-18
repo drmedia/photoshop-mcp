@@ -3,7 +3,7 @@ import type { BlendMode, LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { makeAdjustmentLayer } from "./adjustment.js";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
-import { describeLayer, findLayerById } from "./layer-edit.js";
+import { findLayerById, mutate } from "./layer-edit.js";
 import { hasSelection } from "./mask-selection.js";
 import { runModal } from "./modal.js";
 
@@ -119,8 +119,10 @@ export async function layerBlendMode(params: {
     }
 
     // DOM 으로 처리할 수 있으므로 batchPlay 를 쓰지 않는다. (ARCHITECTURE §13)
-    target.blendMode = params.blendMode;
-    return describeLayer(document, target);
+    // 배경 레이어에 혼합 모드를 주면 불투명도와 마찬가지로 승격되어 id 가 바뀐다.
+    return mutate(document, target, (layer) => {
+      layer.blendMode = params.blendMode;
+    });
   });
 }
 

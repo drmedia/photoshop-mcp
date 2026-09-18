@@ -3,6 +3,7 @@ import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
 import { flattenLayers, toLayerInfo } from "./layers.js";
+import { resolveMutatedLayer } from "./mutation-result.js";
 import { runModal } from "./modal.js";
 
 /**
@@ -85,8 +86,69 @@ function asArray(value: unknown): PhotoshopLayer[] {
  * 편집 Command 는 호출 빈도가 낮아 이 비용은 받아들일 만하다.
  */
 export function describeLayer(document: PhotoshopDocument, layer: PhotoshopLayer): LayerInfo {
-  const found = flattenLayers(document.layers).find((entry) => entry.id === layer.id);
+  const id = readId(layer);
+  if (id === null) {
+    // 참조가 무효가 되었다. Photoshop 이 레이어를 갈아치웠다는 뜻이고, 그 말은
+    // **변경이 이미 일어났다**는 뜻이다. Photoshop 의 원문
+    // ("The 레이어 with an id of 1 does not exist.") 를 그대로 올리면 호출자가
+    // 아무 일도 없었다고 오해한다. 무엇을 해야 하는지 말해 준다.
+    throw new DispatchError(
+      "COMMAND_FAILED",
+      "변경은 적용되었지만 결과 레이어를 확인하지 못했습니다. " +
+        "Photoshop 이 레이어를 교체했을 수 있습니다 — layer.list 로 확인하세요.",
+      { recoverable: true },
+    );
+  }
+  const found = flattenLayers(document.layers).find((entry) => entry.id === id);
   return found ?? toLayerInfo(layer);
+}
+
+/**
+ * 변경 → 결과 읽기를 한 번에 한다.
+ *
+ * 변경 **전에** id 목록을 떠 두는 것이 핵심이다. Photoshop 이 레이어 객체를 갈아치우면
+ * (배경 레이어에 불투명도를 주는 경우) 변경 뒤에는 원래 참조를 읽을 수조차 없다.
+ * 그때 예외가 올라가면 변경은 일어났는데 실패로 보고된다. 실기에서 그렇게 틀렸다.
+ * 자세한 것은 `resolveMutatedLayer` 의 주석에 있다.
+ */
+export function mutate(
+  document: PhotoshopDocument,
+  layer: PhotoshopLayer,
+  apply: (layer: PhotoshopLayer) => void,
+): LayerInfo {
+  const before = flattenLayers(document.layers);
+  // id 는 변경 전에 읽어 둔다. 변경 뒤에는 읽다가 던질 수 있다.
+  const originalId = readId(layer);
+
+  apply(layer);
+
+  const after = flattenLayers(document.layers);
+  const resolved = resolveMutatedLayer(
+    before.map((entry) => entry.id),
+    after,
+    originalId,
+  );
+  if (resolved !== null) {
+    return resolved;
+  }
+
+  // 어느 레이어가 되었는지 알 수 없다. 변경은 일어났으므로 실패로 만들지 않는다 —
+  // 실패로 보고하면 호출자가 되돌리려다 더 망친다.
+  throw new DispatchError(
+    "COMMAND_FAILED",
+    "변경은 적용되었지만 결과 레이어를 확인하지 못했습니다. layer.list 로 확인하세요.",
+    { recoverable: true, details: { originalId } },
+  );
+}
+
+/** 무효가 된 참조는 id 조차 읽을 수 없다. 읽히지 않으면 `null`. */
+function readId(layer: PhotoshopLayer): number | null {
+  try {
+    const id = layer.id;
+    return typeof id === "number" ? id : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function layerCreate(params: { name?: string }): Promise<LayerInfo> {
@@ -118,8 +180,9 @@ export async function layerRename(params: TargetParams & { name: string }): Prom
   return runModal("Rename layer", () => {
     const document = requireActiveDocument();
     const layer = resolveLayer(document, params.layerId);
-    layer.name = params.name;
-    return describeLayer(document, layer);
+    return mutate(document, layer, (target) => {
+      target.name = params.name;
+    });
   });
 }
 
@@ -138,8 +201,9 @@ export async function layerVisibility(
   return runModal("Set layer visibility", () => {
     const document = requireActiveDocument();
     const layer = resolveLayer(document, params.layerId);
-    layer.visible = params.visible;
-    return describeLayer(document, layer);
+    return mutate(document, layer, (target) => {
+      target.visible = params.visible;
+    });
   });
 }
 
@@ -147,8 +211,10 @@ export async function layerOpacity(params: TargetParams & { opacity: number }): 
   return runModal("Set layer opacity", () => {
     const document = requireActiveDocument();
     const layer = resolveLayer(document, params.layerId);
-    layer.opacity = params.opacity;
-    return describeLayer(document, layer);
+    // 배경 레이어에 불투명도를 주면 Photoshop 이 일반 레이어로 승격시키고 id 를 바꾼다.
+    return mutate(document, layer, (target) => {
+      target.opacity = params.opacity;
+    });
   });
 }
 

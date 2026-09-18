@@ -1923,6 +1923,76 @@ Mock 만 보고 만들었으면 조용히 어긋난 채로 남았을 버그다. 
 
 ---
 
+# 17.6 LLM 시점 테스트 — 배경 레이어 승격 버그
+
+배선 검증(`npm run verify:live`)은 전부 통과하는데, **LLM 이 Tool 설명만 보고 쓰는**
+방식으로 시험하니 바로 버그가 나왔다. 실패 경로를 실제로 밟아야만 드러나는 종류다.
+
+## 무엇이 틀렸나
+
+```text
+layer.list                     id=1 "배경" op=100
+layer.set_opacity {opacity:80} ❌ COMMAND_FAILED
+                                  "The 레이어 with an id of 1 does not exist."
+layer.list                     id=2 "레이어 0" op=80   ← 적용되어 있다
+```
+
+배경 레이어는 반투명할 수 없어 Photoshop 이 **일반 레이어로 승격**시킨다. 그건
+Photoshop 의 올바른 동작이다. 문제는 그다음이다.
+
+```ts
+layer.opacity = params.opacity;        // 승격 발생. 변경은 이미 끝났다
+return describeLayer(document, layer); // 무효가 된 참조를 읽다 throw
+```
+
+**변경은 성공, 결과 읽기가 실패, 보고는 COMMAND_FAILED.** 호출자는 아무 일도 없었다고
+믿는데 문서는 바뀌어 있다. 안 했다고 말하고 뭔가를 하는 것이 가장 나쁜 실패다.
+
+실제로 이 오해 때문에 "복구" 를 시도하다 엉뚱한 레이어를 건드렸다.
+
+## 배경 레이어는 편집마다 다르게 반응한다
+
+| 편집 | Photoshop 동작 | 문서 변경 |
+|---|---|---|
+| `set_opacity` | 일반 레이어로 승격. id·이름 변경 | **있음** |
+| `rename` | 거부 | 없음 |
+| `set_blend_mode` | 거부 | 없음 |
+
+`rename` 을 처음에 범인으로 지목했다가 단독 실행으로 무죄를 확인했다. 두 호출을
+연달아 돌려 놓고 앞엣것을 원인으로 본 것이 잘못이었다.
+
+## 고친 방법
+
+속성을 바꾸는 Command 를 `mutate()` 로 감쌌다. 변경 **전에** id 목록을 떠 두고, 변경
+뒤 목록에서 "없던 id" 를 찾는다. 하나뿐이면 그것이 교체된 레이어다.
+
+위치나 활성 레이어로 추정하지 않는다 — 승격된 레이어가 반드시 활성이라는 보장이 없고
+위치도 바뀔 수 있다. 근거가 없으면 추측 대신 "변경은 적용되었지만 결과를 확인하지
+못했습니다" 라고 말한다.
+
+`describeLayer` 도 참조가 무효일 때 Photoshop 원문을 그대로 올리지 않는다. 원문은
+"그런 레이어 없음" 으로 읽혀 **아무 일도 없었다고 오해**하게 만든다. 그것이 이 버그의
+핵심 피해였다.
+
+순수 판정 로직은 `photoshop-uxp/src/dom/mutation-result.ts` 로 떼어 단위 테스트로
+고정했다. `dom/layer-edit.ts` 는 `photoshop` 런타임이 필요해 테스트에서 부를 수 없다.
+
+## 실기 확인 (수정 후)
+
+```text
+set_opacity {opacity:80} → ✅ {"id":2,"name":"레이어 0","opacity":80}  바뀐 id 를 정확히 반환
+일반 레이어 4종 편집     → ✅ id 유지, 값 정확
+배경 set_blend_mode      → ✅ 거부되고 문서 그대로 (정직한 실패)
+```
+
+## 아직 남은 것
+
+- `LayerInfo` 에 배경 레이어 표시가 없다. LLM 이 승격을 미리 알 방법이 없어서 지금은
+  Tool 설명에 적어 두었다. `isBackgroundLayer` API 존재는 실기로 확인하지 않았다.
+- `milky.enhance` 만 jobId 를 돌려주지 않는다. 카탈로그만 봐도 드러나는 불일치다.
+
+---
+
 # 18. Phase 14 — Distribution
 
 검토 대상:

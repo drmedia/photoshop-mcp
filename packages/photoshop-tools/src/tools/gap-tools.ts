@@ -44,7 +44,7 @@ export function createLayerBlendModeTool(
     name: "photoshop.layer.set_blend_mode",
     description:
       "레이어 혼합 모드를 바꾼다. normal · multiply · screen · overlay · softLight · luminosity 등. " +
-      "layerId 를 생략하면 활성 레이어.",
+      "layerId 를 생략하면 활성 레이어. 배경 레이어는 Photoshop 이 거부하며 그때는 문서가 바뀌지 않는다.",
     permission: "edit",
     inputSchema: LayerBlendModeParamsSchema,
     handler: async (input, context) =>

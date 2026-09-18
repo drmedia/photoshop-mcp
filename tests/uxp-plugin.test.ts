@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CommandDispatcher, DispatchError } from "../photoshop-uxp/src/dispatcher/dispatcher.js";
 import { orderActiveLayers } from "../photoshop-uxp/src/dom/active-order.js";
 import { toBitDepth, toColorMode, toLayerType } from "../photoshop-uxp/src/dom/mappings.js";
+import { resolveMutatedLayer } from "../photoshop-uxp/src/dom/mutation-result.js";
 
 /**
  * UXP Plugin 중 Photoshop 런타임에 의존하지 않는 부분만 검증한다.
@@ -197,5 +198,53 @@ describe("orderActiveLayers", () => {
 
   it("선택이 없으면 빈 배열이다", () => {
     expect(orderActiveLayers([], flattened, [])).toEqual([]);
+  });
+});
+
+describe("resolveMutatedLayer", () => {
+  /**
+   * Photoshop 이 편집 도중 레이어 객체를 갈아치우면 원래 참조로 결과를 읽을 수 없다.
+   * 그 예외를 그대로 올리면 **변경은 일어났는데 실패로 보고된다.**
+   *
+   * 실기에서 LLM 으로 테스트하다 잡았다 — 배경 레이어에 불투명도를 주면
+   * COMMAND_FAILED 가 나는데 문서에는 적용되어 있었다.
+   */
+  const layer = (id: number, name: string, opacity = 100): LayerInfo => ({
+    id,
+    name,
+    type: "pixel",
+    visible: true,
+    opacity,
+    parentId: null,
+    blendMode: "normal",
+  });
+
+  it("평범한 변경은 원래 id 로 찾는다", () => {
+    const after = [layer(1, "배경", 80)];
+    expect(resolveMutatedLayer([1], after, 1)).toEqual(after[0]);
+  });
+
+  it("배경 승격처럼 id 가 바뀌면 새로 생긴 id 를 고른다", () => {
+    // 실기 재현: id 1 "배경" → id 2 "레이어 0", opacity 는 적용됨.
+    const after = [layer(2, "레이어 0", 80)];
+    const resolved = resolveMutatedLayer([1], after, 1);
+    expect(resolved).toEqual(after[0]);
+    expect(resolved?.opacity).toBe(80);
+  });
+
+  it("무효가 된 참조라 원래 id 를 못 읽어도 찾아낸다", () => {
+    // 변경 뒤에는 layer.id 조차 던질 수 있다. 그때 originalId 는 null 이다.
+    const after = [layer(2, "레이어 0", 80)];
+    expect(resolveMutatedLayer([1], after, null)).toEqual(after[0]);
+  });
+
+  it("새 id 가 여럿이면 추측하지 않는다", () => {
+    // 근거 없이 하나를 고르면 엉뚱한 레이어를 결과라고 보고한다.
+    const after = [layer(2, "가"), layer(3, "나")];
+    expect(resolveMutatedLayer([1], after, 1)).toBeNull();
+  });
+
+  it("아무것도 남지 않았으면 null 이다", () => {
+    expect(resolveMutatedLayer([1], [], 1)).toBeNull();
   });
 });

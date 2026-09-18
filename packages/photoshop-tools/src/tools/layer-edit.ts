@@ -81,7 +81,8 @@ export function createLayerRenameTool(
 ): ToolDefinition<LayerRenameParams, LayerInfo> {
   return createLayerTool(
     "photoshop.layer.rename",
-    "레이어 이름을 바꾼다. layerId 를 생략하면 활성 레이어를 대상으로 한다.",
+    "레이어 이름을 바꾼다. layerId 를 생략하면 활성 레이어를 대상으로 한다. " +
+      "배경 레이어의 이름은 Photoshop 이 거부한다 — 그때는 문서가 바뀌지 않는다.",
     "edit",
     LayerRenameParamsSchema,
     LAYER_RENAME,
@@ -120,7 +121,9 @@ export function createLayerOpacityTool(
 ): ToolDefinition<LayerOpacityParams, LayerInfo> {
   return createLayerTool(
     "photoshop.layer.set_opacity",
-    "레이어 불투명도를 0–100 으로 설정한다. layerId 를 생략하면 활성 레이어를 대상으로 한다.",
+    "레이어 불투명도를 0–100 으로 설정한다. layerId 를 생략하면 활성 레이어를 대상으로 한다. " +
+      "**배경 레이어에 100 미만을 주면 Photoshop 이 일반 레이어로 승격시키며 id 와 이름이 바뀐다** " +
+      "(배경은 반투명할 수 없다). 반환값의 id 가 요청한 것과 다를 수 있으므로 그대로 쓴다.",
     "edit",
     LayerOpacityParamsSchema,
     LAYER_OPACITY,

@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createPhotoshopMcp, createSilentLogger } from "@photoshop-mcp/mcp-core";
 import {
+  DEFAULT_MOCK_DOCUMENT,
   ErrorCode,
   MockPhotoshopBridge,
   PermissionPolicy,
@@ -90,9 +91,14 @@ interface Setup {
   bridge: MockPhotoshopBridge;
 }
 
-async function setup(options: { providers?: boolean; approved?: boolean } = {}): Promise<Setup> {
+async function setup(
+  options: { providers?: boolean; approved?: boolean; documentName?: string } = {},
+): Promise<Setup> {
   const bridge = new MockPhotoshopBridge({
     workspacePath: options.approved === false ? null : workspace,
+    ...(options.documentName === undefined
+      ? {}
+      : { document: { ...DEFAULT_MOCK_DOCUMENT, name: options.documentName } }),
     // 외부 처리기는 진짜 파일을 읽고 쓴다. 메모리 기록만으로는
     // 내보낸 입력을 처리기가 못 찾고, 처리기가 만든 결과를 Mock 이 모른다.
     files: {
@@ -565,6 +571,28 @@ describe("실제 MCP 클라이언트", () => {
       }
     } finally {
       await close();
+    }
+  });
+});
+
+describe("임시 파일 이름", () => {
+  /**
+   * Photoshop 의 `document.name` 이 **전체 경로**일 때가 있다. 명령줄로 연 문서에서
+   * 확인했다. 경로를 그대로 40자로 자르면 앞의 디렉터리가 다 차지해서 어느 문서에서
+   * 나온 파일인지 알 수 없게 된다.
+   */
+  it("전체 경로에서도 파일 이름만 쓴다", async () => {
+    const s = await setup({
+      documentName: "D:/Dev/ClaudeCode/PhotoshopMCP/testimage/새비재01_04.tif",
+    });
+
+    const { jobId } = await call<{ jobId: string }>(s, "milky.remove_stars");
+    const result = await awaitJob<{ files: string[] }>(s, jobId);
+
+    // 경로 조각이 아니라 문서 이름이 앞에 와야 한다.
+    for (const file of result.files) {
+      expect(file).toMatch(/새비재01_04-starnet-/u);
+      expect(file).not.toMatch(/Dev-ClaudeCode/u);
     }
   });
 });

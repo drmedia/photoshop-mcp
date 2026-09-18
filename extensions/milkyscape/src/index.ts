@@ -81,9 +81,17 @@ const EnhanceInput = z
   })
   .strict();
 
-/** 문서 이름에서 파일 이름에 쓸 수 있는 부분만 남긴다. */
+/**
+ * 문서 이름에서 파일 이름에 쓸 수 있는 부분만 남긴다.
+ *
+ * **경로 구분자 뒤만 쓴다.** Photoshop 의 `document.name` 이 전체 경로일 때가 있다 —
+ * 명령줄로 연 문서에서 확인했다. 그대로 40자로 자르면 앞의 경로가 다 차지해
+ * `D-Dev-ClaudeCode-PhotoshopMCP-testimage-새` 같은 이름이 나온다. 어느 문서에서
+ * 나온 파일인지 알 수 없다.
+ */
 function slug(name: string): string {
-  const base = name.replace(/\.[^.]+$/u, "");
+  const leaf = name.split(/[\\/]/u).pop() ?? name;
+  const base = leaf.replace(/\.[^.]+$/u, "");
   const cleaned = base.replace(/[\\/:*?"<>|\s]+/gu, "-").slice(0, 40);
   return cleaned.length > 0 ? cleaned : "doc";
 }

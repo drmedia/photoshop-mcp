@@ -2093,6 +2093,31 @@ fromSelection 으로 쓸 수 있다" 고만 해서 **오히려 오해를 부른�
 `selection.set` 과 `photoshop://selection` 의 일치, `LAYER_NOT_FOUND` 계열 메시지는
 모두 정확하고 행동 가능했다.
 
+## 다단계 과제와 나머지 Tool
+
+UXP DevTools CLI 로 적재를 자동화한 뒤 사람을 기다리지 않고 전 구간을 돌렸다.
+
+```text
+복제 → 블러 → softLight → 불투명도 60      ✅ 스마트 오브젝트 변환으로 id 가
+                                              바뀌어도 매 호출이 정확히 보고한다
+선택(layerTransparency · canvas) → 레벨    ✅ 조정 레이어가 선택을 마스크로 받는 것이
+                                              이제 hasMask 로 보인다
+undo ×3 → 되돌아감, 목록은 안 줄어듦        ✅ currentIndex 11 → 8
+undo 끝까지 → HISTORY_EMPTY                ✅ "되돌릴 작업이 없습니다."
+export(png) → place → 재export             ✅ 왕복 성공, FILE_ALREADY_EXISTS 방어
+save_as(psd) → workspace.usage/delete       ✅ 790MB → 6KB
+```
+
+Core Tool 은 사실상 전부 LLM 시점으로 지나갔다. 남은 것은 `document.save`(destructive)
+뿐이며 원본을 덮어쓰므로 시험하지 않았다.
+
+### `document.name` 이 전체 경로일 때가 있다
+
+명령줄로 연 문서에서 확인했다. Photoshop 이 주는 값이라 그대로 전달하는 것이 맞지만,
+임시 파일 이름을 여기서 파생하는 Extension 이 문제였다 — 40자로 자르면 앞의 경로가
+다 차지해 `D-Dev-ClaudeCode-PhotoshopMCP-testimage-새` 가 된다. 어느 문서에서 나온
+파일인지 알 수 없다. `slug()` 가 경로 구분자 뒤만 쓰도록 고쳤다.
+
 ## 남은 것
 
 Zod 기본 메시지가 영어다 — `radius: Number must be less than or equal to 1000`.

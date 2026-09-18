@@ -16,17 +16,23 @@ export async function layerList(): Promise<LayerInfo[]> {
   return runModal("List layers", () => flattenLayers(requireActiveDocument().layers));
 }
 
-/** 레이어 트리를 깊이 우선으로 평탄화한다. */
+/**
+ * 레이어 트리를 깊이 우선으로 평탄화한다.
+ *
+ * 그룹은 자신을 먼저 넣고 자식을 이어서 넣는다. 자식의 `parentId` 는 순회 중에
+ * 알 수 있으므로 Photoshop 의 `layer.parent` 를 조회하지 않는다 —
+ * `parent` 는 문서일 수도 그룹일 수도 있어 구분이 번거롭다.
+ */
 export function flattenLayers(layers: unknown): LayerInfo[] {
   const out: LayerInfo[] = [];
-  collect(layers, out);
+  collect(layers, null, out);
   return out;
 }
 
-function collect(layers: unknown, out: LayerInfo[]): void {
+function collect(layers: unknown, parentId: number | null, out: LayerInfo[]): void {
   for (const layer of toArray<PhotoshopLayer>(layers)) {
-    out.push(toLayerInfo(layer));
-    collect(layer.layers, out);
+    out.push(toLayerInfo(layer, parentId));
+    collect(layer.layers, layer.id, out);
   }
 }
 
@@ -57,11 +63,17 @@ function toArray<T>(value: unknown): T[] {
   return [];
 }
 
-export function toLayerInfo(layer: PhotoshopLayer): LayerInfo {
+export function toLayerInfo(layer: PhotoshopLayer, parentId: number | null = null): LayerInfo {
+  const kind = toLayerType(layer.kind);
   return {
     id: layer.id,
     name: layer.name,
-    type: toLayerType(layer.kind),
+    type: kind.type,
     visible: layer.visible === true,
+    // Photoshop 은 불투명도를 0–255 로 저장해 50 을 넣으면 50.196… 이 돌아온다.
+    // 프로토콜은 0–100 정수로 정의하므로 반올림한다.
+    opacity: typeof layer.opacity === "number" ? Math.round(layer.opacity) : 100,
+    parentId,
+    ...(kind.raw === undefined ? {} : { rawKind: kind.raw }),
   };
 }

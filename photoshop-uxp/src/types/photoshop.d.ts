@@ -14,12 +14,17 @@ declare module "photoshop" {
 
   export interface PhotoshopLayer {
     readonly id: number;
-    readonly name: string;
+    name: string;
     /** `Constants.LayerKind`. 값 목록이 버전에 따라 늘어난다. */
     readonly kind: string;
-    readonly visible: boolean;
+    visible: boolean;
+    /** 0–100. */
+    opacity: number;
     /** 그룹 레이어의 자식. 그룹이 아니면 빈 배열이거나 `undefined`. */
     readonly layers?: readonly PhotoshopLayer[];
+
+    /** 레이어를 복제한다. **비동기다.** */
+    duplicate(): Promise<PhotoshopLayer>;
   }
 
   export interface PhotoshopDocument {
@@ -31,6 +36,11 @@ declare module "photoshop" {
     /** `Constants.DocumentMode` */
     readonly mode: string;
     readonly layers: readonly PhotoshopLayer[];
+    /** 현재 선택된 레이어들. 대입하면 선택이 바뀐다. */
+    activeLayers: readonly PhotoshopLayer[];
+
+    /** 새 픽셀 레이어를 만든다. **비동기다.** */
+    createLayer(options?: { name?: string; opacity?: number }): Promise<PhotoshopLayer>;
   }
 
   export interface PhotoshopApp {

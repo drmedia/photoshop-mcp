@@ -10,7 +10,7 @@ describe("CommandRegistry", () => {
     registry.register("DOCUMENT_GET", noop);
 
     expect(registry.has("DOCUMENT_GET")).toBe(true);
-    expect(registry.get("DOCUMENT_GET")).toBe(noop);
+    expect(registry.get("DOCUMENT_GET")?.handler).toBe(noop);
     expect(registry.list()).toEqual(["DOCUMENT_GET"]);
     expect(registry.size).toBe(1);
   });

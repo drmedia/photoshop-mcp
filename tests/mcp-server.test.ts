@@ -49,7 +49,7 @@ afterEach(async () => {
 });
 
 describe("PhotoshopMcpServer", () => {
-  it("tools/list 로 Phase 1 Tool 3개를 스키마와 함께 노출한다", async () => {
+  it("tools/list 로 Tool 을 스키마와 함께 노출한다", async () => {
     const { client } = await connect();
     const { tools } = await client.listTools();
 
@@ -57,6 +57,12 @@ describe("PhotoshopMcpServer", () => {
       "photoshop.ping",
       "photoshop.document.get",
       "photoshop.layer.list",
+      "photoshop.layer.create",
+      "photoshop.layer.duplicate",
+      "photoshop.layer.rename",
+      "photoshop.layer.select",
+      "photoshop.layer.set_visibility",
+      "photoshop.layer.set_opacity",
     ]);
     for (const tool of tools) {
       expect(tool.description).toBeTruthy();
@@ -86,9 +92,23 @@ describe("PhotoshopMcpServer", () => {
     expect(payload(await client.callTool({ name: "photoshop.layer.list", arguments: {} }))).toEqual(
       {
         layers: [
-          { id: 10, name: "Background", type: "pixel", visible: true },
-          { id: 11, name: "Curves 1", type: "adjustment", visible: true },
-          { id: 12, name: "Retouch", type: "pixel", visible: false },
+          {
+            id: 10,
+            name: "Background",
+            type: "pixel",
+            visible: true,
+            opacity: 100,
+            parentId: null,
+          },
+          {
+            id: 11,
+            name: "Curves 1",
+            type: "adjustment",
+            visible: true,
+            opacity: 100,
+            parentId: null,
+          },
+          { id: 12, name: "Retouch", type: "pixel", visible: false, opacity: 50, parentId: null },
         ],
       },
     );
@@ -110,7 +130,7 @@ describe("PhotoshopMcpServer", () => {
   it("등록되지 않은 Tool 호출은 TOOL_NOT_FOUND Error Response 를 반환한다", async () => {
     const { client } = await connect();
 
-    const result = await client.callTool({ name: "photoshop.layer.duplicate", arguments: {} });
+    const result = await client.callTool({ name: "photoshop.mask.create", arguments: {} });
 
     expect(result.isError).toBe(true);
     expect(payload(result)).toMatchObject({ code: ErrorCode.TOOL_NOT_FOUND });

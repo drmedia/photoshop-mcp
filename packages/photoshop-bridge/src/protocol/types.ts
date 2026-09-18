@@ -42,7 +42,13 @@ export const DocumentInfoSchema = z.object({
 
 export type DocumentInfo = z.infer<typeof DocumentInfoSchema>;
 
-/** 레이어 종류. (PROTOCOL.md §4) */
+/**
+ * 레이어 종류. (PROTOCOL.md §4)
+ *
+ * `unknown` 은 Plugin 이 Photoshop 의 `LayerKind` 를 분류하지 못한 경우다.
+ * 임의로 `pixel` 로 단정하지 않는다 — 새로 생긴 조정 레이어 종류를 픽셀 레이어로
+ * 오인하면 호출자가 잘못된 대상에 작업하게 된다. (PROTOCOL.md §4)
+ */
 export const LayerTypeSchema = z.enum([
   "pixel",
   "adjustment",
@@ -50,16 +56,23 @@ export const LayerTypeSchema = z.enum([
   "text",
   "shape",
   "smartObject",
+  "unknown",
 ]);
 
 export type LayerType = z.infer<typeof LayerTypeSchema>;
 
-/** 레이어 정보. Opacity 와 Parent 는 Phase 3 에서 추가한다. */
+/** 레이어 정보. */
 export const LayerInfoSchema = z.object({
   id: z.number().int(),
   name: z.string(),
   type: LayerTypeSchema,
   visible: z.boolean(),
+  /** 0–100. */
+  opacity: z.number(),
+  /** 소속 그룹의 레이어 ID. 최상위면 `null`. */
+  parentId: z.number().int().nullable(),
+  /** `type` 이 `unknown` 일 때만 포함. Photoshop 의 원본 `LayerKind`. */
+  rawKind: z.string().optional(),
 });
 
 export type LayerInfo = z.infer<typeof LayerInfoSchema>;

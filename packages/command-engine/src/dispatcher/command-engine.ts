@@ -1,7 +1,9 @@
 import type { PhotoshopBridge, PhotoshopCommand } from "@photoshop-mcp/photoshop-bridge";
 import { ErrorCode, PhotoshopMcpError } from "@photoshop-mcp/photoshop-bridge";
+import type { ZodType } from "zod";
 import type { CommandContext, CommandHandler } from "../registry/command-registry.js";
 import { CommandRegistry } from "../registry/command-registry.js";
+import { validateParams } from "../validation/validate-params.js";
 
 export interface CommandEngineOptions {
   /** 사용할 레지스트리. 생략하면 빈 레지스트리를 새로 만든다. */
@@ -45,8 +47,12 @@ export class CommandEngine {
   }
 
   /** {@link CommandRegistry.register} 위임. */
-  register<TParams, TResult>(type: string, handler: CommandHandler<TParams, TResult>): void {
-    this.#registry.register(type, handler);
+  register<TParams, TResult>(
+    type: string,
+    handler: CommandHandler<TParams, TResult>,
+    schema?: ZodType<TParams>,
+  ): void {
+    this.#registry.register(type, handler, schema);
   }
 
   /**
@@ -63,8 +69,8 @@ export class CommandEngine {
   ): Promise<TResult> {
     this.#validate(command);
 
-    const handler = this.#registry.get(command.type);
-    if (handler === undefined) {
+    const entry = this.#registry.get(command.type);
+    if (entry === undefined) {
       throw new PhotoshopMcpError(
         ErrorCode.COMMAND_NOT_SUPPORTED,
         `등록되지 않은 Command 입니다: ${command.type}`,
@@ -72,13 +78,20 @@ export class CommandEngine {
       );
     }
 
+    // 스키마가 등록된 Command 는 실행 전에 파라미터를 검증한다.
+    // 검증 실패는 INVALID_PARAMETER 로, 실행 실패와 구분된다.
+    const validated =
+      entry.schema === undefined
+        ? command
+        : { ...command, params: validateParams(command.type, entry.schema, command.params) };
+
     const context: CommandContext = {
       bridge: this.#bridge,
       requestId: options.requestId ?? this.#requestIdFactory(),
     };
 
     try {
-      return (await handler(command as PhotoshopCommand<never>, context)) as TResult;
+      return (await entry.handler(validated as PhotoshopCommand<never>, context)) as TResult;
     } catch (error) {
       throw PhotoshopMcpError.from(error, ErrorCode.COMMAND_FAILED);
     }

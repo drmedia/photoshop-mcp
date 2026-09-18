@@ -1,5 +1,6 @@
 import type { PhotoshopBridge, PhotoshopCommand } from "@photoshop-mcp/photoshop-bridge";
 import { ErrorCode, PhotoshopMcpError } from "@photoshop-mcp/photoshop-bridge";
+import type { ZodType } from "zod";
 
 /** Command 실행 시 핸들러에 전달되는 컨텍스트. */
 export interface CommandContext {
@@ -14,20 +15,37 @@ export type CommandHandler<TParams = unknown, TResult = unknown> = (
   context: CommandContext,
 ) => Promise<TResult>;
 
+/** 등록된 Command 한 건. */
+export interface CommandEntry<TParams = unknown, TResult = unknown> {
+  handler: CommandHandler<TParams, TResult>;
+  /**
+   * 파라미터 스키마. 생략하면 검증하지 않는다.
+   *
+   * Extension 이 Tool 을 거치지 않고 Engine 을 직접 호출하므로,
+   * 파라미터를 받는 Command 는 스키마를 함께 등록한다. (ARCHITECTURE §3.2)
+   */
+  schema?: ZodType<TParams>;
+}
+
 /**
  * Command 핸들러 레지스트리. (ARCHITECTURE §7)
  *
  * Command 를 추가할 때 Dispatcher 를 수정하지 않아도 되도록 등록 기반으로 관리한다.
  */
 export class CommandRegistry {
-  readonly #handlers = new Map<string, CommandHandler<never, unknown>>();
+  readonly #entries = new Map<string, CommandEntry<never, unknown>>();
 
   /**
    * Command 핸들러를 등록한다.
    *
+   * @param schema 파라미터 스키마. 주면 {@link CommandEngine} 이 실행 전에 검증한다.
    * @throws {PhotoshopMcpError} 같은 타입이 이미 등록된 경우 `DUPLICATE_COMMAND`.
    */
-  register<TParams, TResult>(type: string, handler: CommandHandler<TParams, TResult>): void {
+  register<TParams, TResult>(
+    type: string,
+    handler: CommandHandler<TParams, TResult>,
+    schema?: ZodType<TParams>,
+  ): void {
     const normalized = type.trim();
     if (normalized.length === 0) {
       throw new PhotoshopMcpError(
@@ -35,30 +53,34 @@ export class CommandRegistry {
         "Command 타입은 비어 있을 수 없습니다.",
       );
     }
-    if (this.#handlers.has(normalized)) {
+    if (this.#entries.has(normalized)) {
       throw new PhotoshopMcpError(
         ErrorCode.DUPLICATE_COMMAND,
         `이미 등록된 Command 입니다: ${normalized}`,
         { details: { type: normalized } },
       );
     }
-    this.#handlers.set(normalized, handler as CommandHandler<never, unknown>);
+    this.#entries.set(normalized, {
+      handler: handler as CommandHandler<never, unknown>,
+      ...(schema === undefined ? {} : { schema: schema as unknown as ZodType<never> }),
+    });
   }
 
-  get(type: string): CommandHandler<never, unknown> | undefined {
-    return this.#handlers.get(type);
+  /** 등록된 Command. 핸들러와 스키마를 함께 돌려준다. */
+  get(type: string): CommandEntry<never, unknown> | undefined {
+    return this.#entries.get(type);
   }
 
   has(type: string): boolean {
-    return this.#handlers.has(type);
+    return this.#entries.has(type);
   }
 
   /** 등록된 Command 타입 목록. */
   list(): string[] {
-    return [...this.#handlers.keys()];
+    return [...this.#entries.keys()];
   }
 
   get size(): number {
-    return this.#handlers.size;
+    return this.#entries.size;
   }
 }

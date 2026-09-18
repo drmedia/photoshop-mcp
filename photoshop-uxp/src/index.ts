@@ -12,6 +12,14 @@
 import { entrypoints, host } from "uxp";
 import { CommandDispatcher } from "./dispatcher/dispatcher.js";
 import { documentGet } from "./dom/document.js";
+import {
+  layerCreate,
+  layerDuplicate,
+  layerOpacity,
+  layerRename,
+  layerSelect,
+  layerVisibility,
+} from "./dom/layer-edit.js";
 import { layerList } from "./dom/layers.js";
 import { BridgeClient, type ClientState } from "./transport/ws-client.js";
 
@@ -31,8 +39,28 @@ const STATE_LABEL: Record<ClientState, string> = {
 /** Command 등록. Command 추가 시 이 함수만 수정한다. (ARCHITECTURE §12) */
 export function createDispatcher(): CommandDispatcher {
   const dispatcher = new CommandDispatcher();
+
+  // Phase 1 — 조회
   dispatcher.register("DOCUMENT_GET", async () => documentGet());
   dispatcher.register("LAYER_LIST", async () => layerList());
+
+  // Phase 3 — 레이어 편집 (비파괴)
+  // payload 는 Server 의 Command Engine 이 이미 검증했다. (ARCHITECTURE §3.2)
+  dispatcher.register("LAYER_CREATE", async (p) => layerCreate(p as { name?: string }));
+  dispatcher.register("LAYER_DUPLICATE", async (p) =>
+    layerDuplicate(p as { layerId?: number; name?: string }),
+  );
+  dispatcher.register("LAYER_RENAME", async (p) =>
+    layerRename(p as { layerId?: number; name: string }),
+  );
+  dispatcher.register("LAYER_SELECT", async (p) => layerSelect(p as { layerId: number }));
+  dispatcher.register("LAYER_VISIBILITY", async (p) =>
+    layerVisibility(p as { layerId?: number; visible: boolean }),
+  );
+  dispatcher.register("LAYER_OPACITY", async (p) =>
+    layerOpacity(p as { layerId?: number; opacity: number }),
+  );
+
   return dispatcher;
 }
 

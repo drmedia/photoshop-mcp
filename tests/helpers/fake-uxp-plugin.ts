@@ -42,9 +42,9 @@ export const FAKE_DOCUMENT: DocumentInfo = {
 };
 
 export const FAKE_LAYERS: LayerInfo[] = [
-  { id: 100, name: "Sky", type: "pixel", visible: true },
-  { id: 101, name: "Curves 1", type: "adjustment", visible: true },
-  { id: 102, name: "Foreground", type: "group", visible: false },
+  { id: 100, name: "Sky", type: "pixel", visible: true, opacity: 100, parentId: null },
+  { id: 101, name: "Curves 1", type: "adjustment", visible: true, opacity: 80, parentId: null },
+  { id: 102, name: "Foreground", type: "group", visible: false, opacity: 100, parentId: null },
 ];
 
 /** 핸드셰이크 진행 결과. */

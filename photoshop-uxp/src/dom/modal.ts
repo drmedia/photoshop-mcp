@@ -14,11 +14,11 @@ type Outcome<T> = { ok: true; value: T } | { ok: false; error: unknown };
  * 그래서 오류를 던지지 않고 **값으로** 돌려받은 뒤 modal 밖에서 다시 던진다.
  * 이렇게 하면 `DispatchError` 의 `code` 와 `recoverable` 이 그대로 보존된다.
  */
-export async function runModal<T>(commandName: string, fn: () => T): Promise<T> {
+export async function runModal<T>(commandName: string, fn: () => T | Promise<T>): Promise<T> {
   const outcome = await core.executeAsModal<Outcome<T>>(
     async () => {
       try {
-        return { ok: true, value: fn() };
+        return { ok: true, value: await fn() };
       } catch (error) {
         return { ok: false, error };
       }

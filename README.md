@@ -357,6 +357,7 @@ Extension 의 namespace 를 쓰면 적재가 거부됩니다. 하나가 잘못�
 ## 문서
 
 - [아키텍처](docs/ARCHITECTURE.md)
+- [Core API](docs/CORE_API.md) — 구현된 Tool 40개와 후보 목록, Permission 기준
 - [로드맵](docs/ROADMAP.md) — Phase 별 진행 상황
 - [프로토콜](docs/PROTOCOL.md) — Bridge 메시지 규약과 3단계 핸드셰이크
 - [확장 SDK](packages/extension-sdk/README.md) — Extension 작성법과 공개 API 표면

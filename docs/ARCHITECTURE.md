@@ -884,6 +884,7 @@ PhotoshopMCP/
 │
 ├─ docs/
 │   ├─ ARCHITECTURE.md
+│   ├─ CORE_API.md
 │   ├─ PROTOCOL.md
 │   ├─ ROADMAP.md
 │   └─ EXTENSION_SDK.md

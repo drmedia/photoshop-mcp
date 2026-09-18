@@ -233,6 +233,11 @@ ROADMAP 이 맞다. 어긋난 것을 발견하면 ARCHITECTURE 를 고친다.
 
 완료 판단은 ROADMAP 해당 섹션의 체크박스로 한다. 체크는 실제로 검증된 항목에만 한다.
 
+**API 목록·Permission·이름의 기준은 `docs/CORE_API.md` 다.** Phase 열을 두지 않는다 —
+예전에 두었다가 ROADMAP 과 같은 낱말이 다른 뜻을 갖게 되어 둘 다 믿을 수 없게 되었다.
+Tool 을 추가·삭제하거나 Permission 을 바꾸면 그 문서의 §4 를 함께 고친다.
+`tests/core-api-doc.test.ts` 가 문서를 읽어 레지스트리와 대조하므로 빠뜨리면 테스트가 깨진다.
+
 ## 스택
 
 - TypeScript 5.9 / Node 22.12+ / ESM (`module: NodeNext`)

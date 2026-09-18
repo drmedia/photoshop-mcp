@@ -1,0 +1,27 @@
+{
+  "name": "@photoshop-mcp/milkyscape",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MilkyScape Extension — 은하수 사진 편집 도메인 로직",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "extension.json"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@photoshop-mcp/extension-sdk": "0.1.0",
+    "zod": "^3.25.76"
+  }
+}

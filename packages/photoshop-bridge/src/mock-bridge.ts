@@ -59,6 +59,27 @@ export interface MockPhotoshopBridgeOptions {
   workspacePath?: string | null;
   /** 문서의 저장 경로. `null` 이면 한 번도 저장하지 않은 문서. */
   documentPath?: string | null;
+  /**
+   * 실제 파일 시스템을 쓰는 어댑터.
+   *
+   * 기본적으로 Mock 은 파일 이름만 메모리에 기록한다. 그런데 외부 처리기를 거치는
+   * 흐름에서는 두 가지가 어긋난다.
+   *
+   * 1. 내보낸 파일이 실제로 없으면 처리기가 입력을 찾지 못한다.
+   * 2. 처리기가 만든 파일을 Mock 이 모르므로 가져오기가 실패한다.
+   *
+   * 실제 폴더를 쓰는 테스트에서 이 어댑터를 주면 둘 다 해결된다.
+   * contracts 계층이 `node:fs` 를 직접 쓰지 않도록 주입받는다.
+   */
+  files?: MockFileSystem;
+}
+
+/** Mock 이 쓰는 최소 파일 시스템. */
+export interface MockFileSystem {
+  /** 내보내기·저장이 만든 파일을 실제로 쓴다. */
+  write(path: string, filename: string): void;
+  /** 그 파일이 실제로 있는지. 외부 처리기가 만든 것도 보인다. */
+  exists(path: string, filename: string): boolean;
 }
 
 /**
@@ -79,6 +100,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   #workspacePath: string | null;
   #documentPath: string | null;
   readonly #writtenFiles: string[] = [];
+  readonly #files: MockFileSystem | null;
 
   /** 이 Bridge 가 처리한 Command 기록. 테스트에서 호출 경로를 검증할 때 사용한다. */
   readonly executedCommands: PhotoshopCommand[] = [];
@@ -88,6 +110,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     // 기본값은 승인 전 상태다. 실제 UXP 도 사용자가 승인하기 전에는 저장할 수 없다.
     this.#workspacePath = options.workspacePath ?? null;
     this.#documentPath = options.documentPath ?? null;
+    this.#files = options.files ?? null;
     this.#document =
       options.document === undefined ? { ...DEFAULT_MOCK_DOCUMENT } : options.document;
     this.#layers = [...(options.layers ?? DEFAULT_MOCK_LAYERS)];
@@ -280,6 +303,19 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     return [...this.#writtenFiles];
   }
 
+  /**
+   * 그 이름의 파일이 작업 폴더에 있는지.
+   *
+   * 어댑터가 있으면 실제 폴더를 본다. 외부 처리기가 만든 파일은 Mock 의
+   * 기록에 없으므로 메모리만 보면 놓친다.
+   */
+  #hasFile(filename: string): boolean {
+    if (this.#files !== null && this.#workspacePath !== null) {
+      return this.#files.exists(`${this.#workspacePath}/${filename}`, filename);
+    }
+    return this.#writtenFiles.some((name) => name.toLowerCase() === filename.toLowerCase());
+  }
+
   /** 폴더에 이미 있던 파일을 흉내 낸다. 외부 처리기가 만든 결과 등. */
   addExistingFile(filename: string): void {
     if (!this.#writtenFiles.some((name) => name.toLowerCase() === filename.toLowerCase())) {
@@ -319,7 +355,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     const format = params.format ?? fallback;
     const filename = withExtension(params.filename, format);
 
-    if (this.#writtenFiles.some((name) => name.toLowerCase() === filename.toLowerCase())) {
+    if (this.#hasFile(filename)) {
       throw new PhotoshopMcpError(
         ErrorCode.FILE_ALREADY_EXISTS,
         `같은 이름의 파일이 이미 있습니다: ${filename}. 덮어쓰지 않습니다.`,
@@ -328,7 +364,9 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     }
 
     this.#writtenFiles.push(filename);
-    const result: SaveResult = { path: `${this.#workspacePath}/${filename}`, filename, format };
+    const path = `${this.#workspacePath}/${filename}`;
+    this.#files?.write(path, filename);
+    const result: SaveResult = { path, filename, format };
     if (format === "tiff") {
       // 실제 Plugin 과 같이 실제 심도를 돌려준다. 요청값이 아니라 결과값이다.
       const requested = (params as { bitDepth?: number }).bitDepth;
@@ -351,7 +389,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         { recoverable: true },
       );
     }
-    if (!this.#writtenFiles.some((name) => name.toLowerCase() === params.filename.toLowerCase())) {
+    if (!this.#hasFile(params.filename)) {
       throw new PhotoshopMcpError(
         ErrorCode.FILE_NOT_FOUND,
         `승인된 작업 폴더에 파일이 없습니다: ${params.filename}`,

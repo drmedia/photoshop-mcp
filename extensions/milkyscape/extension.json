@@ -1,0 +1,10 @@
+{
+  "id": "com.drmedia.milkyscape",
+  "name": "MilkyScape Tools",
+  "version": "0.1.0",
+  "namespace": "milky",
+  "main": "dist/index.js",
+  "description": "지상 풍경이 포함된 은하수 사진 편집 도구",
+  "requires": { "photoshopMcp": "^0.1.0" },
+  "permissions": ["photoshop.read", "photoshop.edit", "photoshop.external"]
+}

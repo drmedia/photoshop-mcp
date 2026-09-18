@@ -42,6 +42,7 @@ export {
   DEFAULT_MOCK_DOCUMENT,
   DEFAULT_MOCK_LAYERS,
   MockPhotoshopBridge,
+  type MockFileSystem,
   type MockPhotoshopBridgeOptions,
 } from "./mock-bridge.js";
 export {

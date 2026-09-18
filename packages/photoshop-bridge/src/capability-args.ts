@@ -42,7 +42,12 @@ export function placeholdersIn(args: readonly string[]): string[] {
  * @throws {PhotoshopMcpError} `INVALID_PARAMETER`
  */
 export function assertConfigConsistent(config: ProviderConfig): void {
-  const declared = new Set<string>(["input", "output", ...Object.keys(config.params ?? {})]);
+  const declared = new Set<string>([
+    "input",
+    "output",
+    ...Object.keys(config.outputs ?? {}).map((name) => `output.${name}`),
+    ...Object.keys(config.params ?? {}),
+  ]);
   const unknown = placeholdersIn(config.args).filter((name) => !declared.has(name));
 
   if (unknown.length > 0) {
@@ -51,6 +56,19 @@ export function assertConfigConsistent(config: ProviderConfig): void {
       `Provider '${config.id}' 의 args 가 선언되지 않은 자리표시자를 씁니다: ` +
         `${unknown.join(", ")}. params 에 선언하거나 input · output 을 쓰세요.`,
       { details: { provider: config.id, unknown, declared: [...declared] } },
+    );
+  }
+
+  // 선언한 추가 출력을 템플릿이 쓰지 않으면 그 파일은 만들어지지 않는다.
+  // 선언만 해두고 인자에 넣지 않은 것은 설정 실수다.
+  const used = new Set(placeholdersIn(config.args));
+  const unused = Object.keys(config.outputs ?? {}).filter((name) => !used.has(`output.${name}`));
+  if (unused.length > 0) {
+    throw new PhotoshopMcpError(
+      ErrorCode.INVALID_PARAMETER,
+      `Provider '${config.id}' 가 추가 출력을 선언했지만 args 에서 쓰지 않습니다: ` +
+        `${unused.join(", ")}. 템플릿에 {{output.<이름>}} 을 넣으세요.`,
+      { details: { provider: config.id, unused } },
     );
   }
 
@@ -118,8 +136,13 @@ export interface BuildArgsInput {
   config: ProviderConfig;
   /** 해석이 끝난 입력 파일의 절대 경로. */
   inputPath: string;
-  /** 해석이 끝난 출력 파일의 절대 경로. */
-  outputPath: string;
+  /**
+   * 해석이 끝난 출력 경로. 주 출력은 `output` 키에 담는다.
+   *
+   * 추가 출력은 선언한 이름 그대로 담는다. 템플릿의 `{{output.stars}}` 는
+   * `outputPaths.stars` 를 쓴다.
+   */
+  outputPaths: Record<string, string>;
   params?: Record<string, string | number | boolean>;
 }
 
@@ -146,10 +169,23 @@ export function buildArgs(input: BuildArgsInput): string[] {
     );
   }
 
-  const values: Record<string, string> = {
-    input: input.inputPath,
-    output: input.outputPath,
-  };
+  const values: Record<string, string> = { input: input.inputPath };
+  for (const [name, path] of Object.entries(input.outputPaths)) {
+    values[name === "output" ? "output" : `output.${name}`] = path;
+  }
+
+  // 선언한 추가 출력이 모두 준비되었는지 확인한다.
+  // 빠진 채로 실행하면 빈 문자열이 인자로 들어가 처리기가 엉뚱하게 동작한다.
+  const missing = Object.keys(config.outputs ?? {}).filter(
+    (name) => input.outputPaths[name] === undefined,
+  );
+  if (missing.length > 0) {
+    throw new PhotoshopMcpError(
+      ErrorCode.INVALID_PARAMETER,
+      `Provider '${config.id}' 는 추가 출력 파일 이름이 필요합니다: ${missing.join(", ")}`,
+      { details: { provider: config.id, missing, declared: Object.keys(config.outputs ?? {}) } },
+    );
+  }
 
   for (const [name, spec] of Object.entries(specs)) {
     const given = params[name];

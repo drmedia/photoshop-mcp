@@ -79,6 +79,28 @@ export type ParameterSpec = z.infer<typeof ParameterSpecSchema>;
 export const BUILTIN_PLACEHOLDERS = ["input", "output"] as const;
 
 /**
+ * 추가 출력 선언.
+ *
+ * 출력이 하나뿐인 처리기가 많지만 그렇지 않은 것도 있다. StarNet2 는 별을 지운
+ * 이미지와 **별만 남긴 이미지**를 함께 만든다.
+ *
+ * ```text
+ * --input <in> --output <starless> --unscreen <stars>
+ * ```
+ *
+ * `restore_stars` 워크플로에는 별 이미지가 있어야 하므로 출력 하나로는 부족하다.
+ * 템플릿에서는 `{{output.stars}}` 처럼 참조한다.
+ */
+export const ExtraOutputSchema = z
+  .object({
+    /** 사람이 읽을 설명. 무엇이 나오는 파일인지. */
+    description: z.string().min(1).max(200).optional(),
+  })
+  .strict();
+
+export type ExtraOutput = z.infer<typeof ExtraOutputSchema>;
+
+/**
  * Provider 설정. 설정 파일에서 읽는다.
  *
  * `args` 의 `{{name}}` 은 `input` · `output` 또는 `params` 에 선언한 이름이어야 한다.
@@ -104,6 +126,12 @@ export const ProviderConfigSchema = z
     args: z.array(z.string().max(1024)).max(64),
     /** 받을 파라미터 선언. */
     params: z.record(ParameterSpecSchema).optional(),
+    /**
+     * 주 출력 외에 함께 만들어지는 파일.
+     *
+     * 선언하면 호출자가 반드시 이름을 줘야 하고, 실행 후 실제로 만들어졌는지 확인한다.
+     */
+    outputs: z.record(ExtraOutputSchema).optional(),
     /** 실행 제한 시간. 생략하면 10분. 외부 처리기는 오래 걸린다. */
     timeoutMs: z
       .number()
@@ -140,14 +168,22 @@ export interface ProviderAvailability {
   priority: number;
   /** 받을 수 있는 파라미터 이름. */
   parameters: string[];
+  /** 주 출력 외에 함께 만들어지는 파일의 이름. */
+  extraOutputs: string[];
 }
 
 /** Capability 실행 요청. */
 export interface CapabilityRequest {
   /** 승인된 작업 폴더 안의 입력 파일 이름. */
   input: string;
-  /** 승인된 작업 폴더 안의 출력 파일 이름. */
+  /** 승인된 작업 폴더 안의 주 출력 파일 이름. 템플릿의 `{{output}}`. */
   output: string;
+  /**
+   * 추가 출력 파일 이름. Provider 가 `outputs` 로 선언한 것과 일치해야 한다.
+   *
+   * 템플릿에서는 `{{output.<이름>}}` 으로 참조한다.
+   */
+  outputs?: Record<string, string>;
   /** Provider 가 선언한 파라미터. 선언되지 않은 이름은 거부된다. */
   params?: Record<string, string | number | boolean>;
   /** 특정 Provider 를 지정한다. 생략하면 우선순위로 고른다. */
@@ -159,8 +195,14 @@ export interface CapabilityResult {
   capability: string;
   /** 실제로 사용된 Provider. */
   provider: string;
-  /** 출력 파일의 실제 경로. */
+  /** 주 출력 파일의 실제 경로. */
   outputPath: string;
+  /**
+   * 모든 출력의 실제 경로. 주 출력은 `output` 키에 담긴다.
+   *
+   * 추가 출력이 없으면 `{ output: … }` 하나뿐이다.
+   */
+  outputPaths: Record<string, string>;
   /** 실행에 걸린 시간(ms). */
   durationMs: number;
 }

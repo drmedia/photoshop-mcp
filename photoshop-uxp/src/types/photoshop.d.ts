@@ -51,6 +51,13 @@ declare module "photoshop" {
     /** 레이어를 복제한다. **비동기다.** */
     duplicate(): Promise<PhotoshopLayer>;
 
+    /**
+     * 레이어를 지운다. **비동기다.**
+     *
+     * 던지지 않았다고 사라진 것은 아니다 — 부른 쪽이 목록을 다시 읽어 확인한다.
+     */
+    delete(): Promise<void>;
+
     /** 레이어를 다른 위치로 옮긴다. **비동기다.** */
     move(relativeObject: PhotoshopLayer | PhotoshopDocument, placement: string): Promise<void>;
   }

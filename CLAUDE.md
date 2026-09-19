@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **58개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **61개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 65). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 68). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -33,6 +33,8 @@ Tool 까지 더한 수다(지금 65). 한동안 이 값을 Core 개수로 옮겨
 - 캡처: `document.capture` · `layer.capture` · `selection.capture` · `window.capture`
 - 구도: `document.crop` — 캔버스만 줄이고 **픽셀은 버리지 않는다**. 그래서 `edit` 이다
 - 측정: `document.statistics` — **전체 해상도 원본**에서 히스토그램·채널 통계
+- 결함 제거: `retouch.remove_spots` — 먼지·잡티. **배경 레이어는 거절한다**
+- Camera Raw: `camera_raw.apply` — **Tool 은 이 하나뿐이다**
 
 ## 캡처 (ROADMAP §17.10)
 
@@ -81,6 +83,16 @@ Photoshop 이 뒤에 있어도 대화상자를 볼 수 있어야 하므로 이 �
 최소화된 창은 `IsIconic` 으로 잡아 **실패로 돌려준다.** `PrintWindow` 는 오류 없이
 빈 화면을 주는데, 그대로 돌려주면 호출자가 현재 화면이라고 믿는다.
 
+**모든 창을 찍는다.** `EnumWindows` 로 같은 프로세스의 보이는 최상위 창을 모아
+**대화상자를 먼저** 놓는다 — 막힌 원인이 먼저 보여야 한다. 결과가 한 장이 아니라
+여러 장이고, 서버가 창마다 image 블록을 내보낸다.
+
+처음에는 메인 창 하나만 찍어서 **이 Tool 의 존재 이유인 경우를 놓쳤다** — Camera Raw
+같은 대화상자는 별도 최상위 창이라 메인 창에 안 들어온다. (ROADMAP §17.17)
+
+`GetWindowTextW` 는 **`CharSet.Unicode` 로 선언한다.** 없으면 ANSI 로 마샬링되어
+제목이 첫 글자에서 잘린다 — `_DSC0601.NEF @ 25% ...` 가 `_` 로 왔다.
+
 macOS 는 미지원이다. 목록에는 노출하되 이유를 말하며 실패한다.
 
 Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `format: "png"`
@@ -105,9 +117,65 @@ Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `f
 **DOM 에 `document.histogram` 이 없다.** 첫 구현이 두 경로를 모두 확인하도록 만들어
 재 보고 알았다. 짐작으로 골랐으면 없는 API 를 썼다.
 
+**채널마다 노이즈 σ 를 함께 준다.** 이웃 차의 **중앙값** 기반이다 — 평균을 쓰면
+가장자리와 별이 노이즈로 읽힌다. 실기에서 증폭 배율이 곡선 기울기와 세 자리까지
+맞았다(1.87 대 1.875). **평탄한 영역에서 재야 한다** — 촘촘한 질감은 구분되지 않는다.
+잴 수 없으면 0 이 아니라 `null` 이다.
+
 **조정 레이어에 `layerId` 를 주면 거절한다.** 실기에서 재 보니 마스크 영역을 재서
 모든 채널 평균이 255 로 나왔다. 픽셀 수까지 그럴듯하게 달라 더 그럴듯하다 —
 그대로 돌려주면 "이 레이어는 순백" 으로 읽힌다.
+
+## 결함 제거 (ROADMAP §17.14)
+
+타원 선택 + **내용 인식 채우기**다. 치유 브러시는 붓질을 요구하는데, batchPlay 로
+획을 흉내 내면 호출자가 descriptor 를 조립하는 것과 다를 바 없어진다(§23).
+
+**배경 레이어를 거절한다.** 먼지 제거는 원본 촬영 픽셀을 지우는 것이 목적인 유일한
+작업이다 — 필터는 효과를 입히지만 이것은 있던 것을 없앤다. 막으면서 `layer.duplicate`
+로 복제하라고 말한다. `isBackgroundLayer` 를 **모르면 막지 않는다** — 없는 것을
+참으로 읽어 멀쩡한 호출을 막는 것이 더 나쁘다.
+
+배경을 막아 두었으므로 사라지는 것은 이미 사본이고, 그래서 `edit` 이다.
+
+선택을 `finally` 에서 해제한다. 남기면 다음 Command 가 조용히 그 범위에만 걸린다.
+
+**먼지와 새를 구분하는 것은 자동화되지 않았다.** 검출기를 돌리면 새·비행기·구조물이
+같이 걸린다 — 실기에서 후보 16개가 전부 새였다. Tool 은 주어진 좌표를 지울 뿐이고
+좌표 판단은 눈으로 한다.
+
+## 조정 레이어는 `luminosity` 로 (ROADMAP §17.16)
+
+**합성 채널에 톤 곡선을 걸면 채도도 같이 오른다.** 실기에서 두 번 겪고 두 번 다
+보정 레이어를 덧대어 되돌린 뒤에야 알았다 — `layer.set_blend_mode` 에 `luminosity`
+가 이미 있었다. 재 보니 하늘 B−휘도가 12.35 로 손대기 전 12.30 과 사실상 같았다.
+
+**공백이라고 적기 전에 있는 것부터 확인한다.** 두 번 모두 "도구가 부족하다" 가
+아니라 "쓸 줄 몰랐다" 였다.
+
+## Camera Raw (ROADMAP §17.17)
+
+**Tool 은 `camera_raw.apply` 하나뿐이다.** 슬라이더마다 Tool 을 두지 않는다 —
+Camera Raw 는 슬라이더들이 한 렌더링 파이프라인 안에서 함께 계산되고, 한 번 걸 때마다
+픽셀이 구워진다. 실기에서 같은 네 설정을 네 번 나눠 걸었더니 중간값이 19% 어긋났다.
+`basic` · `detail` 같은 묶음 Tool 도 두지 않는다 — 이어 부르면 똑같이 두 번 구워진다.
+
+**키는 짐작한 것이 하나도 없다.** `addNotificationListener(["all"])` 로 잡아냈다.
+
+함정 넷. **`$Ex12` 에 정수가 가면 조용히 무시된다** — `ok:true` 를 돌려주면서 아무것도
+안 한다. 빌더가 0.0001 밀어 실수로 만든다. **`saturation` 만 `$` 가 없다.**
+**`temperature` 는 켈빈이 아니라 −100~100** 이다. **버전 키는 넣지 않는다** —
+빼도 동작하고, 박아 넣으면 다른 Camera Raw 버전에서 깨진다.
+
+**숨긴 레이어는 미리 막는다.** Photoshop 이 "명령을 사용할 수 없습니다" 라고만 답해
+이유를 알 수 없다.
+
+대화상자는 `_options: { dialogOptions: "display" }` 로 **열린다**(옵션 객체가 아니다).
+다만 열려 있는 동안 플러그인이 멈춰 Bridge 가 15초에 타임아웃하므로 Tool 로 내놓지
+않았다. Job 시스템과 함께 다룰 일이다.
+
+노이즈 감소는 `filter` 쪽 `denoise` 보다 훨씬 낫다 — 실기에서 σ 6.72 → 3.42(49%)
+이면서 색은 소수점 둘째 자리까지 그대로였다. `denoise` 는 최대 강도로도 7% 였다.
 
 ## Permission (ARCHITECTURE §22)
 
@@ -149,7 +217,11 @@ Extension 의 manifest `permissions` 는 **강제된다.** 선언 밖의 Tool �
 `bitDepth` 는 8 또는 16, 생략하면 문서 심도를 따른다. 결과의 `bitDepth` 는 요청값이
 아니라 **실제값**이다.
 
-`layer.delete` · `document.flatten` · `document.close` 는 분류 체계만 섰고 구현은 없다.
+`document.flatten` · `document.close` 는 분류 체계만 섰고 구현은 없다.
+
+`layer.delete` 는 만들었다(ROADMAP §17.18). **id 를 명시하고 패턴을 받지 않는다** —
+`workspace.delete` 와 같은 규칙이다. 지운 뒤 목록을 다시 읽어 **확인한 것만**
+`deleted` 에 담고, 문서를 비우는 요청은 거절한다.
 
 ## Capability (ARCHITECTURE §19, ROADMAP §12)
 
@@ -319,10 +391,14 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`milky://state`). unloa
 **Command 수명 이벤트는 동작한다** — `command.started` · `command.completed` ·
 `command.failed`. Photoshop 연결이 없어도 난다.
 
-**Photoshop 알림은 이 환경에서 동작하지 않는다.** Photoshop 27.8 / manifestVersion 4
-에서 API 는 있고 등록도 성공하는데(문자열·객체 양쪽) 알림이 하나도 오지 않는다.
-플러그인 자신의 동작과 사용자 편집 모두 확인했다. 원인을 찾지 못했고 추측으로
-코드를 더 넣지 않았다.
+**Photoshop 알림은 동작한다 — `["all"]` 로 등록해야 한다.** (ROADMAP §17.17)
+
+한동안 "알림이 하나도 오지 않는다" 고 적어 두었는데 **틀렸다.** 그때는 이름 있는
+이벤트로만 시험했다. `["all"]` 로 등록하면 온다. 등록 직후 실제 수신까지 확인했고,
+이것으로 Camera Raw 의 descriptor 를 잡아냈다.
+
+`photoshop.event.recent` 가 쓰는 이름별 등록 경로는 여전히 미검증이다.
+고치려면 그쪽도 `["all"]` 로 받아 걸러내는 쪽을 봐야 한다.
 
 배선은 남겨두되 `photoshop.notifications.registered` 가 `delivery: "unverified"` 를
 담아 동작하는 것처럼 읽히지 않게 했다. **`command.*` 만 신뢰할 수 있다.**

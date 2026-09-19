@@ -20,6 +20,9 @@ export function createDocumentStatisticsTool(
       "작은 클리핑. photoshop.document.capture 와 짝으로 쓴다. " +
       "채널별 평균·백분위(p1/p5/p50/p95/p99)·클리핑 비율과 휘도 64구간 분포를 준다. " +
       "값은 문서 심도와 무관하게 0–255 로 정규화하되 클리핑은 원래 심도에서 판정한다. " +
+      "채널마다 noise 로 σ 추정을 함께 준다 — 스트레치나 그림자 올리기를 **얼마나** 할지 " +
+      "정하는 근거다. **평탄한 영역에서 재야 한다** — 나뭇잎처럼 촘촘한 질감은 노이즈와 " +
+      "구분되지 않으므로 region 을 selection 으로 좁혀 하늘 같은 곳을 지정한다. " +
       "region 을 selection 으로 주면 선택 영역만, layerId 를 주면 그 레이어만 잰다 " +
       "(생략하면 보이는 그대로의 합성 결과). 문서를 바꾸지 않는다.",
     permission: "read",

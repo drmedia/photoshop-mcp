@@ -65,6 +65,16 @@ const ChannelStatsSchema = z.object({
   clippedHigh: z.number(),
   /** 0 에 닿은 픽셀 비율(%). */
   clippedLow: z.number(),
+  /**
+   * 노이즈 σ 추정(0–255 눈금). 잴 수 없으면 `null`.
+   *
+   * 가로 이웃 차의 **중앙값**에서 얻는다 — 가장자리와 별은 큰 차를 만들지만
+   * 소수라서 중앙값을 움직이지 못한다. 평균을 쓰면 디테일이 노이즈로 읽힌다.
+   *
+   * 스트레치·그림자 올리기를 **얼마나** 할지 정하는 근거다. 이것이 없던 동안
+   * 그 판단을 매번 눈으로 했다.
+   */
+  noise: z.number().nullable(),
 });
 
 export type ChannelStats = z.infer<typeof ChannelStatsSchema>;

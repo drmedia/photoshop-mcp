@@ -36,6 +36,16 @@ export const CapturedImageSchema = z.object({
 export type CapturedImage = z.infer<typeof CapturedImageSchema>;
 
 /** 결과가 캡처 이미지인지. 서버가 응답을 만들 때 쓴다. */
+/**
+ * 캡처 여러 장. `window.capture` 가 메인 창과 대화상자를 함께 돌려준다.
+ *
+ * 하나만 돌려주면 "멈췄을 때 왜 멈췄는지 본다" 는 경우를 놓친다 — 대화상자는
+ * 별도 최상위 창이다. (ROADMAP §17.17)
+ */
+export function isCapturedImageList(value: unknown): value is CapturedImage[] {
+  return Array.isArray(value) && value.length > 0 && value.every(isCapturedImage);
+}
+
 export function isCapturedImage(value: unknown): value is CapturedImage {
   return (
     typeof value === "object" &&

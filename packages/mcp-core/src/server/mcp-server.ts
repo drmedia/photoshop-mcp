@@ -16,6 +16,7 @@ import {
   SERVER_NAME,
   SERVER_VERSION,
   isCapturedImage,
+  isCapturedImageList,
 } from "@photoshop-mcp/photoshop-bridge";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
@@ -199,6 +200,19 @@ export class PhotoshopMcpServer {
               { type: "image" as const, data: base64, mimeType },
               { type: "text" as const, text: JSON.stringify(meta, null, 2) },
             ],
+          };
+        }
+        // 여러 장. 창마다 그림 하나씩 내보낸다 — 대화상자와 메인 창을 함께
+        // 보려면 한 장으로는 안 된다. (ROADMAP §17.17)
+        if (isCapturedImageList(result)) {
+          return {
+            content: result.flatMap((entry) => {
+              const { base64, mimeType, ...meta } = entry;
+              return [
+                { type: "image" as const, data: base64, mimeType },
+                { type: "text" as const, text: JSON.stringify(meta) },
+              ];
+            }),
           };
         }
         return {

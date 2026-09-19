@@ -84,6 +84,13 @@ import {
 } from "./document-save.js";
 import { LAYER_GET_ACTIVE, layerGetActiveCommand } from "./layer-active.js";
 import { DOCUMENT_CROP, DocumentCropParamsSchema, documentCropCommand } from "./document-crop.js";
+import { CAMERA_RAW_APPLY, CameraRawParamsSchema, cameraRawApplyCommand } from "./camera-raw.js";
+import { LAYER_DELETE, LayerDeleteParamsSchema, layerDeleteCommand } from "./layer-delete.js";
+import {
+  RETOUCH_REMOVE_SPOTS,
+  RemoveSpotsParamsSchema,
+  retouchRemoveSpotsCommand,
+} from "./retouch.js";
 import {
   DOCUMENT_STATISTICS,
   DocumentStatisticsParamsSchema,
@@ -173,6 +180,9 @@ export { LAYER_LIST, layerListCommand } from "./layer-list.js";
 export * from "./capture.js";
 export * from "./document-crop.js";
 export * from "./document-statistics.js";
+export * from "./retouch.js";
+export * from "./camera-raw.js";
+export * from "./layer-delete.js";
 export * from "./workflow-gaps.js";
 export {
   SELECTION_SKY,
@@ -199,6 +209,20 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_LIST, layerListCommand, { permission: "read" });
   registry.register(LAYER_GET_ACTIVE, layerGetActiveCommand, { permission: "read" });
   registry.register(SELECTION_SKY, selectionSkyCommand, { permission: "edit" });
+  registry.register(LAYER_DELETE, layerDeleteCommand, {
+    // CORE_API §8 이 미리 정해 둔 분류다. 작업을 없애는 것이 목적이다.
+    permission: "destructive",
+    schema: LayerDeleteParamsSchema,
+  });
+  registry.register(CAMERA_RAW_APPLY, cameraRawApplyCommand, {
+    permission: "edit",
+    schema: CameraRawParamsSchema,
+  });
+  registry.register(RETOUCH_REMOVE_SPOTS, retouchRemoveSpotsCommand, {
+    // 픽셀을 직접 바꾸지만 배경을 막아 두었으므로 사라지는 것은 이미 사본이다.
+    permission: "edit",
+    schema: RemoveSpotsParamsSchema,
+  });
   registry.register(DOCUMENT_STATISTICS, documentStatisticsCommand, {
     permission: "read",
     schema: DocumentStatisticsParamsSchema,

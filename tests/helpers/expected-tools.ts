@@ -15,6 +15,12 @@ export const EXPECTED_TOOLS = [
   "photoshop.selection.sky",
   // ROADMAP §17.12 — 구도. 조정 레이어로는 할 수 없는 일
   "photoshop.document.statistics",
+  // ROADMAP §17.14 — 비어 있던 단계. 배경에는 걸 수 없다
+  "photoshop.retouch.remove_spots",
+  // ROADMAP §17.17 — 키를 실기에서 잡아냈다. Tool 은 하나뿐이다
+  "photoshop.camera_raw.apply",
+  // ROADMAP §17.18 — DESTRUCTIVE. 기본 설정에서는 막혀 있다
+  "photoshop.layer.delete",
   "photoshop.document.crop",
   "photoshop.document.capture",
   "photoshop.layer.capture",
@@ -97,6 +103,9 @@ export const EXPECTED_COMMANDS = [
   "LAYER_LIST",
   "LAYER_GET_ACTIVE",
   "SELECTION_SKY",
+  "LAYER_DELETE",
+  "CAMERA_RAW_APPLY",
+  "RETOUCH_REMOVE_SPOTS",
   "DOCUMENT_STATISTICS",
   "DOCUMENT_CROP",
   "CAPTURE_DOCUMENT",
@@ -153,8 +162,8 @@ export const EXPECTED_COMMANDS = [
  * 아래 것들은 아직 대응하는 Command 조차 없다.
  */
 export const FORBIDDEN_TOOLS = [
-  // destructive — 분류만으로는 부족하고 각각 구현이 필요하다
-  "photoshop.layer.delete",
+  // destructive — 분류만으로는 부족하고 각각 구현이 필요하다.
+  // `layer.delete` 는 ROADMAP §17.18 에서 구현해 여기서 뺐다.
   "photoshop.document.flatten",
   "photoshop.document.close",
   "photoshop.group.ungroup",

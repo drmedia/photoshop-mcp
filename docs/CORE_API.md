@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (58개)
+## 4. 구현된 Core API (61개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -110,7 +110,10 @@ P3  확장 기능
 | `photoshop.layer.capture` | READ | 레이어 하나만 그림으로 |
 | `photoshop.selection.capture` | READ | 선택 영역(경계 상자)을 그림으로 |
 | `photoshop.layer.get_active` | READ | 지금 선택된 레이어. `layers` 에 전부, `layer` 에 첫 번째 |
-| `photoshop.document.statistics` | READ | 히스토그램·채널 통계. **전체 해상도 원본에서** 잰다 |
+| `photoshop.document.statistics` | READ | 히스토그램·채널 통계·**노이즈 σ**. 전체 해상도 원본에서 |
+
+노이즈 σ 는 **평탄한 영역에서** 재야 한다. 나뭇잎처럼 촘촘한 질감은 노이즈와
+구분되지 않으므로 `region: selection` 으로 하늘 같은 곳을 좁혀 지정한다.
 
 캡처와 통계는 **짝이다.** 캡처는 보고, 통계는 잰다. 구도·마스크 경계·전체 인상은
 봐야 잡히고, 어두운 영역의 색 편향·미세한 캐스트·작은 클리핑은 재야 잡힌다.
@@ -132,6 +135,22 @@ P3  확장 기능
 버리는 자르기를 옵션으로 두지 않았다. **파라미터 하나로 Permission 이 올라가면
 정적 선언이 거짓이 된다** — §2 가 Permission 을 필수 정적 필드로 둔 이유다.
 
+### 4.1.2 결함 제거
+
+| API | Permission | 비고 |
+|---|---|---|
+| `photoshop.retouch.remove_spots` | EDIT | 센서 먼지·잡티. **배경 레이어는 거절한다** |
+| `photoshop.camera_raw.apply` | EDIT | Camera Raw 필터. **Tool 은 이 하나뿐이다** |
+
+지점마다 타원으로 선택해 내용 인식 채우기를 건다. `spots` 로 여러 개를 한 번에 받는다.
+
+**배경을 거절하는 것이 이 API 의 핵심 성질이다.** 이것은 원본 촬영 픽셀을 지우는
+것이 목적인 유일한 Command 다 — 필터는 효과를 입히지만 먼지 제거는 있던 것을 없앤다.
+`layer.duplicate` 로 복제한 뒤 그 레이어를 지정한다. 막으면서 그 방법을 함께 말한다.
+
+배경을 막아 두었으므로 여기서 사라지는 것은 **이미 사본인 레이어**의 픽셀이고,
+필터와 같은 급의 `EDIT` 이다.
+
 ### 4.2 레이어
 
 | API | Permission | 비고 |
@@ -145,6 +164,7 @@ P3  확장 기능
 | `photoshop.layer.set_blend_mode` | EDIT | normal · multiply · screen · overlay · softLight 등 |
 | `photoshop.layer.from_background` | EDIT | 배경 → 일반 레이어. id 가 바뀐다 |
 | `photoshop.layer.stamp_visible` | EDIT | 보이는 레이어를 합친 복제본 |
+| `photoshop.layer.delete` | DESTRUCTIVE | **id 를 명시한다.** 패턴을 받지 않는다 |
 
 `layerId` 를 생략하면 활성 레이어를 대상으로 한다. 그것이 무엇인지는
 `photoshop.layer.get_active` 로 미리 확인한다.
@@ -574,7 +594,7 @@ workspace.delete
 elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화형 승인은 MCP 클라이언트의
 역할이다.
 
-지금 구현된 DESTRUCTIVE 는 `document.save` 와 `workspace.delete` 둘뿐이다. 나머지는
+지금 구현된 DESTRUCTIVE 는 `document.save` · `workspace.delete` · `layer.delete` 셋이다. 나머지는
 분류 체계만 서 있고 구현이 없다. 분류가 있다고 있는 척하지 않는다.
 
 ---

@@ -365,6 +365,144 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       // 캡처. Mock 은 픽셀이 없으므로 **1×1 투명 PNG** 를 돌려준다.
       // 그림 내용을 흉내내지는 않지만, 응답 모양과 "선택이 없으면 실패" 같은
       // 경로는 실제와 같아야 한다.
+      // 레이어 삭제. 실기와 같은 거절 규칙 · 같은 확인 방식을 흉내 낸다.
+      //
+      // 특히 "전부 지우기 거절" 과 "지운 뒤 목록을 다시 읽어 확인" 을 빠뜨리면
+      // 안 된다. Mock 이 너그러우면 그 경로는 테스트에 영영 나오지 않는다.
+      case "LAYER_DELETE": {
+        this.#requireDocument();
+        const { layerIds } = command.params as { layerIds: number[] };
+        const requested = [...new Set(layerIds)];
+        const before = this.#layers.map((entry) => entry.id);
+        if (before.length > 0 && before.every((id) => requested.includes(id))) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `레이어 ${before.length}개를 전부 지울 수는 없습니다. ` +
+              "Photoshop 문서에는 레이어가 최소 하나 있어야 합니다.",
+            { recoverable: true },
+          );
+        }
+        this.#snapshot("Delete layers");
+        const failed: { id: number; reason: string }[] = [];
+        for (const id of requested) {
+          if (!before.includes(id)) {
+            failed.push({ id, reason: "레이어를 찾을 수 없습니다." });
+          }
+        }
+        this.#layers = this.#layers.filter((entry) => !requested.includes(entry.id));
+        if (!this.#layers.some((entry) => entry.id === this.#activeLayerId)) {
+          this.#activeLayerId = this.#layers[this.#layers.length - 1]?.id ?? null;
+        }
+        const remainingIds = this.#layers.map((entry) => entry.id);
+        return {
+          deleted: requested.filter((id) => !remainingIds.includes(id) && before.includes(id)),
+          failed,
+          remaining: remainingIds.length,
+        } as TResult;
+      }
+
+      // Camera Raw. 실제 픽셀이 없으므로 **거절 규칙과 반환 모양만** 흉내 낸다.
+      //
+      // 특히 숨긴 레이어 거절을 빠뜨리면 안 된다 — 실기에서 Photoshop 이 이유를
+      // 말해 주지 않아 한참 헤맨 자리다. Mock 이 너그러우면 그 경로는 테스트에
+      // 영영 나오지 않는다.
+      case "CAMERA_RAW_APPLY": {
+        this.#requireDocument();
+        const params = command.params as { layerId?: number } & Record<string, unknown>;
+        const layer =
+          params.layerId === undefined
+            ? this.#layers.find((entry) => entry.id === this.#activeLayerId)
+            : this.#layers.find((entry) => entry.id === params.layerId);
+        if (layer === undefined) {
+          throw new PhotoshopMcpError(
+            ErrorCode.LAYER_NOT_FOUND,
+            params.layerId === undefined
+              ? "활성 레이어가 없습니다."
+              : `레이어 ${params.layerId} 를 찾을 수 없습니다.`,
+            { recoverable: true },
+          );
+        }
+        if (layer.type === "adjustment" || layer.type === "group") {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `${layer.type === "group" ? "그룹" : "조정 레이어"}에는 Camera Raw 를 걸 수 없습니다. ` +
+              "픽셀 레이어를 layerId 로 지정하세요.",
+            { recoverable: true },
+          );
+        }
+        if (!layer.visible) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "숨긴 레이어에는 Camera Raw 를 걸 수 없습니다. " +
+              "photoshop.layer.set_visibility 로 보이게 한 뒤 다시 시도하세요.",
+            { recoverable: true },
+          );
+        }
+        this.#snapshot("Camera Raw Filter");
+        const applied = Object.keys(params).filter((key) => key !== "layerId");
+        return { layer: { ...layer }, applied } as TResult;
+      }
+
+      // 결함 제거. 실제 픽셀이 없으므로 **거절 규칙만** 실기와 같게 흉내 낸다.
+      //
+      // 특히 배경 거절을 빠뜨리면 안 된다 — 이 Command 의 가장 중요한 성질이고,
+      // Mock 이 너그러우면 그 경로는 테스트에 영영 나오지 않는다.
+      case "RETOUCH_REMOVE_SPOTS": {
+        const document = this.#requireDocument();
+        const params = command.params as {
+          spots: { x: number; y: number; radius: number }[];
+          layerId?: number;
+        };
+        const layer =
+          params.layerId === undefined
+            ? this.#layers.find((entry) => entry.id === this.#activeLayerId)
+            : this.#layers.find((entry) => entry.id === params.layerId);
+        if (layer === undefined) {
+          throw new PhotoshopMcpError(
+            ErrorCode.LAYER_NOT_FOUND,
+            params.layerId === undefined
+              ? "활성 레이어가 없습니다."
+              : `레이어 ${params.layerId} 를 찾을 수 없습니다.`,
+            { recoverable: true },
+          );
+        }
+        if (layer.type === "adjustment" || layer.type === "group") {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `${layer.type === "group" ? "그룹" : "조정 레이어"}에는 지울 픽셀이 없습니다. ` +
+              "픽셀 레이어를 layerId 로 지정하세요.",
+            { recoverable: true },
+          );
+        }
+        if (layer.isBackground === true) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "배경 레이어에는 결함 제거를 적용하지 않습니다 — 원본이 사라집니다. " +
+              "photoshop.layer.duplicate 로 복제한 뒤 그 레이어를 layerId 로 지정하세요.",
+            { recoverable: true },
+          );
+        }
+        for (const spot of params.spots) {
+          if (
+            spot.x + spot.radius <= 0 ||
+            spot.y + spot.radius <= 0 ||
+            spot.x - spot.radius >= document.width ||
+            spot.y - spot.radius >= document.height
+          ) {
+            throw new PhotoshopMcpError(
+              ErrorCode.INVALID_PARAMETER,
+              `지점 (${spot.x}, ${spot.y}) 반지름 ${spot.radius} 가 ` +
+                `문서(${document.width}×${document.height}) 밖입니다.`,
+              { recoverable: true },
+            );
+          }
+        }
+        this.#snapshot("Remove spots");
+        // 실기는 선택을 남기지 않는다.
+        this.#hasSelection = false;
+        return { layer: { ...layer }, removed: params.spots.length } as TResult;
+      }
+
       // 통계. 실제 픽셀이 없으므로 **모양과 규칙만** 흉내 낸다.
       //
       // 값을 지어내지 않는다 — 전부 중간 회색 한 장이라고 두고 그 값에서
@@ -407,6 +545,9 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         }
 
         const flat = {
+          // Mock 은 평평한 회색 한 장이므로 이웃 차가 전부 0 이다. 노이즈도 0 이
+          // 맞다 — 그럴듯한 값을 지어내면 테스트가 거짓을 고정한다.
+          noise: 0,
           mean: 128,
           p1: 128,
           p5: 128,

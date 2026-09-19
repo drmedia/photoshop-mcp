@@ -5,13 +5,28 @@ import { ErrorCode, PhotoshopMcpError } from "@photoshop-mcp/photoshop-bridge";
 import type { WindowCaptureInput, WindowCapturer } from "@photoshop-mcp/photoshop-tools";
 
 /**
- * Photoshop 창 캡처의 Windows 구현. (ROADMAP §17.11)
+ * Photoshop 창 캡처의 Windows 구현. (ROADMAP §17.11, §17.17)
  *
  * ## 왜 UXP 가 아닌가
  *
  * UXP 샌드박스는 자기 창 밖을 볼 수 없다. 그런데 **서버가 Photoshop 과 같은 기계에
  * 있다** — Bridge 가 localhost WebSocket 이라 그럴 수밖에 없다. 그러니 서버가 직접
  * 찍으면 된다. 헬퍼 실행 파일을 따로 깔 이유가 없다.
+ *
+ * ## **창을 하나만 찍으면 안 된다**
+ *
+ * 처음에는 `MainWindowHandle` 하나만 찍었다. 그래서 **이 Tool 의 존재 이유인 경우를
+ * 놓쳤다** — Camera Raw 같은 대화상자는 별도 최상위 창이라 메인 창을 찍어도 안 나온다.
+ *
+ * 실기에서 Photoshop 프로세스의 보이는 최상위 창은 둘이었다.
+ *
+ * ```text
+ * 460952    _DSC0601.NEF @ 25% ...     메인 창
+ * 2436682   Camera Raw 18.6            ← 놓치고 있던 것
+ * ```
+ *
+ * 이제 `EnumWindows` 로 같은 프로세스의 창을 모두 찍는다. **대화상자를 먼저** 놓는다 —
+ * 막힌 원인이 먼저 보여야 한다.
  *
  * ## `PrintWindow` 를 쓴다. 화면 복사가 아니다
  *
@@ -23,31 +38,16 @@ import type { WindowCaptureInput, WindowCapturer } from "@photoshop-mcp/photosho
  * CopyFromScreen (화면 복사)        검정  1.0%  색  345    ← 위에 있던 딴 창이 찍혔다
  * ```
  *
- * 둘이 갈린다.
- *
- * 첫째, **GPU 캔버스가 검게 나오지 않는다.** 이것이 가장 걱정한 부분이었다.
- * `PW_RENDERFULLCONTENT`(2) 쪽이 색이 더 풍부해 그걸 쓴다.
- *
- * 둘째, **가려져 있어도 그 창을 찍는다.** 화면 복사는 위에 있는 창을 찍는다 —
- * 위 표의 "색 345" 가 그것이다. 진단 목적에는 이 차이가 결정적이다. Photoshop 이
- * 뒤에 있어도 대화상자를 볼 수 있어야 한다.
+ * GPU 캔버스가 검게 나오지 않고, **가려져 있어도 그 창을 찍는다.** 진단 목적에는
+ * 후자가 결정적이다.
  *
  * ## LLM 이 준 값은 스크립트에 섞이지 않는다
  *
  * 스크립트는 **고정 상수**다. 가변 값(`longEdge`)은 자식 프로세스의 **환경 변수**로만
- * 넘어간다. 문자열 조립이 한 군데도 없으므로 주입할 틈이 없다. 호출자가 batchPlay
- * descriptor 를 넘기지 못하게 한 것과 같은 규칙이다. (ARCHITECTURE §23)
+ * 넘어간다. 문자열 조립이 한 군데도 없으므로 주입할 틈이 없다. (ARCHITECTURE §23)
  *
  * `-EncodedCommand` 로 보내는 것은 **인용 부호 때문**이지 감추려는 것이 아니다.
- * 아래 C# 조각에 따옴표가 많아 Windows argv 인용 규칙을 그대로 태우면 깨지기 쉽다.
- * 실행 정책은 건드리지 않는다 — `-ExecutionPolicy Bypass` 는 `-File` 에만 해당하고
- * 여기서는 필요 없다.
- *
- * ## 최소화된 창은 실패로 돌려준다
- *
- * 최소화 상태에서 `PrintWindow` 를 부르면 예전 내용이나 빈 화면이 나온다. 오류는
- * 나지 않는다. 그대로 돌려주면 호출자는 그것이 현재 화면이라고 믿는다 —
- * 틀린 것을 맞다고 주는 것이 조용한 실패 중 가장 나쁘다.
+ * 실행 정책은 건드리지 않는다.
  */
 
 const execFileAsync = promisify(execFile);
@@ -55,17 +55,12 @@ const execFileAsync = promisify(execFile);
 const DEFAULT_LONG_EDGE = 1024;
 const DEFAULT_QUALITY = 80;
 
-/** 출력에서 이미지 앞에 붙는 표식. 다른 출력이 섞여도 찾을 수 있게 한다. */
+/** 창 하나가 시작되는 표식. 뒤에 `<w>x<h>|<제목>` 이 붙는다. */
 const MARKER = "##PSMCP##";
 
-/**
- * 창을 찍어 base64 JPEG 를 표준출력으로 내보내는 PowerShell 스크립트.
- *
- * `[Console]::Out.WriteLine` 을 쓴다. `Write-Output` 은 서식 파이프라인을 거쳐
- * 콘솔 폭에서 줄바꿈될 수 있고, 그러면 base64 가 조용히 깨진다.
- */
 const SCRIPT = `
 $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Add-Type -AssemblyName System.Drawing
 
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
@@ -73,21 +68,56 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
+using System.Text;
 
 public class PsMcpWindow {
+  public delegate bool EnumCb(IntPtr h, IntPtr l);
+  [DllImport("user32.dll")] public static extern bool EnumWindows(EnumCb cb, IntPtr l);
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr hdc, uint flags);
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
   [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
   [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+  // **CharSet.Unicode 가 없으면 ANSI 로 마샬링되어** UTF-16 제목이 첫 글자에서
+  // 잘린다. 실기에서 "_DSC0601.NEF @ 25% ..." 가 "_" 로 왔다.
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+  public static extern int GetWindowTextW(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll")] public static extern int GetWindowThreadProcessId(IntPtr h, out int id);
   [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, int attr, out RECT r, int size);
 
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+
+  public static string Title(IntPtr h) {
+    StringBuilder sb = new StringBuilder(512);
+    GetWindowTextW(h, sb, 512);
+    return sb.ToString();
+  }
+
+  public static int Owner(IntPtr h) {
+    int id = 0;
+    GetWindowThreadProcessId(h, out id);
+    return id;
+  }
+
+  // 같은 프로세스의, 보이고, 최소화되지 않았고, 제목이 있는 최상위 창.
+  public static IntPtr[] Windows(int pid) {
+    System.Collections.Generic.List<IntPtr> list = new System.Collections.Generic.List<IntPtr>();
+    EnumWindows(delegate(IntPtr h, IntPtr l) {
+      if (Owner(h) == pid && IsWindowVisible(h) && !IsIconic(h) && Title(h).Length > 0) {
+        list.Add(h);
+      }
+      return true;
+    }, IntPtr.Zero);
+    return list.ToArray();
+  }
 
   public static Bitmap Capture(IntPtr h) {
     RECT r;
     // DWMWA_EXTENDED_FRAME_BOUNDS(9). GetWindowRect 는 그림자까지 포함해 더 크다.
     if (DwmGetWindowAttribute(h, 9, out r, Marshal.SizeOf(typeof(RECT))) != 0) GetWindowRect(h, out r);
-    Bitmap b = new Bitmap(r.Right - r.Left, r.Bottom - r.Top, PixelFormat.Format32bppArgb);
+    int w = r.Right - r.Left, ht = r.Bottom - r.Top;
+    if (w < 1 || ht < 1) throw new Exception("EMPTY_RECT");
+    Bitmap b = new Bitmap(w, ht, PixelFormat.Format32bppArgb);
     Graphics g = Graphics.FromImage(b);
     IntPtr hdc = g.GetHdc();
     // 2 = PW_RENDERFULLCONTENT. GPU 로 그리는 캔버스를 위해 필요하다.
@@ -110,43 +140,51 @@ $proc = Get-Process -Name 'Photoshop' -ErrorAction SilentlyContinue |
   Select-Object -First 1
 if (-not $proc) { throw 'NOT_RUNNING' }
 
-$handle = $proc.MainWindowHandle
-if ([PsMcpWindow]::IsIconic($handle)) { throw 'MINIMIZED' }
+$main = $proc.MainWindowHandle
+$all = [PsMcpWindow]::Windows($proc.Id)
+if ($all.Length -eq 0) { throw 'MINIMIZED' }
 
-$shot = [PsMcpWindow]::Capture($handle)
-try {
-  $scale = [Math]::Min(1.0, $longEdge / [Math]::Max($shot.Width, $shot.Height))
-  $w = [Math]::Max(1, [int][Math]::Round($shot.Width * $scale))
-  $h = [Math]::Max(1, [int][Math]::Round($shot.Height * $scale))
+# **대화상자를 먼저.** 막힌 원인이 먼저 보여야 한다.
+$ordered = @()
+foreach ($h in $all) { if ($h -ne $main) { $ordered += $h } }
+foreach ($h in $all) { if ($h -eq $main) { $ordered += $h } }
 
-  $small = New-Object System.Drawing.Bitmap $w, $h
+$codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() |
+  Where-Object { $_.MimeType -eq 'image/jpeg' }
+$params = New-Object System.Drawing.Imaging.EncoderParameters 1
+$params.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter(
+  [System.Drawing.Imaging.Encoder]::Quality, [long]$quality)
+
+foreach ($h in $ordered) {
+  $shot = $null
+  try { $shot = [PsMcpWindow]::Capture($h) } catch { continue }
   try {
-    $g = [System.Drawing.Graphics]::FromImage($small)
-    $g.InterpolationMode = 'HighQualityBicubic'
-    $g.DrawImage($shot, 0, 0, $w, $h)
-    $g.Dispose()
-
-    $codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() |
-      Where-Object { $_.MimeType -eq 'image/jpeg' }
-    $params = New-Object System.Drawing.Imaging.EncoderParameters 1
-    $params.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter(
-      [System.Drawing.Imaging.Encoder]::Quality, [long]$quality)
-
-    $stream = New-Object System.IO.MemoryStream
+    $scale = [Math]::Min(1.0, $longEdge / [Math]::Max($shot.Width, $shot.Height))
+    $w = [Math]::Max(1, [int][Math]::Round($shot.Width * $scale))
+    $ht = [Math]::Max(1, [int][Math]::Round($shot.Height * $scale))
+    $small = New-Object System.Drawing.Bitmap $w, $ht
     try {
-      $small.Save($stream, $codec, $params)
-      [Console]::Out.WriteLine('${MARKER}' + $w + 'x' + $h)
-      [Console]::Out.WriteLine([Convert]::ToBase64String($stream.ToArray()))
-    } finally { $stream.Dispose() }
-  } finally { $small.Dispose() }
-} finally { $shot.Dispose() }
+      $g = [System.Drawing.Graphics]::FromImage($small)
+      $g.InterpolationMode = 'HighQualityBicubic'
+      $g.DrawImage($shot, 0, 0, $w, $ht)
+      $g.Dispose()
+      $stream = New-Object System.IO.MemoryStream
+      try {
+        $small.Save($stream, $codec, $params)
+        $kind = if ($h -eq $main) { 'main' } else { 'dialog' }
+        $title = [PsMcpWindow]::Title($h) -replace '[\\r\\n|]', ' '
+        [Console]::Out.WriteLine('${MARKER}' + $w + 'x' + $ht + '|' + $kind + '|' + $title)
+        [Console]::Out.WriteLine([Convert]::ToBase64String($stream.ToArray()))
+      } finally { $stream.Dispose() }
+    } finally { $small.Dispose() }
+  } finally { $shot.Dispose() }
+}
 `;
 
 /**
  * PowerShell 이 남긴 실패를 사람이 고칠 수 있는 문장으로 옮긴다.
  *
- * 순수 함수로 떼어 둔 것은 테스트 때문이다. 실제 캡처는 Windows 와 실행 중인
- * Photoshop 이 있어야 하지만, 실패 해석은 그것 없이도 고정할 수 있다.
+ * 순수 함수로 떼어 둔 것은 테스트 때문이다.
  */
 export function describeCaptureFailure(stderr: string): { message: string; recoverable: boolean } {
   if (stderr.includes("NOT_RUNNING")) {
@@ -177,31 +215,52 @@ export function describeCaptureFailure(stderr: string): { message: string; recov
   };
 }
 
+export interface ParsedWindow {
+  width: number;
+  height: number;
+  kind: "main" | "dialog";
+  title: string;
+  base64: string;
+}
+
 /**
- * 표준출력에서 크기와 base64 를 꺼낸다.
+ * 표준출력에서 창들을 꺼낸다.
  *
  * 표식을 앞에 두고 찾는 것은 PowerShell 이 경고 같은 것을 함께 낼 수 있기 때문이다.
  * 앞줄을 그냥 버리면 조용히 엉뚱한 줄을 base64 로 읽는다.
  */
-export function parseCaptureOutput(
-  stdout: string,
-): { width: number; height: number; base64: string } | null {
-  const index = stdout.indexOf(MARKER);
-  if (index === -1) {
-    return null;
+export function parseCaptureOutput(stdout: string): ParsedWindow[] {
+  const windows: ParsedWindow[] = [];
+  const lines = stdout.split(/\r?\n/u);
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (line === undefined || !line.startsWith(MARKER)) {
+      continue;
+    }
+    const header = line.slice(MARKER.length).split("|");
+    const size = /^(\d+)x(\d+)$/u.exec(header[0]?.trim() ?? "");
+    const base64 = lines[index + 1]?.trim() ?? "";
+    if (size === null || base64.length === 0) {
+      continue;
+    }
+    windows.push({
+      width: Number(size[1]),
+      height: Number(size[2]),
+      kind: header[1] === "dialog" ? "dialog" : "main",
+      title: (header[2] ?? "").trim(),
+      base64,
+    });
   }
-  const lines = stdout.slice(index + MARKER.length).split(/\r?\n/u);
-  const size = /^(\d+)x(\d+)$/u.exec(lines[0]?.trim() ?? "");
-  const base64 = lines[1]?.trim() ?? "";
-  if (size === null || base64.length === 0) {
-    return null;
-  }
-  return { width: Number(size[1]), height: Number(size[2]), base64 };
+  return windows;
 }
 
-/** Photoshop 메인 창을 찍는다. 현재 Windows 전용이다. */
+/**
+ * Photoshop 의 **모든** 보이는 창을 찍는다. 대화상자가 먼저 온다.
+ *
+ * 현재 Windows 전용이다.
+ */
 export class PhotoshopWindowCapturer implements WindowCapturer {
-  async capture(input: WindowCaptureInput): Promise<CapturedImage> {
+  async capture(input: WindowCaptureInput): Promise<CapturedImage[]> {
     if (process.platform !== "win32") {
       throw new PhotoshopMcpError(
         ErrorCode.COMMAND_NOT_SUPPORTED,
@@ -227,7 +286,7 @@ export class PhotoshopWindowCapturer implements WindowCapturer {
         {
           // C# 컴파일이 한 번 일어나므로 첫 호출이 몇 초 걸린다.
           timeout: 30_000,
-          maxBuffer: 32 * 1024 * 1024,
+          maxBuffer: 64 * 1024 * 1024,
           windowsHide: true,
           env: {
             ...process.env,
@@ -248,8 +307,8 @@ export class PhotoshopWindowCapturer implements WindowCapturer {
       });
     }
 
-    const parsed = parseCaptureOutput(stdout);
-    if (parsed === null) {
+    const windows = parseCaptureOutput(stdout);
+    if (windows.length === 0) {
       throw new PhotoshopMcpError(
         ErrorCode.COMMAND_FAILED,
         "창은 찍었지만 결과를 읽지 못했습니다. PowerShell 출력이 예상과 다릅니다.",
@@ -257,13 +316,14 @@ export class PhotoshopWindowCapturer implements WindowCapturer {
       );
     }
 
-    return {
-      kind: "image",
-      mimeType: "image/jpeg",
-      base64: parsed.base64,
-      width: parsed.width,
-      height: parsed.height,
-      source: "window:Photoshop",
-    };
+    return windows.map((entry) => ({
+      kind: "image" as const,
+      mimeType: "image/jpeg" as const,
+      base64: entry.base64,
+      width: entry.width,
+      height: entry.height,
+      // 무엇을 찍었는지 제목까지 담는다. 대화상자면 이름으로 원인을 알 수 있다.
+      source: `window:${entry.kind}:${entry.title}`,
+    }));
   }
 }

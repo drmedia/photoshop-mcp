@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **56개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **57개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 63). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 64). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -31,6 +31,7 @@ Tool 까지 더한 수다(지금 63). 한동안 이 값을 Core 개수로 옮겨
 
 - 파일 저장: `workspace.status` · `document.save_as` · `document.export` · `document.save`
 - 캡처: `document.capture` · `layer.capture` · `selection.capture` · `window.capture`
+- 구도: `document.crop` — 캔버스만 줄이고 **픽셀은 버리지 않는다**. 그래서 `edit` 이다
 
 ## 캡처 (ROADMAP §17.10)
 

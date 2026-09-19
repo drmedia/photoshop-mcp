@@ -107,7 +107,14 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   /** 저장된 알파 채널 이름. Mock 은 픽셀을 모르므로 이름만 기억한다. */
   readonly #channels = new Set<string>();
   #nextLayerId: number;
-  readonly #history: { name: string; layers: LayerInfo[]; activeLayerId: number | null }[] = [];
+  readonly #history: {
+    name: string;
+    layers: LayerInfo[];
+    activeLayerId: number | null;
+    // 자르기는 레이어가 아니라 **문서**를 바꾼다. 이것을 담지 않으면 undo 가
+    // 크기를 되돌리지 못하고, Mock 만 "자르기는 되돌릴 수 없다" 는 거짓을 말한다.
+    document: DocumentInfo | null;
+  }[] = [];
   #hasSelection = false;
   #workspacePath: string | null;
   #documentPath: string | null;
@@ -358,6 +365,39 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       // 캡처. Mock 은 픽셀이 없으므로 **1×1 투명 PNG** 를 돌려준다.
       // 그림 내용을 흉내내지는 않지만, 응답 모양과 "선택이 없으면 실패" 같은
       // 경로는 실제와 같아야 한다.
+      // 자르기. **픽셀을 버리지 않으므로** 크기만 바꾼다.
+      //
+      // 범위 검사를 실기와 같게 한다 — Mock 이 더 너그러우면 그 오류 경로는
+      // 테스트에 영영 나오지 않는다.
+      case "DOCUMENT_CROP": {
+        const document = this.#requireDocument();
+        const { bounds } = command.params as {
+          bounds: { left: number; top: number; right: number; bottom: number };
+        };
+        if (bounds.right > document.width || bounds.bottom > document.height) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `자를 영역이 문서(${document.width}×${document.height})를 벗어납니다: ` +
+              `right ${bounds.right}, bottom ${bounds.bottom}.`,
+            { recoverable: true },
+          );
+        }
+        this.#snapshot("Crop");
+        const previousWidth = document.width;
+        const previousHeight = document.height;
+        this.#document = {
+          ...document,
+          width: bounds.right - bounds.left,
+          height: bounds.bottom - bounds.top,
+        };
+        return {
+          width: this.#document.width,
+          height: this.#document.height,
+          previousWidth,
+          previousHeight,
+          pixelsRetained: true,
+        } as TResult;
+      }
       case "CAPTURE_DOCUMENT":
       case "CAPTURE_LAYER":
         return this.#capture(command.type === "CAPTURE_LAYER" ? "layer" : "document") as TResult;
@@ -730,6 +770,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     }
     this.#layers = snapshot.layers.map((layer) => ({ ...layer }));
     this.#activeLayerId = snapshot.activeLayerId;
+    this.#document = snapshot.document === null ? null : { ...snapshot.document };
     return { currentState: snapshot.name };
   }
 
@@ -739,6 +780,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       name,
       layers: this.#layers.map((layer) => ({ ...layer })),
       activeLayerId: this.#activeLayerId,
+      document: this.#document === null ? null : { ...this.#document },
     });
   }
 

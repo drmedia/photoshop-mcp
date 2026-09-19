@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (56개)
+## 4. 구현된 Core API (57개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -110,6 +110,22 @@ P3  확장 기능
 | `photoshop.layer.capture` | READ | 레이어 하나만 그림으로 |
 | `photoshop.selection.capture` | READ | 선택 영역(경계 상자)을 그림으로 |
 | `photoshop.layer.get_active` | READ | 지금 선택된 레이어. `layers` 에 전부, `layer` 에 첫 번째 |
+
+### 4.1.1 구도
+
+| API | Permission | 비고 |
+|---|---|---|
+| `photoshop.document.crop` | EDIT | 캔버스를 줄인다. **픽셀은 버리지 않는다** |
+
+`bounds` 는 **남길** 영역이다. 문서 밖으로 나가면 거부한다 — 캔버스를 넓히는 것은
+자르기가 아니고, 조용히 넓혀 주면 호출자는 잘린 줄 안다.
+
+`delete: false` 로 실행하므로 바깥 픽셀이 레이어에 남는다. 그래서 `DESTRUCTIVE` 가
+아니라 `EDIT` 이다 — 되돌릴 수 있고 잃는 것이 없다. 대신 파일 크기는 줄지 않으며
+결과의 `pixelsRetained` 가 그 사실을 알린다.
+
+버리는 자르기를 옵션으로 두지 않았다. **파라미터 하나로 Permission 이 올라가면
+정적 선언이 거짓이 된다** — §2 가 Permission 을 필수 정적 필드로 둔 이유다.
 
 ### 4.2 레이어
 

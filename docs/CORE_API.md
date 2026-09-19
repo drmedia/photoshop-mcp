@@ -232,7 +232,7 @@ Mock Bridge 는 픽셀을 읽지 않으므로 **실패한다.** 그럴듯한 각
 | `photoshop.mask.create` | EDIT | `from`: revealAll · hideAll · **fromSelection** |
 | `photoshop.mask.enable` | EDIT | |
 | `photoshop.mask.disable` | EDIT | 마스크를 지우지 않고 해제만 한다 |
-| `photoshop.mask.gradient` | EDIT | 마스크에 선형 그라디언트. 마스크가 있어야 한다 |
+| `photoshop.mask.gradient` | EDIT | 마스크에 그라디언트. **linear · radial**. 마스크가 있어야 한다 |
 | `photoshop.selection.set` | EDIT | `shape`: rectangle · ellipse · **canvas** · layerTransparency |
 | `photoshop.selection.sky` | EDIT | Photoshop 의 `선택 > 하늘` |
 | `photoshop.selection.clear` | EDIT | |
@@ -241,6 +241,23 @@ Mock Bridge 는 픽셀을 읽지 않으므로 **실패한다.** 그럴듯한 각
 | `photoshop.selection.color_range` | EDIT | 광도 구간 선택 (광도 마스크) |
 | `photoshop.selection.save_channel` | EDIT | 선택을 알파 채널로 저장 |
 | `photoshop.selection.load_channel` | EDIT | 채널에서 불러오기. `invert` 로 반전 |
+
+`mask.gradient` 는 **기존 마스크 내용을 덮어쓴다.** 선택 영역에서 받은 마스크 위에
+그리면 그 제한이 사라진다.
+
+`type` 은 `linear`(기본) 과 `radial` 이다. **`radial` 에서는 `from` 이 중심이고
+`from`→`to` 거리가 반지름**이며 `to` 의 방향은 무시된다. 기본은 중심이 검은색이라
+광원 쪽을 강하게 주려면 `reverse` 가 필요하다.
+
+빛 공해처럼 광원에서 **2차원으로** 감쇠하는 것에는 `radial` 이 맞다. 선형 마스크를
+가로·세로로 겹쳐도 모서리는 구조적으로 남는다 — 실기에서 중간 행은 ±1레벨로 맞았는데
+모서리가 ±8 남았고, 그룹 마스크를 곱해 우회하느라 조정 레이어가 넷 더 들었다.
+
+Photoshop 의 방사형은 중심에서 반지름까지 **선형 보간**이다. 실제 대기 산란 모델은
+아니지만 선형 그라디언트보다는 가깝다.
+
+`angle` · `reflected` · `diamond` 는 넣지 않았다. 쓸 자리를 아직 만나지 못했고,
+모르는 값은 조용히 `linear` 로 떨어뜨리지 않고 **거절한다.**
 
 ### 4.6 필터
 

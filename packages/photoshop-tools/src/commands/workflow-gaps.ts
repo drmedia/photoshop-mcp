@@ -152,11 +152,48 @@ const Point = z.object({ x: z.number().min(0), y: z.number().min(0) }).strict();
 export const MaskGradientParams = z
   .object({
     layerId: z.number().int().optional(),
-    /** 그라디언트가 시작하는 점. 기본은 여기가 검은색(가려지는 쪽)이다. */
+    /**
+     * 그라디언트가 시작하는 점. 기본은 여기가 검은색(가려지는 쪽)이다.
+     *
+     * `type` 에 따라 뜻이 다르다 — `linear` 에서는 **시작점**, `radial` 에서는
+     * **중심**이다.
+     */
     from: Point,
-    /** 끝나는 점. 기본은 여기가 흰색(보이는 쪽)이다. */
+    /**
+     * 끝나는 점. 기본은 여기가 흰색(보이는 쪽)이다.
+     *
+     * `radial` 에서는 중심에서 이 점까지가 **반지름**이다. 방향은 뜻이 없고
+     * 거리만 쓰인다.
+     */
     to: Point,
-    /** 흑백을 뒤집는다. */
+    /**
+     * 그라디언트 모양. (ROADMAP §17.22)
+     *
+     * - `linear` (기본) — 한 방향으로 변한다
+     * - `radial` — 중심에서 바깥으로 동심원으로 변한다
+     *
+     * ## 왜 `radial` 이 필요했나
+     *
+     * 빛 공해는 **광원에서 멀어질수록 약해진다.** 2차원 감쇠라 선형 그라디언트
+     * 하나로는 구조적으로 맞출 수 없다 — 은하수 사진 보정에서 가로·세로 마스크를
+     * 차례로 걸었더니 중간 행은 ±1레벨로 맞았는데 모서리가 ±8 남았다.
+     *
+     * 그룹 마스크와 레이어 마스크를 곱해 우회했지만 조정 레이어가 넷 더 들었다.
+     * 방사형은 같은 일을 하나로 한다.
+     *
+     * 완벽한 모델은 아니다. Photoshop 의 방사형은 중심에서 반지름까지 **선형
+     * 보간**이고 실제 대기 산란은 그렇지 않다. 그래도 선형보다 가깝다.
+     *
+     * `angle` · `reflected` · `diamond` 는 넣지 않았다. 쓸 자리를 아직 만나지
+     * 못했고, 열거형을 넓히면 Tool 설명이 길어져 호출자가 고르기 어려워진다.
+     */
+    type: z.enum(["linear", "radial"]).optional(),
+    /**
+     * 흑백을 뒤집는다.
+     *
+     * **`radial` 에서는 대개 필요하다.** 기본은 중심이 검은색인데, 광원 쪽에서
+     * 효과를 강하게 주려면 중심이 흰색이어야 한다.
+     */
     reverse: z.boolean().optional(),
   })
   .strict()
@@ -166,7 +203,10 @@ export const MaskGradientParams = z
     if (value.from.x === value.to.x && value.from.y === value.to.y) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "from 과 to 가 같은 점입니다. 그라디언트에는 길이가 필요합니다.",
+        message:
+          value.type === "radial"
+            ? "from 과 to 가 같은 점입니다. 반지름이 0 입니다."
+            : "from 과 to 가 같은 점입니다. 그라디언트에는 길이가 필요합니다.",
         path: ["to"],
       });
     }

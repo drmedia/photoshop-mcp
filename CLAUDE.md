@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **62개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **63개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 69). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 70). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -33,6 +33,7 @@ Tool 까지 더한 수다(지금 69). 한동안 이 값을 Core 개수로 옮겨
 - 캡처: `document.capture` · `layer.capture` · `selection.capture` · `window.capture`
 - 구도: `document.crop` — 캔버스만 줄이고 **픽셀은 버리지 않는다**. 그래서 `edit` 이다
 - 수평: `document.rotate` — 기울기를 세운다. 빈 모서리를 뺀 `safeBounds` 를 함께 준다
+- 측정: `measure.tilt` — 경계선 기울기. **각도와 잔차를 함께 준다**
 - 측정: `document.statistics` — **전체 해상도 원본**에서 히스토그램·채널 통계
 - 결함 제거: `retouch.remove_spots` — 먼지·잡티. **배경 레이어는 거절한다**
 - Camera Raw: `camera_raw.apply` — **Tool 은 이 하나뿐이다**
@@ -177,6 +178,23 @@ Camera Raw 는 슬라이더들이 한 렌더링 파이프라인 안에서 함께
 
 노이즈 감소는 `filter` 쪽 `denoise` 보다 훨씬 낫다 — 실기에서 σ 6.72 → 3.42(49%)
 이면서 색은 소수점 둘째 자리까지 그대로였다. `denoise` 는 최대 강도로도 7% 였다.
+
+## 기울기 측정 (ROADMAP §17.21)
+
+`photoshop.measure.tilt` 가 `document.rotate` 의 **입력을 만든다.** 이것이 없던
+동안 수평선을 잴 때마다 캡처를 밖으로 내보내 PowerShell 로 Theil-Sen 을 새로 짰다.
+
+**각도만 돌려주지 않는다.** 실기에서 세 번 쟀고 두 번은 돌리지 않는 것이 답이었다 —
+경계가 직선이 아니었고, 세 번 다 그럴듯한 각도가 나왔다. 가른 것은 `residualIqr` 이다.
+잔차는 `risePixels`(그 구간에서 경계가 오르내린 높이)와 **견주어** 읽는다.
+
+`reliable` 같은 판정은 담지 않는다. 임계가 영역 크기에 따라 달라진다.
+
+**보정이 쌓인 문서에서는 `layerId` 로 원본 레이어를 지정한다.** 합성에서는 대비가
+낮아져 실기에서 1000열 중 83열만 잡혔고 잔차가 경계 높이보다 컸다.
+
+Mock 은 픽셀을 모르므로 **실패한다.** 각도를 지어내면 Mock 으로 돌린 워크플로가
+엉뚱한 회전을 하고 그것이 성공으로 보인다.
 
 ## 회전 (ROADMAP §17.19)
 

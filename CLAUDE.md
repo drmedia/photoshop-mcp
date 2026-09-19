@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **58개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **59개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 65). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 66). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -33,6 +33,7 @@ Tool 까지 더한 수다(지금 65). 한동안 이 값을 Core 개수로 옮겨
 - 캡처: `document.capture` · `layer.capture` · `selection.capture` · `window.capture`
 - 구도: `document.crop` — 캔버스만 줄이고 **픽셀은 버리지 않는다**. 그래서 `edit` 이다
 - 측정: `document.statistics` — **전체 해상도 원본**에서 히스토그램·채널 통계
+- 결함 제거: `retouch.remove_spots` — 먼지·잡티. **배경 레이어는 거절한다**
 
 ## 캡처 (ROADMAP §17.10)
 
@@ -108,6 +109,24 @@ Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `f
 **조정 레이어에 `layerId` 를 주면 거절한다.** 실기에서 재 보니 마스크 영역을 재서
 모든 채널 평균이 255 로 나왔다. 픽셀 수까지 그럴듯하게 달라 더 그럴듯하다 —
 그대로 돌려주면 "이 레이어는 순백" 으로 읽힌다.
+
+## 결함 제거 (ROADMAP §17.14)
+
+타원 선택 + **내용 인식 채우기**다. 치유 브러시는 붓질을 요구하는데, batchPlay 로
+획을 흉내 내면 호출자가 descriptor 를 조립하는 것과 다를 바 없어진다(§23).
+
+**배경 레이어를 거절한다.** 먼지 제거는 원본 촬영 픽셀을 지우는 것이 목적인 유일한
+작업이다 — 필터는 효과를 입히지만 이것은 있던 것을 없앤다. 막으면서 `layer.duplicate`
+로 복제하라고 말한다. `isBackgroundLayer` 를 **모르면 막지 않는다** — 없는 것을
+참으로 읽어 멀쩡한 호출을 막는 것이 더 나쁘다.
+
+배경을 막아 두었으므로 사라지는 것은 이미 사본이고, 그래서 `edit` 이다.
+
+선택을 `finally` 에서 해제한다. 남기면 다음 Command 가 조용히 그 범위에만 걸린다.
+
+**먼지와 새를 구분하는 것은 자동화되지 않았다.** 검출기를 돌리면 새·비행기·구조물이
+같이 걸린다 — 실기에서 후보 16개가 전부 새였다. Tool 은 주어진 좌표를 지울 뿐이고
+좌표 판단은 눈으로 한다.
 
 ## Permission (ARCHITECTURE §22)
 

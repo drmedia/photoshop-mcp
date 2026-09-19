@@ -365,6 +365,66 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       // 캡처. Mock 은 픽셀이 없으므로 **1×1 투명 PNG** 를 돌려준다.
       // 그림 내용을 흉내내지는 않지만, 응답 모양과 "선택이 없으면 실패" 같은
       // 경로는 실제와 같아야 한다.
+      // 결함 제거. 실제 픽셀이 없으므로 **거절 규칙만** 실기와 같게 흉내 낸다.
+      //
+      // 특히 배경 거절을 빠뜨리면 안 된다 — 이 Command 의 가장 중요한 성질이고,
+      // Mock 이 너그러우면 그 경로는 테스트에 영영 나오지 않는다.
+      case "RETOUCH_REMOVE_SPOTS": {
+        const document = this.#requireDocument();
+        const params = command.params as {
+          spots: { x: number; y: number; radius: number }[];
+          layerId?: number;
+        };
+        const layer =
+          params.layerId === undefined
+            ? this.#layers.find((entry) => entry.id === this.#activeLayerId)
+            : this.#layers.find((entry) => entry.id === params.layerId);
+        if (layer === undefined) {
+          throw new PhotoshopMcpError(
+            ErrorCode.LAYER_NOT_FOUND,
+            params.layerId === undefined
+              ? "활성 레이어가 없습니다."
+              : `레이어 ${params.layerId} 를 찾을 수 없습니다.`,
+            { recoverable: true },
+          );
+        }
+        if (layer.type === "adjustment" || layer.type === "group") {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `${layer.type === "group" ? "그룹" : "조정 레이어"}에는 지울 픽셀이 없습니다. ` +
+              "픽셀 레이어를 layerId 로 지정하세요.",
+            { recoverable: true },
+          );
+        }
+        if (layer.isBackground === true) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "배경 레이어에는 결함 제거를 적용하지 않습니다 — 원본이 사라집니다. " +
+              "photoshop.layer.duplicate 로 복제한 뒤 그 레이어를 layerId 로 지정하세요.",
+            { recoverable: true },
+          );
+        }
+        for (const spot of params.spots) {
+          if (
+            spot.x + spot.radius <= 0 ||
+            spot.y + spot.radius <= 0 ||
+            spot.x - spot.radius >= document.width ||
+            spot.y - spot.radius >= document.height
+          ) {
+            throw new PhotoshopMcpError(
+              ErrorCode.INVALID_PARAMETER,
+              `지점 (${spot.x}, ${spot.y}) 반지름 ${spot.radius} 가 ` +
+                `문서(${document.width}×${document.height}) 밖입니다.`,
+              { recoverable: true },
+            );
+          }
+        }
+        this.#snapshot("Remove spots");
+        // 실기는 선택을 남기지 않는다.
+        this.#hasSelection = false;
+        return { layer: { ...layer }, removed: params.spots.length } as TResult;
+      }
+
       // 통계. 실제 픽셀이 없으므로 **모양과 규칙만** 흉내 낸다.
       //
       // 값을 지어내지 않는다 — 전부 중간 회색 한 장이라고 두고 그 값에서

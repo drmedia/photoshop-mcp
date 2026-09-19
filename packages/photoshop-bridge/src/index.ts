@@ -16,7 +16,12 @@ export {
 } from "./capability.js";
 export { assertConfigConsistent, buildArgs, placeholdersIn } from "./capability-args.js";
 export { describeZodIssues } from "./protocol/zod-message.js";
-export { CapturedImageSchema, isCapturedImage, type CapturedImage } from "./capture.js";
+export {
+  CapturedImageSchema,
+  isCapturedImage,
+  isCapturedImageList,
+  type CapturedImage,
+} from "./capture.js";
 export {
   COMMAND_COMPLETED,
   COMMAND_FAILED,

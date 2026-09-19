@@ -17,3 +17,6 @@ testimage/
 
 # UXP DevTools CLI 가 만드는 세션 파일. 기기마다 다르고 load 할 때 다시 생긴다.
 .uxprc
+
+# 확인용 캡처. 커밋하지 않는다.
+.captures/

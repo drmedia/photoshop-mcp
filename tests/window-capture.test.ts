@@ -4,12 +4,15 @@ import { MockPhotoshopBridge, PermissionPolicy } from "@photoshop-mcp/photoshop-
 import { describe, expect, it } from "vitest";
 
 /**
- * Photoshop 창 캡처. (ROADMAP §17.11)
+ * Photoshop 창 캡처. (ROADMAP §17.11, §17.17)
  *
  * 실제 캡처는 Windows 와 실행 중인 Photoshop 이 있어야 하므로 여기서 부르지 않는다.
  * 대신 **부르기 전후**를 고정한다 — 권한 경계와 출력 해석이다. 둘 다 틀리면
  * 조용히 잘못된 결과가 나가는 자리다.
  */
+
+/** 줄바꿈을 섞은 가짜 출력. 이스케이프가 꼬이지 않게 배열로 조립한다. */
+const lines = (...parts: string[]): string => parts.join("\n") + "\n";
 
 describe("창 캡처", () => {
   it("문서 캡처와 권한이 다르다", () => {
@@ -59,26 +62,53 @@ describe("창 캡처", () => {
   });
 
   describe("출력 해석", () => {
-    it("표식 뒤의 크기와 base64 를 읽는다", () => {
-      const parsed = parseCaptureOutput("##PSMCP##1024x556\nAAECAwQF\n");
-      expect(parsed).toEqual({ width: 1024, height: 556, base64: "AAECAwQF" });
+    it("창 하나를 읽는다", () => {
+      const parsed = parseCaptureOutput(lines("##PSMCP##1024x556|main|_DSC0601.NEF", "AAECAwQF"));
+      expect(parsed).toHaveLength(1);
+      expect(parsed[0]).toEqual({
+        width: 1024,
+        height: 556,
+        kind: "main",
+        title: "_DSC0601.NEF",
+        base64: "AAECAwQF",
+      });
+    });
+
+    it("**대화상자와 메인 창을 함께 읽는다**", () => {
+      // 하나만 읽으면 이 Tool 의 존재 이유인 경우를 놓친다 — 대화상자는 별도
+      // 최상위 창이라 메인 창을 찍어도 안 나온다. 실기에서 Camera Raw 를 놓쳤다.
+      const parsed = parseCaptureOutput(
+        lines(
+          "##PSMCP##900x700|dialog|Camera Raw 18.6",
+          "QUJD",
+          "##PSMCP##1024x556|main|_DSC0601.NEF",
+          "REVG",
+        ),
+      );
+      expect(parsed).toHaveLength(2);
+      // **대화상자가 먼저다.** 막힌 원인이 먼저 보여야 한다.
+      expect(parsed[0]?.kind).toBe("dialog");
+      expect(parsed[0]?.title).toBe("Camera Raw 18.6");
+      expect(parsed[1]?.kind).toBe("main");
     });
 
     it("앞에 섞인 출력을 건너뛴다", () => {
       // PowerShell 이 경고를 함께 낼 수 있다. 앞줄을 그냥 버리면 엉뚱한 줄을
       // base64 로 읽는다.
-      const parsed = parseCaptureOutput("WARNING: 무언가\n##PSMCP##800x600\nQUJD\n");
-      expect(parsed?.base64).toBe("QUJD");
-      expect(parsed?.width).toBe(800);
+      const parsed = parseCaptureOutput(
+        lines("WARNING: 무언가", "##PSMCP##800x600|main|t", "QUJD"),
+      );
+      expect(parsed[0]?.base64).toBe("QUJD");
+      expect(parsed[0]?.width).toBe(800);
     });
 
-    it("표식이 없으면 null 이다", () => {
+    it("표식이 없으면 빈 목록이다", () => {
       // 실패를 성공으로 읽지 않는다.
-      expect(parseCaptureOutput("무언가 잘못됐다")).toBeNull();
+      expect(parseCaptureOutput("무언가 잘못됐다")).toEqual([]);
     });
 
-    it("크기만 있고 이미지가 없으면 null 이다", () => {
-      expect(parseCaptureOutput("##PSMCP##1024x556\n\n")).toBeNull();
+    it("크기만 있고 이미지가 없으면 버린다", () => {
+      expect(parseCaptureOutput(lines("##PSMCP##1024x556|main|t", ""))).toEqual([]);
     });
   });
 

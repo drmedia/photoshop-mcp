@@ -44,17 +44,24 @@ export type WindowCaptureInput = z.infer<typeof WindowCaptureInputSchema>;
  * 그 성질이 깨진다.
  */
 export interface WindowCapturer {
-  capture(input: WindowCaptureInput): Promise<CapturedImage>;
+  /**
+   * Photoshop 의 **모든** 보이는 창. 대화상자가 먼저 온다.
+   *
+   * 하나만 돌려주면 이 Tool 의 존재 이유인 경우를 놓친다 — Camera Raw 같은
+   * 대화상자는 별도 최상위 창이라 메인 창을 찍어도 안 나온다. (ROADMAP §17.17)
+   */
+  capture(input: WindowCaptureInput): Promise<CapturedImage[]>;
 }
 
 /** `photoshop.window.capture` — Photoshop 창을 그대로 찍는다. */
 export function createWindowCaptureTool(
   capturer: WindowCapturer,
-): ToolDefinition<WindowCaptureInput, CapturedImage> {
+): ToolDefinition<WindowCaptureInput, CapturedImage[]> {
   return {
     name: "photoshop.window.capture",
     description:
-      "Photoshop **창 전체**를 찍어 그림으로 돌려준다. 패널·툴바·대화상자가 함께 찍힌다. " +
+      "Photoshop 의 **모든 창**을 찍어 그림으로 돌려준다. 메인 창과 떠 있는 대화상자를 " +
+      "각각 준다 — **대화상자가 먼저** 온다. " +
       "**무언가 응답하지 않거나 타임아웃이 났을 때 쓴다** — 대화상자가 떠 있으면 " +
       "Photoshop 이 명령을 받지 못하는데, 그 사실은 이 Tool 로만 볼 수 있다. " +
       "보정 결과를 확인하는 용도가 아니다. 그건 photoshop.document.capture 를 쓴다. " +

@@ -193,7 +193,7 @@ P3  확장 기능
 
 | API | Permission | 비고 |
 |---|---|---|
-| `photoshop.group.create` | EDIT | `layerIds` 를 주면 그 레이어들을 넣는다 |
+| `photoshop.group.create` | EDIT | `layerIds` 를 주면 그 레이어들을 넣는다. **기본 위치는 최상위** |
 | `photoshop.group.move_layer` | EDIT | `groupId: null` 이면 그룹에서 꺼낸다 |
 
 ### 4.4 조정 레이어

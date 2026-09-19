@@ -10,14 +10,80 @@ import { runModal } from "./modal.js";
  *
  * 그룹 해제는 넣지 않는다. 자식 레이어의 위치를 바꾸는 구조 변경이라
  * Permission System 과 함께 검토한다. (ROADMAP §7.4)
+ *
+ * ## 만든 자리를 확인한다 (ROADMAP §17.20)
+ *
+ * `createLayerGroup` 은 **활성 레이어가 있는 곳**에 만든다. 활성 레이어가 어느
+ * 그룹 안이면 새 그룹도 그 안에 들어간다. 실기에서 이것이 조용히 연쇄를 만들어
+ * 마지막 조정 레이어가 세 겹 마스크에 갇혔다.
+ *
+ * 그래서 만든 **뒤에 위치를 읽어** 요청과 다르면 옮기고, 옮긴 결과를 다시 읽어
+ * 확인한다. 요청대로 됐다고 말하기 전에 실제로 그런지 본다.
  */
+
+/** 그룹을 원하는 부모 밑으로 옮긴다. 이미 그 자리면 아무것도 하지 않는다. */
+async function placeGroup(
+  document: ReturnType<typeof requireActiveDocument>,
+  group: PhotoshopLayer,
+  parentId: number | null,
+): Promise<void> {
+  const current = describeLayer(document, group).parentId ?? null;
+  if (current === parentId) {
+    return;
+  }
+
+  if (parentId === null) {
+    const anchor = topLevelAnchor(document.layers, group.id);
+    if (anchor === null) {
+      // 최상위에 다른 레이어가 없으면 이미 최상위다.
+      return;
+    }
+    await group.move(anchor, constants.ElementPlacement.PLACEBEFORE);
+  } else {
+    // 호출부가 만들기 전에 이미 확인했다. 여기까지 오면 그 사이에 사라진 것이다.
+    const parent = findLayerById(document.layers, parentId);
+    if (parent === null) {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        `그룹 ${parentId} 가 사라졌습니다. 그룹은 만들어졌지만 옮기지 못했습니다.`,
+        { details: { parentId } },
+      );
+    }
+    await group.move(parent, constants.ElementPlacement.PLACEINSIDE);
+  }
+
+  // **옮겼다고 말하기 전에 확인한다.** move 가 던지지 않았다고 옮겨진 것은 아니다.
+  const after = describeLayer(requireActiveDocument(), group).parentId ?? null;
+  if (after !== parentId) {
+    throw new DispatchError(
+      "COMMAND_FAILED",
+      `그룹을 요청한 자리로 옮기지 못했습니다. 요청 parentId ${String(parentId)}, ` +
+        `실제 ${String(after)}. 그룹은 만들어졌습니다.`,
+      { details: { requested: parentId, actual: after, groupId: group.id } },
+    );
+  }
+}
 
 export async function groupCreate(params: {
   name?: string;
   layerIds?: number[];
+  parentId?: number | null;
 }): Promise<LayerInfo> {
   return runModal("Create layer group", async () => {
     const document = requireActiveDocument();
+
+    // **만들기 전에 부모를 확인한다.** (ROADMAP §17.20)
+    //
+    // 실기에서 없는 id 를 줬더니 오류를 돌려주면서 그룹은 남아 있었다.
+    // 안 했다고 말하고 뭔가를 하는 것이 가장 나쁜 실패다.
+    if (params.parentId !== undefined && params.parentId !== null) {
+      if (findLayerById(document.layers, params.parentId) === null) {
+        throw new DispatchError("LAYER_NOT_FOUND", `그룹 ${params.parentId} 를 찾을 수 없습니다.`, {
+          recoverable: true,
+          details: { parentId: params.parentId },
+        });
+      }
+    }
 
     const fromLayers =
       params.layerIds === undefined
@@ -43,7 +109,13 @@ export async function groupCreate(params: {
 
     // createLayerGroup 은 Promise 를 돌려준다. createLayer / duplicate 와 같다.
     const group = await document.createLayerGroup(options);
-    return describeLayer(document, group);
+
+    // 레이어를 묶을 때는 그 레이어들이 있던 자리가 맞다. 옮기지 않는다.
+    if (fromLayers === undefined) {
+      await placeGroup(document, group, params.parentId ?? null);
+    }
+
+    return describeLayer(requireActiveDocument(), group);
   });
 }
 

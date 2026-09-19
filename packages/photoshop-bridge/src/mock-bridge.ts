@@ -227,6 +227,15 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         return this.#groupCreate(
           command.params as { name?: string; layerIds?: number[]; parentId?: number | null },
         ) as TResult;
+      case "LAYER_REORDER":
+        this.#snapshot("Reorder layer");
+        return this.#layerReorder(
+          command.params as {
+            layerId: number;
+            placement: "top" | "bottom" | "up" | "down" | "above" | "below";
+            referenceId?: number;
+          },
+        ) as TResult;
       case "GROUP_MOVE_LAYER":
         this.#snapshot("Move layer");
         return this.#groupMoveLayer(
@@ -1236,6 +1245,121 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     const moved: LayerInfo = { ...layer, parentId: params.groupId };
     this.#layers[index] = moved;
     return { ...moved };
+  }
+
+  /**
+   * 레이어 순서 변경. (ROADMAP §17.23)
+   *
+   * **배열을 실제로 다시 늘어놓는다.** 결과만 흉내내면 `index` 가 맞는지
+   * 검증되지 않고, 이 Command 가 약속하는 것이 바로 그 값이다.
+   *
+   * 배경 레이어는 맨 아래에 고정이라 움직이지 않는다 — 실기와 같게 둔다.
+   * Mock 이 더 너그러우면 그 경로는 테스트에 영원히 나오지 않는다.
+   */
+  #layerReorder(params: {
+    layerId: number;
+    placement: "top" | "bottom" | "up" | "down" | "above" | "below";
+    referenceId?: number;
+  }): {
+    layer: LayerInfo;
+    moved: boolean;
+    previousIndex: number;
+    index: number;
+    siblings: number;
+  } {
+    const at = this.#requireLayerIndex(params.layerId);
+    const layer = this.#layers[at] as LayerInfo;
+    const parentId = layer.parentId ?? null;
+
+    const siblingIds = (parent: number | null): number[] =>
+      this.#layers.filter((entry) => (entry.parentId ?? null) === parent).map((entry) => entry.id);
+
+    const before = siblingIds(parentId);
+    const previousIndex = before.indexOf(params.layerId);
+
+    const needsReference = params.placement === "above" || params.placement === "below";
+    if (needsReference) {
+      const reference = this.#layers.find((entry) => entry.id === params.referenceId);
+      if (reference === undefined) {
+        throw new PhotoshopMcpError(
+          ErrorCode.LAYER_NOT_FOUND,
+          `기준 레이어 ${String(params.referenceId)} 를 찾을 수 없습니다.`,
+          { recoverable: true, details: { referenceId: params.referenceId } },
+        );
+      }
+    }
+
+    const stay = (): {
+      layer: LayerInfo;
+      moved: boolean;
+      previousIndex: number;
+      index: number;
+      siblings: number;
+    } => ({
+      layer: { ...layer },
+      moved: false,
+      previousIndex,
+      index: previousIndex,
+      siblings: before.length,
+    });
+
+    // 배경 레이어는 맨 아래에 고정이다.
+    if (layer.isBackground === true) {
+      return stay();
+    }
+
+    let insertBeforeId: number | null = null;
+    let insertAfterId: number | null = null;
+    switch (params.placement) {
+      case "top": {
+        const first = before[0];
+        if (first === undefined || first === params.layerId) return stay();
+        insertBeforeId = first;
+        break;
+      }
+      case "bottom": {
+        const last = before[before.length - 1];
+        if (last === undefined || last === params.layerId) return stay();
+        insertAfterId = last;
+        break;
+      }
+      case "up": {
+        const above = before[previousIndex - 1];
+        if (above === undefined) return stay();
+        insertBeforeId = above;
+        break;
+      }
+      case "down": {
+        const below = before[previousIndex + 1];
+        if (below === undefined) return stay();
+        insertAfterId = below;
+        break;
+      }
+      case "above":
+        insertBeforeId = params.referenceId as number;
+        break;
+      case "below":
+        insertAfterId = params.referenceId as number;
+        break;
+    }
+
+    // 배열에서 빼고 기준 옆에 다시 넣는다.
+    const anchorId = insertBeforeId ?? (insertAfterId as number);
+    const anchor = this.#layers.find((entry) => entry.id === anchorId) as LayerInfo;
+    const moved: LayerInfo = { ...layer, parentId: anchor.parentId ?? null };
+    this.#layers.splice(at, 1);
+    const anchorAt = this.#layers.findIndex((entry) => entry.id === anchorId);
+    this.#layers.splice(insertBeforeId !== null ? anchorAt : anchorAt + 1, 0, moved);
+
+    const after = siblingIds(moved.parentId ?? null);
+    const index = after.indexOf(params.layerId);
+    return {
+      layer: { ...moved },
+      moved: index !== previousIndex || (moved.parentId ?? null) !== parentId,
+      previousIndex,
+      index,
+      siblings: after.length,
+    };
   }
 
   #select(params: { layerId: number }): LayerInfo {

@@ -14,15 +14,15 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **63개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **64개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 70). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 71). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
 - 조회: `ping`, `document.get`, `layer.list`
-- 레이어: create / duplicate / rename / select / set_visibility / set_opacity
+- 레이어: create / duplicate / rename / select / set_visibility / set_opacity / reorder
 - 그룹: create / move_layer · History: undo
 - 조정 레이어: curves / levels / brightness_contrast
 - 마스크: create / enable / disable · 선택: clear / invert
@@ -178,6 +178,18 @@ Camera Raw 는 슬라이더들이 한 렌더링 파이프라인 안에서 함께
 
 노이즈 감소는 `filter` 쪽 `denoise` 보다 훨씬 낫다 — 실기에서 σ 6.72 → 3.42(49%)
 이면서 색은 소수점 둘째 자리까지 그대로였다. `denoise` 는 최대 강도로도 7% 였다.
+
+## 레이어 순서 (ROADMAP §17.23)
+
+`photoshop.layer.reorder` 의 `top` · `bottom` · `up` · `down` 은 **같은 부모
+안에서만** 움직인다. 그룹을 넘나드는 이동은 `group.move_layer` 가 한다.
+
+Photoshop UI 는 그룹 끝에서 한 번 더 누르면 밖으로 나가는데 그것을 흉내내지
+않았다 — 호출자가 "지금 그룹의 몇 번째인지" 를 알아야 결과를 예측할 수 있게 된다.
+`above` · `below` 만 부모가 바뀔 수 있고 결과의 `parentId` 에 드러난다.
+
+**맨 위에서 `up` 은 오류가 아니다.** `moved: false` 로 말한다. `index` · `siblings`
+는 옮긴 뒤 실제로 읽은 값이고 형제 기준이다 — 전체 목록의 인덱스가 아니다.
 
 ## 마스크 그라디언트 (ROADMAP §17.22)
 

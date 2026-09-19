@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **61개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **62개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 68). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 69). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -32,6 +32,7 @@ Tool 까지 더한 수다(지금 68). 한동안 이 값을 Core 개수로 옮겨
 - 파일 저장: `workspace.status` · `document.save_as` · `document.export` · `document.save`
 - 캡처: `document.capture` · `layer.capture` · `selection.capture` · `window.capture`
 - 구도: `document.crop` — 캔버스만 줄이고 **픽셀은 버리지 않는다**. 그래서 `edit` 이다
+- 수평: `document.rotate` — 기울기를 세운다. 빈 모서리를 뺀 `safeBounds` 를 함께 준다
 - 측정: `document.statistics` — **전체 해상도 원본**에서 히스토그램·채널 통계
 - 결함 제거: `retouch.remove_spots` — 먼지·잡티. **배경 레이어는 거절한다**
 - Camera Raw: `camera_raw.apply` — **Tool 은 이 하나뿐이다**
@@ -176,6 +177,28 @@ Camera Raw 는 슬라이더들이 한 렌더링 파이프라인 안에서 함께
 
 노이즈 감소는 `filter` 쪽 `denoise` 보다 훨씬 낫다 — 실기에서 σ 6.72 → 3.42(49%)
 이면서 색은 소수점 둘째 자리까지 그대로였다. `denoise` 는 최대 강도로도 7% 였다.
+
+## 회전 (ROADMAP §17.19)
+
+**수평 교정은 자르기로 풀리지 않는다.** 실기에서 수평선이 −1.87° 기울어 있는 것을
+재 놓고 고치지 못했다. `document.crop` 은 사각형을 덜어낼 뿐이다.
+
+자르기를 합치지 않았다. 회전하면 빈 모서리가 생기지만, 합치면 "회전만 하고 구도는
+직접 잡는다" 를 할 수 없다. 대신 **빈 영역이 한 픽셀도 안 들어오는 최대 직사각형**을
+`safeBounds` 로 돌려준다 — `crop` 의 `bounds` 에 그대로 넘긴다. 계산은 서버가 한다.
+호출자가 삼각함수를 맞게 쓰기를 기대하지 않는다.
+
+`angle` 은 −45 ~ 45 다. 세로/가로를 바꾸는 도구가 아니고, **이 범위에서는 회전이
+캔버스를 반드시 키우므로 "정말 돌았는가" 를 크기로 확인할 수 있다.** 180° 를 넣으면
+크기가 그대로라 그 확인이 성립하지 않는다. 오류 없이 아무 일도 안 하는 경로는
+이 프로젝트에서 이미 두 번 나왔다(배경 `set_opacity`, Camera Raw 정수).
+
+**DOM 에 `rotate` 가 있는지 짐작하지 않았다 — 재 봤고, 있었다**(Photoshop 27.8).
+`document.histogram` 때와 같은 방식으로 두 경로를 준비하고 `method` 로 답을 받았다.
+답이 나온 뒤 **한 번도 실행되지 않은 batchPlay 경로는 지웠다.** 짐작으로 남겨 두면
+그 경로가 처음 실행되는 날 그것이 맞는지 아무도 모른다.
+
+부호는 **시계 방향 양수**다. 이것도 한 번 걸어 다시 재서 확인했다.
 
 ## Permission (ARCHITECTURE §22)
 

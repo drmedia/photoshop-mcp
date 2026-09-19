@@ -90,6 +90,15 @@ declare module "photoshop" {
     flatten(): Promise<void>;
 
     /**
+     * 문서 전체를 회전한다. 시계 방향이 양수다.
+     *
+     * **Photoshop 27.8 에 존재하는 것을 실기로 확인했다** — 선언이 없어 짐작할
+     * 뻔했다(ROADMAP §17.19). 반환이 Promise 인지까지는 확인하지 않았으므로
+     * 둘 다 받는다. 호출부는 `await` 한다.
+     */
+    rotate(angle: number): Promise<void> | void;
+
+    /**
      * 문서를 닫는다. **비동기다.**
      *
      * 인자를 주지 않으면 Photoshop 이 저장 여부를 묻는다. 복제본은 반드시

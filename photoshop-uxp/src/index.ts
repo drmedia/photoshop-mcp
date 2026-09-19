@@ -46,6 +46,7 @@ import {
 import { layerGetActive, layerList } from "./dom/layers.js";
 import { captureDocument, captureLayer, captureSelection } from "./dom/capture.js";
 import { documentCrop } from "./dom/document-crop.js";
+import { documentRotate } from "./dom/document-rotate.js";
 import { documentStatistics } from "./dom/document-statistics.js";
 import { cameraRawApply } from "./dom/camera-raw.js";
 import { layerDelete } from "./dom/layer-delete.js";
@@ -103,6 +104,9 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("DOCUMENT_CROP", async (p) =>
     documentCrop(p as Parameters<typeof documentCrop>[0]),
+  );
+  dispatcher.register("DOCUMENT_ROTATE", async (p) =>
+    documentRotate(p as Parameters<typeof documentRotate>[0]),
   );
   dispatcher.register("CAPTURE_DOCUMENT", async (p) =>
     captureDocument(p as Parameters<typeof captureDocument>[0]),

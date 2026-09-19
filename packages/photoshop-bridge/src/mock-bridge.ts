@@ -603,6 +603,36 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
           pixelsRetained: true,
         } as TResult;
       }
+      /**
+       * 회전. **캔버스가 커지는 것까지 흉내낸다.**
+       *
+       * Mock 이 크기를 그대로 두면 플러그인의 "정말 돌았는가" 검증과 `safeBounds`
+       * 계산이 테스트에 영원히 나오지 않는다. 배경 승격·자르기 undo 때와 같은
+       * 교훈이다 — Mock 이 현실과 다르면 그 경로는 검증되지 않는다.
+       */
+      case "DOCUMENT_ROTATE": {
+        const document = this.#requireDocument();
+        const { angle } = command.params as { angle: number };
+        this.#snapshot("Rotate");
+        const previousWidth = document.width;
+        const previousHeight = document.height;
+        const radians = (angle * Math.PI) / 180;
+        const cos = Math.abs(Math.cos(radians));
+        const sin = Math.abs(Math.sin(radians));
+        this.#document = {
+          ...document,
+          width: Math.round(previousWidth * cos + previousHeight * sin),
+          height: Math.round(previousWidth * sin + previousHeight * cos),
+        };
+        return {
+          width: this.#document.width,
+          height: this.#document.height,
+          previousWidth,
+          previousHeight,
+          angle,
+          method: "mock",
+        } as TResult;
+      }
       case "CAPTURE_DOCUMENT":
       case "CAPTURE_LAYER":
         return this.#capture(command.type === "CAPTURE_LAYER" ? "layer" : "document") as TResult;

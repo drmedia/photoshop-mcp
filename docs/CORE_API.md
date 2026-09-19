@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (63개)
+## 4. 구현된 Core API (64개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -211,6 +211,24 @@ Mock Bridge 는 픽셀을 읽지 않으므로 **실패한다.** 그럴듯한 각
 |---|---|---|
 | `photoshop.group.create` | EDIT | `layerIds` 를 주면 그 레이어들을 넣는다. **기본 위치는 최상위** |
 | `photoshop.group.move_layer` | EDIT | `groupId: null` 이면 그룹에서 꺼낸다 |
+| `photoshop.layer.reorder` | EDIT | 순서 변경. **같은 부모 안에서만** |
+
+`reorder` 와 `group.move_layer` 는 역할이 다르다. `reorder` 의 `top` · `bottom` ·
+`up` · `down` 은 **형제들 사이의 순서만** 바꾸고 그룹 경계를 넘지 않는다. 그룹을
+넘나드는 이동은 `group.move_layer` 가 한다.
+
+Photoshop UI 는 그룹 끝에서 한 번 더 누르면 밖으로 나간다. 그 동작을 흉내내지
+않았다 — 호출자가 "지금 그룹의 몇 번째인지" 를 알아야 결과를 예측할 수 있게 되고,
+§17.20 에서 겪은 것과 같은 종류의 조용한 놀라움이 된다.
+
+`above` · `below` 는 기준 레이어 옆으로 가므로 **부모가 바뀔 수 있다.** 그 사실은
+결과의 `parentId` 에 드러난다.
+
+맨 위 레이어에 `up` 을 주는 것은 오류가 아니다. `moved: false` 로 **무슨 일이
+있었는지 말한다** — 오류로 두면 호출자가 매번 현재 위치를 확인해야 하고, 조용히
+성공을 돌려주면 움직였다고 믿는다.
+
+`index` · `siblings` 는 요청이 아니라 옮긴 뒤 실제로 읽은 값이다. 0 이 맨 위다.
 
 ### 4.4 조정 레이어
 

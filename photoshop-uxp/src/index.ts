@@ -48,6 +48,7 @@ import { captureDocument, captureLayer, captureSelection } from "./dom/capture.j
 import { documentCrop } from "./dom/document-crop.js";
 import { documentRotate } from "./dom/document-rotate.js";
 import { documentTilt } from "./dom/document-tilt.js";
+import { layerReorder } from "./dom/layer-reorder.js";
 import { documentStatistics } from "./dom/document-statistics.js";
 import { cameraRawApply } from "./dom/camera-raw.js";
 import { layerDelete } from "./dom/layer-delete.js";
@@ -111,6 +112,9 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("MEASURE_TILT", async (p) =>
     documentTilt(p as Parameters<typeof documentTilt>[0]),
+  );
+  dispatcher.register("LAYER_REORDER", async (p) =>
+    layerReorder(p as Parameters<typeof layerReorder>[0]),
   );
   dispatcher.register("CAPTURE_DOCUMENT", async (p) =>
     captureDocument(p as Parameters<typeof captureDocument>[0]),

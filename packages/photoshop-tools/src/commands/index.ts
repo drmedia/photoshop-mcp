@@ -84,6 +84,14 @@ import {
 } from "./document-save.js";
 import { LAYER_GET_ACTIVE, layerGetActiveCommand } from "./layer-active.js";
 import { DOCUMENT_CROP, DocumentCropParamsSchema, documentCropCommand } from "./document-crop.js";
+import {
+  DOCUMENT_CLOSE,
+  DOCUMENT_FLATTEN,
+  DocumentCloseParamsSchema,
+  DocumentFlattenParamsSchema,
+  documentCloseCommand,
+  documentFlattenCommand,
+} from "./document-lifecycle.js";
 import { LAYER_REORDER, LayerReorderParamsSchema, layerReorderCommand } from "./layer-reorder.js";
 import { MEASURE_TILT, MeasureTiltParamsSchema, measureTiltCommand } from "./measure-tilt.js";
 import {
@@ -189,6 +197,7 @@ export * from "./document-crop.js";
 export * from "./document-rotate.js";
 export * from "./measure-tilt.js";
 export * from "./layer-reorder.js";
+export * from "./document-lifecycle.js";
 export * from "./document-statistics.js";
 export * from "./retouch.js";
 export * from "./camera-raw.js";
@@ -209,8 +218,8 @@ export { PING, pingCommand, type PingResult } from "./ping.js";
  * Extension 이 Tool 을 거치지 않고 Engine 을 직접 호출해도 검증되도록 하기 위함이다.
  *
  * `permission` 은 필수다. (ARCHITECTURE §22)
- * 현재 Core Command 는 `read` 아니면 `edit` 뿐이다 — 전부 비파괴이기 때문이다.
- * `external` · `destructive` Command 는 아직 없다.
+ * 대부분은 `read` 아니면 `edit` 다 — 레이어 편집이 전부 비파괴이기 때문이다.
+ * 파일을 쓰는 것이 `external` 이고, 작업을 없애는 것이 `destructive` 다.
  */
 export function registerPhotoshopCommands(registry: CommandRegistry): void {
   // Phase 1 — 조회
@@ -241,6 +250,16 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     // 픽셀을 버리지 않는다. 캔버스만 줄이므로 되돌릴 수 있다.
     permission: "edit",
     schema: DocumentCropParamsSchema,
+  });
+  registry.register(DOCUMENT_FLATTEN, documentFlattenCommand, {
+    // 조정 레이어가 구워지고 숨긴 레이어가 사라진다. (CORE_API §5.1)
+    permission: "destructive",
+    schema: DocumentFlattenParamsSchema,
+  });
+  registry.register(DOCUMENT_CLOSE, documentCloseCommand, {
+    // 저장하지 않은 변경이 사라진다. (CORE_API §5.1)
+    permission: "destructive",
+    schema: DocumentCloseParamsSchema,
   });
   registry.register(LAYER_REORDER, layerReorderCommand, {
     permission: "edit",

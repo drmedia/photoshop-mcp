@@ -232,6 +232,59 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         return this.#groupCreate(
           command.params as { name?: string; layerIds?: number[]; parentId?: number | null },
         ) as TResult;
+      /**
+       * 평탄화. (ROADMAP §17.25)
+       *
+       * **숨긴 레이어가 사라지는 것까지 흉내낸다.** 합쳐진다고 두면 그 손실이
+       * 테스트에 나오지 않는데, 이 Command 에서 호출자가 가장 놀랄 일이 그것이다.
+       */
+      case "DOCUMENT_FLATTEN": {
+        this.#requireDocument();
+        if (this.#layers.length === 0) {
+          throw new PhotoshopMcpError(ErrorCode.INVALID_PARAMETER, "합칠 레이어가 없습니다.", {
+            recoverable: true,
+          });
+        }
+        this.#snapshot("Flatten");
+        const previousLayers = this.#layers.length;
+        const hiddenDiscarded = this.#layers.filter((layer) => !layer.visible).length;
+        const merged: LayerInfo = {
+          id: this.#nextLayerId++,
+          name: "배경",
+          type: "pixel",
+          visible: true,
+          opacity: 100,
+          parentId: null,
+          blendMode: "normal",
+          isBackground: true,
+        };
+        this.#layers = [merged];
+        this.#activeLayerId = merged.id;
+        return { layer: { ...merged }, previousLayers, hiddenDiscarded } as TResult;
+      }
+      /**
+       * 닫기. (ROADMAP §17.25)
+       *
+       * Mock 은 문서를 하나만 다루므로 닫으면 남는 것이 없다. 실제 Photoshop 은
+       * 여러 문서를 열 수 있고 그때는 `remainingDocuments` 가 0 이 아니다.
+       */
+      case "DOCUMENT_CLOSE": {
+        const document = this.#requireDocument();
+        const { discardChanges } = command.params as { discardChanges?: unknown };
+        if (discardChanges !== true) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "discardChanges 에 true 를 명시해야 합니다.",
+            { recoverable: true },
+          );
+        }
+        const closed = { id: document.id, name: document.name };
+        this.#document = null;
+        this.#layers = [];
+        this.#activeLayerId = null;
+        this.#hasSelection = false;
+        return { closed, remainingDocuments: 0 } as TResult;
+      }
       case "LAYER_REORDER":
         this.#snapshot("Reorder layer");
         return this.#layerReorder(

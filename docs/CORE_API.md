@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (64개)
+## 4. 구현된 Core API (66개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -125,6 +125,8 @@ P3  확장 기능
 |---|---|---|
 | `photoshop.document.crop` | EDIT | 캔버스를 줄인다. **픽셀은 버리지 않는다** |
 | `photoshop.document.rotate` | EDIT | 문서 전체를 돌린다. **수평 교정용** |
+| `photoshop.document.flatten` | DESTRUCTIVE | 하나로 합친다. **숨긴 레이어는 버려진다** |
+| `photoshop.document.close` | DESTRUCTIVE | 닫는다. **저장하지 않는다** |
 | `photoshop.measure.tilt` | READ | 경계선 기울기. **각도와 잔차를 함께 준다** |
 
 `bounds` 는 **남길** 영역이다. 문서 밖으로 나가면 거부한다 — 캔버스를 넓히는 것은
@@ -170,6 +172,22 @@ P3  확장 기능
 
 Mock Bridge 는 픽셀을 읽지 않으므로 **실패한다.** 그럴듯한 각도를 지어내면 Mock 으로
 돌린 워크플로가 엉뚱한 회전을 하고 그것이 성공으로 보인다.
+
+`flatten` 은 조정 레이어를 굽고 투명 영역을 배경색으로 채운다. **숨긴 레이어는
+합쳐지는 것이 아니라 버려지므로** 결과의 `hiddenDiscarded` 를 확인한다.
+
+보통은 평탄화하지 않고 `document.export` 를 쓴다 — 사본을 만들 뿐 원본 레이어를
+건드리지 않는다. 평탄화가 필요한 경우는 **그 상태로 저장해야 할 때**다.
+
+`close` 는 **언제나 저장하지 않고 닫는다.** `discardChanges: true` 를 명시해야 하며
+기본값이 없다 — 작업을 잃는 선택이기 때문이다. 저장하려면 `document.save` 나
+`save_as` 를 먼저 부른다.
+
+인자 없이 닫으면 Photoshop 이 저장 여부를 묻는 창을 띄우고 **플러그인이 멈춘다.**
+§17.11 이 `window.capture` 를 만든 이유가 그 상황이었다. 그래서 상수를 얻지 못하면
+인자 없이 부르지 않고 실패한다.
+
+`remainingDocuments` 가 0 이면 이후 Command 가 전부 `DOCUMENT_NOT_FOUND` 로 실패한다.
 
 ### 4.1.2 결함 제거
 
@@ -373,8 +391,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 | `photoshop.document.duplicate` | P2 | EDIT | |
 | `photoshop.document.mode_convert` | P2 | EDIT | RGB · CMYK · Lab |
 | `photoshop.document.bit_depth_convert` | P2 | EDIT | 8 · 16 · 32 |
-| `photoshop.document.close` | P2 | DESTRUCTIVE | 저장하지 않은 변경이 사라진다 |
-| `photoshop.document.flatten` | P3 | DESTRUCTIVE | |
 
 ### 5.2 Layer
 
@@ -383,11 +399,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 | `photoshop.layer.get` | P1 | READ | 한 레이어의 상세 |
 | `photoshop.layer.select_multiple` | P1 | EDIT | |
 | `photoshop.layer.set_fill_opacity` | P1 | EDIT | |
-| `photoshop.layer.move` | P1 | EDIT | 순서 변경 |
-| `photoshop.layer.move_above` | P1 | EDIT | |
-| `photoshop.layer.move_below` | P1 | EDIT | |
-| `photoshop.layer.move_top` | P2 | EDIT | |
-| `photoshop.layer.move_bottom` | P2 | EDIT | |
 | `photoshop.layer.lock` | P2 | EDIT | |
 | `photoshop.layer.unlock` | P2 | EDIT | |
 | `photoshop.layer.place_linked` | P3 | EXTERNAL | 연결된 스마트 오브젝트 |

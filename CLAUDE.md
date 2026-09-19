@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **64개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **66개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 71). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 73). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -314,7 +314,15 @@ Extension 의 manifest `permissions` 는 **강제된다.** 선언 밖의 Tool �
 `bitDepth` 는 8 또는 16, 생략하면 문서 심도를 따른다. 결과의 `bitDepth` 는 요청값이
 아니라 **실제값**이다.
 
-`document.flatten` · `document.close` 는 분류 체계만 섰고 구현은 없다.
+`document.flatten` · `document.close` 를 만들었다(ROADMAP §17.25). 둘 다 `destructive` 다.
+
+**평탄화는 숨긴 레이어를 버린다** — 합쳐지는 것이 아니다. 결과의 `hiddenDiscarded`
+가 그것을 알린다. 보통은 평탄화 대신 `document.export` 를 쓴다.
+
+**닫기는 언제나 저장하지 않는다.** 인자 없이 `close()` 하면 저장 여부를 묻는 창이
+뜨고 **플러그인이 멈춘다** — §17.11 이 `window.capture` 를 만든 그 상황이다.
+`SaveOptions.DONOTSAVECHANGES` 상수를 얻지 못하면 시험 삼아 부르지 않고 실패한다.
+`discardChanges: true` 를 리터럴로 요구하며 기본값이 없다.
 
 `layer.delete` 는 만들었다(ROADMAP §17.18). **id 를 명시하고 패턴을 받지 않는다** —
 `workspace.delete` 와 같은 규칙이다. 지운 뒤 목록을 다시 읽어 **확인한 것만**

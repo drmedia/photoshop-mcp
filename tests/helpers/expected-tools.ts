@@ -24,6 +24,8 @@ export const EXPECTED_TOOLS = [
   "photoshop.document.crop",
   "photoshop.document.rotate",
   "photoshop.layer.reorder",
+  "photoshop.document.flatten",
+  "photoshop.document.close",
   "photoshop.measure.tilt",
   "photoshop.document.capture",
   "photoshop.layer.capture",
@@ -111,6 +113,8 @@ export const EXPECTED_COMMANDS = [
   "RETOUCH_REMOVE_SPOTS",
   "DOCUMENT_STATISTICS",
   "DOCUMENT_CROP",
+  "DOCUMENT_FLATTEN",
+  "DOCUMENT_CLOSE",
   "LAYER_REORDER",
   "MEASURE_TILT",
   "DOCUMENT_ROTATE",
@@ -169,9 +173,8 @@ export const EXPECTED_COMMANDS = [
  */
 export const FORBIDDEN_TOOLS = [
   // destructive — 분류만으로는 부족하고 각각 구현이 필요하다.
-  // `layer.delete` 는 ROADMAP §17.18 에서 구현해 여기서 뺐다.
-  "photoshop.document.flatten",
-  "photoshop.document.close",
+  // `layer.delete`(§17.18) · `document.flatten` · `document.close`(§17.25) 는
+  // 구현해서 여기서 뺐다. CORE_API §5.1 이 분류해 둔 셋이 이것으로 다 찼다.
   "photoshop.group.ungroup",
   // 아직 구현하지 않음
   "photoshop.mask.delete",

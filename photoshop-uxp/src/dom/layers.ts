@@ -48,7 +48,7 @@ function collect(layers: unknown, parentId: number | null, out: LayerInfo[]): vo
  * `Document.layers` 는 실제로 배열이 아니라 배열 유사 컬렉션이다.
  * 그대로 `for...of` 하면 `TypeError: layers is not iterable` 이 발생한다.
  */
-function toArray<T>(value: unknown): T[] {
+export function toArray<T>(value: unknown): T[] {
   if (Array.isArray(value)) {
     return value as T[];
   }

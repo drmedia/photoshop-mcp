@@ -1464,7 +1464,7 @@ Level 배정:
 
 아직 남은 것:
 
-- [ ] `layer.delete` · `document.flatten` · `document.close` — 분류 체계는 섰지만
+- [x] `layer.delete` (§17.18) · `document.flatten` · `document.close` (§17.25) — 분류 체계는 섰지만
       각각의 구현은 아직 없다.
 
 ---
@@ -3628,6 +3628,74 @@ threshold · gradientMap · selectiveColor)는 만드는 Tool 이 없어 확인�
 다만 **강도 조절은 `layer.set_opacity` 로 이미 된다.** −12 곡선을 67% 로 두면
 −8 이다. 이번 보정에서 그것을 쓰지 않고 지웠다 다시 만든 것은 도구가 없어서가
 아니라 쓸 줄 몰라서였다 — §17.16 의 `luminosity` 와 같은 종류의 착오다.
+
+---
+
+# 17.25 평탄화와 닫기 — 분류만 서 있던 마지막 둘
+
+- [x] `photoshop.document.flatten`
+- [x] `photoshop.document.close`
+
+CORE_API §5.1 이 처음부터 둘 다 `DESTRUCTIVE` 로 분류해 두고 구현은 미뤄 둔
+것이다. `layer.delete`(§17.18)와 함께 셋이었고 이것으로 다 채웠다.
+
+**분류가 먼저 서 있어서 만들 때 정할 것이 없었다.**
+
+## 평탄화 — 숨긴 레이어가 사라진다
+
+합쳐지는 것이 아니라 **버려진다.** 호출자가 가장 놀랄 일이라 결과에
+`hiddenDiscarded` 로 담는다. 0 이 아니면 의도한 것인지 확인할 거리가 있다.
+
+`previousLayers` 도 담는다. 20장이 1장이 된 것과 2장이 1장이 된 것은 다른 일이다.
+
+합친 뒤 레이어가 정말 하나인지 **읽어서 확인한다.** 하나가 아니면 실패로 보고한다.
+
+보통은 평탄화하지 않고 `document.export` 를 쓴다 — 사본을 만들 뿐 원본을 건드리지
+않는다. 평탄화가 필요한 경우는 그 상태로 저장해야 할 때다.
+
+## 닫기 — 대화상자가 뜨면 멈춘다
+
+`close()` 에 인자를 주지 않으면 Photoshop 이 저장 여부를 **묻는 창**을 띄운다.
+그러면 플러그인이 멈추고 Bridge 가 타임아웃한다. §17.11 이 `window.capture` 를
+만든 이유가 정확히 그 상황이었다.
+
+그래서 언제나 `SaveOptions.DONOTSAVECHANGES` 를 명시해 부른다. **상수를 얻지
+못하면 인자 없이 부르지 않고 실패한다** — 되는지 시험해 보는 대가가 "사람이
+Photoshop 에서 창을 닫아 줄 때까지 서버가 멈춤" 이다.
+
+`discardChanges: true` 를 **리터럴로** 요구한다. 기본값을 두지 않은 것은 이것이
+작업을 잃는 선택이기 때문이다. 저장하고 닫으려면 `document.save` 를 먼저 부른다 —
+한 Tool 이 두 일을 하지 않는다.
+
+`remainingDocuments` 를 담는다. 0 이면 이후 Command 가 전부 `DOCUMENT_NOT_FOUND`
+로 실패하므로 호출자가 미리 알아야 한다.
+
+닫혔는지 **읽어서 확인한다.** `app.documents` 는 배열이 아니라 배열 유사
+컬렉션이라 `toArray` 를 거친다.
+
+## Mock 도 숨긴 레이어를 버린다
+
+합쳐진다고 두면 그 손실이 테스트에 나오지 않는데, 이 Command 에서 호출자가 가장
+놀랄 일이 그것이다.
+
+Mock 은 문서를 하나만 다루므로 닫으면 `remainingDocuments` 가 언제나 0 이다.
+실제 Photoshop 은 여러 문서를 열 수 있고 그때는 다르다 — Mock 의 한계로 적어 둔다.
+
+## 실기 검증
+
+Photoshop 27.8, `_DSC0056_edit.psd` 20장짜리 보정 문서.
+
+```text
+① discardChanges 없음    거절 — Invalid literal value, expected true
+② discardChanges: false  거절 — 같은 메시지
+③ flatten                20장 → "배경" 1장, hiddenDiscarded 0
+   history.undo          20장 전부 복원
+④ close                  closed { 511, _DSC0056_edit.psd }, remainingDocuments 0
+⑤ 닫은 뒤 document.get   DOCUMENT_NOT_FOUND "열려 있는 문서가 없습니다"
+```
+
+**④ 에서 대화상자가 뜨지 않았다.** 이것이 이 Command 에서 확인해야 할 유일한
+위험이었고, 실제로 닫아 보기 전에는 알 수 없는 것이었다.
 
 ---
 

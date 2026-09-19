@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (67개)
+## 4. 구현된 Core API (68개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -230,6 +230,7 @@ RAW 의 현상 설정은 슬라이더를 보며 정하는 일이라 사람이 �
 | `photoshop.layer.set_blend_mode` | EDIT | normal · multiply · screen · overlay · softLight 등 |
 | `photoshop.layer.from_background` | EDIT | 배경 → 일반 레이어. id 가 바뀐다 |
 | `photoshop.layer.stamp_visible` | EDIT | 보이는 레이어를 합친 복제본 |
+| `photoshop.smart_object.convert` | EDIT | 스마트 필터를 걸 수 있게 만든다. **id 가 바뀐다** |
 | `photoshop.layer.delete` | DESTRUCTIVE | **id 를 명시한다.** 패턴을 받지 않는다 |
 
 `layerId` 를 생략하면 활성 레이어를 대상으로 한다. 그것이 무엇인지는
@@ -478,7 +479,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
 | `photoshop.smart_object.get_info` | P2 | READ | |
-| `photoshop.smart_object.convert` | P2 | EDIT | |
 | `photoshop.smart_object.replace_contents` | P2 | EXTERNAL | 파일을 읽는다 |
 | `photoshop.smart_object.open_contents` | P2 | EDIT | |
 | `photoshop.smart_object.relink` | P3 | EXTERNAL | |

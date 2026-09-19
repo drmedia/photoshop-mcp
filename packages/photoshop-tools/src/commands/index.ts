@@ -93,6 +93,11 @@ import {
   documentCloseCommand,
   documentFlattenCommand,
 } from "./document-lifecycle.js";
+import {
+  SMART_OBJECT_CONVERT,
+  SmartObjectConvertParamsSchema,
+  smartObjectConvertCommand,
+} from "./smart-object.js";
 import { LAYER_REORDER, LayerReorderParamsSchema, layerReorderCommand } from "./layer-reorder.js";
 import { MEASURE_TILT, MeasureTiltParamsSchema, measureTiltCommand } from "./measure-tilt.js";
 import {
@@ -200,6 +205,7 @@ export * from "./measure-tilt.js";
 export * from "./layer-reorder.js";
 export * from "./document-lifecycle.js";
 export * from "./document-open.js";
+export * from "./smart-object.js";
 export * from "./document-statistics.js";
 export * from "./retouch.js";
 export * from "./camera-raw.js";
@@ -267,6 +273,11 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     // 저장하지 않은 변경이 사라진다. (CORE_API §5.1)
     permission: "destructive",
     schema: DocumentCloseParamsSchema,
+  });
+  registry.register(SMART_OBJECT_CONVERT, smartObjectConvertCommand, {
+    // 픽셀을 버리지 않는다. 레이어가 한 겹 감싸질 뿐이고 rasterize 로 되돌린다.
+    permission: "edit",
+    schema: SmartObjectConvertParamsSchema,
   });
   registry.register(LAYER_REORDER, layerReorderCommand, {
     permission: "edit",

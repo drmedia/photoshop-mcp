@@ -14,15 +14,16 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **67개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **68개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 74). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 75). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
 - 조회: `ping`, `document.get`, `layer.list`
 - 레이어: create / duplicate / rename / select / set_visibility / set_opacity / reorder
+- 스마트 오브젝트: `smart_object.convert` — 뒤에 거는 필터가 스마트 필터가 된다
 - 그룹: create / move_layer · History: undo
 - 조정 레이어: curves / levels / brightness_contrast
 - 마스크: create / enable / disable · 선택: clear / invert
@@ -154,6 +155,36 @@ Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `f
 
 **공백이라고 적기 전에 있는 것부터 확인한다.** 두 번 모두 "도구가 부족하다" 가
 아니라 "쓸 줄 몰랐다" 였다.
+
+## 국소 보정은 별도 레이어에 (ROADMAP §17.27)
+
+**스마트 필터 마스크는 레이어당 하나다.** 전역 Camera Raw 가 걸린 Smart Object 에
+선택 영역을 주고 한 번 더 걸면 그 마스크가 **스택 전체**에 걸린다 — 맞춰 둔 전역
+톤까지 그 선택 안에만 적용된다. 그래서 국소 보정은 별도 레이어여야 한다.
+
+```text
+layer.duplicate / stamp_visible
+ ↓
+selection.*  →  mask.create { from: "fromSelection" }
+ ↓
+smart_object.convert
+ ↓
+camera_raw.apply            → 스마트 필터로 남아 값만 고칠 수 있다
+```
+
+**`mask.create` 의 `from` 기본값은 `revealAll` 이다.** 선택이 있어도 자동으로 쓰지
+않는다. 빠뜨리면 전부 흰 마스크가 되어 국소 보정이 조용히 전역에 걸린다.
+
+`smart_object.convert` 하면 **마스크가 SO 안으로 흡수되고 SO 가 그 범위로 잘린다.**
+`hasMask` 가 `false` 가 되는 것이 그 증거다. 그리고 **id 가 바뀐다** — 옛 id 는
+사라지므로 결과의 `layer.id` 를 이어 쓴다. `previousId` 가 옛 값을 담는다.
+
+이미 스마트 오브젝트면 `converted: false` 로 답하고 아무것도 하지 않는다. 겹치면
+스마트 오브젝트 안에 스마트 오브젝트가 생긴다.
+
+**국소 보정이 격리됐는지는 레이어를 껐다 켜며 같은 영역을 재서 확인한다.**
+실기에서 `from` 을 빠뜨려 전역에 걸린 것을 눈으로는 못 봤다 — 밝기가 거의 안
+변했기 때문이다(하늘 L 25.11 → 25.08). 잡아낸 것은 노이즈였다(σ 0.93 → 1.24).
 
 ## Camera Raw (ROADMAP §17.17)
 

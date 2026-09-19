@@ -3786,6 +3786,164 @@ Photoshop 27.8, 작업 폴더 `E:	est01`.
 
 ---
 
+# 17.27 스마트 오브젝트 변환 — 체인의 3번이 비어 있었다
+
+## 왜 만들었나
+
+실기 보정 중 사용자가 파이프라인을 이렇게 적었다.
+
+```text
+Photoshop Select Sky
+ ↓
+Layer Mask
+ ↓
+Smart Object
+ ↓
+Camera Raw Filter
+```
+
+국소 보정의 표준 순서다. Tool 과 대조하니 **3번만 없었다.**
+
+```text
+Select Sky    →  photoshop.selection.sky        있음
+Layer Mask    →  photoshop.mask.create          있음
+Smart Object  →  ─────                          없음
+Camera Raw    →  photoshop.camera_raw.apply     있음
+```
+
+가운데 한 칸 때문에 전체가 수동이었다. 같은 세션에서 사용자가 이 변환을 손으로
+했고, 그 뒤 값을 고칠 때마다 대화상자를 열어야 했다.
+
+## 왜 이 변환이 값을 갖나
+
+`camera_raw.apply` 는 **픽셀에 굽는다.** 스마트 오브젝트로 감싸 두면 같은 호출이
+**스마트 필터**로 붙어 나중에 값만 고칠 수 있다.
+
+필터 Tool 들의 `asSmartFilter: true` 로도 변환되지만 그때는 필터가 함께 걸린다.
+"변환만" 하는 길이 없었다.
+
+## 스마트 필터 마스크는 레이어당 하나다
+
+실기에서 확인했다. 전역 Camera Raw 가 걸린 스마트 오브젝트에 선택 영역을 주고
+한 번 더 걸면, 만들어지는 필터 마스크가 **스택 전체**에 걸린다 — 맞춰 둔 전역
+톤까지 그 선택 안에만 적용된다.
+
+그래서 국소 보정은 **별도 레이어**여야 한다. 마스크를 씌운 뒤 변환하면 마스크가
+변환 결과에 함께 들어가고, 그 위의 Camera Raw 는 그 레이어에만 산다.
+
+```text
+layer.duplicate / stamp_visible
+ ↓
+selection.*  →  mask.create
+ ↓
+smart_object.convert        ← 이것이 없었다
+ ↓
+camera_raw.apply            → 스마트 필터로 남는다
+```
+
+## id 가 바뀐다
+
+변환하면 레이어 객체가 교체된다. 배경 승격(ARCHITECTURE §8.4)과 같은 일이다.
+`resolveMutatedLayer` 로 **이번에 생긴 id** 를 찾는다 — 활성 레이어로 추정하지
+않는다.
+
+`previousId` 를 결과에 담아 호출자가 옛 id 를 이어 쓰지 않게 한다.
+
+## 두 번 감싸지 않는다
+
+이미 스마트 오브젝트면 아무것도 하지 않고 `converted: false` 로 답한다.
+겹치면 스마트 오브젝트 안에 스마트 오브젝트가 생겨 구조가 한 겹 깊어지고
+되돌리기 어렵다.
+
+**오류로 두지 않았다.** 이미 원하는 상태이고, 오류면 호출자가 매번 먼저 확인해야
+한다. `layer.reorder` 의 `moved: false` 와 같은 규칙이다.
+
+## 변환됐다고 말하기 전에 확인한다
+
+batchPlay 가 오류 없이 끝나도 결과 타입을 읽어 `smartObject` 인지 본다.
+`document.rotate`(§17.19)가 캔버스 크기로 확인하는 것과 같은 자리다.
+
+## Mock 도 id 를 바꾼다
+
+Mock 이 현실과 다르면 그 경로는 테스트에 영원히 나오지 않는다 — 배경 승격 버그가
+실기에서만 드러난 이유가 그것이다.
+
+배경 레이어는 변환되면서 배경이 아니게 되므로 `isBackground` 를 뗀다. 남겨 두면
+"배경인 스마트 오브젝트" 라는 존재하지 않는 상태가 만들어지고, 이후 Command 가
+`rename` · `set_blend_mode` 를 잘못 막는다.
+
+## 실기 검증
+
+Photoshop 27.8, `_DSC7393.NEF` (3532×5298 16비트). 달에 국소 보정을 거는 전체
+파이프라인을 통과시켰다.
+
+```text
+stamp_visible "02_달"            id 14  pixel
+selection.set ellipse + feather 20
+mask.create from=fromSelection   hasMask true
+smart_object.convert             id 14 → 16 → 17   converted true   hasMask false
+camera_raw.apply                 texture 18 · clarity 8 · highlights −10
+```
+
+**마스크는 Smart Object 안으로 흡수된다.** 변환 결과의 `hasMask` 가 `false` 다.
+
+그리고 **SO 가 마스크 범위로 잘린다.** 속성 패널이 `W 497 · H 540 · X 1298 · Y 922`
+를 보였다. 타원이 `397×440 @ (1348, 972)` 이고 feather 20 이 각 변을 50px 넓히므로
+정확히 일치한다. 문서 전체 크기가 아니다.
+
+### id 교체가 실재한다
+
+```text
+convert {layerId: 14}   → {id: 15, previousId: 14, converted: true}
+convert {layerId: 14}   → LAYER_NOT_FOUND
+```
+
+옛 id 는 **사라진다.** `previousId` 를 담은 이유가 이것이다.
+
+### 두 번째 변환
+
+```text
+convert {layerId: 15}   → {converted: false, previousId: 15}   레이어 수 그대로
+```
+
+### **`mask.create` 의 `from` 기본값은 `revealAll` 이다**
+
+선택 영역이 있어도 **자동으로 쓰지 않는다.** 처음에 `from` 을 빠뜨려 전부 흰
+마스크가 만들어졌고, 변환된 SO 가 캔버스 전체를 덮어 Camera Raw 가 전역에 걸렸다.
+
+**눈으로는 보이지 않았다.** 밝기가 거의 안 변했기 때문이다(하늘 L 25.11 → 25.08).
+잡아낸 것은 노이즈다.
+
+```text
+하늘 σ   02_달 숨김 0.93   보임 1.24      ← 마스크가 안 걸렸다
+하늘 σ   02_달 숨김 0.93   보임 0.93      ← 고친 뒤
+```
+
+레이어를 껐다 켜며 같은 영역을 재는 것이 국소 보정이 격리됐는지 확인하는 방법이다.
+§17.13 이 "보는 것과 재는 것은 다른 일" 이라고 적은 자리가 또 나왔다.
+
+### 결과
+
+```text
+달 안쪽 σ   1.844(원본) → 0.987(전역 NR 뒤) → 1.273
+하늘 σ      0.930  변화 없음
+주탑 σ      2.431  변화 없음
+```
+
+전역 노이즈 감소가 깎은 달 질감을 국소로 되올렸고, 다른 영역은 건드리지 않았다.
+
+## 체크리스트
+
+- [x] `photoshop.smart_object.convert` — EDIT
+- [x] id 교체를 `resolveMutatedLayer` 로 해결하고 `previousId` 로 드러낸다
+- [x] 이미 스마트 오브젝트면 `converted: false`
+- [x] 변환 결과 타입 확인
+- [x] Mock 이 id 교체와 배경 해제를 흉내낸다
+- [x] `docs/CORE_API.md` §4.2 갱신 (§5.8 예정 목록에서 이동)
+- [x] 실기 검증 — 마스크는 안으로 흡수되고 SO 가 그 범위로 잘린다
+
+---
+
 # 18. Phase 14 — Distribution
 
 검토 대상:

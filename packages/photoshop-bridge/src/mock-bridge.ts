@@ -375,6 +375,35 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         this.#activeLayerId = promoted.id;
         return { ...promoted } as TResult;
       }
+      /**
+       * 스마트 오브젝트 변환. (ROADMAP §17.27)
+       *
+       * **id 가 바뀌는 것까지 흉내낸다.** 그러지 않으면 "옛 id 로 이어서 작업" 이라는
+       * 실패 경로가 테스트에 영원히 나오지 않는다 — 배경 승격에서 이미 겪은 일이다.
+       * (ARCHITECTURE §8.4)
+       *
+       * 배경 레이어는 변환되면서 배경이 아니게 된다. `isBackground` 를 떼지 않으면
+       * "배경인 스마트 오브젝트" 라는 존재하지 않는 상태가 만들어진다.
+       */
+      case "SMART_OBJECT_CONVERT": {
+        const index = this.#requireLayerIndex((command.params as { layerId?: number }).layerId);
+        const current = this.#layers[index] as LayerInfo;
+        const previousId = current.id;
+        // 이미 스마트 오브젝트면 아무것도 하지 않는다. History 도 남기지 않는다.
+        if (current.type === "smartObject") {
+          return { layer: { ...current }, converted: false, previousId } as TResult;
+        }
+        this.#snapshot("Convert to smart object");
+        const { isBackground: _wasBackground, ...rest } = current;
+        const wrapped: LayerInfo = {
+          ...rest,
+          id: this.#nextLayerId++,
+          type: "smartObject",
+        };
+        this.#layers[index] = wrapped;
+        this.#activeLayerId = wrapped.id;
+        return { layer: { ...wrapped }, converted: true, previousId } as TResult;
+      }
       case "FILTER_HIGH_PASS":
         this.#snapshot("High pass");
         return this.#gaussianBlur(command.params as { layerId?: number }) as TResult;

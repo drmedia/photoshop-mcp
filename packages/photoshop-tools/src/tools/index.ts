@@ -31,6 +31,7 @@ import { createDiagnosticsTool, type DiagnosticsSource } from "./diagnostics.js"
 import { createEventRecentTool, type EventReader } from "./event.js";
 import { createDocumentCropTool } from "./document-crop.js";
 import { createDocumentRotateTool } from "./document-rotate.js";
+import { createMeasureTiltTool } from "./measure-tilt.js";
 import { createDocumentStatisticsTool } from "./document-statistics.js";
 import { createCameraRawApplyTool } from "./camera-raw.js";
 import { createLayerDeleteTool } from "./layer-delete.js";
@@ -89,6 +90,7 @@ export * from "./capability.js";
 export * from "./window-capture.js";
 export * from "./document-crop.js";
 export * from "./document-rotate.js";
+export * from "./measure-tilt.js";
 export * from "./document-statistics.js";
 export * from "./retouch.js";
 export * from "./camera-raw.js";
@@ -121,6 +123,7 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createLayerDeleteTool(engine));
   registry.register(createDocumentCropTool(engine));
   registry.register(createDocumentRotateTool(engine));
+  registry.register(createMeasureTiltTool(engine));
   registry.register(createCaptureDocumentTool(engine));
   registry.register(createCaptureLayerTool(engine));
   registry.register(createCaptureSelectionTool(engine));

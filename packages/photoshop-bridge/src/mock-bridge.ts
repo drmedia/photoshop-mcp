@@ -508,6 +508,32 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       // 값을 지어내지 않는다 — 전부 중간 회색 한 장이라고 두고 그 값에서
       // 일관되게 계산한다. 실기의 거절 규칙(선택 없음 · 조정 레이어)은 그대로
       // 흉내 낸다. Mock 이 더 너그러우면 그 오류 경로는 테스트에 나오지 않는다.
+      /**
+       * 기울기 측정. (ROADMAP §17.21)
+       *
+       * Mock 은 픽셀을 모르므로 **경계를 찾지 못한 것으로** 답한다. 그럴듯한
+       * 각도를 지어내면 Mock 으로 돌린 워크플로가 엉뚱한 회전을 하고, 그것이
+       * 성공으로 보인다. 잴 수 없으면 잴 수 없다고 말하는 편이 정직하다.
+       */
+      case "MEASURE_TILT": {
+        const document = this.#requireDocument();
+        const { bounds } = command.params as {
+          bounds: { left: number; top: number; right: number; bottom: number };
+        };
+        if (bounds.right > document.width || bounds.bottom > document.height) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `잴 영역이 문서(${document.width}×${document.height})를 벗어납니다.`,
+            { recoverable: true },
+          );
+        }
+        throw new PhotoshopMcpError(
+          ErrorCode.COMMAND_FAILED,
+          "Mock Bridge 는 픽셀을 읽지 않아 기울기를 잴 수 없습니다. " +
+            "실제 Photoshop 연결이 필요합니다.",
+          { recoverable: false, details: { bounds } },
+        );
+      }
       case "DOCUMENT_STATISTICS": {
         const document = this.#requireDocument();
         const params = command.params as { region?: string; layerId?: number };

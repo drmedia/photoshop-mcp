@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **66개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **67개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 73). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 74). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -313,6 +313,16 @@ Extension 의 manifest `permissions` 는 **강제된다.** 선언 밖의 Tool �
 **복제본**을 만들어 평탄화·심도 변환 후 저장하고 닫는다. 원본을 건드리지 않기 위함이다.
 `bitDepth` 는 8 또는 16, 생략하면 문서 심도를 따른다. 결과의 `bitDepth` 는 요청값이
 아니라 **실제값**이다.
+
+`document.open` 은 승인된 폴더 안의 파일만 연다(ROADMAP §17.26). 저장과 같은 규칙이다 —
+읽기라고 느슨하게 두면 어느 파일이든 가져와 캡처로 볼 수 있다.
+
+**RAW 는 거절한다.** Camera Raw 대화상자가 떠 플러그인이 멈춘다. 대화상자는 이
+프로젝트에서 세 번 반복된 실패 유형이다(§17.11 · §17.25 · §17.26). 열 수 있는
+형식을 늘릴 때는 **실기에서 대화상자가 뜨지 않는 것을 확인한다.**
+
+`alreadyOpen` 은 Photoshop 이 같은 파일을 두 번 열지 않고 기존 창을 활성화한다는
+사실을 드러낸다. 편집 중이면 디스크의 것과 다르다.
 
 `document.flatten` · `document.close` 를 만들었다(ROADMAP §17.25). 둘 다 `destructive` 다.
 

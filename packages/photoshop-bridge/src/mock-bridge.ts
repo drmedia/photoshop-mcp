@@ -233,6 +233,24 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
           command.params as { name?: string; layerIds?: number[]; parentId?: number | null },
         ) as TResult;
       /**
+       * 열기. (ROADMAP §17.26)
+       *
+       * Mock 에는 파일 시스템이 없다. 그럴듯한 문서를 지어내면 Mock 으로 돌린
+       * 워크플로가 존재하지 않는 파일을 열었다고 믿는다 — `measure.tilt` 가
+       * 각도를 지어내지 않는 것과 같은 이유다.
+       *
+       * 형식 검사는 Command 스키마가 하므로 여기까지 온 것은 이미 통과한 것이다.
+       */
+      case "DOCUMENT_OPEN": {
+        const { filename } = command.params as { filename: string };
+        throw new PhotoshopMcpError(
+          ErrorCode.COMMAND_FAILED,
+          "Mock Bridge 는 파일을 읽지 않아 문서를 열 수 없습니다. " +
+            "실제 Photoshop 연결이 필요합니다.",
+          { recoverable: false, details: { filename } },
+        );
+      }
+      /**
        * 평탄화. (ROADMAP §17.25)
        *
        * **숨긴 레이어가 사라지는 것까지 흉내낸다.** 합쳐진다고 두면 그 손실이

@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (66개)
+## 4. 구현된 Core API (67개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -125,6 +125,7 @@ P3  확장 기능
 |---|---|---|
 | `photoshop.document.crop` | EDIT | 캔버스를 줄인다. **픽셀은 버리지 않는다** |
 | `photoshop.document.rotate` | EDIT | 문서 전체를 돌린다. **수평 교정용** |
+| `photoshop.document.open` | EXTERNAL | 승인된 폴더의 파일을 연다. **RAW 는 거절한다** |
 | `photoshop.document.flatten` | DESTRUCTIVE | 하나로 합친다. **숨긴 레이어는 버려진다** |
 | `photoshop.document.close` | DESTRUCTIVE | 닫는다. **저장하지 않는다** |
 | `photoshop.measure.tilt` | READ | 경계선 기울기. **각도와 잔차를 함께 준다** |
@@ -188,6 +189,17 @@ Mock Bridge 는 픽셀을 읽지 않으므로 **실패한다.** 그럴듯한 각
 인자 없이 부르지 않고 실패한다.
 
 `remainingDocuments` 가 0 이면 이후 Command 가 전부 `DOCUMENT_NOT_FOUND` 로 실패한다.
+
+`open` 은 **승인된 작업 폴더 안**으로 가둔다. 저장과 같은 규칙이다 — 호출자는
+폴더를 고를 수 없고 파일 이름만 준다. 읽기라고 느슨하게 두지 않았다: 임의 경로를
+열 수 있으면 사용자의 어느 파일이든 Photoshop 으로 가져와 캡처로 볼 수 있다.
+
+열 수 있는 형식은 `psd` · `psb` · `tif` · `tiff` · `png` · `jpg` · `jpeg` 다.
+**카메라 RAW 는 거절한다** — Camera Raw 대화상자가 떠 플러그인이 멈춘다.
+RAW 의 현상 설정은 슬라이더를 보며 정하는 일이라 사람이 직접 여는 편이 맞다.
+
+`alreadyOpen` 이 `true` 면 그 파일이 이미 열려 있어 **디스크에서 다시 읽은 것이
+아니라 기존 창이 활성화된 것**이다. 편집 중인 내용이 있으면 디스크의 것과 다르다.
 
 ### 4.1.2 결함 제거
 
@@ -387,7 +399,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 |---|---|---|---|
 | `photoshop.document.list` | P1 | READ | 열린 문서 전체 |
 | `photoshop.document.create` | P1 | EDIT | |
-| `photoshop.document.open` | P1 | EXTERNAL | 파일을 읽는다 |
 | `photoshop.document.duplicate` | P2 | EDIT | |
 | `photoshop.document.mode_convert` | P2 | EDIT | RGB · CMYK · Lab |
 | `photoshop.document.bit_depth_convert` | P2 | EDIT | 8 · 16 · 32 |

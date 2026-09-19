@@ -84,6 +84,7 @@ import {
 } from "./document-save.js";
 import { LAYER_GET_ACTIVE, layerGetActiveCommand } from "./layer-active.js";
 import { DOCUMENT_CROP, DocumentCropParamsSchema, documentCropCommand } from "./document-crop.js";
+import { DOCUMENT_OPEN, DocumentOpenParamsSchema, documentOpenCommand } from "./document-open.js";
 import {
   DOCUMENT_CLOSE,
   DOCUMENT_FLATTEN,
@@ -198,6 +199,7 @@ export * from "./document-rotate.js";
 export * from "./measure-tilt.js";
 export * from "./layer-reorder.js";
 export * from "./document-lifecycle.js";
+export * from "./document-open.js";
 export * from "./document-statistics.js";
 export * from "./retouch.js";
 export * from "./camera-raw.js";
@@ -250,6 +252,11 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     // 픽셀을 버리지 않는다. 캔버스만 줄이므로 되돌릴 수 있다.
     permission: "edit",
     schema: DocumentCropParamsSchema,
+  });
+  registry.register(DOCUMENT_OPEN, documentOpenCommand, {
+    // 파일을 읽는다. 승인된 폴더 안으로 가두지만 경계를 넘는 것은 같다.
+    permission: "external",
+    schema: DocumentOpenParamsSchema,
   });
   registry.register(DOCUMENT_FLATTEN, documentFlattenCommand, {
     // 조정 레이어가 구워지고 숨긴 레이어가 사라진다. (CORE_API §5.1)

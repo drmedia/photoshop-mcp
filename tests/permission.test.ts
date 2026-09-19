@@ -238,7 +238,12 @@ describe("Core Tool 분류", () => {
     const byLevel = (level: string): string[] =>
       mcp.commands.list().filter((type) => mcp.commands.permissionOf(type) === level);
 
-    expect(byLevel("external")).toEqual(["DOCUMENT_SAVE_AS", "DOCUMENT_EXPORT", "LAYER_PLACE"]);
+    expect(byLevel("external")).toEqual([
+      "DOCUMENT_OPEN",
+      "DOCUMENT_SAVE_AS",
+      "DOCUMENT_EXPORT",
+      "LAYER_PLACE",
+    ]);
     expect(byLevel("destructive")).toEqual([
       "LAYER_DELETE",
       "DOCUMENT_FLATTEN",

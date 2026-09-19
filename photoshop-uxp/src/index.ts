@@ -49,6 +49,7 @@ import { documentCrop } from "./dom/document-crop.js";
 import { documentRotate } from "./dom/document-rotate.js";
 import { documentTilt } from "./dom/document-tilt.js";
 import { documentClose, documentFlatten } from "./dom/document-lifecycle.js";
+import { documentOpen } from "./dom/document-open.js";
 import { layerReorder } from "./dom/layer-reorder.js";
 import { documentStatistics } from "./dom/document-statistics.js";
 import { cameraRawApply } from "./dom/camera-raw.js";
@@ -116,6 +117,9 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("LAYER_REORDER", async (p) =>
     layerReorder(p as Parameters<typeof layerReorder>[0]),
+  );
+  dispatcher.register("DOCUMENT_OPEN", async (p) =>
+    documentOpen(p as Parameters<typeof documentOpen>[0]),
   );
   dispatcher.register("DOCUMENT_FLATTEN", async () => documentFlatten());
   dispatcher.register("DOCUMENT_CLOSE", async (p) =>

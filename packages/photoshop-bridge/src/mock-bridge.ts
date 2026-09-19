@@ -225,7 +225,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       case "GROUP_CREATE":
         this.#snapshot("Create group");
         return this.#groupCreate(
-          command.params as { name?: string; layerIds?: number[] },
+          command.params as { name?: string; layerIds?: number[]; parentId?: number | null },
         ) as TResult;
       case "GROUP_MOVE_LAYER":
         this.#snapshot("Move layer");
@@ -1125,8 +1125,31 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     return { ...created };
   }
 
-  #groupCreate(params: { name?: string; layerIds?: number[] }): LayerInfo {
+  /**
+   * 그룹 생성. `parentId` 가 정한 자리에 만든다. (ROADMAP §17.20)
+   *
+   * 실기 Photoshop 은 활성 레이어가 있는 곳에 만들지만, Command 의 **계약**은
+   * "요청한 자리에 생긴다" 이다. Mock 은 그 계약을 흉내낸다 — 활성 레이어가
+   * 어디 있든 결과가 같아야 호출자가 위치를 추적하지 않아도 된다.
+   */
+  #groupCreate(params: {
+    name?: string;
+    layerIds?: number[];
+    parentId?: number | null;
+  }): LayerInfo {
     this.#requireDocument();
+
+    const parentId = params.parentId ?? null;
+    if (parentId !== null) {
+      const parent = this.#layers.find((layer) => layer.id === parentId);
+      if (parent === undefined) {
+        throw new PhotoshopMcpError(
+          ErrorCode.LAYER_NOT_FOUND,
+          `그룹 ${parentId} 를 찾을 수 없습니다.`,
+          { recoverable: true, details: { parentId } },
+        );
+      }
+    }
 
     // 넣을 레이어를 먼저 확인한다. 하나라도 없으면 그룹을 만들지 않는다.
     const members = (params.layerIds ?? []).map((layerId) => {
@@ -1147,7 +1170,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       type: "group",
       visible: true,
       opacity: 100,
-      parentId: null,
+      parentId,
       blendMode: "normal",
     };
     this.#layers.unshift(group);

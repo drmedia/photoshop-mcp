@@ -84,6 +84,11 @@ import {
 } from "./document-save.js";
 import { LAYER_GET_ACTIVE, layerGetActiveCommand } from "./layer-active.js";
 import { DOCUMENT_CROP, DocumentCropParamsSchema, documentCropCommand } from "./document-crop.js";
+import {
+  DOCUMENT_ROTATE,
+  DocumentRotateParamsSchema,
+  documentRotateCommand,
+} from "./document-rotate.js";
 import { CAMERA_RAW_APPLY, CameraRawParamsSchema, cameraRawApplyCommand } from "./camera-raw.js";
 import { LAYER_DELETE, LayerDeleteParamsSchema, layerDeleteCommand } from "./layer-delete.js";
 import {
@@ -179,6 +184,7 @@ export {
 export { LAYER_LIST, layerListCommand } from "./layer-list.js";
 export * from "./capture.js";
 export * from "./document-crop.js";
+export * from "./document-rotate.js";
 export * from "./document-statistics.js";
 export * from "./retouch.js";
 export * from "./camera-raw.js";
@@ -231,6 +237,12 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     // 픽셀을 버리지 않는다. 캔버스만 줄이므로 되돌릴 수 있다.
     permission: "edit",
     schema: DocumentCropParamsSchema,
+  });
+  registry.register(DOCUMENT_ROTATE, documentRotateCommand, {
+    // 픽셀을 재보간하지만 History 로 되돌아간다. destructive 로 올리면 기본
+    // 허용 밖이라 수평 교정이 기본 설정에서 막힌다. (§17.19)
+    permission: "edit",
+    schema: DocumentRotateParamsSchema,
   });
   registry.register(CAPTURE_DOCUMENT, captureDocumentCommand, {
     permission: "read",

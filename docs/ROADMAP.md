@@ -3553,6 +3553,84 @@ Photoshop 27.8, 조정 레이어 20장짜리 문서.
 
 ---
 
+# 17.24 조정 레이어의 종류 — 이름으로 짐작하고 있었다
+
+- [x] `LayerInfo.adjustmentType`
+
+## 무엇이 없었나
+
+`layer.list` 는 "조정 레이어다" 까지만 말했다. **무슨 조정인지는 말하지 않았다.**
+
+만드는 쪽은 문제가 없다 — 호출자가 무엇을 만들었는지 안다. 문제는 **저장한 PSD 를
+다시 열었을 때**다. 그때는 이름밖에 단서가 없다.
+
+## 실기가 바로 증명했다
+
+구현하고 이번 보정 문서를 읽어 보니 이렇게 나왔다.
+
+```text
+49 09_곡선      adjustment   colorBalance
+46 08_곡선      adjustment   colorBalance
+38 06b_R복원    adjustment   colorBalance
+37 06_색_곡선    adjustment   colorBalance
+43 07_스트레치    adjustment   curves
+34 05_곡선      adjustment   curves
+50 10_채도      adjustment   vibrance
+```
+
+**"곡선" 이라는 이름이 붙은 넷 중 셋이 Color Balance 였다.** 보정하면서 내가 붙인
+이름이고, 이름만 보면 Curves 로 읽힌다. 다시 열어 손보려던 사람은 `adjustment.curves`
+를 부르려 했을 것이다.
+
+## 짐작한 이름을 사실처럼 말하지 않는다
+
+Photoshop 은 조정 내용을 descriptor 클래스 이름으로 준다. 그 이름이 UI 이름과
+늘 같지는 않다 — `brightnessEvent` 가 밝기/대비다.
+
+그래서 **아는 것만 옮기고 모르는 것은 `null` 로 두며 원본을 `rawAdjustmentType`
+에 담는다.** `rawBitDepth` · `rawKind` · `rawBlendMode` 로 이미 세 번 실제 버그를
+잡은 규칙이다. 매핑이 틀려도 한 번 돌려 보면 진짜 이름이 드러난다.
+
+매핑에 성공하면 `raw` 를 담지 않는다. 둘 다 있으면 어느 쪽을 믿어야 할지 모호해진다.
+
+## 조정 레이어에만 묻는다
+
+`adjustment` 속성을 픽셀 레이어에 물으면 Photoshop 이 오류를 내고, 그러면
+batchPlay 한 묶음이 통째로 실패해 **마스크 상태까지 잃는다.** 호출부가 걸러서
+넘긴다.
+
+읽지 못하면 필드를 넣지 않는다 — `hasMask` 와 같은 규칙이다. 부가 정보 하나
+때문에 `layer.list` 가 통째로 실패하면 손해가 더 크다.
+
+## 실기 검증
+
+Photoshop 27.8.
+
+```text
+curves              ✓
+levels              ✓
+brightnessEvent     ✓  → brightnessContrast (UI 이름과 다르다)
+colorBalance        ✓
+hueSaturation       ✓
+vibrance            ✓
+```
+
+Core 가 만들 수 있는 여섯 가지가 모두 맞았다. 나머지 열 가지(exposure ·
+blackAndWhite · photoFilter · channelMixer · colorLookup · invert · posterize ·
+threshold · gradientMap · selectiveColor)는 만드는 Tool 이 없어 확인하지 못했다.
+틀리면 `rawAdjustmentType` 에 드러난다.
+
+## 다음
+
+이것이 `adjustment.update` 의 전제조건이다. 종류를 모르면 무엇을 바꿔야 할지도
+정할 수 없다.
+
+다만 **강도 조절은 `layer.set_opacity` 로 이미 된다.** −12 곡선을 67% 로 두면
+−8 이다. 이번 보정에서 그것을 쓰지 않고 지웠다 다시 만든 것은 도구가 없어서가
+아니라 쓸 줄 몰라서였다 — §17.16 의 `luminosity` 와 같은 종류의 착오다.
+
+---
+
 # 18. Phase 14 — Distribution
 
 검토 대상:

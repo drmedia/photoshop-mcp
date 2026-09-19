@@ -29,7 +29,13 @@ export function createCameraRawApplyTool(
       "전역 vibrance·saturation 과 달리 **특정 색만** 건드리므로, 야경에서 조명색만 " +
       "살리고 하늘은 그대로 두는 식의 조정에 쓴다. " +
       "레이어를 photoshop.smart_object.convert 로 먼저 감싸면 스마트 필터로 남아 " +
-      "나중에 값만 고칠 수 있다 — 그러면 '한 번에 담아라' 제약도 완화된다.",
+      "나중에 값만 고칠 수 있다 — 그러면 '한 번에 담아라' 제약도 완화된다. " +
+      "**곡선**은 파라메트릭(curveHighlights·curveLights·curveDarks·curveShadows 와 " +
+      "구간 경계 curveShadowSplit·curveMidtoneSplit·curveHighlightSplit)과 " +
+      "포인트(curveRgb·curveRed·curveGreen·curveBlue)를 모두 받는다. " +
+      "포인트 곡선은 [{x,y}, …] 점 목록이며 0-255 이고 x 가 엄격히 증가해야 한다. " +
+      "curveHighlights 는 기본 패널의 highlights 와 **다른 것이다** — " +
+      "저쪽은 톤 범위를 직접 밀고 이쪽은 곡선의 해당 구간을 구부린다.",
     permission: "edit",
     inputSchema: CameraRawParamsSchema,
     handler: async (input, context) =>

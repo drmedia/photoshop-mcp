@@ -1,4 +1,8 @@
-import { asDouble, buildCameraRawDescriptor } from "../photoshop-uxp/src/dom/camera-raw-keys.js";
+import {
+  asDouble,
+  buildCameraRawDescriptor,
+  flattenCurve,
+} from "../photoshop-uxp/src/dom/camera-raw-keys.js";
 import { createPhotoshopMcp, createSilentLogger } from "@photoshop-mcp/mcp-core";
 import { MockPhotoshopBridge } from "@photoshop-mcp/photoshop-bridge";
 import { describe, expect, it } from "vitest";
@@ -146,6 +150,122 @@ describe("Camera Raw", () => {
       expect(applied).toHaveLength(24);
       // _obj 하나를 더한 수다.
       expect(Object.keys(descriptor)).toHaveLength(25);
+    });
+  });
+
+  /**
+   * 곡선. (ROADMAP §17.30)
+   *
+   * `curve` 에 `$` 가 없다 — `saturation` 에 이은 두 번째 예외다.
+   * 규칙성을 가정하면 이것 하나가 조용히 빠진다.
+   */
+  describe("곡선", () => {
+    it("**파라메트릭 키를 잡아낸 그대로 보낸다**", () => {
+      const { descriptor } = buildCameraRawDescriptor({
+        curveHighlights: -43,
+        curveLights: 0,
+        curveDarks: 27,
+        curveShadows: -14,
+      });
+      expect(descriptor["$PC_H"]).toBe(-43);
+      expect(descriptor["$PC_L"]).toBe(0);
+      expect(descriptor["$PC_D"]).toBe(27);
+      expect(descriptor["$PC_S"]).toBe(-14);
+    });
+
+    it("구간 경계는 $PC_1·2·3 이다", () => {
+      const { descriptor } = buildCameraRawDescriptor({
+        curveShadowSplit: 25,
+        curveMidtoneSplit: 50,
+        curveHighlightSplit: 75,
+      });
+      expect(descriptor["$PC_1"]).toBe(25);
+      expect(descriptor["$PC_2"]).toBe(50);
+      expect(descriptor["$PC_3"]).toBe(75);
+    });
+
+    it("**RGB 포인트 곡선 키에는 `$` 가 없다**", () => {
+      const { descriptor } = buildCameraRawDescriptor({
+        curveRgb: [
+          { x: 0, y: 0 },
+          { x: 128, y: 140 },
+          { x: 255, y: 255 },
+        ],
+      });
+      expect(descriptor["curve"]).toEqual([0, 0, 128, 140, 255, 255]);
+      expect(descriptor["$curve"]).toBeUndefined();
+    });
+
+    it("채널 곡선은 $CrvR·G·B 다", () => {
+      const points = [
+        { x: 0, y: 0 },
+        { x: 255, y: 255 },
+      ];
+      expect(buildCameraRawDescriptor({ curveRed: points }).descriptor["$CrvR"]).toEqual([
+        0, 0, 255, 255,
+      ]);
+      expect(buildCameraRawDescriptor({ curveGreen: points }).descriptor["$CrvG"]).toEqual([
+        0, 0, 255, 255,
+      ]);
+      expect(buildCameraRawDescriptor({ curveBlue: points }).descriptor["$CrvB"]).toEqual([
+        0, 0, 255, 255,
+      ]);
+    });
+
+    it("점을 평탄 배열로 편다", () => {
+      expect(
+        flattenCurve([
+          { x: 0, y: 0 },
+          { x: 67, y: 57 },
+          { x: 255, y: 255 },
+        ]),
+      ).toEqual([0, 0, 67, 57, 255, 255]);
+    });
+
+    it("**파라메트릭을 주면 구간 경계를 자동으로 채운다**", () => {
+      // 경계 없이 $PC_H 만 보내면 ok 를 돌려주면서 아무 일도 하지 않는다.
+      // 실기에서 달이 1레벨도 안 움직였다.
+      const { descriptor } = buildCameraRawDescriptor({ curveHighlights: -60 });
+      expect(descriptor["$PC_1"]).toBe(25);
+      expect(descriptor["$PC_2"]).toBe(50);
+      expect(descriptor["$PC_3"]).toBe(75);
+    });
+
+    it("호출자가 준 경계를 덮지 않는다", () => {
+      const { descriptor } = buildCameraRawDescriptor({
+        curveDarks: 10,
+        curveMidtoneSplit: 40,
+      });
+      expect(descriptor["$PC_2"]).toBe(40);
+      expect(descriptor["$PC_1"]).toBe(25);
+    });
+
+    it("포인트 곡선만 주면 경계를 넣지 않는다", () => {
+      // 파라메트릭을 쓰지 않는데 경계가 붙으면 없던 설정을 만들어내는 셈이다.
+      const { descriptor } = buildCameraRawDescriptor({
+        curveRgb: [
+          { x: 0, y: 0 },
+          { x: 255, y: 255 },
+        ],
+      });
+      expect(descriptor["$PC_1"]).toBeUndefined();
+    });
+
+    it("채도 미세 조정은 $crfs 다", () => {
+      // descriptor 에 잡혀 있었지만 뜻을 몰라 한동안 빼 두었던 키다.
+      expect(buildCameraRawDescriptor({ curveRefineSaturation: 60 }).descriptor["$crfs"]).toBe(60);
+    });
+
+    it("곡선만 주면 화이트밸런스를 건드리지 않는다", () => {
+      const { descriptor } = buildCameraRawDescriptor({ curveDarks: 10 });
+      expect(descriptor["$WBal"]).toBeUndefined();
+    });
+
+    it("기본 패널의 highlights 와 다른 키다", () => {
+      // 이름이 비슷해 섞이기 쉽다. $Hi12 와 $PC_H 는 다른 것이다.
+      const { descriptor } = buildCameraRawDescriptor({ highlights: -20, curveHighlights: -43 });
+      expect(descriptor["$Hi12"]).toBe(-20);
+      expect(descriptor["$PC_H"]).toBe(-43);
     });
   });
 

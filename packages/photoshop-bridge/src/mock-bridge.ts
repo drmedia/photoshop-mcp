@@ -1,6 +1,11 @@
 import type { PhotoshopBridge } from "./bridge.js";
 import { ErrorCode, PhotoshopMcpError } from "./protocol/errors.js";
-import type { DocumentInfo, LayerInfo, PhotoshopCommand } from "./protocol/types.js";
+import type {
+  AdjustmentType,
+  DocumentInfo,
+  LayerInfo,
+  PhotoshopCommand,
+} from "./protocol/types.js";
 import { withExtension, type SaveResult } from "./protocol/workspace.js";
 
 /** ROADMAP §5.5 의 기본 Mock 문서. */
@@ -249,13 +254,17 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       // Phase 4 — 조정 레이어
       case "ADJUSTMENT_CURVES":
         this.#snapshot("Curves");
-        return this.#adjustment("Curves", command.params) as TResult;
+        return this.#adjustment("Curves", "curves", command.params) as TResult;
       case "ADJUSTMENT_LEVELS":
         this.#snapshot("Levels");
-        return this.#adjustment("Levels", command.params) as TResult;
+        return this.#adjustment("Levels", "levels", command.params) as TResult;
       case "ADJUSTMENT_BRIGHTNESS_CONTRAST":
         this.#snapshot("Brightness/Contrast");
-        return this.#adjustment("Brightness/Contrast", command.params) as TResult;
+        return this.#adjustment(
+          "Brightness/Contrast",
+          "brightnessContrast",
+          command.params,
+        ) as TResult;
 
       // Phase 4 — 마스크 · 선택 영역
       case "MASK_CREATE":
@@ -276,7 +285,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       // 워크플로 공백 보완. (ROADMAP §17.8)
       case "ADJUSTMENT_COLOR_BALANCE":
         this.#snapshot("Color Balance");
-        return this.#adjustment("Color Balance", command.params) as TResult;
+        return this.#adjustment("Color Balance", "colorBalance", command.params) as TResult;
       case "LAYER_FROM_BACKGROUND": {
         this.#snapshot("Layer from background");
         const index = this.#layers.findIndex((layer) => layer.isBackground === true);
@@ -708,10 +717,10 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         return { hasSelection: true } as TResult;
       case "ADJUSTMENT_HUE_SATURATION":
         this.#snapshot("Hue/Saturation");
-        return this.#adjustment("Hue/Saturation", command.params) as TResult;
+        return this.#adjustment("Hue/Saturation", "hueSaturation", command.params) as TResult;
       case "ADJUSTMENT_VIBRANCE":
         this.#snapshot("Vibrance");
-        return this.#adjustment("Vibrance", command.params) as TResult;
+        return this.#adjustment("Vibrance", "vibrance", command.params) as TResult;
 
       // Phase 9 — 파일 저장 (ROADMAP §8.5)
       case "WORKSPACE_STATUS":
@@ -1143,7 +1152,13 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     return this.#mutate(params, (layer) => ({ ...layer, blendMode: params.blendMode }));
   }
 
-  #adjustment(defaultName: string, params: unknown): LayerInfo {
+  /**
+   * 조정 레이어를 만든다.
+   *
+   * `adjustmentType` 을 담는다. (ROADMAP §17.24) Mock 이 이 필드를 비워 두면
+   * "조정 종류를 알 수 있다" 는 계약이 테스트에 영영 나오지 않는다.
+   */
+  #adjustment(defaultName: string, kind: AdjustmentType, params: unknown): LayerInfo {
     this.#requireDocument();
     const name = (params as { name?: string }).name ?? defaultName;
     const created: LayerInfo = {
@@ -1154,6 +1169,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       opacity: 100,
       parentId: null,
       blendMode: "normal",
+      adjustmentType: kind,
     };
     this.#layers.unshift(created);
     this.#activeLayerId = created.id;

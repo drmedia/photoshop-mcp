@@ -1,5 +1,6 @@
 import { action } from "photoshop";
 import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
+import { toAdjustmentKind, type AdjustmentKindResult } from "./adjustment-kind.js";
 
 /**
  * 레이어의 마스크 상태를 읽는다.
@@ -62,6 +63,48 @@ export async function readMaskState(
   return out;
 }
 
+/**
+ * 조정 레이어의 종류를 읽는다. (ROADMAP §17.24)
+ *
+ * `layer.list` 는 "조정 레이어다" 까지만 말하고 **무슨 조정인지는 말하지 않았다.**
+ * 저장한 PSD 를 다시 열면 이름으로 짐작하는 수밖에 없었다.
+ *
+ * `hasUserMask` 와 같은 방식으로 `adjustment` 속성을 읽는다. 마스크 상태와 같은
+ * 규칙으로, **읽지 못하면 필드를 넣지 않는다.**
+ *
+ * 조정 레이어가 아닌 것에는 부르지 않는다 — 호출부가 걸러서 넘긴다.
+ */
+export async function readAdjustmentKinds(
+  ids: readonly number[],
+): Promise<Map<number, AdjustmentKindResult>> {
+  const out = new Map<number, AdjustmentKindResult>();
+  if (ids.length === 0) {
+    return out;
+  }
+
+  let results: Record<string, unknown>[];
+  try {
+    results = await action.batchPlay(
+      ids.map((id) => ({
+        _obj: "get",
+        _target: [{ _property: "adjustment" }, { _ref: "layer", _id: id }],
+      })),
+      {},
+    );
+  } catch {
+    return out;
+  }
+
+  for (let i = 0; i < ids.length; i += 1) {
+    const value = results[i]?.["adjustment"];
+    if (value === undefined) {
+      continue;
+    }
+    out.set(ids[i] as number, toAdjustmentKind(value));
+  }
+  return out;
+}
+
 /** 읽은 마스크 상태를 레이어 정보에 얹는다. 읽지 못한 레이어는 그대로 둔다. */
 export function withMaskState(
   layers: readonly LayerInfo[],
@@ -75,7 +118,38 @@ export function withMaskState(
   });
 }
 
-/** 읽기와 병합을 한 번에. 레이어 몇 개만 다룰 때 쓴다. */
+/** 읽은 조정 종류를 레이어 정보에 얹는다. 읽지 못한 레이어는 그대로 둔다. */
+export function withAdjustmentKind(
+  layers: readonly LayerInfo[],
+  kinds: ReadonlyMap<number, AdjustmentKindResult>,
+): LayerInfo[] {
+  return layers.map((layer) => {
+    const found = kinds.get(layer.id);
+    if (found === undefined) {
+      return layer;
+    }
+    // 원본은 매핑에 실패했을 때만 담는다. 성공했는데 남기면 두 값이 같은 것을
+    // 가리켜 어느 쪽을 믿어야 할지 모호해진다.
+    return found.raw === undefined
+      ? { ...layer, adjustmentType: found.adjustmentType }
+      : { ...layer, adjustmentType: found.adjustmentType, rawAdjustmentType: found.raw };
+  });
+}
+
+/**
+ * 읽기와 병합을 한 번에. 레이어 몇 개만 다룰 때 쓴다.
+ *
+ * 조정 종류는 **조정 레이어에만** 묻는다. 픽셀 레이어에 물으면 Photoshop 이
+ * 오류를 내고, 그러면 batchPlay 한 묶음이 통째로 실패해 마스크 상태까지 잃는다.
+ */
 export async function withMaskStateAsync(layers: readonly LayerInfo[]): Promise<LayerInfo[]> {
-  return withMaskState(layers, await readMaskState(layers.map((entry) => entry.id)));
+  const withMask = withMaskState(layers, await readMaskState(layers.map((entry) => entry.id)));
+  const adjustments = withMask.filter((entry) => entry.type === "adjustment");
+  if (adjustments.length === 0) {
+    return withMask;
+  }
+  return withAdjustmentKind(
+    withMask,
+    await readAdjustmentKinds(adjustments.map((entry) => entry.id)),
+  );
 }

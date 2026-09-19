@@ -98,6 +98,34 @@ export const BlendModeSchema = z.enum([
 
 export type BlendMode = z.infer<typeof BlendModeSchema>;
 
+/**
+ * 조정 레이어의 종류. (ROADMAP §17.24)
+ *
+ * Photoshop 이 주는 descriptor 클래스 이름을 이 목록으로 옮긴다. 목록에 없는
+ * 값은 `null` 로 두고 원본을 함께 돌려준다 — 그럴듯한 값으로 덮으면 호출자가
+ * 틀린 종류를 사실로 받아들인다.
+ */
+export const AdjustmentTypeSchema = z.enum([
+  "brightnessContrast",
+  "levels",
+  "curves",
+  "exposure",
+  "vibrance",
+  "hueSaturation",
+  "colorBalance",
+  "blackAndWhite",
+  "photoFilter",
+  "channelMixer",
+  "colorLookup",
+  "invert",
+  "posterize",
+  "threshold",
+  "gradientMap",
+  "selectiveColor",
+]);
+
+export type AdjustmentType = z.infer<typeof AdjustmentTypeSchema>;
+
 /** 레이어 정보. */
 export const LayerInfoSchema = z.object({
   id: z.number().int(),
@@ -138,6 +166,19 @@ export const LayerInfoSchema = z.object({
   hasMask: z.boolean().optional(),
   /** 마스크가 켜져 있는지. `hasMask` 가 `true` 일 때만 의미가 있다. */
   maskEnabled: z.boolean().optional(),
+  /**
+   * 조정 레이어의 종류. (ROADMAP §17.24)
+   *
+   * `type` 이 `adjustment` 인 레이어에만 담긴다. 그동안 `layer.list` 는
+   * "조정 레이어다" 까지만 말하고 **무슨 조정인지는 말하지 않았다** — 저장한
+   * PSD 를 다시 열면 이름으로 짐작하는 수밖에 없었다.
+   *
+   * 매핑하지 못한 값은 `null` 이고 `rawAdjustmentType` 에 원본이 담긴다.
+   * (`blendMode` · `bitDepth` 와 같은 원칙)
+   */
+  adjustmentType: AdjustmentTypeSchema.nullable().optional(),
+  /** Photoshop 이 준 원본 이름. `adjustmentType` 이 `null` 일 때만 포함. */
+  rawAdjustmentType: z.string().optional(),
 });
 
 export type LayerInfo = z.infer<typeof LayerInfoSchema>;

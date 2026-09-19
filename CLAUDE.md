@@ -179,6 +179,19 @@ Camera Raw 는 슬라이더들이 한 렌더링 파이프라인 안에서 함께
 노이즈 감소는 `filter` 쪽 `denoise` 보다 훨씬 낫다 — 실기에서 σ 6.72 → 3.42(49%)
 이면서 색은 소수점 둘째 자리까지 그대로였다. `denoise` 는 최대 강도로도 7% 였다.
 
+## 조정 레이어의 종류 (ROADMAP §17.24)
+
+`layer.list` 가 `adjustmentType` 을 담는다. 그전에는 "조정 레이어다" 까지만 말해서
+**저장한 PSD 를 다시 열면 이름으로 짐작해야 했다.**
+
+구현하고 실기 문서를 읽으니 "곡선" 이라는 이름의 넷 중 셋이 Color Balance 였다.
+
+클래스 이름이 UI 이름과 다른 것이 있다 — `brightnessEvent` 가 밝기/대비다.
+아는 것만 옮기고 모르면 `null` + `rawAdjustmentType` 이다.
+
+**조정 레이어에만 묻는다.** 픽셀 레이어에 물으면 batchPlay 묶음이 통째로 실패해
+마스크 상태까지 잃는다.
+
 ## 레이어 순서 (ROADMAP §17.23)
 
 `photoshop.layer.reorder` 의 `top` · `bottom` · `up` · `down` 은 **같은 부모

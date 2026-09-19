@@ -1,7 +1,7 @@
 import { type PhotoshopLayer } from "photoshop";
 import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { orderActiveLayers } from "./active-order.js";
-import { readMaskState, withMaskState } from "./mask-state.js";
+import { withMaskStateAsync } from "./mask-state.js";
 import { requireActiveDocument } from "./document.js";
 import { toBlendMode, toLayerType } from "./mappings.js";
 import { runModal } from "./modal.js";
@@ -17,8 +17,8 @@ import { runModal } from "./modal.js";
 export async function layerList(): Promise<LayerInfo[]> {
   return runModal("List layers", async () => {
     const layers = flattenLayers(requireActiveDocument().layers);
-    // 마스크 상태는 DOM 에 없어 따로 읽는다. 실패하면 그 필드만 빠진다.
-    return withMaskState(layers, await readMaskState(layers.map((entry) => entry.id)));
+    // 마스크 상태와 조정 종류는 DOM 에 없어 따로 읽는다. 실패하면 그 필드만 빠진다.
+    return withMaskStateAsync(layers);
   });
 }
 
@@ -115,6 +115,6 @@ export async function layerGetActive(): Promise<LayerInfo[]> {
       flattenLayers(document.layers),
       active.map((layer) => toLayerInfo(layer)),
     );
-    return withMaskState(ordered, await readMaskState(ordered.map((entry) => entry.id)));
+    return withMaskStateAsync(ordered);
   });
 }

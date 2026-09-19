@@ -8,6 +8,7 @@ import {
 import type { Logger } from "@photoshop-mcp/photoshop-bridge";
 import {
   registerCapabilityTools,
+  registerWindowCaptureTool,
   registerDiagnosticsTool,
   registerEventTools,
   registerJobTools,
@@ -16,6 +17,7 @@ import {
   registerPhotoshopTools,
 } from "@photoshop-mcp/photoshop-tools";
 import { CapabilityRegistry } from "./capabilities/registry.js";
+import { PhotoshopWindowCapturer } from "./capture/window.js";
 import { ExtensionManager } from "./extensions/manager.js";
 import { EventBus } from "./events/bus.js";
 import { ResourceRegistry, affectedResources } from "./resources/registry.js";
@@ -231,6 +233,7 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
   });
 
   registerCapabilityTools(tools, capabilities);
+  registerWindowCaptureTool(tools, new PhotoshopWindowCapturer());
   registerJobTools(tools, jobs);
   registerEventTools(tools, events);
 

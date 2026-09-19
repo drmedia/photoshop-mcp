@@ -29,6 +29,9 @@ import {
 import { createCapabilityListTool, type CapabilityLister } from "./capability.js";
 import { createDiagnosticsTool, type DiagnosticsSource } from "./diagnostics.js";
 import { createEventRecentTool, type EventReader } from "./event.js";
+import { createDocumentCropTool } from "./document-crop.js";
+import { createDocumentStatisticsTool } from "./document-statistics.js";
+import { createWindowCaptureTool, type WindowCapturer } from "./window-capture.js";
 import { createWorkflowListTool, createWorkflowRunTool, type WorkflowRunner } from "./workflow.js";
 import {
   createJobCancelTool,
@@ -43,6 +46,11 @@ import {
   createWorkspaceStatusTool,
 } from "./document-save.js";
 import { createLayerGetActiveTool } from "./layer-active.js";
+import {
+  createCaptureDocumentTool,
+  createCaptureLayerTool,
+  createCaptureSelectionTool,
+} from "./capture.js";
 import { createSelectionSkyTool } from "./selection-auto.js";
 import {
   createColorBalanceTool,
@@ -64,6 +72,7 @@ import { createPingTool } from "./ping.js";
 export { DocumentGetInputSchema, createDocumentGetTool } from "./document-get.js";
 export { createLayerGetActiveTool } from "./layer-active.js";
 export { createSelectionSkyTool } from "./selection-auto.js";
+export * from "./capture.js";
 export * from "./workflow-gaps.js";
 export {
   LayerListInputSchema,
@@ -73,6 +82,9 @@ export {
 export * from "./adjustment.js";
 export * from "./filter.js";
 export * from "./capability.js";
+export * from "./window-capture.js";
+export * from "./document-crop.js";
+export * from "./document-statistics.js";
 export * from "./job.js";
 export * from "./diagnostics.js";
 export * from "./event.js";
@@ -95,6 +107,11 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createLayerListTool(engine));
   registry.register(createLayerGetActiveTool(engine));
   registry.register(createSelectionSkyTool(engine));
+  registry.register(createDocumentStatisticsTool(engine));
+  registry.register(createDocumentCropTool(engine));
+  registry.register(createCaptureDocumentTool(engine));
+  registry.register(createCaptureLayerTool(engine));
+  registry.register(createCaptureSelectionTool(engine));
   registry.register(createLayerFromBackgroundTool(engine));
   registry.register(createColorBalanceTool(engine));
   registry.register(createHighPassTool(engine));
@@ -193,6 +210,21 @@ export function registerEventTools(registry: ToolRegistry, events: EventReader):
 /** 진단 Tool 을 등록한다. (ROADMAP §17) */
 export function registerDiagnosticsTool(registry: ToolRegistry, source: DiagnosticsSource): void {
   registry.register(createDiagnosticsTool(source));
+}
+
+/**
+ * 창 캡처 Tool 을 등록한다. (ROADMAP §17.11)
+ *
+ * 다른 캡처 셋과 달리 Command Engine 을 거치지 않는다. Photoshop 에 닿지 않고
+ * OS 에게 묻기 때문이다 — `capability.list` · `diagnostics` 와 같은 부류다.
+ * 권한은 Tool 레지스트리가 강제한다.
+ *
+ * 플랫폼과 무관하게 등록한다. 지원하지 않는 곳에서는 목록에 있되 이유를 말하며
+ * 실패한다 — 파일 저장 Tool 을 막힌 채로 노출하는 것과 같은 이유다. 무엇이 있고
+ * 왜 안 되는지 클라이언트가 알아야 한다.
+ */
+export function registerWindowCaptureTool(registry: ToolRegistry, capturer: WindowCapturer): void {
+  registry.register(createWindowCaptureTool(capturer));
 }
 
 /** 워크플로 Tool 을 등록한다. (ROADMAP §11) */

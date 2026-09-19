@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **41개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **58개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 47). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 65). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -30,6 +30,84 @@ Tool 까지 더한 수다(지금 47). 한동안 이 값을 Core 개수로 옮겨
 - §8.6 공백 보완: selection.set · layer.set_blend_mode · adjustment.hue_saturation · vibrance
 
 - 파일 저장: `workspace.status` · `document.save_as` · `document.export` · `document.save`
+- 캡처: `document.capture` · `layer.capture` · `selection.capture` · `window.capture`
+- 구도: `document.crop` — 캔버스만 줄이고 **픽셀은 버리지 않는다**. 그래서 `edit` 이다
+- 측정: `document.statistics` — **전체 해상도 원본**에서 히스토그램·채널 통계
+
+## 캡처 (ROADMAP §17.10)
+
+**호출자가 자기 편집 결과를 본다.** 이것이 없어서 보정 열 단계를 다 쌓은 뒤
+내보내기로 확인하고 나서야 하늘이 보라색이 된 것을 발견한 적이 있다.
+
+ROADMAP §17.9 에 "결과를 볼 수 없다 · Tool 을 더 만들어 풀 문제가 아니다" 라고 적었던
+것은 **틀렸다.** UXP `imaging` API 가 축소한 픽셀을 메모리로 준다. 없던 것은 능력이
+아니라 그 능력을 쓰는 Tool 이었다.
+
+권한은 셋 다 `read` 다 — 파일을 만들지 않고 폴더 승인도 필요 없다. `document.export`
+로도 볼 수 있지만 원본을 디스크에 쓰고 `external` 을 요구한다.
+
+결과는 **MCP image content block** 으로 나간다. base64 를 텍스트 JSON 에 담으면
+LLM 은 그것을 볼 수 없고 토큰만 먹는다. 서버가 알아보는 기준은 `CapturedImage`
+계약 하나다(`photoshop-bridge/src/capture.ts`). 크기는 텍스트로 함께 준다.
+
+긴 변 기본 1024 · 상한 2048. 구도·색·노출 판단에는 충분하다.
+
+## 창 캡처 (ROADMAP §17.11)
+
+`photoshop.window.capture` 는 위 셋과 다른 물건이다. 문서의 픽셀이 아니라 **Photoshop
+창**을 찍는다 — 패널·툴바·대화상자까지.
+
+처음에 "찍히는 것은 픽셀이 아니라 패널과 툴바라 쓸모없다" 고 적었는데 **판단이
+좁았다.** 쓸모는 하나지만 그것이 크다. **대화상자가 떠 있으면 Photoshop 이 명령을
+받지 못하는데**, batchPlay 가 응답하지 않아 호출자는 타임아웃만 본다.
+`photoshop.diagnostics` 도 못 본다 — Bridge 가 응답 못 하는 상태라 Photoshop 에게
+물어볼 방법 자체가 없다. 밖에서 창을 찍는 것이 유일한 길이다.
+
+**UXP 가 아니라 서버가 직접 찍는다.** Bridge 가 localhost WebSocket 이라 서버는
+Photoshop 과 같은 기계에 있다. 헬퍼 실행 파일을 따로 깔 이유가 없다. Windows 는
+PowerShell + `PrintWindow` 로 의존성 0 이다.
+
+`PrintWindow` 여야 한다. 화면 복사(`CopyFromScreen`)는 **위에 있는 딴 창**을 찍는다.
+Photoshop 이 뒤에 있어도 대화상자를 볼 수 있어야 하므로 이 차이가 결정적이다.
+`PW_RENDERFULLCONTENT`(2) 를 줘야 GPU 캔버스가 검게 나오지 않는다.
+
+**권한이 `read` 가 아니라 `external` 이다.** 찍는 것이 문서가 아니라 사용자의 화면이다 —
+파일 경로·최근 문서·계정 이름이 함께 찍힌다. 기본 허용 밖이라 꺼져 있는 것이 기본이다.
+
+대상은 **Photoshop 메인 창으로 고정**한다. 호출자가 창을 고를 수 있으면 임의 창 캡처
+도구가 되고 §23 이 막으려던 것과 같아진다. 같은 이유로 LLM 이 준 값은 스크립트
+문자열에 섞이지 않는다 — 스크립트는 고정 상수이고 `longEdge` 는 환경 변수로만 간다.
+
+최소화된 창은 `IsIconic` 으로 잡아 **실패로 돌려준다.** `PrintWindow` 는 오류 없이
+빈 화면을 주는데, 그대로 돌려주면 호출자가 현재 화면이라고 믿는다.
+
+macOS 는 미지원이다. 목록에는 노출하되 이유를 말하며 실패한다.
+
+Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `format: "png"`
+회피도, 알파 포함도 전부 막힌다. 받은 픽셀을 JS 에서 8비트 RGB 로 낮춰 다시 감싼다.
+**Photoshop 의 16비트는 0–65535 가 아니라 0–32768 이다** — `>> 8` 로 낮추면 오류 없이
+딱 절반 밝기가 나온다.
+자세한 것은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 있다.
+
+## 측정 (ROADMAP §17.13)
+
+**보는 것과 재는 것은 다른 일이고 둘 다 필요하다.** 캡처가 "보는" 문제를 풀었지만
+어두운 영역의 색 편향·미세한 캐스트·작은 클리핑은 봐서 잡히지 않는다. 실기에서
+보라색 하늘과 초록색 하늘을 두 번 통과시킨 뒤에 만들었다.
+
+**미리보기를 재지 않는다.** 축소하면 단일 픽셀 클리핑이 평균에 묻히고 8비트로
+내리면 값이 바뀐다. `targetSize` 를 주지 않고 전체 해상도로 읽는다 — 2440만 픽셀이
+400ms 다. 표본 추출을 하지 않는다.
+
+값은 0–255 로 정규화하되 **클리핑 판정은 원래 심도에서** 한다. 16비트를 먼저 내리면
+32768 과 32700 이 똑같이 255 가 되어 클리핑이 부풀려진다.
+
+**DOM 에 `document.histogram` 이 없다.** 첫 구현이 두 경로를 모두 확인하도록 만들어
+재 보고 알았다. 짐작으로 골랐으면 없는 API 를 썼다.
+
+**조정 레이어에 `layerId` 를 주면 거절한다.** 실기에서 재 보니 마스크 영역을 재서
+모든 채널 평균이 255 로 나왔다. 픽셀 수까지 그럴듯하게 달라 더 그럴듯하다 —
+그대로 돌려주면 "이 레이어는 순백" 으로 읽힌다.
 
 ## Permission (ARCHITECTURE §22)
 

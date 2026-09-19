@@ -107,7 +107,14 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   /** 저장된 알파 채널 이름. Mock 은 픽셀을 모르므로 이름만 기억한다. */
   readonly #channels = new Set<string>();
   #nextLayerId: number;
-  readonly #history: { name: string; layers: LayerInfo[]; activeLayerId: number | null }[] = [];
+  readonly #history: {
+    name: string;
+    layers: LayerInfo[];
+    activeLayerId: number | null;
+    // 자르기는 레이어가 아니라 **문서**를 바꾼다. 이것을 담지 않으면 undo 가
+    // 크기를 되돌리지 못하고, Mock 만 "자르기는 되돌릴 수 없다" 는 거짓을 말한다.
+    document: DocumentInfo | null;
+  }[] = [];
   #hasSelection = false;
   #workspacePath: string | null;
   #documentPath: string | null;
@@ -355,6 +362,116 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         }
         return { ...layer } as TResult;
       }
+      // 캡처. Mock 은 픽셀이 없으므로 **1×1 투명 PNG** 를 돌려준다.
+      // 그림 내용을 흉내내지는 않지만, 응답 모양과 "선택이 없으면 실패" 같은
+      // 경로는 실제와 같아야 한다.
+      // 통계. 실제 픽셀이 없으므로 **모양과 규칙만** 흉내 낸다.
+      //
+      // 값을 지어내지 않는다 — 전부 중간 회색 한 장이라고 두고 그 값에서
+      // 일관되게 계산한다. 실기의 거절 규칙(선택 없음 · 조정 레이어)은 그대로
+      // 흉내 낸다. Mock 이 더 너그러우면 그 오류 경로는 테스트에 나오지 않는다.
+      case "DOCUMENT_STATISTICS": {
+        const document = this.#requireDocument();
+        const params = command.params as { region?: string; layerId?: number };
+        let source = "document";
+        let pixels = document.width * document.height;
+
+        if (params.layerId !== undefined) {
+          const layer = this.#layers.find((entry) => entry.id === params.layerId);
+          if (layer === undefined) {
+            throw new PhotoshopMcpError(
+              ErrorCode.LAYER_NOT_FOUND,
+              `레이어 ${params.layerId} 를 찾을 수 없습니다.`,
+              { recoverable: true },
+            );
+          }
+          if (layer.type === "adjustment" || layer.type === "group") {
+            throw new PhotoshopMcpError(
+              ErrorCode.INVALID_PARAMETER,
+              `${layer.type === "group" ? "그룹" : "조정 레이어"}에는 잴 픽셀이 없습니다. ` +
+                "layerId 를 빼면 조정이 반영된 합성 결과를 잽니다.",
+              { recoverable: true },
+            );
+          }
+          source = `layer:${layer.id}`;
+        }
+
+        if (params.region === "selection") {
+          if (!this.#hasSelection) {
+            throw new PhotoshopMcpError(ErrorCode.INVALID_PARAMETER, "잴 선택 영역이 없습니다.", {
+              recoverable: true,
+            });
+          }
+          source = "selection:0,0,100,100";
+          pixels = 100 * 100;
+        }
+
+        const flat = {
+          mean: 128,
+          p1: 128,
+          p5: 128,
+          p50: 128,
+          p95: 128,
+          p99: 128,
+          clippedHigh: 0,
+          clippedLow: 0,
+        };
+        const histogram = new Array<number>(64).fill(0);
+        histogram[32] = 100;
+        return {
+          source,
+          pixels,
+          bitDepth: 8,
+          channels: { red: flat, green: flat, blue: flat, luminance: flat },
+          histogram,
+          method: "mock",
+          elapsedMs: 0,
+        } as TResult;
+      }
+
+      // 자르기. **픽셀을 버리지 않으므로** 크기만 바꾼다.
+      //
+      // 범위 검사를 실기와 같게 한다 — Mock 이 더 너그러우면 그 오류 경로는
+      // 테스트에 영영 나오지 않는다.
+      case "DOCUMENT_CROP": {
+        const document = this.#requireDocument();
+        const { bounds } = command.params as {
+          bounds: { left: number; top: number; right: number; bottom: number };
+        };
+        if (bounds.right > document.width || bounds.bottom > document.height) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `자를 영역이 문서(${document.width}×${document.height})를 벗어납니다: ` +
+              `right ${bounds.right}, bottom ${bounds.bottom}.`,
+            { recoverable: true },
+          );
+        }
+        this.#snapshot("Crop");
+        const previousWidth = document.width;
+        const previousHeight = document.height;
+        this.#document = {
+          ...document,
+          width: bounds.right - bounds.left,
+          height: bounds.bottom - bounds.top,
+        };
+        return {
+          width: this.#document.width,
+          height: this.#document.height,
+          previousWidth,
+          previousHeight,
+          pixelsRetained: true,
+        } as TResult;
+      }
+      case "CAPTURE_DOCUMENT":
+      case "CAPTURE_LAYER":
+        return this.#capture(command.type === "CAPTURE_LAYER" ? "layer" : "document") as TResult;
+      case "CAPTURE_SELECTION":
+        if (!this.#hasSelection) {
+          throw new PhotoshopMcpError(ErrorCode.INVALID_PARAMETER, "캡처할 선택 영역이 없습니다.", {
+            recoverable: true,
+          });
+        }
+        return this.#capture("selection") as TResult;
       case "SELECTION_CLEAR":
         this.#hasSelection = false;
         return { hasSelection: false } as TResult;
@@ -717,6 +834,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     }
     this.#layers = snapshot.layers.map((layer) => ({ ...layer }));
     this.#activeLayerId = snapshot.activeLayerId;
+    this.#document = snapshot.document === null ? null : { ...snapshot.document };
     return { currentState: snapshot.name };
   }
 
@@ -726,10 +844,31 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       name,
       layers: this.#layers.map((layer) => ({ ...layer })),
       activeLayerId: this.#activeLayerId,
+      document: this.#document === null ? null : { ...this.#document },
     });
   }
 
   /** 조정 레이어를 만들어 맨 위에 넣는다. 실제 Photoshop 과 같은 위치다. */
+  /** 1×1 투명 PNG. 내용은 없지만 응답 모양은 실제와 같다. */
+  #capture(source: string): {
+    kind: "image";
+    mimeType: "image/png";
+    base64: string;
+    width: number;
+    height: number;
+    source: string;
+  } {
+    return {
+      kind: "image",
+      mimeType: "image/png",
+      base64:
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+      width: 1,
+      height: 1,
+      source: `${source}:mock`,
+    };
+  }
+
   /** 선택 영역 상태. 실제 Plugin 과 같은 모양으로 돌려준다. */
   #selectionState(): { hasSelection: boolean; bounds: LayerBounds | null } {
     const document = this.#document;

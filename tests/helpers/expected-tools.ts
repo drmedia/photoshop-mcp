@@ -13,6 +13,12 @@ export const EXPECTED_TOOLS = [
   "photoshop.layer.list",
   "photoshop.layer.get_active",
   "photoshop.selection.sky",
+  // ROADMAP §17.12 — 구도. 조정 레이어로는 할 수 없는 일
+  "photoshop.document.statistics",
+  "photoshop.document.crop",
+  "photoshop.document.capture",
+  "photoshop.layer.capture",
+  "photoshop.selection.capture",
   "photoshop.layer.from_background",
   "photoshop.adjustment.color_balance",
   "photoshop.filter.high_pass",
@@ -69,6 +75,8 @@ export const EXPECTED_TOOLS = [
   //
   // 조회만 노출한다. 실행은 Extension 이 전체 흐름의 일부로 호출한다.
   "photoshop.capability.list",
+  // ROADMAP §17.11 — Photoshop 창. 문서가 아니라 화면이라 external 이다
+  "photoshop.window.capture",
   // ROADMAP §14 — 긴 작업 (MCP 기본 타임아웃 60초를 넘는 것)
   "photoshop.job.status",
   "photoshop.job.list",
@@ -89,6 +97,11 @@ export const EXPECTED_COMMANDS = [
   "LAYER_LIST",
   "LAYER_GET_ACTIVE",
   "SELECTION_SKY",
+  "DOCUMENT_STATISTICS",
+  "DOCUMENT_CROP",
+  "CAPTURE_DOCUMENT",
+  "CAPTURE_LAYER",
+  "CAPTURE_SELECTION",
   "LAYER_FROM_BACKGROUND",
   "ADJUSTMENT_COLOR_BALANCE",
   "FILTER_HIGH_PASS",

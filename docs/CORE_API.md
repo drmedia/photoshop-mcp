@@ -69,9 +69,14 @@ Extension 은 `photoshop.*` 에 Tool 을 등록할 수 없다. 이름이 겹치�
 - `save_as` · `export` — 승인된 폴더로 나간다 → `EXTERNAL`
 - `layer.place` — 승인된 폴더에서 들어온다 → `EXTERNAL` (읽기여도 경계를 넘는다)
 - `save` — 원본을 덮어쓴다 → `DESTRUCTIVE`
+- `window.capture` — **사용자의 화면**을 읽는다 → `EXTERNAL`
 
 덮어쓰지 않는 것과 덮어쓰는 것을 나눠 놓았기 때문에 `save_as` 와 `export` 를
 `EXTERNAL` 로 둘 수 있다. 덮어쓰기는 `save` 하나에 모았다.
+
+`window.capture` 가 같은 기준의 다른 방향이다. 문서를 찍는 캡처 셋은 `READ` 지만
+이것은 Photoshop 창 — 파일 경로, 최근 문서 목록, 계정 이름, 떠 있는 대화상자가
+함께 찍힌다. **무엇을 찍느냐가 아니라 어디까지 보이느냐**가 경계다.
 
 ---
 
@@ -90,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (52개)
+## 4. 구현된 Core API (58개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -101,7 +106,31 @@ P3  확장 기능
 | `photoshop.ping` | READ | 서버 상태와 Bridge 연결 여부 |
 | `photoshop.document.get` | READ | 활성 문서 정보 |
 | `photoshop.layer.list` | READ | 활성 문서의 레이어 목록 |
+| `photoshop.document.capture` | READ | 문서를 합성해 **그림으로** 돌려준다 |
+| `photoshop.layer.capture` | READ | 레이어 하나만 그림으로 |
+| `photoshop.selection.capture` | READ | 선택 영역(경계 상자)을 그림으로 |
 | `photoshop.layer.get_active` | READ | 지금 선택된 레이어. `layers` 에 전부, `layer` 에 첫 번째 |
+| `photoshop.document.statistics` | READ | 히스토그램·채널 통계. **전체 해상도 원본에서** 잰다 |
+
+캡처와 통계는 **짝이다.** 캡처는 보고, 통계는 잰다. 구도·마스크 경계·전체 인상은
+봐야 잡히고, 어두운 영역의 색 편향·미세한 캐스트·작은 클리핑은 재야 잡힌다.
+(RETOUCH_PROCESS §4.3)
+
+### 4.1.1 구도
+
+| API | Permission | 비고 |
+|---|---|---|
+| `photoshop.document.crop` | EDIT | 캔버스를 줄인다. **픽셀은 버리지 않는다** |
+
+`bounds` 는 **남길** 영역이다. 문서 밖으로 나가면 거부한다 — 캔버스를 넓히는 것은
+자르기가 아니고, 조용히 넓혀 주면 호출자는 잘린 줄 안다.
+
+`delete: false` 로 실행하므로 바깥 픽셀이 레이어에 남는다. 그래서 `DESTRUCTIVE` 가
+아니라 `EDIT` 이다 — 되돌릴 수 있고 잃는 것이 없다. 대신 파일 크기는 줄지 않으며
+결과의 `pixelsRetained` 가 그 사실을 알린다.
+
+버리는 자르기를 옵션으로 두지 않았다. **파라미터 하나로 Permission 이 올라가면
+정적 선언이 거짓이 된다** — §2 가 Permission 을 필수 정적 필드로 둔 이유다.
 
 ### 4.2 레이어
 
@@ -224,8 +253,15 @@ StarNet2 가 67초였다. 그래서 오래 걸리는 Tool 은 **짧게 끝나도
 |---|---|---|
 | `photoshop.diagnostics` | READ | 막힌 이유와 **고치는 방법**을 함께 준다 |
 | `photoshop.event.recent` | READ | `command.*` 는 신뢰할 수 있다. `photoshop.*` 는 §6 참조 |
+| `photoshop.window.capture` | EXTERNAL | Photoshop **창**을 찍는다. Windows 전용 |
 
 무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.
+
+`window.capture` 는 `diagnostics` 가 답하지 못하는 하나를 답한다 — **대화상자가 떠서
+Photoshop 이 명령을 못 받는 상태.** 그때는 Bridge 가 응답하지 않으므로 Photoshop 에게
+물어볼 방법 자체가 없다. 창을 밖에서 찍는 것이 유일한 길이다.
+
+보정 결과 확인용이 아니다. 그건 §4.1 의 캡처 셋이다.
 
 ---
 

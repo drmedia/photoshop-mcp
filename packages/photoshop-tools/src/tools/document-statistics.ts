@@ -1,0 +1,33 @@
+import type { CommandEngine } from "@photoshop-mcp/command-engine";
+import type { ToolDefinition } from "@photoshop-mcp/photoshop-bridge";
+import type { z } from "zod";
+import {
+  DOCUMENT_STATISTICS,
+  DocumentStatisticsParamsSchema,
+  type DocumentStatisticsResult,
+} from "../commands/document-statistics.js";
+
+/** `photoshop.document.statistics` — 눈이 아니라 숫자로 본다. (ROADMAP §17.13) */
+export function createDocumentStatisticsTool(
+  engine: CommandEngine,
+): ToolDefinition<z.infer<typeof DocumentStatisticsParamsSchema>, DocumentStatisticsResult> {
+  return {
+    name: "photoshop.document.statistics",
+    description:
+      "히스토그램과 채널별 통계를 **전체 해상도 원본에서** 잰다. " +
+      "보정 전에는 무엇이 문제인지 진단하고, 보정 뒤에는 의도한 대로 들어갔는지 확인한다. " +
+      "**그림으로 봐서는 잡히지 않는 것을 잡는다** — 어두운 영역의 색 편향, 미세한 캐스트, " +
+      "작은 클리핑. photoshop.document.capture 와 짝으로 쓴다. " +
+      "채널별 평균·백분위(p1/p5/p50/p95/p99)·클리핑 비율과 휘도 64구간 분포를 준다. " +
+      "값은 문서 심도와 무관하게 0–255 로 정규화하되 클리핑은 원래 심도에서 판정한다. " +
+      "region 을 selection 으로 주면 선택 영역만, layerId 를 주면 그 레이어만 잰다 " +
+      "(생략하면 보이는 그대로의 합성 결과). 문서를 바꾸지 않는다.",
+    permission: "read",
+    inputSchema: DocumentStatisticsParamsSchema,
+    handler: async (input, context) =>
+      engine.execute<DocumentStatisticsResult>(
+        { type: DOCUMENT_STATISTICS, params: input },
+        { requestId: context.requestId },
+      ),
+  };
+}

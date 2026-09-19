@@ -90,7 +90,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (52개)
+## 4. 구현된 Core API (55개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -101,6 +101,9 @@ P3  확장 기능
 | `photoshop.ping` | READ | 서버 상태와 Bridge 연결 여부 |
 | `photoshop.document.get` | READ | 활성 문서 정보 |
 | `photoshop.layer.list` | READ | 활성 문서의 레이어 목록 |
+| `photoshop.document.capture` | READ | 문서를 합성해 **그림으로** 돌려준다 |
+| `photoshop.layer.capture` | READ | 레이어 하나만 그림으로 |
+| `photoshop.selection.capture` | READ | 선택 영역(경계 상자)을 그림으로 |
 | `photoshop.layer.get_active` | READ | 지금 선택된 레이어. `layers` 에 전부, `layer` 에 첫 번째 |
 
 ### 4.2 레이어

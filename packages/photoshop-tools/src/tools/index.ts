@@ -43,6 +43,11 @@ import {
   createWorkspaceStatusTool,
 } from "./document-save.js";
 import { createLayerGetActiveTool } from "./layer-active.js";
+import {
+  createCaptureDocumentTool,
+  createCaptureLayerTool,
+  createCaptureSelectionTool,
+} from "./capture.js";
 import { createSelectionSkyTool } from "./selection-auto.js";
 import {
   createColorBalanceTool,
@@ -64,6 +69,7 @@ import { createPingTool } from "./ping.js";
 export { DocumentGetInputSchema, createDocumentGetTool } from "./document-get.js";
 export { createLayerGetActiveTool } from "./layer-active.js";
 export { createSelectionSkyTool } from "./selection-auto.js";
+export * from "./capture.js";
 export * from "./workflow-gaps.js";
 export {
   LayerListInputSchema,
@@ -95,6 +101,9 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createLayerListTool(engine));
   registry.register(createLayerGetActiveTool(engine));
   registry.register(createSelectionSkyTool(engine));
+  registry.register(createCaptureDocumentTool(engine));
+  registry.register(createCaptureLayerTool(engine));
+  registry.register(createCaptureSelectionTool(engine));
   registry.register(createLayerFromBackgroundTool(engine));
   registry.register(createColorBalanceTool(engine));
   registry.register(createHighPassTool(engine));

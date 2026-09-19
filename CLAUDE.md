@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **41개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **55개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 47). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 62). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -30,6 +30,34 @@ Tool 까지 더한 수다(지금 47). 한동안 이 값을 Core 개수로 옮겨
 - §8.6 공백 보완: selection.set · layer.set_blend_mode · adjustment.hue_saturation · vibrance
 
 - 파일 저장: `workspace.status` · `document.save_as` · `document.export` · `document.save`
+- 캡처: `document.capture` · `layer.capture` · `selection.capture`
+
+## 캡처 (ROADMAP §17.10)
+
+**호출자가 자기 편집 결과를 본다.** 이것이 없어서 보정 열 단계를 다 쌓은 뒤
+내보내기로 확인하고 나서야 하늘이 보라색이 된 것을 발견한 적이 있다.
+
+ROADMAP §17.9 에 "결과를 볼 수 없다 · Tool 을 더 만들어 풀 문제가 아니다" 라고 적었던
+것은 **틀렸다.** UXP `imaging` API 가 축소한 픽셀을 메모리로 준다. 없던 것은 능력이
+아니라 그 능력을 쓰는 Tool 이었다.
+
+권한은 셋 다 `read` 다 — 파일을 만들지 않고 폴더 승인도 필요 없다. `document.export`
+로도 볼 수 있지만 원본을 디스크에 쓰고 `external` 을 요구한다.
+
+결과는 **MCP image content block** 으로 나간다. base64 를 텍스트 JSON 에 담으면
+LLM 은 그것을 볼 수 없고 토큰만 먹는다. 서버가 알아보는 기준은 `CapturedImage`
+계약 하나다(`photoshop-bridge/src/capture.ts`). 크기는 텍스트로 함께 준다.
+
+긴 변 기본 1024 · 상한 2048. 구도·색·노출 판단에는 충분하다.
+
+`capture_window` 는 만들지 않는다. OS 화면 캡처는 UXP 샌드박스 밖이고, 되더라도
+찍히는 것은 픽셀이 아니라 패널과 툴바다.
+
+Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `format: "png"`
+회피도, 알파 포함도 전부 막힌다. 받은 픽셀을 JS 에서 8비트 RGB 로 낮춰 다시 감싼다.
+**Photoshop 의 16비트는 0–65535 가 아니라 0–32768 이다** — `>> 8` 로 낮추면 오류 없이
+딱 절반 밝기가 나온다.
+자세한 것은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 있다.
 
 ## Permission (ARCHITECTURE §22)
 

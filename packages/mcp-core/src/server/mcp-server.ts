@@ -15,6 +15,7 @@ import {
   PhotoshopMcpError,
   SERVER_NAME,
   SERVER_VERSION,
+  isCapturedImage,
 } from "@photoshop-mcp/photoshop-bridge";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
@@ -188,6 +189,18 @@ export class PhotoshopMcpServer {
         const result = await this.#registry.invoke(request.params.name, request.params.arguments, {
           requestId,
         });
+        // 캡처 결과는 그림으로 내보낸다. base64 를 텍스트로 보내면 LLM 이 볼 수
+        // 없고 토큰만 먹는다. 크기 정보는 텍스트로 함께 준다 — 이미지 블록만으로는
+        // 호출자가 몇 픽셀을 받았는지 알 수 없다.
+        if (isCapturedImage(result)) {
+          const { base64, mimeType, ...meta } = result;
+          return {
+            content: [
+              { type: "image" as const, data: base64, mimeType },
+              { type: "text" as const, text: JSON.stringify(meta, null, 2) },
+            ],
+          };
+        }
         return {
           content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
           structuredContent: toStructuredContent(result),

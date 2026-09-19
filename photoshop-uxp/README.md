@@ -157,6 +157,42 @@ invalid file token used
 자동화하려면 사용자가 폴더를 한 번 승인하고 persistent token 을 보관해야 한다.
 그래서 문서 저장은 Phase 9 의 Permission System 과 함께 다룬다. (ROADMAP §8.5)
 
+### Imaging API 는 8비트만 인코딩한다
+
+`imaging.getPixels` 로 축소한 픽셀을 메모리로 받아 `encodeImageData` 로 jpeg base64
+를 만든다. 파일도 폴더 승인도 필요 없다 — 그래서 캡처 Tool 의 권한이 `read` 다.
+
+인코더가 8비트만 받는다. 16비트 문서에서 다음 네 가지가 전부 막혔다.
+
+| 시도 | 결과 |
+|---|---|
+| `getPixels({componentSize: 8})` | `-32005 선택 영역을 저장할 수 없습니다` |
+| 16비트 ImageData 를 그대로 인코딩 | `Only 8 bit image data can be encoded as jpeg` |
+| `format: "png"` 으로 회피 | 같은 오류. 이 옵션은 무시되는 듯하다 |
+| 알파 포함 4채널 | `Image data with alpha cannot be encoded as jpeg` |
+
+`getData({chunky: true})` 로 버퍼를 꺼내 8비트 RGB 3채널로 줄인 뒤
+`createImageDataFromBuffer` 로 다시 감싼다.
+
+**Photoshop 의 16비트 최대값은 65535 가 아니라 32768 이다.** `>> 8` 로 낮추면
+최대 128 이 되어 딱 절반 밝기가 나온다. 오류는 나지 않는다 — 결과를 눈으로 보기
+전에는 모른다.
+
+```ts
+const scale = 255 / 32768;
+```
+
+`ImageData` 는 `dispose()` 로 직접 해제한다. 큰 문서에서 쌓인다.
+
+### `-32005` 를 modal 탓으로 짐작했다가 틀렸다
+
+`-32005 선택 영역을 저장할 수 없습니다` 가 나오길래 `executeAsModal` 범위와
+충돌하는 것으로 짐작했다. 아니었다 — 원인은 위 표의 `componentSize: 8` 이다.
+캡처도 다른 Command 와 똑같이 `runModal` 안에서 돈다.
+
+오류 메시지가 실제 원인과 무관할 때가 있다. 짐작을 그대로 적어 두면 그 자리를
+다시 보지 않게 된다.
+
 ### 코드 변경은 Reload 가 아니라 Unload → Load
 
 UDT **앱**의 `Reload` 는 변경된 `dist/` 를 반영하지 않는다. 반드시 `Unload` 후 `Load` 한다.

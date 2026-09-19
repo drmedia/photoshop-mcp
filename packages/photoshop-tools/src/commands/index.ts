@@ -83,6 +83,17 @@ import {
   workspaceStatusCommand,
 } from "./document-save.js";
 import { LAYER_GET_ACTIVE, layerGetActiveCommand } from "./layer-active.js";
+import {
+  CAPTURE_DOCUMENT,
+  CAPTURE_LAYER,
+  CAPTURE_SELECTION,
+  CaptureDocumentParams,
+  CaptureLayerParams,
+  CaptureSelectionParams,
+  captureDocumentCommand,
+  captureLayerCommand,
+  captureSelectionCommand,
+} from "./capture.js";
 import { SELECTION_SKY, selectionSkyCommand } from "./selection-auto.js";
 import {
   ADJUSTMENT_COLOR_BALANCE,
@@ -153,6 +164,7 @@ export {
   type ActiveLayerState,
 } from "./layer-active.js";
 export { LAYER_LIST, layerListCommand } from "./layer-list.js";
+export * from "./capture.js";
 export * from "./workflow-gaps.js";
 export {
   SELECTION_SKY,
@@ -179,6 +191,18 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_LIST, layerListCommand, { permission: "read" });
   registry.register(LAYER_GET_ACTIVE, layerGetActiveCommand, { permission: "read" });
   registry.register(SELECTION_SKY, selectionSkyCommand, { permission: "edit" });
+  registry.register(CAPTURE_DOCUMENT, captureDocumentCommand, {
+    permission: "read",
+    schema: CaptureDocumentParams,
+  });
+  registry.register(CAPTURE_LAYER, captureLayerCommand, {
+    permission: "read",
+    schema: CaptureLayerParams,
+  });
+  registry.register(CAPTURE_SELECTION, captureSelectionCommand, {
+    permission: "read",
+    schema: CaptureSelectionParams,
+  });
   registry.register(LAYER_FROM_BACKGROUND, layerFromBackgroundCommand, {
     permission: "edit",
     schema: LayerFromBackgroundParams,

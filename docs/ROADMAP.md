@@ -2381,18 +2381,97 @@ CORE_API §5.2 후보에만 있다.
 지워졌다. 결과가 맞았던 것은 그라디언트의 검은 영역이 마침 전경을 덮었기 때문이지
 마스크가 지켜져서가 아니다. 설명에 없던 사실이라 적었다.
 
-## 결과를 볼 수 없다
+## 결과를 볼 수 없다 — **틀렸다. §17.10 에서 정정한다**
 
 요청은 "나무·능선 주변에 halo 가 생겼는지 확인하고 정리해줘" 를 포함했다.
-**픽셀을 읽을 수 없으므로 판단할 방법이 없다.** 전경 마스크에 feather 80px 를 넣어
-예방만 하고, 확인은 불가능하다고 보고했다.
+픽셀을 읽을 수 없어 전경 마스크에 feather 80px 를 넣어 예방만 하고, 확인은
+불가능하다고 보고했다.
 
-이것은 Tool 을 더 만들어 풀 문제가 아니다. LLM 이 결과를 보고 판단해야 하는 요청은
-**사람이 보고 알려주는 왕복**이 전제다. 그 경계를 흐리지 않는다.
+그리고 **"이것은 Tool 을 더 만들어 풀 문제가 아니다"** 라고 적었다. 이 문장이 틀렸다.
+UXP 에는 `imaging` API 가 있고 축소한 픽셀을 메모리로 준다. 없는 것은 능력이 아니라
+그 능력을 쓰는 Tool 이었다. 없는 것을 불가능으로 바꿔 적으면 그 자리는 다시 보지
+않게 된다 — 사용자가 "capture 하면 되는 것 아닌가?" 라고 묻지 않았으면 그대로
+남았을 기록이다.
 
 ## 없어서 대체한 것
 
 `Selective Color` 가 없어 Curves + Color Balance 로 처리했다. CORE_API §5.5 후보다.
+
+---
+
+# 17.10 캡처 — 호출자가 자기 결과를 본다
+
+§17.9 의 "결과를 볼 수 없다" 를 정정하며 만들었다.
+
+- [x] `photoshop.document.capture` — 합성 결과
+- [x] `photoshop.layer.capture` — 레이어 하나
+- [x] `photoshop.selection.capture` — 선택 영역의 경계 상자
+
+권한은 셋 다 `read` 다. 파일을 만들지 않고 폴더 승인도 필요 없다.
+`document.export` 로도 볼 수는 있지만 6000×4000 원본을 디스크에 쓰고 `external`
+권한을 요구한다 — 확인하려고 파일을 만드는 것은 본말이 뒤집힌 것이다.
+
+## 제안된 다섯 중 셋만 만들었다
+
+```text
+capture_canvas   ┐
+                 ├→ 같은 것이다. document.capture 하나로 합쳤다
+capture_document ┘
+capture_layer     → 만들었다
+capture_selection → 만들었다
+capture_window    → 만들지 않는다
+```
+
+`capture_window` 는 UXP 로 할 수 없다. OS 수준 화면 캡처는 샌드박스 밖이고,
+설령 되더라도 찍히는 것은 픽셀이 아니라 **패널과 툴바**다. 보고 싶은 것이 아니다.
+
+## 결과는 MCP image content block 으로 나간다
+
+```ts
+content: [
+  { type: "image", data: base64, mimeType },
+  { type: "text", text: JSON.stringify(meta) },  // width · height · source
+]
+```
+
+base64 를 텍스트 JSON 에 담아 보내면 **LLM 은 그것을 볼 수 없고 토큰만 먹는다.**
+서버가 결과를 알아보는 기준은 `CapturedImage` 계약(`photoshop-bridge/src/capture.ts`)
+하나다. 크기는 텍스트로 함께 준다 — 이미지 블록만으로는 몇 픽셀을 받았는지 모른다.
+
+긴 변은 기본 1024, 상한 2048 이다. 구도·색·노출 판단에는 충분하고 그보다 크면
+토큰만 먹는다.
+
+## Imaging API 실기 제약 넷
+
+실기에서 하나씩 벽에 부딪혀 알아낸 것이다. 전부 `photoshop-uxp/src/dom/capture.ts`
+에 주석으로 남겨 두었다.
+
+| 시도 | 결과 |
+|---|---|
+| `getPixels({componentSize: 8})` | `-32005 선택 영역을 저장할 수 없습니다` |
+| `encodeImageData` 에 16비트 그대로 | `Only 8 bit image data can be encoded as jpeg` |
+| `format: "png"` 으로 회피 | 같은 오류. **이 옵션은 무시되는 듯하다** |
+| 알파 포함 4채널 | `Image data with alpha cannot be encoded as jpeg` |
+
+그래서 받은 픽셀을 **JS 에서 직접 8비트 RGB 로 낮춘 뒤** 새 ImageData 로 감싼다.
+
+## **Photoshop 의 16비트는 0–65535 가 아니라 0–32768 이다**
+
+가장 조용한 함정이었다. `>> 8` 로 낮췄더니 최대값이 128 이 되어 **딱 절반 밝기**로
+나왔다. 오류는 나지 않는다. 캡처가 원본보다 어두운 것을 눈으로 보고 알았다.
+
+```ts
+const scale = 255 / 32768;   // 65535 가 아니다
+```
+
+`-32005` 를 처음 봤을 때는 modal 충돌로 짐작했다. 아니었다 — 원인은 위 표의
+`componentSize: 8` 이고, 캡처도 다른 Command 와 똑같이 `runModal` 안에서 돈다.
+오류 메시지가 실제 원인과 무관할 때가 있다.
+
+## 남은 진짜 공백
+
+§17.9 가 잡은 셋 중 **레이어 순서 변경**은 아직 없다. 캡처는 "결과를 본다" 를 풀었고
+순서 변경은 "결과를 고친다" 쪽이다. 우선순위가 가장 높은 후보다.
 
 ---
 

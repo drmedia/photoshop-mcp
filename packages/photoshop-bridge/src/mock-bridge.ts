@@ -355,6 +355,19 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         }
         return { ...layer } as TResult;
       }
+      // 캡처. Mock 은 픽셀이 없으므로 **1×1 투명 PNG** 를 돌려준다.
+      // 그림 내용을 흉내내지는 않지만, 응답 모양과 "선택이 없으면 실패" 같은
+      // 경로는 실제와 같아야 한다.
+      case "CAPTURE_DOCUMENT":
+      case "CAPTURE_LAYER":
+        return this.#capture(command.type === "CAPTURE_LAYER" ? "layer" : "document") as TResult;
+      case "CAPTURE_SELECTION":
+        if (!this.#hasSelection) {
+          throw new PhotoshopMcpError(ErrorCode.INVALID_PARAMETER, "캡처할 선택 영역이 없습니다.", {
+            recoverable: true,
+          });
+        }
+        return this.#capture("selection") as TResult;
       case "SELECTION_CLEAR":
         this.#hasSelection = false;
         return { hasSelection: false } as TResult;
@@ -730,6 +743,26 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   }
 
   /** 조정 레이어를 만들어 맨 위에 넣는다. 실제 Photoshop 과 같은 위치다. */
+  /** 1×1 투명 PNG. 내용은 없지만 응답 모양은 실제와 같다. */
+  #capture(source: string): {
+    kind: "image";
+    mimeType: "image/png";
+    base64: string;
+    width: number;
+    height: number;
+    source: string;
+  } {
+    return {
+      kind: "image",
+      mimeType: "image/png",
+      base64:
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+      width: 1,
+      height: 1,
+      source: `${source}:mock`,
+    };
+  }
+
   /** 선택 영역 상태. 실제 Plugin 과 같은 모양으로 돌려준다. */
   #selectionState(): { hasSelection: boolean; bounds: LayerBounds | null } {
     const document = this.#document;

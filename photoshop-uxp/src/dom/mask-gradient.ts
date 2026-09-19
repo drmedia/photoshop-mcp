@@ -8,10 +8,16 @@ import { withMaskStateAsync } from "./mask-state.js";
 import { runModal } from "./modal.js";
 
 /**
- * 레이어 마스크에 선형 그라디언트를 그린다. (ROADMAP §17.8)
+ * 레이어 마스크에 그라디언트를 그린다. (ROADMAP §17.8, §17.22)
  *
  * 지평선 쪽만 서서히 밝기를 낮추는 작업이 이것이다 — 빛 공해는 지평선에서 강하고
  * 위로 갈수록 약해지므로 경계가 뚜렷한 마스크로는 티가 난다.
+ *
+ * ## 선형만으로는 모서리가 남는다
+ *
+ * 빛 공해는 광원에서 **2차원으로** 감쇠한다. 은하수 사진에서 가로·세로 마스크를
+ * 차례로 걸었더니 중간 행은 ±1레벨로 맞았는데 모서리가 ±8 남았다. 그래서
+ * `radial` 을 더했다(§17.22).
  *
  * ## 기존 마스크를 덮어쓴다
  *
@@ -72,6 +78,8 @@ export async function maskGradient(params: {
   layerId?: number;
   from: { x: number; y: number };
   to: { x: number; y: number };
+  /** `linear`(기본) 또는 `radial`. (ROADMAP §17.22) */
+  type?: "linear" | "radial";
   /** 흰색을 먼저 둔다. 마스크에서 흰색은 보이는 쪽이다. */
   reverse?: boolean;
 }): Promise<LayerInfo> {
@@ -125,7 +133,8 @@ export async function maskGradient(params: {
         _obj: "gradientClassEvent",
         from: { _obj: "paint", horizontal: px(params.from.x), vertical: px(params.from.y) },
         to: { _obj: "paint", horizontal: px(params.to.x), vertical: px(params.to.y) },
-        type: { _enum: "gradientType", _value: "linear" },
+        // `radial` 이면 from 이 중심, from→to 거리가 반지름이다. 방향은 무시된다.
+        type: { _enum: "gradientType", _value: params.type ?? "linear" },
         gradient: grayscaleGradient(params.reverse === true),
       });
     } finally {

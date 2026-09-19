@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (57개)
+## 4. 구현된 Core API (58개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -110,6 +110,11 @@ P3  확장 기능
 | `photoshop.layer.capture` | READ | 레이어 하나만 그림으로 |
 | `photoshop.selection.capture` | READ | 선택 영역(경계 상자)을 그림으로 |
 | `photoshop.layer.get_active` | READ | 지금 선택된 레이어. `layers` 에 전부, `layer` 에 첫 번째 |
+| `photoshop.document.statistics` | READ | 히스토그램·채널 통계. **전체 해상도 원본에서** 잰다 |
+
+캡처와 통계는 **짝이다.** 캡처는 보고, 통계는 잰다. 구도·마스크 경계·전체 인상은
+봐야 잡히고, 어두운 영역의 색 편향·미세한 캐스트·작은 클리핑은 재야 잡힌다.
+(RETOUCH_PROCESS §4.3)
 
 ### 4.1.1 구도
 

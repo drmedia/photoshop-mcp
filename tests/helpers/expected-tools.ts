@@ -14,6 +14,7 @@ export const EXPECTED_TOOLS = [
   "photoshop.layer.get_active",
   "photoshop.selection.sky",
   // ROADMAP §17.12 — 구도. 조정 레이어로는 할 수 없는 일
+  "photoshop.document.statistics",
   "photoshop.document.crop",
   "photoshop.document.capture",
   "photoshop.layer.capture",
@@ -96,6 +97,7 @@ export const EXPECTED_COMMANDS = [
   "LAYER_LIST",
   "LAYER_GET_ACTIVE",
   "SELECTION_SKY",
+  "DOCUMENT_STATISTICS",
   "DOCUMENT_CROP",
   "CAPTURE_DOCUMENT",
   "CAPTURE_LAYER",

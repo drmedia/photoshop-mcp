@@ -30,6 +30,7 @@ import { createCapabilityListTool, type CapabilityLister } from "./capability.js
 import { createDiagnosticsTool, type DiagnosticsSource } from "./diagnostics.js";
 import { createEventRecentTool, type EventReader } from "./event.js";
 import { createDocumentCropTool } from "./document-crop.js";
+import { createDocumentStatisticsTool } from "./document-statistics.js";
 import { createWindowCaptureTool, type WindowCapturer } from "./window-capture.js";
 import { createWorkflowListTool, createWorkflowRunTool, type WorkflowRunner } from "./workflow.js";
 import {
@@ -83,6 +84,7 @@ export * from "./filter.js";
 export * from "./capability.js";
 export * from "./window-capture.js";
 export * from "./document-crop.js";
+export * from "./document-statistics.js";
 export * from "./job.js";
 export * from "./diagnostics.js";
 export * from "./event.js";
@@ -105,6 +107,7 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createLayerListTool(engine));
   registry.register(createLayerGetActiveTool(engine));
   registry.register(createSelectionSkyTool(engine));
+  registry.register(createDocumentStatisticsTool(engine));
   registry.register(createDocumentCropTool(engine));
   registry.register(createCaptureDocumentTool(engine));
   registry.register(createCaptureLayerTool(engine));

@@ -365,6 +365,70 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       // 캡처. Mock 은 픽셀이 없으므로 **1×1 투명 PNG** 를 돌려준다.
       // 그림 내용을 흉내내지는 않지만, 응답 모양과 "선택이 없으면 실패" 같은
       // 경로는 실제와 같아야 한다.
+      // 통계. 실제 픽셀이 없으므로 **모양과 규칙만** 흉내 낸다.
+      //
+      // 값을 지어내지 않는다 — 전부 중간 회색 한 장이라고 두고 그 값에서
+      // 일관되게 계산한다. 실기의 거절 규칙(선택 없음 · 조정 레이어)은 그대로
+      // 흉내 낸다. Mock 이 더 너그러우면 그 오류 경로는 테스트에 나오지 않는다.
+      case "DOCUMENT_STATISTICS": {
+        const document = this.#requireDocument();
+        const params = command.params as { region?: string; layerId?: number };
+        let source = "document";
+        let pixels = document.width * document.height;
+
+        if (params.layerId !== undefined) {
+          const layer = this.#layers.find((entry) => entry.id === params.layerId);
+          if (layer === undefined) {
+            throw new PhotoshopMcpError(
+              ErrorCode.LAYER_NOT_FOUND,
+              `레이어 ${params.layerId} 를 찾을 수 없습니다.`,
+              { recoverable: true },
+            );
+          }
+          if (layer.type === "adjustment" || layer.type === "group") {
+            throw new PhotoshopMcpError(
+              ErrorCode.INVALID_PARAMETER,
+              `${layer.type === "group" ? "그룹" : "조정 레이어"}에는 잴 픽셀이 없습니다. ` +
+                "layerId 를 빼면 조정이 반영된 합성 결과를 잽니다.",
+              { recoverable: true },
+            );
+          }
+          source = `layer:${layer.id}`;
+        }
+
+        if (params.region === "selection") {
+          if (!this.#hasSelection) {
+            throw new PhotoshopMcpError(ErrorCode.INVALID_PARAMETER, "잴 선택 영역이 없습니다.", {
+              recoverable: true,
+            });
+          }
+          source = "selection:0,0,100,100";
+          pixels = 100 * 100;
+        }
+
+        const flat = {
+          mean: 128,
+          p1: 128,
+          p5: 128,
+          p50: 128,
+          p95: 128,
+          p99: 128,
+          clippedHigh: 0,
+          clippedLow: 0,
+        };
+        const histogram = new Array<number>(64).fill(0);
+        histogram[32] = 100;
+        return {
+          source,
+          pixels,
+          bitDepth: 8,
+          channels: { red: flat, green: flat, blue: flat, luminance: flat },
+          histogram,
+          method: "mock",
+          elapsedMs: 0,
+        } as TResult;
+      }
+
       // 자르기. **픽셀을 버리지 않으므로** 크기만 바꾼다.
       //
       // 범위 검사를 실기와 같게 한다 — Mock 이 더 너그러우면 그 오류 경로는

@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **57개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **58개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 64). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 65). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -32,6 +32,7 @@ Tool 까지 더한 수다(지금 64). 한동안 이 값을 Core 개수로 옮겨
 - 파일 저장: `workspace.status` · `document.save_as` · `document.export` · `document.save`
 - 캡처: `document.capture` · `layer.capture` · `selection.capture` · `window.capture`
 - 구도: `document.crop` — 캔버스만 줄이고 **픽셀은 버리지 않는다**. 그래서 `edit` 이다
+- 측정: `document.statistics` — **전체 해상도 원본**에서 히스토그램·채널 통계
 
 ## 캡처 (ROADMAP §17.10)
 
@@ -87,6 +88,26 @@ Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `f
 **Photoshop 의 16비트는 0–65535 가 아니라 0–32768 이다** — `>> 8` 로 낮추면 오류 없이
 딱 절반 밝기가 나온다.
 자세한 것은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 있다.
+
+## 측정 (ROADMAP §17.13)
+
+**보는 것과 재는 것은 다른 일이고 둘 다 필요하다.** 캡처가 "보는" 문제를 풀었지만
+어두운 영역의 색 편향·미세한 캐스트·작은 클리핑은 봐서 잡히지 않는다. 실기에서
+보라색 하늘과 초록색 하늘을 두 번 통과시킨 뒤에 만들었다.
+
+**미리보기를 재지 않는다.** 축소하면 단일 픽셀 클리핑이 평균에 묻히고 8비트로
+내리면 값이 바뀐다. `targetSize` 를 주지 않고 전체 해상도로 읽는다 — 2440만 픽셀이
+400ms 다. 표본 추출을 하지 않는다.
+
+값은 0–255 로 정규화하되 **클리핑 판정은 원래 심도에서** 한다. 16비트를 먼저 내리면
+32768 과 32700 이 똑같이 255 가 되어 클리핑이 부풀려진다.
+
+**DOM 에 `document.histogram` 이 없다.** 첫 구현이 두 경로를 모두 확인하도록 만들어
+재 보고 알았다. 짐작으로 골랐으면 없는 API 를 썼다.
+
+**조정 레이어에 `layerId` 를 주면 거절한다.** 실기에서 재 보니 마스크 영역을 재서
+모든 채널 평균이 255 로 나왔다. 픽셀 수까지 그럴듯하게 달라 더 그럴듯하다 —
+그대로 돌려주면 "이 레이어는 순백" 으로 읽힌다.
 
 ## Permission (ARCHITECTURE §22)
 

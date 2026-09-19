@@ -85,6 +85,11 @@ import {
 import { LAYER_GET_ACTIVE, layerGetActiveCommand } from "./layer-active.js";
 import { DOCUMENT_CROP, DocumentCropParamsSchema, documentCropCommand } from "./document-crop.js";
 import {
+  DOCUMENT_STATISTICS,
+  DocumentStatisticsParamsSchema,
+  documentStatisticsCommand,
+} from "./document-statistics.js";
+import {
   CAPTURE_DOCUMENT,
   CAPTURE_LAYER,
   CAPTURE_SELECTION,
@@ -167,6 +172,7 @@ export {
 export { LAYER_LIST, layerListCommand } from "./layer-list.js";
 export * from "./capture.js";
 export * from "./document-crop.js";
+export * from "./document-statistics.js";
 export * from "./workflow-gaps.js";
 export {
   SELECTION_SKY,
@@ -193,6 +199,10 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_LIST, layerListCommand, { permission: "read" });
   registry.register(LAYER_GET_ACTIVE, layerGetActiveCommand, { permission: "read" });
   registry.register(SELECTION_SKY, selectionSkyCommand, { permission: "edit" });
+  registry.register(DOCUMENT_STATISTICS, documentStatisticsCommand, {
+    permission: "read",
+    schema: DocumentStatisticsParamsSchema,
+  });
   registry.register(DOCUMENT_CROP, documentCropCommand, {
     // 픽셀을 버리지 않는다. 캔버스만 줄이므로 되돌릴 수 있다.
     permission: "edit",

@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **60개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **61개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 67). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 68). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -217,7 +217,11 @@ Extension 의 manifest `permissions` 는 **강제된다.** 선언 밖의 Tool �
 `bitDepth` 는 8 또는 16, 생략하면 문서 심도를 따른다. 결과의 `bitDepth` 는 요청값이
 아니라 **실제값**이다.
 
-`layer.delete` · `document.flatten` · `document.close` 는 분류 체계만 섰고 구현은 없다.
+`document.flatten` · `document.close` 는 분류 체계만 섰고 구현은 없다.
+
+`layer.delete` 는 만들었다(ROADMAP §17.18). **id 를 명시하고 패턴을 받지 않는다** —
+`workspace.delete` 와 같은 규칙이다. 지운 뒤 목록을 다시 읽어 **확인한 것만**
+`deleted` 에 담고, 문서를 비우는 요청은 거절한다.
 
 ## Capability (ARCHITECTURE §19, ROADMAP §12)
 

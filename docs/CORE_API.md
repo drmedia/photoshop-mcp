@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (60개)
+## 4. 구현된 Core API (61개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -164,6 +164,7 @@ P3  확장 기능
 | `photoshop.layer.set_blend_mode` | EDIT | normal · multiply · screen · overlay · softLight 등 |
 | `photoshop.layer.from_background` | EDIT | 배경 → 일반 레이어. id 가 바뀐다 |
 | `photoshop.layer.stamp_visible` | EDIT | 보이는 레이어를 합친 복제본 |
+| `photoshop.layer.delete` | DESTRUCTIVE | **id 를 명시한다.** 패턴을 받지 않는다 |
 
 `layerId` 를 생략하면 활성 레이어를 대상으로 한다. 그것이 무엇인지는
 `photoshop.layer.get_active` 로 미리 확인한다.
@@ -593,7 +594,7 @@ workspace.delete
 elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화형 승인은 MCP 클라이언트의
 역할이다.
 
-지금 구현된 DESTRUCTIVE 는 `document.save` 와 `workspace.delete` 둘뿐이다. 나머지는
+지금 구현된 DESTRUCTIVE 는 `document.save` · `workspace.delete` · `layer.delete` 셋이다. 나머지는
 분류 체계만 서 있고 구현이 없다. 분류가 있다고 있는 척하지 않는다.
 
 ---

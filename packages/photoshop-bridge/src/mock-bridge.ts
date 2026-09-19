@@ -365,6 +365,42 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       // 캡처. Mock 은 픽셀이 없으므로 **1×1 투명 PNG** 를 돌려준다.
       // 그림 내용을 흉내내지는 않지만, 응답 모양과 "선택이 없으면 실패" 같은
       // 경로는 실제와 같아야 한다.
+      // 레이어 삭제. 실기와 같은 거절 규칙 · 같은 확인 방식을 흉내 낸다.
+      //
+      // 특히 "전부 지우기 거절" 과 "지운 뒤 목록을 다시 읽어 확인" 을 빠뜨리면
+      // 안 된다. Mock 이 너그러우면 그 경로는 테스트에 영영 나오지 않는다.
+      case "LAYER_DELETE": {
+        this.#requireDocument();
+        const { layerIds } = command.params as { layerIds: number[] };
+        const requested = [...new Set(layerIds)];
+        const before = this.#layers.map((entry) => entry.id);
+        if (before.length > 0 && before.every((id) => requested.includes(id))) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `레이어 ${before.length}개를 전부 지울 수는 없습니다. ` +
+              "Photoshop 문서에는 레이어가 최소 하나 있어야 합니다.",
+            { recoverable: true },
+          );
+        }
+        this.#snapshot("Delete layers");
+        const failed: { id: number; reason: string }[] = [];
+        for (const id of requested) {
+          if (!before.includes(id)) {
+            failed.push({ id, reason: "레이어를 찾을 수 없습니다." });
+          }
+        }
+        this.#layers = this.#layers.filter((entry) => !requested.includes(entry.id));
+        if (!this.#layers.some((entry) => entry.id === this.#activeLayerId)) {
+          this.#activeLayerId = this.#layers[this.#layers.length - 1]?.id ?? null;
+        }
+        const remainingIds = this.#layers.map((entry) => entry.id);
+        return {
+          deleted: requested.filter((id) => !remainingIds.includes(id) && before.includes(id)),
+          failed,
+          remaining: remainingIds.length,
+        } as TResult;
+      }
+
       // Camera Raw. 실제 픽셀이 없으므로 **거절 규칙과 반환 모양만** 흉내 낸다.
       //
       // 특히 숨긴 레이어 거절을 빠뜨리면 안 된다 — 실기에서 Photoshop 이 이유를

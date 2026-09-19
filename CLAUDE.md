@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **59개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **60개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 66). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 67). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -34,6 +34,7 @@ Tool 까지 더한 수다(지금 66). 한동안 이 값을 Core 개수로 옮겨
 - 구도: `document.crop` — 캔버스만 줄이고 **픽셀은 버리지 않는다**. 그래서 `edit` 이다
 - 측정: `document.statistics` — **전체 해상도 원본**에서 히스토그램·채널 통계
 - 결함 제거: `retouch.remove_spots` — 먼지·잡티. **배경 레이어는 거절한다**
+- Camera Raw: `camera_raw.apply` — **Tool 은 이 하나뿐이다**
 
 ## 캡처 (ROADMAP §17.10)
 
@@ -141,6 +142,26 @@ Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `f
 
 **공백이라고 적기 전에 있는 것부터 확인한다.** 두 번 모두 "도구가 부족하다" 가
 아니라 "쓸 줄 몰랐다" 였다.
+
+## Camera Raw (ROADMAP §17.17)
+
+**Tool 은 `camera_raw.apply` 하나뿐이다.** 슬라이더마다 Tool 을 두지 않는다 —
+Camera Raw 는 슬라이더들이 한 렌더링 파이프라인 안에서 함께 계산되고, 한 번 걸 때마다
+픽셀이 구워진다. 실기에서 같은 네 설정을 네 번 나눠 걸었더니 중간값이 19% 어긋났다.
+`basic` · `detail` 같은 묶음 Tool 도 두지 않는다 — 이어 부르면 똑같이 두 번 구워진다.
+
+**키는 짐작한 것이 하나도 없다.** `addNotificationListener(["all"])` 로 잡아냈다.
+
+함정 넷. **`$Ex12` 에 정수가 가면 조용히 무시된다** — `ok:true` 를 돌려주면서 아무것도
+안 한다. 빌더가 0.0001 밀어 실수로 만든다. **`saturation` 만 `$` 가 없다.**
+**`temperature` 는 켈빈이 아니라 −100~100** 이다. **버전 키는 넣지 않는다** —
+빼도 동작하고, 박아 넣으면 다른 Camera Raw 버전에서 깨진다.
+
+**숨긴 레이어는 미리 막는다.** Photoshop 이 "명령을 사용할 수 없습니다" 라고만 답해
+이유를 알 수 없다.
+
+노이즈 감소는 `filter` 쪽 `denoise` 보다 훨씬 낫다 — 실기에서 σ 6.72 → 3.42(49%)
+이면서 색은 소수점 둘째 자리까지 그대로였다. `denoise` 는 최대 강도로도 7% 였다.
 
 ## Permission (ARCHITECTURE §22)
 
@@ -352,10 +373,14 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`milky://state`). unloa
 **Command 수명 이벤트는 동작한다** — `command.started` · `command.completed` ·
 `command.failed`. Photoshop 연결이 없어도 난다.
 
-**Photoshop 알림은 이 환경에서 동작하지 않는다.** Photoshop 27.8 / manifestVersion 4
-에서 API 는 있고 등록도 성공하는데(문자열·객체 양쪽) 알림이 하나도 오지 않는다.
-플러그인 자신의 동작과 사용자 편집 모두 확인했다. 원인을 찾지 못했고 추측으로
-코드를 더 넣지 않았다.
+**Photoshop 알림은 동작한다 — `["all"]` 로 등록해야 한다.** (ROADMAP §17.17)
+
+한동안 "알림이 하나도 오지 않는다" 고 적어 두었는데 **틀렸다.** 그때는 이름 있는
+이벤트로만 시험했다. `["all"]` 로 등록하면 온다. 등록 직후 실제 수신까지 확인했고,
+이것으로 Camera Raw 의 descriptor 를 잡아냈다.
+
+`photoshop.event.recent` 가 쓰는 이름별 등록 경로는 여전히 미검증이다.
+고치려면 그쪽도 `["all"]` 로 받아 걸러내는 쪽을 봐야 한다.
 
 배선은 남겨두되 `photoshop.notifications.registered` 가 `delivery: "unverified"` 를
 담아 동작하는 것처럼 읽히지 않게 했다. **`command.*` 만 신뢰할 수 있다.**

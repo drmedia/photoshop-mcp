@@ -47,6 +47,7 @@ import { layerGetActive, layerList } from "./dom/layers.js";
 import { captureDocument, captureLayer, captureSelection } from "./dom/capture.js";
 import { documentCrop } from "./dom/document-crop.js";
 import { documentStatistics } from "./dom/document-statistics.js";
+import { cameraRawApply } from "./dom/camera-raw.js";
 import { retouchRemoveSpots } from "./dom/retouch.js";
 import { maskGradient } from "./dom/mask-gradient.js";
 import { selectionSky } from "./dom/selection-auto.js";
@@ -87,6 +88,9 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("LAYER_LIST", async () => layerList());
   dispatcher.register("LAYER_GET_ACTIVE", async () => layerGetActive());
   dispatcher.register("SELECTION_SKY", async () => selectionSky());
+  dispatcher.register("CAMERA_RAW_APPLY", async (p) =>
+    cameraRawApply(p as Parameters<typeof cameraRawApply>[0]),
+  );
   dispatcher.register("RETOUCH_REMOVE_SPOTS", async (p) =>
     retouchRemoveSpots(p as Parameters<typeof retouchRemoveSpots>[0]),
   );

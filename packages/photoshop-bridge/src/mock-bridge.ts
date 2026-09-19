@@ -365,6 +365,48 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       // 캡처. Mock 은 픽셀이 없으므로 **1×1 투명 PNG** 를 돌려준다.
       // 그림 내용을 흉내내지는 않지만, 응답 모양과 "선택이 없으면 실패" 같은
       // 경로는 실제와 같아야 한다.
+      // Camera Raw. 실제 픽셀이 없으므로 **거절 규칙과 반환 모양만** 흉내 낸다.
+      //
+      // 특히 숨긴 레이어 거절을 빠뜨리면 안 된다 — 실기에서 Photoshop 이 이유를
+      // 말해 주지 않아 한참 헤맨 자리다. Mock 이 너그러우면 그 경로는 테스트에
+      // 영영 나오지 않는다.
+      case "CAMERA_RAW_APPLY": {
+        this.#requireDocument();
+        const params = command.params as { layerId?: number } & Record<string, unknown>;
+        const layer =
+          params.layerId === undefined
+            ? this.#layers.find((entry) => entry.id === this.#activeLayerId)
+            : this.#layers.find((entry) => entry.id === params.layerId);
+        if (layer === undefined) {
+          throw new PhotoshopMcpError(
+            ErrorCode.LAYER_NOT_FOUND,
+            params.layerId === undefined
+              ? "활성 레이어가 없습니다."
+              : `레이어 ${params.layerId} 를 찾을 수 없습니다.`,
+            { recoverable: true },
+          );
+        }
+        if (layer.type === "adjustment" || layer.type === "group") {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `${layer.type === "group" ? "그룹" : "조정 레이어"}에는 Camera Raw 를 걸 수 없습니다. ` +
+              "픽셀 레이어를 layerId 로 지정하세요.",
+            { recoverable: true },
+          );
+        }
+        if (!layer.visible) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "숨긴 레이어에는 Camera Raw 를 걸 수 없습니다. " +
+              "photoshop.layer.set_visibility 로 보이게 한 뒤 다시 시도하세요.",
+            { recoverable: true },
+          );
+        }
+        this.#snapshot("Camera Raw Filter");
+        const applied = Object.keys(params).filter((key) => key !== "layerId");
+        return { layer: { ...layer }, applied } as TResult;
+      }
+
       // 결함 제거. 실제 픽셀이 없으므로 **거절 규칙만** 실기와 같게 흉내 낸다.
       //
       // 특히 배경 거절을 빠뜨리면 안 된다 — 이 Command 의 가장 중요한 성질이고,

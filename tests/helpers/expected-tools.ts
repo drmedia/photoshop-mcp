@@ -17,6 +17,8 @@ export const EXPECTED_TOOLS = [
   "photoshop.document.statistics",
   // ROADMAP §17.14 — 비어 있던 단계. 배경에는 걸 수 없다
   "photoshop.retouch.remove_spots",
+  // ROADMAP §17.17 — 키를 실기에서 잡아냈다. Tool 은 하나뿐이다
+  "photoshop.camera_raw.apply",
   "photoshop.document.crop",
   "photoshop.document.capture",
   "photoshop.layer.capture",
@@ -99,6 +101,7 @@ export const EXPECTED_COMMANDS = [
   "LAYER_LIST",
   "LAYER_GET_ACTIVE",
   "SELECTION_SKY",
+  "CAMERA_RAW_APPLY",
   "RETOUCH_REMOVE_SPOTS",
   "DOCUMENT_STATISTICS",
   "DOCUMENT_CROP",

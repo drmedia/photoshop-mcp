@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **68개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **69개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 75). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 76). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -155,6 +155,33 @@ Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `f
 
 **공백이라고 적기 전에 있는 것부터 확인한다.** 두 번 모두 "도구가 부족하다" 가
 아니라 "쓸 줄 몰랐다" 였다.
+
+## 마스크는 밝기가 아니라 형태로 (ROADMAP §17.28)
+
+**밝기 마스크와 `shadows` 는 서로를 무효화한다.**
+
+```text
+selection.color_range highlights  →  어두운 부분을 뺀다
+camera_raw shadows                →  어두운 부분에만 작용한다
+```
+
+교량 보정에서 실제로 겪었다. 입체감이 필요한 곳은 상판 아래와 교각 — 어두운
+면인데 마스크가 바로 그곳을 제외했다. 같은 값으로 두 마스크를 비교하면 이렇다.
+
+```text
+             밝기 마스크        피사체 마스크
+교각 σ       1.134 → 1.134     1.134 → 1.273
+```
+
+`photoshop.selection.subject` 는 **형태**로 잡으므로 어두운 면이 함께 들어온다.
+무엇을 피사체로 볼지는 Photoshop 이 정하니 결과의 `bounds` 를 확인한다.
+
+**`texture` · `clarity` 는 대상에 따라 효과가 크게 다르다.** 달(매끄러운 면)은
+`texture 18` 로 σ +29% 였는데 교량(초점 맞은 금속 구조)은 `texture 25` 로 +6.7%
+였다. 이미 국소 대비가 높으면 금방 포화한다.
+
+**국소 보정이 격리됐는지는 σ 로 본다.** 밝기는 거의 안 변하면서 노이즈만 변하는
+경우가 있어 L 만 보면 놓친다.
 
 ## 국소 보정은 별도 레이어에 (ROADMAP §17.27)
 
@@ -537,17 +564,18 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`milky://state`). unloa
 **Command 수명 이벤트는 동작한다** — `command.started` · `command.completed` ·
 `command.failed`. Photoshop 연결이 없어도 난다.
 
-**Photoshop 알림은 동작한다 — `["all"]` 로 등록해야 한다.** (ROADMAP §17.17)
+**Photoshop 알림은 동작한다 — `["all"]` 로 등록해야 한다.** (ROADMAP §17.17, §17.28)
 
 한동안 "알림이 하나도 오지 않는다" 고 적어 두었는데 **틀렸다.** 그때는 이름 있는
-이벤트로만 시험했다. `["all"]` 로 등록하면 온다. 등록 직후 실제 수신까지 확인했고,
-이것으로 Camera Raw 의 descriptor 를 잡아냈다.
+이벤트로만 시험했다. §17.28 에서 `startNotifications` 를 `["all"]` 로 고쳤고
+`photoshop.event.recent` 로 실제 수신을 확인했다. 아는 액션만 이름을 붙이고
+나머지는 `photoshop.unknown` 으로 원본과 함께 나간다.
 
-`photoshop.event.recent` 가 쓰는 이름별 등록 경로는 여전히 미검증이다.
-고치려면 그쪽도 `["all"]` 로 받아 걸러내는 쪽을 봐야 한다.
+**이벤트 버퍼는 MCP 서버 프로세스에 있다.** 스크립트를 돌릴 때마다 새 서버가 떠서
+버퍼가 빈다 — descriptor 를 잡으려면 서버를 띄워 둔 채로 사람이 메뉴를 실행해야 한다.
 
-배선은 남겨두되 `photoshop.notifications.registered` 가 `delivery: "unverified"` 를
-담아 동작하는 것처럼 읽히지 않게 했다. **`command.*` 만 신뢰할 수 있다.**
+이것으로 Camera Raw 와 `autoCutout` 의 descriptor 를 잡아냈다. 막혀 있는 batchPlay
+이름은 문서에서 가져오지 말고 이 방법으로 확인한다.
 
 LLM 은 구독하지 않고 `photoshop.event.recent` 로 조회한다. MCP 에 임의 이벤트 통로가
 없기 때문이다. Extension 은 `context.events.on()` 으로 구독하며 unload 때 자동 해제된다.

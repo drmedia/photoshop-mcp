@@ -19,6 +19,15 @@ import { SelectionStateSchema, type SelectionState } from "./state-read.js";
 
 export const SELECTION_SKY = "SELECTION_SKY";
 
+/**
+ * `선택 > 피사체`. (ROADMAP §17.28)
+ *
+ * CORE_API §7 이 "`autoCutout` descriptor 가 거부된다" 고 적고 §5 후보로 돌려 둔
+ * 것이다. 알림을 `["all"]` 로 받아 메뉴 실행을 캡처해 보니 **이름은 처음부터
+ * 맞았다.** 틀린 것은 `executeAsModal` 안에서 불렀다는 점이다.
+ */
+export const SELECTION_SUBJECT = "SELECTION_SUBJECT";
+
 export const SelectionAutoParams = z.object({}).strict();
 
 // 선택 영역 상태는 `state-read` 에 이미 있다. 같은 모양을 두 번 적지 않는다.
@@ -34,3 +43,4 @@ function forward(): CommandHandler<Record<string, never>, SelectionResult> {
 }
 
 export const selectionSkyCommand = forward();
+export const selectionSubjectCommand = forward();

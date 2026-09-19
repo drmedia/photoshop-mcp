@@ -57,7 +57,7 @@ import { cameraRawApply } from "./dom/camera-raw.js";
 import { layerDelete } from "./dom/layer-delete.js";
 import { retouchRemoveSpots } from "./dom/retouch.js";
 import { maskGradient } from "./dom/mask-gradient.js";
-import { selectionSky } from "./dom/selection-auto.js";
+import { selectionSky, selectionSubject } from "./dom/selection-auto.js";
 import {
   layerStampVisible,
   selectionColorRange,
@@ -95,6 +95,7 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("LAYER_LIST", async () => layerList());
   dispatcher.register("LAYER_GET_ACTIVE", async () => layerGetActive());
   dispatcher.register("SELECTION_SKY", async () => selectionSky());
+  dispatcher.register("SELECTION_SUBJECT", async () => selectionSubject());
   dispatcher.register("LAYER_DELETE", async (p) =>
     layerDelete(p as Parameters<typeof layerDelete>[0]),
   );

@@ -13,6 +13,7 @@ export const EXPECTED_TOOLS = [
   "photoshop.layer.list",
   "photoshop.layer.get_active",
   "photoshop.selection.sky",
+  "photoshop.selection.subject",
   // ROADMAP §17.12 — 구도. 조정 레이어로는 할 수 없는 일
   "photoshop.document.statistics",
   // ROADMAP §17.14 — 비어 있던 단계. 배경에는 걸 수 없다
@@ -110,6 +111,7 @@ export const EXPECTED_COMMANDS = [
   "LAYER_LIST",
   "LAYER_GET_ACTIVE",
   "SELECTION_SKY",
+  "SELECTION_SUBJECT",
   "LAYER_DELETE",
   "CAMERA_RAW_APPLY",
   "RETOUCH_REMOVE_SPOTS",

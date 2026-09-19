@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (68개)
+## 4. 구현된 Core API (69개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -284,6 +284,7 @@ Photoshop UI 는 그룹 끝에서 한 번 더 누르면 밖으로 나간다. 그
 | `photoshop.mask.gradient` | EDIT | 마스크에 그라디언트. **linear · radial**. 마스크가 있어야 한다 |
 | `photoshop.selection.set` | EDIT | `shape`: rectangle · ellipse · **canvas** · layerTransparency |
 | `photoshop.selection.sky` | EDIT | Photoshop 의 `선택 > 하늘` |
+| `photoshop.selection.subject` | EDIT | Photoshop 의 `선택 > 피사체`. **형태**로 잡는다 |
 | `photoshop.selection.clear` | EDIT | |
 | `photoshop.selection.invert` | EDIT | 선택이 없으면 실패한다 |
 | `photoshop.selection.modify` | EDIT | feather · expand · contract · smooth |
@@ -433,7 +434,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
-| `photoshop.selection.subject` | P1 | EDIT | `선택 > 피사체`. 아래 참조 |
 | `photoshop.selection.from_layer` | P2 | EDIT | 레이어 투명도에서 |
 
 ### 5.5 Adjustment
@@ -594,8 +594,9 @@ Core 에서는 가능한 한 저수준 기능만 제공한다.
 단계에서 막혔고, 사각형으로 근사할 수밖에 없었다. 실제 지평선은 직선이 아니므로
 그 결과는 쓸모가 없다. 뒤따르는 네 단계가 전부 의미를 잃었다.
 
-`선택 > 피사체` 도 같은 이유로 Core 에 속하지만 **아직 구현하지 못했다.**
-`autoCutout` descriptor 가 거부된다. 관찰한 것:
+`선택 > 피사체` 도 같은 이유로 Core 에 속한다. **§17.28 에서 구현했다.**
+
+한동안 여기에 "`autoCutout` descriptor 가 거부된다" 고 적혀 있었다.
 
 ```text
 조정 레이어 활성:  "피사체 선택" 명령은 현재 사용할 수 없습니다.
@@ -603,8 +604,12 @@ Core 에서는 가능한 한 저수준 기능만 제공한다.
              (sampleAllLayers: false 를 줘도, 빼도 같다)
 ```
 
-레이어 종류에 따라 오류가 달라지므로 대상 조건과 파라미터 둘 다 봐야 한다.
-동작하지 않는 Tool 을 남기지 않기 위해 §5 후보로 돌려 두었다.
+**이름은 처음부터 맞았다.** 알림을 `["all"]` 로 받아 메뉴 실행을 캡처하니
+`autoCutout { sampleAllLayers: false }` 그대로였다. 틀린 것은 **부르는 자리**였다 —
+`executeAsModal` 안에서는 거부된다. 이 Command 만 `runModal` 을 쓰지 않는다.
+
+"파라미터가 유효하지 않다" 는 메시지가 파라미터를 가리킨 것이 아니었다.
+문서에서 이름을 가져다 쓰고 오류 문구를 그대로 믿은 것이 막힌 이유였다.
 
 ### 실제로 그렇게 됐는가
 

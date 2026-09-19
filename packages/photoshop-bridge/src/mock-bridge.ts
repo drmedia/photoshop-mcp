@@ -353,6 +353,11 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         this.#snapshot("Select sky");
         this.#hasSelection = this.#document !== null;
         return this.#selectionState() as TResult;
+      // 피사체 선택. (ROADMAP §17.28) Mock 은 픽셀을 모르므로 선택 유무만 흉내낸다.
+      case "SELECTION_SUBJECT":
+        this.#snapshot("Select subject");
+        this.#hasSelection = this.#document !== null;
+        return this.#selectionState() as TResult;
       // 워크플로 공백 보완. (ROADMAP §17.8)
       case "ADJUSTMENT_COLOR_BALANCE":
         this.#snapshot("Color Balance");

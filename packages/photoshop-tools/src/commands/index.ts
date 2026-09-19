@@ -128,7 +128,12 @@ import {
   captureLayerCommand,
   captureSelectionCommand,
 } from "./capture.js";
-import { SELECTION_SKY, selectionSkyCommand } from "./selection-auto.js";
+import {
+  SELECTION_SKY,
+  SELECTION_SUBJECT,
+  selectionSkyCommand,
+  selectionSubjectCommand,
+} from "./selection-auto.js";
 import {
   ADJUSTMENT_COLOR_BALANCE,
   ColorBalanceParams,
@@ -236,6 +241,7 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_LIST, layerListCommand, { permission: "read" });
   registry.register(LAYER_GET_ACTIVE, layerGetActiveCommand, { permission: "read" });
   registry.register(SELECTION_SKY, selectionSkyCommand, { permission: "edit" });
+  registry.register(SELECTION_SUBJECT, selectionSubjectCommand, { permission: "edit" });
   registry.register(LAYER_DELETE, layerDeleteCommand, {
     // CORE_API §8 이 미리 정해 둔 분류다. 작업을 없애는 것이 목적이다.
     permission: "destructive",

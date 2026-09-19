@@ -3944,6 +3944,132 @@ convert {layerId: 15}   → {converted: false, previousId: 15}   레이어 수 �
 
 ---
 
+# 17.28 피사체 선택 — 이름은 처음부터 맞았다
+
+## 두 번 막혔던 것
+
+`CORE_API.md` §7 이 이렇게 적어 두고 §5 후보로 돌려 둔 것이다.
+
+```text
+조정 레이어 활성:  "피사체 선택" 명령은 현재 사용할 수 없습니다.
+픽셀 레이어 활성:  "피사체 선택" 명령의 매개 변수는 현재 유효하지 않습니다.
+             (sampleAllLayers: false 를 줘도, 빼도 같다)
+```
+
+그때 `autoCutout` 이라는 이름을 **문서에서 가져왔고**, 오류 문구를 그대로 믿었다.
+
+## 알림을 `["all"]` 로 고쳤다
+
+§15 가 "Photoshop 알림은 하나도 오지 않는다" 고, 그리고 CLAUDE.md 가 "`command.*`
+만 신뢰할 수 있다" 고 적어 두었던 것이 **이름 목록으로 등록했기 때문**이었다.
+
+```text
+["make", "set", "select", …]   등록 성공 · 전달 0
+["all"]                        전달됨
+```
+
+`startNotifications` 가 이제 `["all"]` 로 등록하고 **받는 쪽에서 거른다.** 아는
+액션은 이름을 붙이고 나머지는 `photoshop.unknown` 으로 원본과 함께 나간다 —
+`notifications.ts` 맨 위가 처음부터 말하던 원칙이다.
+
+바꾼 직후 바로 들어왔다.
+
+```text
+photoshop.unknown  ←  modalJavaScriptScopeEnter
+photoshop.unknown  ←  modalJavaScriptScopeExit
+```
+
+## descriptor 를 잡았다
+
+메뉴에서 `선택 > 피사체` 를 한 번 실행하고 받았다.
+
+```text
+invokeCommand        commandID 1461
+modalStateChanged    title "GARBAGE"  enter → exit
+historyStateChanged  name "Select Subject"
+autoCutout           { sampleAllLayers: false }
+```
+
+**이름도 파라미터도 처음 것과 같았다.**
+
+**이벤트 버퍼는 MCP 서버 프로세스에 있다.** 스크립트를 돌릴 때마다 새 서버가 떠서
+버퍼가 빈다 — 캡처하려면 서버를 띄워 둔 채로 사람이 메뉴를 실행해야 한다.
+이것을 모르고 두 번 헛돌았다.
+
+## 모달 밖이라고 짐작했다가 틀렸다
+
+캡처에 Photoshop 자신의 모달(`GARBAGE`)이 보여서 "우리 `executeAsModal` 안이라
+거부되는 것" 이라고 짐작하고 `runModal` 없이 구현했다. 재 보니 **반대였다.**
+
+```text
+Event: autoCutout may modify the state of Photoshop.
+Such events are only allowed from inside a modal scope.
+```
+
+되돌려 `runModal` 안에서 부르니 **픽셀 레이어 · 스마트 오브젝트 · 숨긴 레이어
+세 가지 모두에서 동작했다.** 예전 실패의 원인은 확정하지 못했다. 짐작을 적지 않는다.
+
+## 왜 필요했나 — 밝기 마스크는 `shadows` 와 서로를 무효화한다
+
+교량에 국소 보정을 걸려다 드러났다. `selection.color_range highlights` 로 마스크를
+만들고 `shadows` 를 올렸더니 아무 일도 일어나지 않았다.
+
+```text
+밝기 마스크  →  어두운 부분을 뺀다
+shadows     →  어두운 부분에만 작용한다
+```
+
+교량에서 입체감이 필요한 곳은 상판 아래와 교각 — 어두운 면이다. 마스크가 바로
+그곳을 제외하고 있었다.
+
+같은 값(shadows 10 · texture 10 · dehaze 4)을 두 마스크로 걸어 재면 이렇다.
+
+```text
+             밝기 마스크        피사체 마스크
+교각 σ       1.134 → 1.134     1.134 → 1.273  (+12.3%)
+상판 σ       1.925 → 1.925     1.925 → 1.999  (+3.8%)
+주탑 σ       2.431 → 2.504     2.431 → 2.488
+```
+
+**교각이 갈랐다.** 밝기 마스크에서는 변화가 0 이다.
+
+`texture` · `clarity` 는 교량에 잘 듣지 않는다는 것도 함께 확인했다 — 달(매끄러운
+면)은 `texture 18` 로 σ +29% 였는데 교량은 `texture 25` 로 +6.7% 였다. 이미 초점이
+맞은 금속 구조는 국소 대비 강화가 금방 포화한다.
+
+## 무엇을 피사체로 볼지는 Photoshop 이 정한다
+
+야경에서는 주제가 분명하지 않다. 실기에서 선택 경계가 `752,720 – 3532,4448` 로
+문서의 절반을 넘었다. `reliable` 같은 판정을 담지 않고 `bounds` 를 그대로 준다 —
+`measure.tilt`(§17.21)와 같은 규칙이다.
+
+## 실기 검증
+
+Photoshop 27.8, `_DSC7393.NEF`.
+
+```text
+selection.subject            hasSelection true   752,720 – 3532,4448
+mask.create fromSelection
+smart_object.convert         id 29 → 30
+camera_raw.apply             shadows 10 · texture 10 · dehaze 4
+
+하늘 · 도시 · 수면   소수점까지 동일        ← 격리 확인
+교각                σ +12.3%
+```
+
+## 체크리스트
+
+- [x] `photoshop.selection.subject` — EDIT
+- [x] 알림 등록을 `["all"]` 로 바꾸고 받는 쪽에서 거른다
+- [x] descriptor 를 캡처로 확인 (짐작하지 않았다)
+- [x] `runModal` 안에서 부른다 — 밖은 거부된다
+- [x] Mock 은 선택 유무만 흉내낸다
+- [x] `docs/CORE_API.md` §4.5 갱신 (§5.4 예정 목록에서 이동)
+- [x] 실기 검증 — 격리와 교각 반응
+- [ ] `photoshop.event.recent` 의 이름별 매핑을 넓힌다 — 지금은 대부분 `photoshop.unknown`
+
+---
+
 # 18. Phase 14 — Distribution
 
 검토 대상:

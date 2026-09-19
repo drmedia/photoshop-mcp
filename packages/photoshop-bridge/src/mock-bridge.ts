@@ -467,6 +467,9 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         }
 
         const flat = {
+          // Mock 은 평평한 회색 한 장이므로 이웃 차가 전부 0 이다. 노이즈도 0 이
+          // 맞다 — 그럴듯한 값을 지어내면 테스트가 거짓을 고정한다.
+          noise: 0,
           mean: 128,
           p1: 128,
           p5: 128,

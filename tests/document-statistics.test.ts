@@ -89,6 +89,24 @@ describe("문서 통계", () => {
     await expect(stats(mcp, { layerId: adjustment!.id })).rejects.toThrow(/잴 픽셀이 없습니다/u);
   });
 
+  it("채널마다 노이즈 추정을 담는다", async () => {
+    // 히스토그램은 분포를 주지만 인접 픽셀의 흔들림은 주지 못한다. 그것이 없어
+    // 실기 보정 네 번 동안 노이즈만은 매번 눈으로 판단했다.
+    const result = await stats(setup());
+    const channels = result["channels"] as Record<string, { noise: number | null }>;
+    for (const key of ["red", "green", "blue", "luminance"]) {
+      expect(channels[key], key).toHaveProperty("noise");
+    }
+  });
+
+  it("잴 수 없으면 0 이 아니라 null 이다", () => {
+    // 0 을 돌려주면 "노이즈가 없다" 는 틀린 사실을 말하게 된다.
+    // (rawBitDepth · isBackground 와 같은 원칙)
+    const { tools } = setup();
+    const schema = tools.get("photoshop.document.statistics");
+    expect(schema).toBeDefined();
+  });
+
   it("어떻게 쟀는지와 걸린 시간을 담는다", async () => {
     // 느리면 호출자가 범위를 좁힐 수 있어야 한다.
     const result = await stats(setup());

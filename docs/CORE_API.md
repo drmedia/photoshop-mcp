@@ -110,7 +110,10 @@ P3  확장 기능
 | `photoshop.layer.capture` | READ | 레이어 하나만 그림으로 |
 | `photoshop.selection.capture` | READ | 선택 영역(경계 상자)을 그림으로 |
 | `photoshop.layer.get_active` | READ | 지금 선택된 레이어. `layers` 에 전부, `layer` 에 첫 번째 |
-| `photoshop.document.statistics` | READ | 히스토그램·채널 통계. **전체 해상도 원본에서** 잰다 |
+| `photoshop.document.statistics` | READ | 히스토그램·채널 통계·**노이즈 σ**. 전체 해상도 원본에서 |
+
+노이즈 σ 는 **평탄한 영역에서** 재야 한다. 나뭇잎처럼 촘촘한 질감은 노이즈와
+구분되지 않으므로 `region: selection` 으로 하늘 같은 곳을 좁혀 지정한다.
 
 캡처와 통계는 **짝이다.** 캡처는 보고, 통계는 잰다. 구도·마스크 경계·전체 인상은
 봐야 잡히고, 어두운 영역의 색 편향·미세한 캐스트·작은 클리핑은 재야 잡힌다.

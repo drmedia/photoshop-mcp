@@ -53,6 +53,37 @@ const KEYS: Record<string, string> = {
   vignetteMidpoint: "$PCVM",
   vignetteFeather: "$PCVF",
   vignetteRoundness: "$PCVR",
+
+  // ── 색상 혼합 (HSL). (ROADMAP §17.29) ──
+  // 접미사가 R·O·Y·G·A·B·P·M 로 UI 순서와 같다. 그래도 **잡아낸 그대로** 적는다 —
+  // `saturation` 이 규칙을 깬 전례가 있다.
+  // 값은 **정수**로 간다. `$Ex12` 와 달리 실수로 밀 필요가 없다(실기 확인).
+  hueRed: "$HA_R",
+  hueOrange: "$HA_O",
+  hueYellow: "$HA_Y",
+  hueGreen: "$HA_G",
+  hueAqua: "$HA_A",
+  hueBlue: "$HA_B",
+  huePurple: "$HA_P",
+  hueMagenta: "$HA_M",
+
+  saturationRed: "$SA_R",
+  saturationOrange: "$SA_O",
+  saturationYellow: "$SA_Y",
+  saturationGreen: "$SA_G",
+  saturationAqua: "$SA_A",
+  saturationBlue: "$SA_B",
+  saturationPurple: "$SA_P",
+  saturationMagenta: "$SA_M",
+
+  luminanceRed: "$LA_R",
+  luminanceOrange: "$LA_O",
+  luminanceYellow: "$LA_Y",
+  luminanceGreen: "$LA_G",
+  luminanceAqua: "$LA_A",
+  luminanceBlue: "$LA_B",
+  luminancePurple: "$LA_P",
+  luminanceMagenta: "$LA_M",
 };
 
 /**

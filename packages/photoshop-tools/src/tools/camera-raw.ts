@@ -23,7 +23,13 @@ export function createCameraRawApplyTool(
       "실기에서 σ 6.72 → 3.42(49%) 이면서 색은 소수점 둘째 자리까지 그대로였다. " +
       "픽셀을 직접 바꾸므로 원본을 남기려면 photoshop.layer.duplicate 로 복제한 뒤 건다. " +
       "숨긴 레이어와 조정 레이어에는 걸 수 없다. " +
-      "temperature 는 켈빈이 아니라 -100~100 상대값이다.",
+      "temperature 는 켈빈이 아니라 -100~100 상대값이다. " +
+      "**색상 혼합(HSL)** 은 hue/saturation/luminance × Red·Orange·Yellow·Green·Aqua·Blue·Purple·Magenta " +
+      "24개 파라미터다(예: saturationOrange, luminanceBlue). " +
+      "전역 vibrance·saturation 과 달리 **특정 색만** 건드리므로, 야경에서 조명색만 " +
+      "살리고 하늘은 그대로 두는 식의 조정에 쓴다. " +
+      "레이어를 photoshop.smart_object.convert 로 먼저 감싸면 스마트 필터로 남아 " +
+      "나중에 값만 고칠 수 있다 — 그러면 '한 번에 담아라' 제약도 완화된다.",
     permission: "edit",
     inputSchema: CameraRawParamsSchema,
     handler: async (input, context) =>

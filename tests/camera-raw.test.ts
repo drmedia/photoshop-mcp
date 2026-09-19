@@ -84,6 +84,71 @@ describe("Camera Raw", () => {
     });
   });
 
+  /**
+   * 색상 혼합(HSL). (ROADMAP §17.29)
+   *
+   * 키 24개는 알림 캡처로 잡은 것이다. 여기서 고정하지 않으면 오타 하나가
+   * **오류 없이 조용히 무시되는** 경로가 된다 — `$Ex12` 정수 함정과 같은 종류다.
+   */
+  describe("색상 혼합", () => {
+    const COLORS = ["Red", "Orange", "Yellow", "Green", "Aqua", "Blue", "Purple", "Magenta"];
+    const SUFFIX = ["R", "O", "Y", "G", "A", "B", "P", "M"];
+
+    it("**잡아낸 키 그대로 나간다**", () => {
+      for (const [index, color] of COLORS.entries()) {
+        const suffix = SUFFIX[index] as string;
+        expect(buildCameraRawDescriptor({ [`hue${color}`]: 11 }).descriptor[`$HA_${suffix}`]).toBe(
+          11,
+        );
+        expect(
+          buildCameraRawDescriptor({ [`saturation${color}`]: 22 }).descriptor[`$SA_${suffix}`],
+        ).toBe(22);
+        expect(
+          buildCameraRawDescriptor({ [`luminance${color}`]: 33 }).descriptor[`$LA_${suffix}`],
+        ).toBe(33);
+      }
+    });
+
+    it("**정수를 실수로 밀지 않는다**", () => {
+      // `$Ex12` 만 실수를 요구한다. 여기까지 밀면 실기에서 잡은 값과 달라진다.
+      expect(buildCameraRawDescriptor({ saturationOrange: 5 }).descriptor["$SA_O"]).toBe(5);
+      expect(buildCameraRawDescriptor({ luminanceBlue: -8 }).descriptor["$LA_B"]).toBe(-8);
+    });
+
+    it("전역 saturation 과 섞이지 않는다", () => {
+      // 전역은 `$` 가 없는 `saturation` 이고 색상별은 `$SA_*` 다. 이름이 비슷해 위험하다.
+      const { descriptor } = buildCameraRawDescriptor({ saturation: 9, saturationOrange: 5 });
+      expect(descriptor["saturation"]).toBe(9);
+      expect(descriptor["$SA_O"]).toBe(5);
+    });
+
+    it("색상 혼합만으로는 화이트밸런스를 건드리지 않는다", () => {
+      expect(buildCameraRawDescriptor({ saturationOrange: 5 }).descriptor["$WBal"]).toBeUndefined();
+    });
+
+    it("**버전 키를 넣지 않는다**", () => {
+      // 잡힌 descriptor 에는 $CrVe·$PrVN·$PrVe 가 있었지만 빼도 동작한다.
+      // 박아 넣으면 다른 Camera Raw 버전에서 깨진다.
+      const { descriptor } = buildCameraRawDescriptor({ saturationOrange: 5, hueBlue: 3 });
+      for (const key of ["$CrVe", "$PrVN", "$PrVe"]) {
+        expect(descriptor[key]).toBeUndefined();
+      }
+    });
+
+    it("24개가 전부 있다", () => {
+      const params: Record<string, number> = {};
+      for (const color of COLORS) {
+        params[`hue${color}`] = 1;
+        params[`saturation${color}`] = 2;
+        params[`luminance${color}`] = 3;
+      }
+      const { applied, descriptor } = buildCameraRawDescriptor(params);
+      expect(applied).toHaveLength(24);
+      // _obj 하나를 더한 수다.
+      expect(Object.keys(descriptor)).toHaveLength(25);
+    });
+  });
+
   describe("Tool", () => {
     it("edit 이다", () => {
       expect(setup().tools.get("photoshop.camera_raw.apply")?.permission).toBe("edit");

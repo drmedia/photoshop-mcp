@@ -88,6 +88,42 @@ export const CameraRawParamsSchema = z
     vignetteMidpoint: Amount.optional(),
     vignetteFeather: Amount.optional(),
     vignetteRoundness: Slider.optional(),
+
+    // ── 색상 혼합 (HSL). (ROADMAP §17.29) ─────────────────
+    //
+    // 색상별 조정이다. 전역 `vibrance` · `saturation` 과 달리 **특정 색만**
+    // 건드린다 — 야경에서 조명색만 살리고 하늘은 두는 식이다.
+    //
+    // 키 24개는 알림 캡처로 확인했다. 짐작한 것이 하나도 없다.
+    /** 색조. */
+    hueRed: Slider.optional(),
+    hueOrange: Slider.optional(),
+    hueYellow: Slider.optional(),
+    hueGreen: Slider.optional(),
+    hueAqua: Slider.optional(),
+    hueBlue: Slider.optional(),
+    huePurple: Slider.optional(),
+    hueMagenta: Slider.optional(),
+
+    /** 채도. */
+    saturationRed: Slider.optional(),
+    saturationOrange: Slider.optional(),
+    saturationYellow: Slider.optional(),
+    saturationGreen: Slider.optional(),
+    saturationAqua: Slider.optional(),
+    saturationBlue: Slider.optional(),
+    saturationPurple: Slider.optional(),
+    saturationMagenta: Slider.optional(),
+
+    /** 광도. */
+    luminanceRed: Slider.optional(),
+    luminanceOrange: Slider.optional(),
+    luminanceYellow: Slider.optional(),
+    luminanceGreen: Slider.optional(),
+    luminanceAqua: Slider.optional(),
+    luminanceBlue: Slider.optional(),
+    luminancePurple: Slider.optional(),
+    luminanceMagenta: Slider.optional(),
   })
   .strict()
   .superRefine((value, ctx) => {

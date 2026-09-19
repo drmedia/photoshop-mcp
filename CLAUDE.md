@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **55개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **56개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 62). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 63). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -30,7 +30,7 @@ Tool 까지 더한 수다(지금 62). 한동안 이 값을 Core 개수로 옮겨
 - §8.6 공백 보완: selection.set · layer.set_blend_mode · adjustment.hue_saturation · vibrance
 
 - 파일 저장: `workspace.status` · `document.save_as` · `document.export` · `document.save`
-- 캡처: `document.capture` · `layer.capture` · `selection.capture`
+- 캡처: `document.capture` · `layer.capture` · `selection.capture` · `window.capture`
 
 ## 캡처 (ROADMAP §17.10)
 
@@ -50,8 +50,36 @@ LLM 은 그것을 볼 수 없고 토큰만 먹는다. 서버가 알아보는 기
 
 긴 변 기본 1024 · 상한 2048. 구도·색·노출 판단에는 충분하다.
 
-`capture_window` 는 만들지 않는다. OS 화면 캡처는 UXP 샌드박스 밖이고, 되더라도
-찍히는 것은 픽셀이 아니라 패널과 툴바다.
+## 창 캡처 (ROADMAP §17.11)
+
+`photoshop.window.capture` 는 위 셋과 다른 물건이다. 문서의 픽셀이 아니라 **Photoshop
+창**을 찍는다 — 패널·툴바·대화상자까지.
+
+처음에 "찍히는 것은 픽셀이 아니라 패널과 툴바라 쓸모없다" 고 적었는데 **판단이
+좁았다.** 쓸모는 하나지만 그것이 크다. **대화상자가 떠 있으면 Photoshop 이 명령을
+받지 못하는데**, batchPlay 가 응답하지 않아 호출자는 타임아웃만 본다.
+`photoshop.diagnostics` 도 못 본다 — Bridge 가 응답 못 하는 상태라 Photoshop 에게
+물어볼 방법 자체가 없다. 밖에서 창을 찍는 것이 유일한 길이다.
+
+**UXP 가 아니라 서버가 직접 찍는다.** Bridge 가 localhost WebSocket 이라 서버는
+Photoshop 과 같은 기계에 있다. 헬퍼 실행 파일을 따로 깔 이유가 없다. Windows 는
+PowerShell + `PrintWindow` 로 의존성 0 이다.
+
+`PrintWindow` 여야 한다. 화면 복사(`CopyFromScreen`)는 **위에 있는 딴 창**을 찍는다.
+Photoshop 이 뒤에 있어도 대화상자를 볼 수 있어야 하므로 이 차이가 결정적이다.
+`PW_RENDERFULLCONTENT`(2) 를 줘야 GPU 캔버스가 검게 나오지 않는다.
+
+**권한이 `read` 가 아니라 `external` 이다.** 찍는 것이 문서가 아니라 사용자의 화면이다 —
+파일 경로·최근 문서·계정 이름이 함께 찍힌다. 기본 허용 밖이라 꺼져 있는 것이 기본이다.
+
+대상은 **Photoshop 메인 창으로 고정**한다. 호출자가 창을 고를 수 있으면 임의 창 캡처
+도구가 되고 §23 이 막으려던 것과 같아진다. 같은 이유로 LLM 이 준 값은 스크립트
+문자열에 섞이지 않는다 — 스크립트는 고정 상수이고 `longEdge` 는 환경 변수로만 간다.
+
+최소화된 창은 `IsIconic` 으로 잡아 **실패로 돌려준다.** `PrintWindow` 는 오류 없이
+빈 화면을 주는데, 그대로 돌려주면 호출자가 현재 화면이라고 믿는다.
+
+macOS 는 미지원이다. 목록에는 노출하되 이유를 말하며 실패한다.
 
 Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `format: "png"`
 회피도, 알파 포함도 전부 막힌다. 받은 픽셀을 JS 에서 8비트 RGB 로 낮춰 다시 감싼다.

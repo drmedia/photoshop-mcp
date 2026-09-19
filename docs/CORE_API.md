@@ -69,9 +69,14 @@ Extension 은 `photoshop.*` 에 Tool 을 등록할 수 없다. 이름이 겹치�
 - `save_as` · `export` — 승인된 폴더로 나간다 → `EXTERNAL`
 - `layer.place` — 승인된 폴더에서 들어온다 → `EXTERNAL` (읽기여도 경계를 넘는다)
 - `save` — 원본을 덮어쓴다 → `DESTRUCTIVE`
+- `window.capture` — **사용자의 화면**을 읽는다 → `EXTERNAL`
 
 덮어쓰지 않는 것과 덮어쓰는 것을 나눠 놓았기 때문에 `save_as` 와 `export` 를
 `EXTERNAL` 로 둘 수 있다. 덮어쓰기는 `save` 하나에 모았다.
+
+`window.capture` 가 같은 기준의 다른 방향이다. 문서를 찍는 캡처 셋은 `READ` 지만
+이것은 Photoshop 창 — 파일 경로, 최근 문서 목록, 계정 이름, 떠 있는 대화상자가
+함께 찍힌다. **무엇을 찍느냐가 아니라 어디까지 보이느냐**가 경계다.
 
 ---
 
@@ -90,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (55개)
+## 4. 구현된 Core API (56개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -227,8 +232,15 @@ StarNet2 가 67초였다. 그래서 오래 걸리는 Tool 은 **짧게 끝나도
 |---|---|---|
 | `photoshop.diagnostics` | READ | 막힌 이유와 **고치는 방법**을 함께 준다 |
 | `photoshop.event.recent` | READ | `command.*` 는 신뢰할 수 있다. `photoshop.*` 는 §6 참조 |
+| `photoshop.window.capture` | EXTERNAL | Photoshop **창**을 찍는다. Windows 전용 |
 
 무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.
+
+`window.capture` 는 `diagnostics` 가 답하지 못하는 하나를 답한다 — **대화상자가 떠서
+Photoshop 이 명령을 못 받는 상태.** 그때는 Bridge 가 응답하지 않으므로 Photoshop 에게
+물어볼 방법 자체가 없다. 창을 밖에서 찍는 것이 유일한 길이다.
+
+보정 결과 확인용이 아니다. 그건 §4.1 의 캡처 셋이다.
 
 ---
 

@@ -72,6 +72,8 @@ export const EXPECTED_TOOLS = [
   //
   // 조회만 노출한다. 실행은 Extension 이 전체 흐름의 일부로 호출한다.
   "photoshop.capability.list",
+  // ROADMAP §17.11 — Photoshop 창. 문서가 아니라 화면이라 external 이다
+  "photoshop.window.capture",
   // ROADMAP §14 — 긴 작업 (MCP 기본 타임아웃 60초를 넘는 것)
   "photoshop.job.status",
   "photoshop.job.list",

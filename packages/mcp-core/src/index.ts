@@ -28,6 +28,11 @@ export {
   type ResourceRegistryOptions,
 } from "./resources/registry.js";
 export { JobStore, type JobStoreOptions } from "./jobs/store.js";
+export {
+  PhotoshopWindowCapturer,
+  describeCaptureFailure,
+  parseCaptureOutput,
+} from "./capture/window.js";
 export { WorkflowRegistry, type WorkflowRegistryOptions } from "./workflows/registry.js";
 export {
   ExtensionManager,

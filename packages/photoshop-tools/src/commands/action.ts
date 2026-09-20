@@ -140,7 +140,29 @@ export const actionPlayCommand: CommandHandler<ActionPlayParams, ActionPlayResul
   command,
   context,
 ) => {
-  const raw = await context.bridge.executeCommand<unknown>(command);
+  let raw: unknown;
+  try {
+    raw = await context.bridge.executeCommand<unknown>(command);
+  } catch (error) {
+    // **액션에서 타임아웃의 가장 흔한 원인은 대화상자다.** 실기에서
+    // "'StarXTerminator' 명령은 현재 사용할 수 없습니다" 창이 떠서 멈췄다.
+    //
+    // 일반 타임아웃 메시지만으로는 그것을 알 수 없다. `window.capture` 가
+    // 바로 이 상황을 보려고 있는 Tool 인데(§17.11), 가리켜 주지 않으면
+    // 호출자가 그 길을 찾지 못한다.
+    if (error instanceof PhotoshopMcpError && error.code === ErrorCode.COMMAND_TIMEOUT) {
+      throw new PhotoshopMcpError(
+        ErrorCode.COMMAND_TIMEOUT,
+        `'${command.params.set} > ${command.params.action}' 이 응답하지 않습니다. ` +
+          "**액션 안에서 대화상자가 떠 멈춘 것일 수 있습니다** — " +
+          "photoshop.window.capture 로 화면을 보면 확인됩니다. " +
+          "떠 있으면 사람이 닫아야 하며, 액션 패널에서 해당 단계의 대화상자 토글을 끄면 " +
+          "다음부터 뜨지 않습니다. 오래 걸리는 액션이어서일 수도 있습니다.",
+        { recoverable: true, details: { ...command.params }, cause: error },
+      );
+    }
+    throw error;
+  }
   const parsed = ActionPlayResultSchema.safeParse(raw);
   if (!parsed.success) {
     throw new PhotoshopMcpError(ErrorCode.PROTOCOL_ERROR, "액션 실행 결과가 예상과 다릅니다.", {

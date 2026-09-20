@@ -1,5 +1,10 @@
 import { createPhotoshopMcp, createSilentLogger } from "@photoshop-mcp/mcp-core";
-import { MockPhotoshopBridge, PermissionPolicy } from "@photoshop-mcp/photoshop-bridge";
+import {
+  ErrorCode,
+  MockPhotoshopBridge,
+  PermissionPolicy,
+  PhotoshopMcpError,
+} from "@photoshop-mcp/photoshop-bridge";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -80,6 +85,25 @@ describe("**고른 것만 부를 수 있다** (ROADMAP §17.36)", () => {
     await expect(
       setup(ALL).tools.invoke("photoshop.action.run", { name: "x" }, { requestId: "r" }),
     ).rejects.toThrow();
+  });
+
+  it("**타임아웃이면 대화상자를 의심하라고 말한다**", async () => {
+    // 실기에서 "'StarXTerminator' 명령은 현재 사용할 수 없습니다" 창이 떠 멈췄다.
+    // 일반 타임아웃 메시지만으로는 그것을 알 수 없다.
+    const bridge = new MockPhotoshopBridge();
+    const slow = createPhotoshopMcp({
+      bridge: {
+        ...bridge,
+        executeCommand: async () => {
+          throw new PhotoshopMcpError(ErrorCode.COMMAND_TIMEOUT, "응답이 없습니다");
+        },
+      } as unknown as MockPhotoshopBridge,
+      logger: createSilentLogger(),
+      policy: new PermissionPolicy(ALL as never),
+    });
+    await expect(
+      slow.tools.invoke("photoshop.action.run", { set: "s", action: "a" }, { requestId: "r" }),
+    ).rejects.toThrow(/대화상자|window\.capture/u);
   });
 
   it("허용 목록 조회는 read 다", () => {

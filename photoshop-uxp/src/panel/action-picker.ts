@@ -1,5 +1,5 @@
 import { app } from "photoshop";
-import { readAllowed, writeAllowed, type AllowedAction } from "../dom/action-allowlist.js";
+import { readAllowed, writeAllowed } from "../dom/action-allowlist.js";
 
 /**
  * 액션 선택 모달. (ROADMAP §17.36)
@@ -78,53 +78,87 @@ const escape = (value: string): string =>
 /**
  * 모달을 띄우고 사용자가 저장하면 허용 목록을 갱신한다.
  *
- * @returns 저장한 수. 취소하면 `null`.
+ * @returns 닫은 뒤 실제로 저장되어 있는 수.
  */
-export async function openActionPicker(): Promise<number | null> {
+export async function openActionPicker(): Promise<number> {
   const sets = readSets();
   // 화면에서만 쓰는 선택 상태. 저장 전까지 localStorage 를 건드리지 않는다.
   const chosen = new Set(readAllowed().map((entry) => KEY(entry.set, entry.action)));
 
   const dialog = document.createElement("dialog");
   dialog.style.width = "460px";
+  // **색을 직접 정한다.** 실기에서 글자가 배경에 묻혀 거의 안 보였다 —
+  // UXP 대화상자는 패널과 달리 텍스트 색을 물려주지 않는다.
+  const TEXT = "#e8e8e8";
   dialog.innerHTML = [
-    '<form method="dialog" style="font-family:sans-serif;font-size:12px;padding:10px">',
+    `<div style="font-family:sans-serif;font-size:12px;padding:10px;color:${TEXT}">`,
     '<div style="display:flex;align-items:center;margin-bottom:6px">',
-    "<b>실행을 허용할 액션</b>",
-    '<span id="ap-count" style="margin-left:8px;opacity:.7"></span>',
+    `<b style="color:${TEXT}">실행을 허용할 액션</b>`,
+    `<span id="ap-count" style="margin-left:8px;color:#a8c8ff"></span>`,
     "</div>",
-    '<div style="opacity:.7;margin-bottom:6px">세트를 눌러 펼칩니다. 고른 것만 부를 수 있습니다.</div>',
-    '<div id="ap-list" style="height:320px;overflow:auto;border:1px solid #555;padding:6px"></div>',
-    '<div style="margin-top:10px;text-align:right">',
-    '<button id="ap-none" value="none" style="margin-right:6px">모두 해제</button>',
-    '<button id="ap-cancel" value="cancel" style="margin-right:6px">취소</button>',
-    '<button id="ap-save" value="save">저장</button>',
+    '<div style="color:#b0b0b0;margin-bottom:6px">세트를 눌러 펼칩니다. 고른 것만 부를 수 있습니다.</div>',
+    '<div id="ap-list" style="height:340px;overflow:auto;border:1px solid #6a6a6a;',
+    `padding:6px;color:${TEXT}"></div>`,
+    '<div style="margin-top:10px;display:flex;align-items:center;gap:6px">',
+    '<button id="ap-none">모두 해제</button>',
+    '<button id="ap-save">저장</button>',
+    '<span style="flex:1"></span>',
+    '<button id="ap-close">닫기</button>',
     "</div>",
-    "</form>",
+    "</div>",
   ].join("");
 
   const list = dialog.querySelector("#ap-list") as HTMLElement;
   const count = dialog.querySelector("#ap-count") as HTMLElement;
+  const closeButton = dialog.querySelector("#ap-close") as HTMLElement | null;
+
+  // 저장된 상태. `chosen` 과 견주어 "저장 안 함" 을 판단한다.
+  let saved = new Set(readAllowed().map((entry) => KEY(entry.set, entry.action)));
+
+  // 세트 헤더의 (고른수/전체) 를 다시 그리려면 그 요소를 들고 있어야 한다.
+  // 실기에서 체크해도 헤더가 (0/1) 그대로였다 — **숫자가 거짓말을 했다.**
+  const heads = new Map<string, HTMLElement>();
+
+  const badgeFor = (node: SetNode): string => {
+    if (node.actions === null) {
+      return "";
+    }
+    const picked = node.actions.filter((name) => chosen.has(KEY(node.name, name))).length;
+    return ` (${String(picked)}/${String(node.actions.length)})`;
+  };
 
   const renderCount = (): void => {
-    count.textContent = `${chosen.size}개 선택됨`;
+    // **고른 것과 저장한 것을 구분해서 보여준다.** 실기에서 사용자가
+    // "저장된 건지 선택한 건지 알기 힘들다" 고 했다 — 같은 숫자를 하나로만
+    // 보여주면 둘을 구분할 수 없다.
+    const dirty = chosen.size !== saved.size || [...chosen].some((key) => !saved.has(key));
+    count.textContent = `${chosen.size}개 선택 · ${dirty ? "저장 안 함" : "저장됨"}`;
+    count.style.color = dirty ? "#ffc46b" : "#8fd39a";
+    if (closeButton !== null) {
+      // 닫기 버튼이 결과를 말한다. 저장 안 한 채로 닫는 것이 사고가 되지 않게.
+      closeButton.textContent = dirty ? "저장 안 하고 닫기" : "닫기";
+    }
+    for (const node of sets) {
+      const head = heads.get(node.name);
+      if (head !== undefined) {
+        head.innerHTML = `<b>${node.actions === null ? "▶" : "▼"} ${escape(node.name)}</b>${badgeFor(node)}`;
+      }
+    }
   };
 
   const render = (): void => {
     list.innerHTML = "";
+    heads.clear();
     for (const node of sets) {
       const row = document.createElement("div");
       row.style.marginBottom = "2px";
 
       const head = document.createElement("div");
       head.style.cursor = "pointer";
-      const picked =
-        node.actions === null
-          ? 0
-          : node.actions.filter((name) => chosen.has(KEY(node.name, name))).length;
-      const badge =
-        node.actions === null ? "" : ` (${String(picked)}/${String(node.actions.length)})`;
-      head.innerHTML = `<b>${node.actions === null ? "▶" : "▼"} ${escape(node.name)}</b>${badge}`;
+      head.style.padding = "3px 2px";
+      head.style.color = "#e8e8e8";
+      head.innerHTML = `<b>${node.actions === null ? "▶" : "▼"} ${escape(node.name)}</b>${badgeFor(node)}`;
+      heads.set(node.name, head);
       head.addEventListener("click", () => {
         // 펼칠 때 읽는다. 접을 때는 읽은 것을 버려 다음에 다시 읽게 한다 —
         // 사용자가 Photoshop 에서 액션을 바꿨을 수 있다.
@@ -136,7 +170,7 @@ export async function openActionPicker(): Promise<number | null> {
       if (node.actions !== null) {
         const all = document.createElement("div");
         all.style.margin = "2px 0 2px 14px";
-        all.innerHTML = '<a href="#" style="opacity:.8">이 세트 전체 선택 / 해제</a>';
+        all.innerHTML = '<a href="#" style="color:#7fb3ff">이 세트 전체 선택 / 해제</a>';
         all.addEventListener("click", (event) => {
           event.preventDefault();
           const names = node.actions ?? [];
@@ -157,6 +191,9 @@ export async function openActionPicker(): Promise<number | null> {
           const key = KEY(node.name, name);
           const line = document.createElement("div");
           line.style.marginLeft = "14px";
+          line.style.padding = "1px 0";
+          line.style.display = "flex";
+          line.style.alignItems = "center";
           const box = document.createElement("input");
           box.type = "checkbox";
           box.checked = chosen.has(key);
@@ -169,7 +206,9 @@ export async function openActionPicker(): Promise<number | null> {
             renderCount();
           });
           const label = document.createElement("span");
-          label.textContent = ` ${name}`;
+          label.style.color = "#e8e8e8";
+          label.style.marginLeft = "6px";
+          label.textContent = name;
           line.appendChild(box);
           line.appendChild(label);
           row.appendChild(line);
@@ -179,32 +218,52 @@ export async function openActionPicker(): Promise<number | null> {
     }
   };
 
-  renderCount();
   render();
+  renderCount();
+
+  // **UXP 는 `<form method="dialog">` 제출로 닫히지 않는다.** 실기에서 버튼이
+  // 아무 반응도 없었다. 동작을 직접 건다.
+  //
+  // **저장과 모두 해제는 창을 닫지 않는다.** 닫히면 저장이 됐는지 확인할 방법이
+  // 없다 — 실기에서 사용자가 바로 그것을 지적했다.
+  dialog.querySelector("#ap-save")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    writeAllowed(
+      [...chosen].map((key) => {
+        const [set, action] = key.split(" ");
+        return { set: set ?? "", action: action ?? "" };
+      }),
+    );
+    saved = new Set(chosen);
+    renderCount();
+  });
+  dialog.querySelector("#ap-none")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    // 화면에서만 지운다. 저장은 `저장` 을 눌러야 한다.
+    chosen.clear();
+    render();
+    renderCount();
+  });
+  dialog.querySelector("#ap-close")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    (dialog as unknown as { close: (value: string) => void }).close("close");
+  });
+
   document.body.appendChild(dialog);
 
   const show = (dialog as unknown as { uxpShowModal?: (options: unknown) => Promise<string> })
     .uxpShowModal;
-  let result: string;
   try {
-    result =
-      typeof show === "function"
-        ? await show.call(dialog, { title: "액션 선택", resize: "both" })
-        : ((dialog as unknown as { showModal: () => void }).showModal(), "save");
+    if (typeof show === "function") {
+      await show.call(dialog, { title: "액션 선택", resize: "both" });
+    } else {
+      (dialog as unknown as { showModal: () => void }).showModal();
+    }
   } finally {
     dialog.remove();
   }
 
-  if (result === "cancel" || result === "reasonCanceled") {
-    return null;
-  }
-  const entries: AllowedAction[] =
-    result === "none"
-      ? []
-      : [...chosen].map((key) => {
-          const [set, action] = key.split("\u0000");
-          return { set: set ?? "", action: action ?? "" };
-        });
-  writeAllowed(entries);
-  return entries.length;
+  // 저장은 창 안에서 끝났다. 실제로 남은 것을 읽어 돌려준다 —
+  // 화면 상태를 그대로 돌려주면 저장 안 한 것을 저장했다고 말하게 된다.
+  return readAllowed().length;
 }

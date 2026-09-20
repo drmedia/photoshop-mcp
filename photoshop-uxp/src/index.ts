@@ -357,7 +357,7 @@ async function renderActionCount(): Promise<void> {
   try {
     const status = await actionAllowlist();
     actionCountElement.textContent =
-      status.total === 0 ? "허용된 액션 없음" : `액션 ${String(status.total)}개 허용`;
+      status.total === 0 ? "액션: 고른 것 없음" : `액션: ${String(status.total)}개 허용`;
   } catch (error) {
     actionCountElement.textContent = `확인 실패: ${describeError(error)}`;
   }
@@ -376,10 +376,10 @@ async function renderWorkspace(): Promise<void> {
   try {
     const status = await workspaceStatus();
     workspaceElement.textContent = status.approved
-      ? `저장 폴더: ${status.path ?? "(경로 없음)"}`
-      : "저장 폴더: 승인되지 않음";
+      ? `폴더: ${status.path ?? "(경로 없음)"}`
+      : "폴더: 승인되지 않음";
   } catch (error) {
-    workspaceElement.textContent = `저장 폴더 확인 실패: ${describeError(error)}`;
+    workspaceElement.textContent = `폴더 확인 실패: ${describeError(error)}`;
   }
 }
 
@@ -394,27 +394,28 @@ export function mountPanel(root: HTMLElement): void {
   root.style.height = "100%";
   root.style.overflow = "auto";
 
-  // 가장 중요한 것을 맨 위에 둔다. 도킹된 패널은 아래가 잘릴 수 있는데
-  // 사용자가 높이를 못 늘리는 경우가 있다. 승인 버튼은 항상 닿을 수 있어야 한다.
+  // **버튼이 기본 스타일로는 크다.** 도킹된 패널은 사용자가 높이를 늘리지 못하는
+  // 경우가 있어, 버튼 하나가 한 줄을 다 먹으면 아래 것에 닿을 수 없다.
+  // 실기에서 '액션 선택' 버튼이 잘려 보이지 않았다 — 높이와 여백을 직접 못 박는다.
+  const BTN = "font-size:11px;padding:1px 6px;height:20px;min-height:0;margin:0;white-space:nowrap";
+
   root.innerHTML = [
-    '<div style="padding:8px;font-family:sans-serif;font-size:11px">',
-    // 1행 — 승인 버튼
-    "<div>",
-    '<button id="photoshop-mcp-approve" style="font-size:11px">저장 폴더 승인</button>',
-    '<button id="photoshop-mcp-revoke" style="font-size:11px;margin-left:4px">해제</button>',
-    "</div>",
-    // 2행 — 액션 허용 목록. 선택은 여기서만 할 수 있다. (ROADMAP §17.36)
-    '<div style="margin-top:6px">',
-    '<button id="photoshop-mcp-actions" style="font-size:11px">액션 선택…</button>',
-    '<span id="photoshop-mcp-action-count" style="margin-left:6px;opacity:.85"></span>',
+    '<div style="padding:6px;font-family:sans-serif;font-size:11px">',
+    // 1행 — 버튼. 한 줄에 몰아 넣고 좁으면 접히게 둔다.
+    '<div style="display:flex;flex-wrap:wrap;gap:4px">',
+    `<button id="photoshop-mcp-approve" style="${BTN}">폴더 승인</button>`,
+    `<button id="photoshop-mcp-revoke" style="${BTN}">해제</button>`,
+    `<button id="photoshop-mcp-actions" style="${BTN}">액션 선택</button>`,
     "</div>",
     // 2행 — 승인된 경로
-    '<div id="photoshop-mcp-workspace" style="margin-top:6px;opacity:.85;',
-    'word-break:break-all">저장 폴더: 확인 중</div>',
-    // 3행 — Bridge 상태
-    '<div id="photoshop-mcp-state" style="margin-top:6px;opacity:.85">-</div>',
-    // 4행 — 오류. 길어질 수 있으므로 맨 아래에 둔다.
-    '<div id="photoshop-mcp-error" style="margin-top:6px;padding:4px;',
+    '<div id="photoshop-mcp-workspace" style="margin-top:5px;opacity:.85;',
+    'word-break:break-all">폴더: 확인 중</div>',
+    // 3행 — 허용된 액션 수. (ROADMAP §17.36)
+    '<div id="photoshop-mcp-action-count" style="margin-top:3px;opacity:.85"></div>',
+    // 4행 — Bridge 상태
+    '<div id="photoshop-mcp-state" style="margin-top:3px;opacity:.85">-</div>',
+    // 5행 — 오류. 길어질 수 있으므로 맨 아래에 둔다.
+    '<div id="photoshop-mcp-error" style="margin-top:5px;padding:4px;',
     'background:#4a1f1f;color:#ffb4b4;word-break:break-all;display:none"></div>',
     "</div>",
   ].join("");

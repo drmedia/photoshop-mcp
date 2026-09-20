@@ -93,6 +93,7 @@ import {
   documentCloseCommand,
   documentFlattenCommand,
 } from "./document-lifecycle.js";
+import { DODGE_BURN_DAB, DodgeBurnParamsSchema, dodgeBurnDabCommand } from "./dodge-burn.js";
 import {
   SMART_OBJECT_CONVERT,
   SmartObjectConvertParamsSchema,
@@ -211,6 +212,7 @@ export * from "./layer-reorder.js";
 export * from "./document-lifecycle.js";
 export * from "./document-open.js";
 export * from "./smart-object.js";
+export * from "./dodge-burn.js";
 export * from "./document-statistics.js";
 export * from "./retouch.js";
 export * from "./camera-raw.js";
@@ -284,6 +286,11 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     // 픽셀을 버리지 않는다. 레이어가 한 겹 감싸질 뿐이고 rasterize 로 되돌린다.
     permission: "edit",
     schema: SmartObjectConvertParamsSchema,
+  });
+  registry.register(DODGE_BURN_DAB, dodgeBurnDabCommand, {
+    // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.
+    permission: "edit",
+    schema: DodgeBurnParamsSchema,
   });
   registry.register(LAYER_REORDER, layerReorderCommand, {
     permission: "edit",

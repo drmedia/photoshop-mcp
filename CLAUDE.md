@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **69개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **70개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 76). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 77). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -37,6 +37,7 @@ Tool 까지 더한 수다(지금 76). 한동안 이 값을 Core 개수로 옮겨
 - 측정: `measure.tilt` — 경계선 기울기. **각도와 잔차를 함께 준다**
 - 측정: `document.statistics` — **전체 해상도 원본**에서 히스토그램·채널 통계
 - 결함 제거: `retouch.remove_spots` — 먼지·잡티. **배경 레이어는 거절한다**
+- 국소 명암: `dodge_burn.dab` — 부드러운 원형 얼룩. **softLight 빈 레이어에 칠한다**
 - Camera Raw: `camera_raw.apply` — **Tool 은 이 하나뿐이다**
 
 ## 캡처 (ROADMAP §17.10)
@@ -155,6 +156,23 @@ Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `f
 
 **공백이라고 적기 전에 있는 것부터 확인한다.** 두 번 모두 "도구가 부족하다" 가
 아니라 "쓸 줄 몰랐다" 였다.
+
+## 닷징 · 버닝 (ROADMAP §17.31)
+
+**브러시가 아니라 얼룩이다.** 치유 브러시를 만들지 않은 이유(§17.14)는 획 경로가
+필요하다는 것이었는데, 닷징·버닝은 `중심 · 반지름 · 강도 · 경도` 로 결정된다.
+타원 선택 → 페더 → 채우기로, `fill` descriptor 는 §17.14 에서 검증된 것이다.
+
+**빈 투명 레이어에 칠한다.** Soft Light 에서 투명 픽셀도 회색과 같이 중립이라
+50% 회색을 채울 필요가 없다. 레이어 준비는 이 Command 가 하지 않는다 —
+`layer.create` + `layer.set_blend_mode softLight` 다.
+
+**실효 범위가 지정 반지름의 약 2.5배다.** 경도 0 이면 페더가 반지름과 같고 페더는
+양쪽으로 번진다. 실기에서 반지름 600 이 1500 까지 닿았고 600 지점에 아직 절반이
+남아 있었다. 모르면 옆 영역까지 밝힌다.
+
+**성운에는 맞지 않는다** — 원형 얼룩이 구조를 못 따라간다. 형태가 복잡하면
+`selection.color_range` + `adjustment.curves` 쪽이다.
 
 ## 마스크는 밝기가 아니라 형태로 (ROADMAP §17.28)
 

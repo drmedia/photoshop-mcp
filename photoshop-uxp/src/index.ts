@@ -50,6 +50,7 @@ import { documentRotate } from "./dom/document-rotate.js";
 import { documentTilt } from "./dom/document-tilt.js";
 import { documentClose, documentFlatten } from "./dom/document-lifecycle.js";
 import { smartObjectConvert } from "./dom/smart-object.js";
+import { dodgeBurnDab } from "./dom/dodge-burn.js";
 import { documentOpen } from "./dom/document-open.js";
 import { layerReorder } from "./dom/layer-reorder.js";
 import { documentStatistics } from "./dom/document-statistics.js";
@@ -122,6 +123,9 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("DOCUMENT_OPEN", async (p) =>
     documentOpen(p as Parameters<typeof documentOpen>[0]),
+  );
+  dispatcher.register("DODGE_BURN_DAB", async (p) =>
+    dodgeBurnDab(p as Parameters<typeof dodgeBurnDab>[0]),
   );
   dispatcher.register("SMART_OBJECT_CONVERT", async (p) =>
     smartObjectConvert(p as Parameters<typeof smartObjectConvert>[0]),

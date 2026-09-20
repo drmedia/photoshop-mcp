@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (69개)
+## 4. 구현된 Core API (70개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -206,6 +206,7 @@ RAW 의 현상 설정은 슬라이더를 보며 정하는 일이라 사람이 �
 | API | Permission | 비고 |
 |---|---|---|
 | `photoshop.retouch.remove_spots` | EDIT | 센서 먼지·잡티. **배경 레이어는 거절한다** |
+| `photoshop.dodge_burn.dab` | EDIT | 부드러운 원형 얼룩. **softLight 빈 레이어에 칠한다** |
 | `photoshop.camera_raw.apply` | EDIT | Camera Raw 필터. **Tool 은 이 하나뿐이다** |
 
 지점마다 타원으로 선택해 내용 인식 채우기를 건다. `spots` 로 여러 개를 한 번에 받는다.

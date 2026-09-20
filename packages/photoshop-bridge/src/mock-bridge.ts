@@ -570,6 +570,69 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       //
       // 특히 배경 거절을 빠뜨리면 안 된다 — 이 Command 의 가장 중요한 성질이고,
       // Mock 이 너그러우면 그 경로는 테스트에 영영 나오지 않는다.
+      /**
+       * 닷징 · 버닝. (ROADMAP §17.31)
+       *
+       * Mock 은 픽셀을 모르므로 **무엇을 거절하는가**만 흉내낸다. 이 Command 에서
+       * 위험한 자리가 거기다 — 배경이나 조정 레이어에 칠하면 되돌릴 수 없다.
+       */
+      case "DODGE_BURN_DAB": {
+        const document = this.#requireDocument();
+        const params = command.params as {
+          dabs: { x: number; y: number; radius: number }[];
+          mode: "dodge" | "burn";
+          layerId?: number;
+        };
+        const layer =
+          params.layerId === undefined
+            ? this.#layers.find((entry) => entry.id === this.#activeLayerId)
+            : this.#layers.find((entry) => entry.id === params.layerId);
+        if (layer === undefined) {
+          throw new PhotoshopMcpError(
+            ErrorCode.LAYER_NOT_FOUND,
+            params.layerId === undefined
+              ? "활성 레이어가 없습니다."
+              : `레이어 ${params.layerId} 를 찾을 수 없습니다.`,
+            { recoverable: true },
+          );
+        }
+        if (layer.type !== "pixel") {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `${layer.type} 레이어에는 칠할 수 없습니다. ` +
+              "photoshop.layer.create 로 빈 픽셀 레이어를 만들고 " +
+              "photoshop.layer.set_blend_mode 로 softLight 를 건 뒤 그 레이어를 지정하세요.",
+            { recoverable: true },
+          );
+        }
+        if (layer.isBackground === true) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "배경 레이어에는 닷징·버닝을 걸지 않습니다 — 원본 픽셀이 바뀝니다. " +
+              "photoshop.layer.create 로 빈 레이어를 만들고 softLight 를 건 뒤 거기에 칠하세요.",
+            { recoverable: true },
+          );
+        }
+        for (const dab of params.dabs) {
+          if (
+            dab.x + dab.radius <= 0 ||
+            dab.y + dab.radius <= 0 ||
+            dab.x - dab.radius >= document.width ||
+            dab.y - dab.radius >= document.height
+          ) {
+            throw new PhotoshopMcpError(
+              ErrorCode.INVALID_PARAMETER,
+              `얼룩 (${dab.x}, ${dab.y}) 반지름 ${dab.radius} 가 ` +
+                `문서(${document.width}×${document.height}) 밖입니다.`,
+              { recoverable: true },
+            );
+          }
+        }
+        this.#snapshot("Dodge and burn");
+        // 실기는 선택을 남기지 않는다.
+        this.#hasSelection = false;
+        return { layer: { ...layer }, applied: params.dabs.length } as TResult;
+      }
       case "RETOUCH_REMOVE_SPOTS": {
         const document = this.#requireDocument();
         const params = command.params as {

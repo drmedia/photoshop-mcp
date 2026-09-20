@@ -14,7 +14,7 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **78개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **78개** · Resource 6개. Extension 3개(`example` 2 · `milkyscape` 5 · `graxpert` 3).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
 Tool 까지 더한 수다(지금 85). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
@@ -215,6 +215,29 @@ method="dialog">` 제출로 닫히지 않아 `dialog.close(값)` 을 직접 걸�
 `set` 없으면 세트 이름만(22왕복 6.5초), 주면 그 세트의 액션만.
 
 액션 이름은 **유일하지 않다.** `B and C Landscape` 가 두 세트에 있었다.
+
+## GraXpert 패널 (ROADMAP §17.37)
+
+`extensions/graxpert` 가 GraXpert Photoshop 패널을 MCP 에서 돌린다.
+
+**액션으로는 안 된다.** 이 패널은 Photoshop 에 descriptor 를 남기지 않는다 —
+`["all"]` 로 들어 보니 레이어를 두 장 만드는 동안 `make` 가 하나도 안 왔다.
+액션이 기록하는 것이 그 경로라 녹화할 것이 없다.
+
+갈리는 기준은 "플러그인이냐" 가 아니라 **"메뉴를 거치느냐"** 다. StarXTerminator 는
+`필터 > RC-Astro` 메뉴를 거쳐서 `action.run` 으로 돌아간다.
+
+**CLI Capability 로 대체되지 않는다.** GraXpert 호출 인자는 CLI 와 똑같고 **입력이
+다르다** — 선택 영역으로 하늘 마스크를 만들어 지상부를 합성 평면으로 덮은 뒤 넣고,
+결과를 하늘에만 합성한다. 원본을 그냥 넣으면 산·나무가 그래디언트를 끌어당긴다.
+
+**하늘은 사용자가 고른다.** 패널이 스스로 찾지 않고 활성 선택 영역을 쓴다. 선택이
+없으면 오류 없이 **일반 처리로 떨어지는데** 레이어도 생기고 진행 막대도 끝까지 간다.
+단서는 레이어 이름의 ` - Sky Merged` 뿐이다. 그래서 Job 앞에서 선택을 확인해 막고,
+끝난 뒤 이름으로 확인해 `skyApplied` 로 보고한다. 선택을 대신 만들지는 않는다.
+
+통로는 패널의 파일 명령이다(`%TEMP%` 의 `gradient_editor_command.json`).
+**실행 후 지운다** — 남기면 패널을 다시 열 때 옛 명령이 한 번 더 실행된다.
 
 ## 텍스트 (ROADMAP §17.33)
 

@@ -1,0 +1,27 @@
+{
+  "name": "@photoshop-mcp/graxpert",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "GraXpert Photoshop 패널 Extension — 명령 파일로 패널을 구동한다",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "extension.json"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@photoshop-mcp/extension-sdk": "0.1.0",
+    "zod": "^3.25.76"
+  }
+}

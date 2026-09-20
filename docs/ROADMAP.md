@@ -4857,6 +4857,161 @@ Command 응답이 15000ms 내에 도착하지 않았습니다: ACTION_PLAY
 
 ---
 
+# 17.37 GraXpert 패널 — 액션이 닿지 않는 곳
+
+## 녹화가 안 됐다
+
+"GraXpert 패널을 열고 AI auto 를 고르고 Run 을 누르는" 액션을 만들려 했는데
+녹화가 되지 않았다. **왜인지를 재 봤다.**
+
+`addNotificationListener(["all"])` 를 켜 두고 사람이 패널을 한 번 돌렸다.
+레이어가 **두 장** 생겼는데 온 알림은 이것이 전부다.
+
+```text
+hostFocusChanged  active:true    dontRecord:true    _isCommand:false
+invokeCommand     commandID:-1007                   _isCommand:false
+invokeCommand     commandID:-1007                   _isCommand:false
+hostFocusChanged  active:false   dontRecord:true    _isCommand:false
+```
+
+**`make` 가 하나도 없다.** 패널이 픽셀을 직접 쓰고 Photoshop 의 descriptor 경로를
+거치지 않는다. 액션이 기록하는 것이 바로 그 경로다 — 녹화할 것이 없어서 녹화가
+안 된 것이다. `dontRecord: true` 와 `_isCommand: false` 가 그대로 그 말이다.
+
+여기서 규칙이 하나 나온다.
+
+```text
+필터 플러그인   →  메뉴 descriptor 로 간다    →  녹화된다   (StarXTerminator 11.8초)
+패널 플러그인   →  자기 코드로 픽셀을 쓴다    →  안 된다    (GraXpert)
+```
+
+StarXTerminator 가 §17.35 에서 됐던 건 `필터 > RC-Astro` 메뉴를 거치기 때문이지
+플러그인이라서가 아니었다. **"플러그인이면 된다" 가 아니라 "메뉴를 거치면 된다" 다.**
+
+## CLI 로 대체되지 않는다
+
+GraXpert 는 이미 Capability 로 돌고 있었다(§12). 그런데 결과가 다르다고 했다.
+패널 소스를 읽어 보니 **GraXpert 호출 자체는 CLI 와 글자 그대로 같았다.**
+
+```js
+args = ["-cmd", "background-extraction", input, "-cli", "-gpu", gpu,
+        "-correction", …, "-smoothing", …, "-output", outputBase];
+```
+
+다른 것은 **입력**이었다.
+
+```text
+1. 선택 영역으로 16비트 하늘 마스크 TIFF 를 만든다
+2. 하늘 픽셀에 채널별 평면을 맞추고(MAD 로 이상치 3번 걸러냄)
+   그 평면으로 지상부를 통째로 덮는다   →  "가상 하늘"
+3. 그것을 GraXpert 에 넣는다             ←  여기가 CLI 와 동일
+4. 결과를 하늘 영역에만 합성한다
+```
+
+**지상 풍경을 미리 지워서 그래디언트 모델이 산·나무에 끌려가지 않게 하는 것**이다.
+"같은 프로그램을 부르니 같은 결과" 가 아니었다 — 무엇을 먹이느냐가 달랐다.
+
+## 파일 통로
+
+패널에는 자기 샘플 에디터 창이 쓰는 **파일 명령 통로**가 있었다. `%TEMP%` 의
+`gradient_editor_command.json` 을 350ms 마다 읽는다. 여기에 `run` 을 더했다.
+
+받는 명령 22개가 전부 샘플 에디터용이고 그 앞에 guard 가 있다 — AI 와 denoise 는
+샘플 포인트를 쓰지 않아 `previewState` 가 없으므로 **guard 앞에** 둔다.
+
+`runBtn.onclick()` 이 아니라 `runBtn.click()` 이다. 직접 부르면 처리 중이라
+비활성화된 버튼까지 눌려서 또 돈다.
+
+**명령 파일은 실행 후 지운다.** 남기면 패널을 다시 열 때 옛 명령이 그대로 한 번 더
+실행된다 — 재시작이 중복 방지 상태를 지우는데 파일은 디스크에 남아 있기 때문이다.
+실기에서 겪었다. 누른 적 없는 실행이 한 번 더 돌아 레이어가 하나 더 생겼다.
+
+## 하늘은 사용자가 고른다
+
+**패널은 하늘을 스스로 찾지 않는다.** 활성 선택 영역(없으면 활성 레이어의 마스크)을
+하늘로 삼는다. "AI 자동" 은 GraXpert 의 배경 추출이 자동이라는 뜻이었다.
+
+선택이 없으면 오류를 내지 않고 **말없이 일반 처리로 떨어진다.**
+
+```js
+if (skyAI && !maskToken) { skyAI = false; scope = "layer"; }
+```
+
+실기에서 그대로 걸렸다. Denoise 를 두 번 돌리는 사이 선택이 사라졌고, 그다음
+그래디언트 제거가 12초 만에 "성공" 했다. 레이어도 생겼고 Job 도 completed 였다.
+
+**유일한 단서는 레이어 이름이었다** — `GraXpert - AI Gradient` 로 끝나고
+` - Sky Merged` 가 없었다. 그 접미사가 붙는 분기가 곧 `skyAI` 다.
+
+그래서 둘 다 한다. **Job 을 띄우기 전에** 선택을 확인해 막고, 끝난 뒤에는
+**레이어 이름으로 실제 여부를 확인해** `skyApplied` 로 보고한다. 설정값을 되읽으면
+"AI 로 요청했다" 까지만 알 수 있고 "AI 로 돌았다" 는 알 수 없다.
+
+선택을 **대신 만들지는 않는다.** 무엇을 하늘로 볼지는 이 Extension 이 정할 일이
+아니다 — MilkyScape 에서 `create_sky_mask` 를 범위에서 뺀 것과 같은 판단이다.
+
+## 즉시 알 수 있는 것은 Job 으로 미루지 않는다
+
+처음에는 선택 검사를 Job 안에 뒀다. 그러면 `jobId` 를 받고 `job.status` 를 한 번
+더 물어야 "선택이 없다" 를 안다. Command 한 번이면 알 수 있는 것이다.
+
+반환 타입은 그대로 `jobId` 다 — 바뀌는 것은 실패 시점뿐이다. 성공 경로의 모양이
+상황에 따라 달라지는 것과는 다른 이야기다.
+
+## `sample` 방식은 열지 않았다
+
+패널의 다른 방식은 사용자가 배경 포인트를 화면에서 찍는 작업이다. 미리보기를 보며
+점을 옮기는 UX 는 MCP 로 옮길 수 없고 옮길 이유도 없다.
+
+열어 두면 `sample` 을 준 호출이 포인트 없이 돌아 엉뚱한 결과를 낸다. 게다가 패널
+라디오 값은 `AI` 와 `sample` 뿐이라, 없는 값을 주면 라디오가 전부 꺼지고
+`selected() || "AI"` 로 **조용히 AI 로 되돌아간다.**
+
+## 패널의 조용한 실패를 드러내는 패치
+
+`setBusy` 가 `panelBusy` 를 켠 시각·라벨·호출 스택을 스스로 남기게 했다. 호출부는
+하나도 건드리지 않는다 — `new Error().stack` 으로 알아낸다.
+
+```text
+거절 — Run 이 비활성화되어 있습니다.
+  41초째 "Denoise 처리 중…"
+  켠 곳: main.js:4516  <  main.js:2552
+```
+
+이것이 없었다면 `accepted: false` 만 보고 "진짜 처리 중이겠거니" 하고 넘어간다.
+**오래 켜져 있는데 진행이 없으면 `setBusy(false)` 가 빠진 것**이고, 스택이 어느
+경로인지 가리킨다.
+
+## 실기 검증
+
+Photoshop 27.8 · 4032×6048 16비트.
+
+```text
+gx.status                          panelResponding true · busy false
+gx.run_denoise {strength:0.6}      75초 · 레이어 97 · strength 0.6 그대로 들어감
+gx.run_gradient (선택 없음)         즉시 거절 — "photoshop.selection.sky 로 고른 뒤"
+photoshop.selection.sky            bounds 0,0 4032,4507
+gx.run_gradient {smoothing:0.5}    18초 · 레이어 102 "… - Sky Merged" · skyApplied true
+```
+
+노이즈 감소가 2분을 넘는 경우가 있다 — Job 으로 감싼 이유 그대로다.
+
+## 체크리스트
+
+- [x] 액션으로 안 되는 이유를 **재서** 확인했다 — 짐작하지 않았다
+- [x] CLI 와 패널의 차이를 소스로 확인했다 — 엔진이 아니라 입력이다
+- [x] 파일 명령 통로에 `run` 추가 (패널 쪽 패치)
+- [x] 명령 파일을 실행 후 지운다 — 재시작 시 재실행 방지
+- [x] `setBusy` 자기 기록 — 조용한 busy 를 드러낸다
+- [x] `gx.status` · `gx.run_gradient` · `gx.run_denoise`
+- [x] 긴 작업은 Job — 실기 75초 · 2분 초과 사례
+- [x] 선택 검사는 Job 앞에서 — 즉시 알 수 있는 것을 미루지 않는다
+- [x] `skyApplied` 를 레이어 이름으로 확인 — 요청값이 아니라 실제값
+- [x] `sample` 은 열지 않았다 — 사람이 화면 보며 하는 일
+- [ ] 패널 폴러에 "오래된 명령 무시" 가드 — 패널 쪽 결정이 필요하다
+
+---
+
 # 18. Phase 14 — Distribution
 
 검토 대상:

@@ -1,0 +1,10 @@
+{
+  "id": "com.drmedia.graxpert",
+  "name": "GraXpert Panel Tools",
+  "version": "0.1.0",
+  "namespace": "gx",
+  "main": "dist/index.js",
+  "description": "GraXpert Photoshop 패널의 Gradient Removal · Noise Reduction 을 실행한다",
+  "requires": { "photoshopMcp": "^0.1.0" },
+  "permissions": ["photoshop.read", "photoshop.external"]
+}

@@ -17,8 +17,6 @@ import {
   registerPhotoshopTools,
 } from "@photoshop-mcp/photoshop-tools";
 import { CapabilityRegistry } from "./capabilities/registry.js";
-import { ActionRegistry } from "./actions/registry.js";
-import { registerActionTools } from "./actions/tool.js";
 import { PhotoshopWindowCapturer } from "./capture/window.js";
 import { ExtensionManager } from "./extensions/manager.js";
 import { EventBus } from "./events/bus.js";
@@ -59,8 +57,6 @@ export interface PhotoshopMcp {
   extensions: ExtensionManager;
   /** 외부 처리기. `loadConfig(path)` 로 Provider 를 등록한다. (ROADMAP §12) */
   capabilities: CapabilityRegistry;
-  /** 액션 허용 목록. (ROADMAP §17.35) */
-  actions: ActionRegistry;
   /** 긴 작업. MCP 60초 타임아웃을 넘는 것은 여기로 보낸다. (ROADMAP §14) */
   jobs: JobStore;
   /** 선언으로 정의한 Tool 순서. `loadConfig(path)` 로 등록한다. (ROADMAP §11) */
@@ -238,10 +234,6 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
 
   registerCapabilityTools(tools, capabilities);
 
-  // 액션 허용 목록. Capability 와 같은 이유로 분리했다 — 선택 인자로 받으면
-  // 주지 않았을 때 Tool 이 조용히 빠진다.
-  const actions = new ActionRegistry({ logger });
-  registerActionTools(tools, engine, actions);
   registerWindowCaptureTool(tools, new PhotoshopWindowCapturer());
   registerJobTools(tools, jobs);
   registerEventTools(tools, events);
@@ -282,7 +274,6 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
     server,
     extensions,
     capabilities,
-    actions,
     jobs,
     workflows,
     events,

@@ -1,6 +1,7 @@
 import { app } from "photoshop";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { runModal } from "./modal.js";
+import { isAllowed, readAllowed } from "./action-allowlist.js";
 
 /**
  * 액션 실행. (ROADMAP §17.35)
@@ -18,6 +19,12 @@ import { runModal } from "./modal.js";
  *
  * `app.displayDialogs` 가 있으면 끄고 **반드시 되돌린다.** 없으면 끄지 못하며,
  * 그 사실을 결과에 담는다 — 껐다고 말하고 안 끄는 것이 가장 나쁘다.
+ *
+ * ## **허용 검사가 여기 있다**
+ *
+ * 서버의 Tool 이 아니라 플러그인에서 막는다. Extension 은 Tool 을 거치지 않고
+ * Command 를 직접 부를 수 있으므로(ARCHITECTURE §3.2), 위쪽에서만 막으면
+ * 그 길이 열려 있다. 허용 목록도 여기 있으니 검사도 여기가 맞다.
  */
 
 /** `displayDialogs` 를 끄고 되돌린다. 끄지 못했으면 `false`. */
@@ -56,6 +63,23 @@ export async function actionPlay(params: { set: string; action: string }): Promi
   durationMs: number;
 }> {
   return runModal("Play action", async () => {
+    // **고르지 않은 것은 부를 수 없다.** 목록은 사용자가 패널에서 정한다.
+    if (!isAllowed(params.set, params.action)) {
+      const allowed = readAllowed();
+      throw new DispatchError(
+        "INVALID_PARAMETER",
+        allowed.length === 0
+          ? "실행이 허용된 액션이 없습니다. Photoshop MCP 패널의 '액션 선택…' 버튼으로 " +
+              "사용할 액션을 골라야 부를 수 있습니다."
+          : `'${params.set} > ${params.action}' 은 허용되지 않았습니다. ` +
+              "Photoshop MCP 패널의 '액션 선택…' 에서 고른 것만 부를 수 있습니다.",
+        {
+          recoverable: true,
+          details: { set: params.set, action: params.action, allowed },
+        },
+      );
+    }
+
     const tree = (app as unknown as Record<string, unknown>)["actionTree"] as
       { length: number; [index: number]: Record<string, unknown> } | undefined;
     if (tree === undefined || typeof tree.length !== "number") {

@@ -19,6 +19,9 @@ function setup(allow: string[] = ["read", "edit"]): Mcp {
   });
 }
 
+/** 액션 실행은 destructive 라 기본 허용 밖이다. */
+const ALL = ["read", "edit", "external", "destructive"];
+
 const list = async (mcp: Mcp, args: Record<string, unknown> = {}): Promise<unknown> =>
   mcp.tools.invoke("photoshop.action.list", args, { requestId: "r" });
 
@@ -33,56 +36,66 @@ describe("permission", () => {
   });
 });
 
-describe("**임의 액션을 부를 수 없다** (ROADMAP §17.35)", () => {
-  it("이름을 그대로 받는 실행 Tool 이 없다", () => {
-    // 세트·액션 이름을 직접 받는 Tool 을 내놓으면 허용 목록이 무의미해진다.
-    // 실행은 actions.json 에 선언된 것만 부르는 photoshop.action.run 뿐이다.
-    expect(setup().tools.get("photoshop.action.play")).toBeUndefined();
-  });
+describe("**고른 것만 부를 수 있다** (ROADMAP §17.36)", () => {
+  const run = async (mcp: Mcp): Promise<unknown> =>
+    mcp.tools.invoke(
+      "photoshop.action.run",
+      { set: "내보내기", action: "PSD로 저장" },
+      { requestId: "r" },
+    );
 
   it("action.run 은 destructive 다", () => {
     // 액션이 무엇을 하는지 알 수 없다. 실기 목록에 '내보내기 > PSD로 저장' 이
     // 있었고 승인된 작업 폴더 밖으로 파일을 쓴다.
-    expect(
-      setup(["read", "edit", "external", "destructive"]).tools.get("photoshop.action.run")
-        ?.permission,
-    ).toBe("destructive");
+    expect(setup(ALL).tools.get("photoshop.action.run")?.permission).toBe("destructive");
   });
 
   it("기본 권한에서는 막힌다", async () => {
-    const mcp = setup();
-    await expect(
-      mcp.tools.invoke("photoshop.action.run", { name: "x" }, { requestId: "r" }),
-    ).rejects.toThrow(/권한|permission/iu);
+    await expect(run(setup())).rejects.toThrow(/권한|permission/iu);
   });
 
-  it("**선언이 없으면 아무것도 부를 수 없다**", async () => {
-    const mcp = setup(["read", "edit", "external", "destructive"]);
-    await expect(
-      mcp.tools.invoke("photoshop.action.run", { name: "x" }, { requestId: "r" }),
-    ).rejects.toThrow(/선언된 액션이 없습니다/u);
+  it("**고르지 않은 것은 못 부른다**", async () => {
+    // Mock 에는 고른 것이 없다. 허용 목록은 사용자가 패널에서 정한다.
+    await expect(run(setup(ALL))).rejects.toThrow(/허용된 액션이 없습니다/u);
   });
 
-  it("어떻게 선언하는지 말한다", async () => {
-    const mcp = setup(["read", "edit", "external", "destructive"]);
-    await expect(
-      mcp.tools.invoke("photoshop.action.run", { name: "x" }, { requestId: "r" }),
-    ).rejects.toThrow(/actions\.json/u);
+  it("**어디서 고르는지 말한다**", async () => {
+    // "허용되지 않았습니다" 만으로는 사용자가 할 수 있는 일이 없다.
+    await expect(run(setup(ALL))).rejects.toThrow(/패널.*액션 선택/u);
   });
 
-  it("선언 조회는 read 다", () => {
+  it("세트와 액션을 둘 다 요구한다", async () => {
+    // 액션 이름은 유일하지 않다 — 같은 이름이 여러 세트에 있다(§17.34).
+    const mcp = setup(ALL);
+    await expect(
+      mcp.tools.invoke("photoshop.action.run", { action: "PSD로 저장" }, { requestId: "r" }),
+    ).rejects.toThrow();
+    await expect(
+      mcp.tools.invoke("photoshop.action.run", { set: "내보내기" }, { requestId: "r" }),
+    ).rejects.toThrow();
+  });
+
+  it("**이름 대신 설정 키를 받지 않는다**", async () => {
+    // actions.json 을 쓰던 설계의 흔적이다. 남아 있으면 조용히 무시된다.
+    await expect(
+      setup(ALL).tools.invoke("photoshop.action.run", { name: "x" }, { requestId: "r" }),
+    ).rejects.toThrow();
+  });
+
+  it("허용 목록 조회는 read 다", () => {
     // 무엇을 부를 수 있는지 보는 것은 실행이 아니다.
     expect(setup().tools.get("photoshop.action.declared")?.permission).toBe("read");
   });
 
-  it("선언이 없으면 빈 목록이다", async () => {
+  it("**Mock 은 허용 목록을 지어내지 않는다**", async () => {
     const result = (await setup().tools.invoke(
       "photoshop.action.declared",
       {},
       { requestId: "r" },
-    )) as { actions: unknown[]; total: number };
+    )) as { actions: unknown[]; total: number; persisted: boolean };
     expect(result.actions).toEqual([]);
     expect(result.total).toBe(0);
+    expect(result.persisted).toBe(false);
   });
 });
 

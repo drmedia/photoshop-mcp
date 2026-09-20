@@ -29,6 +29,7 @@ import { z } from "zod";
 
 export const ACTION_LIST = "ACTION_LIST";
 export const ACTION_PLAY = "ACTION_PLAY";
+export const ACTION_ALLOWLIST = "ACTION_ALLOWLIST";
 
 export const ActionListParamsSchema = z
   .object({
@@ -143,6 +144,49 @@ export const actionPlayCommand: CommandHandler<ActionPlayParams, ActionPlayResul
   const parsed = ActionPlayResultSchema.safeParse(raw);
   if (!parsed.success) {
     throw new PhotoshopMcpError(ErrorCode.PROTOCOL_ERROR, "액션 실행 결과가 예상과 다릅니다.", {
+      details: { issues: parsed.error.issues },
+      cause: parsed.error,
+    });
+  }
+  return parsed.data;
+};
+
+/**
+ * 허용 목록 조회. (ROADMAP §17.36)
+ *
+ * 선택은 **Photoshop 패널 모달에서만** 한다 — 액션은 Photoshop 안에 있고
+ * 고를 수 있는 것은 사용자뿐이다. 작업 폴더 승인(§8.5)이 패널 버튼에서만
+ * 되는 것과 같은 자리다.
+ *
+ * 서버는 선택을 보관하지 않고 **부를 때마다 물어본다.** 기동 시 한 번 읽으면
+ * 사용자가 패널에서 바꾼 것이 반영되지 않는다.
+ */
+export const ActionAllowlistParamsSchema = z.object({}).strict();
+
+export type ActionAllowlistParams = z.infer<typeof ActionAllowlistParamsSchema>;
+
+export const ActionAllowlistResultSchema = z.object({
+  actions: z.array(z.object({ set: z.string(), action: z.string() })),
+  total: z.number().int(),
+  /**
+   * 플러그인 `localStorage` 에 남았는지.
+   *
+   * `false` 면 Photoshop 을 다시 켤 때 선택이 사라진다. **남았다고 말하고
+   * 안 남는 것이 가장 나쁘다.**
+   */
+  persisted: z.boolean(),
+});
+
+export type ActionAllowlistResult = z.infer<typeof ActionAllowlistResultSchema>;
+
+export const actionAllowlistCommand: CommandHandler<
+  ActionAllowlistParams,
+  ActionAllowlistResult
+> = async (command, context) => {
+  const raw = await context.bridge.executeCommand<unknown>(command);
+  const parsed = ActionAllowlistResultSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new PhotoshopMcpError(ErrorCode.PROTOCOL_ERROR, "허용 목록이 예상과 다릅니다.", {
       details: { issues: parsed.error.issues },
       cause: parsed.error,
     });

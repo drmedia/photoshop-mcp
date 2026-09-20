@@ -95,10 +95,13 @@ import {
 } from "./document-lifecycle.js";
 import { DODGE_BURN_DAB, DodgeBurnParamsSchema, dodgeBurnDabCommand } from "./dodge-burn.js";
 import {
+  ACTION_ALLOWLIST,
   ACTION_LIST,
   ACTION_PLAY,
+  ActionAllowlistParamsSchema,
   ActionListParamsSchema,
   ActionPlayParamsSchema,
+  actionAllowlistCommand,
   actionListCommand,
   actionPlayCommand,
 } from "./action.js";
@@ -326,6 +329,11 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     // 액션 목록을 읽을 뿐 실행하지 않는다.
     permission: "read",
     schema: ActionListParamsSchema,
+  });
+  registry.register(ACTION_ALLOWLIST, actionAllowlistCommand, {
+    // 사용자가 패널에서 고른 것을 읽을 뿐이다.
+    permission: "read",
+    schema: ActionAllowlistParamsSchema,
   });
   registry.register(ACTION_PLAY, actionPlayCommand, {
     // **액션이 무엇을 하는지 알 수 없다.** 파일 저장·평탄화가 들어 있어도

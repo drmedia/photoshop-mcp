@@ -53,12 +53,6 @@ export interface StartOptions extends CreatePhotoshopMcpOptions {
    */
   workflowConfig?: string;
   /**
-   * 액션 허용 목록 경로. (ROADMAP §17.35)
-   *
-   * 없으면 조용히 넘어간다 — 액션을 안 쓰는 것은 정상이다.
-   */
-  actionConfig?: string;
-  /**
    * 사용할 transport. 생략하면 stdio 를 사용한다.
    * 테스트에서 in-memory transport 를 주입할 때 사용한다.
    */
@@ -75,8 +69,6 @@ export interface StartedPhotoshopMcp extends PhotoshopMcp {
   loadedProviders: number;
   /** 등록된 워크플로 수. */
   loadedWorkflows: number;
-  /** 적재한 액션 선언 수. (ROADMAP §17.35) */
-  loadedActions: number;
   /** MCP 서버와 Bridge 전송을 함께 정지한다. */
   stop(): Promise<void>;
 }
@@ -98,7 +90,6 @@ export async function startPhotoshopMcpServer(
     extensionsDir,
     capabilityConfig,
     workflowConfig,
-    actionConfig,
     ...coreOptions
   } = options;
 
@@ -141,8 +132,6 @@ export async function startPhotoshopMcpServer(
   // 워크플로는 Tool 을 부르므로 Tool 이 다 등록된 뒤여야 한다.
   const loadedWorkflows =
     workflowConfig === undefined ? 0 : await mcp.workflows.loadConfig(workflowConfig);
-  // 액션 허용 목록. 없으면 action.run 이 아무것도 못 한다 — 그것이 기본이다.
-  const loadedActions = actionConfig === undefined ? 0 : await mcp.actions.loadConfig(actionConfig);
 
   // Tool 목록을 노출하기 전에 적재한다.
   const loadedExtensions =
@@ -161,7 +150,6 @@ export async function startPhotoshopMcpServer(
     loadedExtensions,
     loadedProviders,
     loadedWorkflows,
-    loadedActions,
     stop: async () => {
       // 진행 중인 Job 을 먼저 취소한다. 그러지 않으면 외부 처리기 프로세스가
       // 서버보다 오래 살고, 결과를 받을 곳도 없이 몇 분씩 CPU 를 먹는다.

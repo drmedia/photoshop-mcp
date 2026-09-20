@@ -37,7 +37,7 @@ import { createSmartObjectConvertTool } from "./smart-object.js";
 import { createDodgeBurnDabTool } from "./dodge-burn.js";
 import { createMaskDabTool, createPaintDabTool } from "./paint.js";
 import { createFontListTool, createTextCreateTool, createTextSetTool } from "./text.js";
-import { createActionListTool } from "./action.js";
+import { createActionDeclaredTool, createActionListTool, createActionRunTool } from "./action.js";
 import { createLayerReorderTool } from "./layer-reorder.js";
 import { createMeasureTiltTool } from "./measure-tilt.js";
 import { createDocumentStatisticsTool } from "./document-statistics.js";
@@ -144,6 +144,8 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createSmartObjectConvertTool(engine));
   registry.register(createDodgeBurnDabTool(engine));
   registry.register(createActionListTool(engine));
+  registry.register(createActionDeclaredTool(engine));
+  registry.register(createActionRunTool(engine));
   registry.register(createTextCreateTool(engine));
   registry.register(createTextSetTool(engine));
   registry.register(createFontListTool(engine));

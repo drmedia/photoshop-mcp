@@ -55,6 +55,8 @@ import { maskDab, paintDab } from "./dom/paint.js";
 import { fontList, textCreate, textSet } from "./dom/text.js";
 import { actionList } from "./dom/action.js";
 import { actionPlay } from "./dom/action-play.js";
+import { actionAllowlist } from "./dom/action-allowlist.js";
+import { openActionPicker } from "./panel/action-picker.js";
 import { documentOpen } from "./dom/document-open.js";
 import { layerReorder } from "./dom/layer-reorder.js";
 import { documentStatistics } from "./dom/document-statistics.js";
@@ -131,6 +133,9 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("DODGE_BURN_DAB", async (p) =>
     dodgeBurnDab(p as Parameters<typeof dodgeBurnDab>[0]),
   );
+  // 허용 목록 조회. 선택 자체는 Command 가 아니다 — 패널 모달에서만 할 수 있고
+  // 서버는 사용자를 대신해 고를 수 없다. (작업 폴더 승인과 같은 자리)
+  dispatcher.register("ACTION_ALLOWLIST", async () => actionAllowlist());
   dispatcher.register("ACTION_PLAY", async (p) =>
     actionPlay(p as Parameters<typeof actionPlay>[0]),
   );
@@ -311,6 +316,7 @@ function describeError(error: unknown): string {
 let statusElement: HTMLElement | null = null;
 let errorElement: HTMLElement | null = null;
 let workspaceElement: HTMLElement | null = null;
+let actionCountElement: HTMLElement | null = null;
 
 function renderState(state: ClientState): void {
   const label = STATE_LABEL[state];
@@ -338,6 +344,24 @@ function renderState(state: ClientState): void {
 }
 
 const client = createClient();
+
+/**
+ * 허용된 액션 수를 패널에 그린다. (ROADMAP §17.36)
+ *
+ * 0 이면 `action.run` 이 아무것도 못 한다 — 그것이 기본이라는 것을 보여준다.
+ */
+async function renderActionCount(): Promise<void> {
+  if (actionCountElement === null) {
+    return;
+  }
+  try {
+    const status = await actionAllowlist();
+    actionCountElement.textContent =
+      status.total === 0 ? "허용된 액션 없음" : `액션 ${String(status.total)}개 허용`;
+  } catch (error) {
+    actionCountElement.textContent = `확인 실패: ${describeError(error)}`;
+  }
+}
 
 /**
  * 작업 폴더 상태를 패널에 그린다.
@@ -379,6 +403,11 @@ export function mountPanel(root: HTMLElement): void {
     '<button id="photoshop-mcp-approve" style="font-size:11px">저장 폴더 승인</button>',
     '<button id="photoshop-mcp-revoke" style="font-size:11px;margin-left:4px">해제</button>',
     "</div>",
+    // 2행 — 액션 허용 목록. 선택은 여기서만 할 수 있다. (ROADMAP §17.36)
+    '<div style="margin-top:6px">',
+    '<button id="photoshop-mcp-actions" style="font-size:11px">액션 선택…</button>',
+    '<span id="photoshop-mcp-action-count" style="margin-left:6px;opacity:.85"></span>',
+    "</div>",
     // 2행 — 승인된 경로
     '<div id="photoshop-mcp-workspace" style="margin-top:6px;opacity:.85;',
     'word-break:break-all">저장 폴더: 확인 중</div>',
@@ -391,6 +420,7 @@ export function mountPanel(root: HTMLElement): void {
   ].join("");
 
   statusElement = root.querySelector("#photoshop-mcp-state");
+  actionCountElement = root.querySelector("#photoshop-mcp-action-count");
   errorElement = root.querySelector("#photoshop-mcp-error");
   workspaceElement = root.querySelector("#photoshop-mcp-workspace");
 
@@ -408,9 +438,20 @@ export function mountPanel(root: HTMLElement): void {
     revokeFolder();
     void renderWorkspace();
   });
+  root.querySelector("#photoshop-mcp-actions")?.addEventListener("click", () => {
+    void openActionPicker()
+      .catch((error: unknown) => {
+        if (actionCountElement !== null) {
+          actionCountElement.textContent = `선택 실패: ${describeError(error)}`;
+        }
+        return null;
+      })
+      .then(() => renderActionCount());
+  });
 
   renderState(client.state);
   void renderWorkspace();
+  void renderActionCount();
 }
 
 /**

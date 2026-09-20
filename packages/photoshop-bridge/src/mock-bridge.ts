@@ -673,6 +673,24 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         }
         return { sets: [], totalSets: 0 } as TResult;
       }
+      /**
+       * 액션 허용 목록·실행. (ROADMAP §17.36)
+       *
+       * **Mock 에는 고른 것이 없다.** 허용 목록은 사용자가 Photoshop 패널에서
+       * 정하고 플러그인이 보관한다. 지어내면 Mock 으로 돌린 워크플로가
+       * 존재하지 않는 액션을 부르고 그것이 성공으로 보인다.
+       */
+      case "ACTION_ALLOWLIST":
+        return { actions: [], total: 0, persisted: false } as TResult;
+      case "ACTION_PLAY": {
+        const { set, action } = command.params as { set: string; action: string };
+        throw new PhotoshopMcpError(
+          ErrorCode.INVALID_PARAMETER,
+          "실행이 허용된 액션이 없습니다. Photoshop MCP 패널의 '액션 선택…' 버튼으로 " +
+            "사용할 액션을 골라야 부를 수 있습니다.",
+          { recoverable: true, details: { set, action, allowed: [] } },
+        );
+      }
       case "TEXT_CREATE": {
         this.#requireDocument();
         const params = command.params as {

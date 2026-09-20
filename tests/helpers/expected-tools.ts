@@ -28,6 +28,8 @@ export const EXPECTED_TOOLS = [
   "photoshop.smart_object.convert",
   "photoshop.dodge_burn.dab",
   "photoshop.action.list",
+  "photoshop.action.declared",
+  "photoshop.action.run",
   "photoshop.text.create",
   "photoshop.text.set",
   "photoshop.font.list",
@@ -97,8 +99,6 @@ export const EXPECTED_TOOLS = [
   // 조회만 노출한다. 실행은 Extension 이 전체 흐름의 일부로 호출한다.
   "photoshop.capability.list",
   // ROADMAP §17.11 — Photoshop 창. 문서가 아니라 화면이라 external 이다
-  "photoshop.action.declared",
-  "photoshop.action.run",
   "photoshop.window.capture",
   // ROADMAP §14 — 긴 작업 (MCP 기본 타임아웃 60초를 넘는 것)
   "photoshop.job.status",
@@ -132,6 +132,7 @@ export const EXPECTED_COMMANDS = [
   "SMART_OBJECT_CONVERT",
   "DODGE_BURN_DAB",
   "ACTION_LIST",
+  "ACTION_ALLOWLIST",
   "ACTION_PLAY",
   "TEXT_CREATE",
   "TEXT_SET",

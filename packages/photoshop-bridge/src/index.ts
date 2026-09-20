@@ -15,12 +15,6 @@ export {
   type ProviderConfig,
 } from "./capability.js";
 export { assertConfigConsistent, buildArgs, placeholdersIn } from "./capability-args.js";
-export {
-  ActionConfigSchema,
-  ActionDeclarationSchema,
-  type ActionConfig,
-  type ActionDeclaration,
-} from "./action-config.js";
 export { describeZodIssues } from "./protocol/zod-message.js";
 export {
   CapturedImageSchema,

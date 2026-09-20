@@ -221,14 +221,17 @@ RAW 의 현상 설정은 슬라이더를 보며 정하는 일이라 사람이 �
 
 ### 4.2.2 액션
 
-**실행은 `actions.json` 에 선언한 것만** 돌릴 수 있다 — 액션은 내용을 알 수 없고
+**실행은 사용자가 Photoshop 패널에서 고른 것만** 된다 — 액션은 내용을 알 수 없고
 실기 목록에 이미 `내보내기 > PSD로 저장` 이 있었다. 그래서 `run` 은 `DESTRUCTIVE` 다.
+
+설정 파일을 쓰지 않는다. 액션은 Photoshop 안에 있고 고를 수 있는 것은 사용자뿐이라,
+작업 폴더 승인(§8.5)과 같이 **패널에서 고르고 플러그인이 보관한다.**
 
 | API | Permission | 비고 |
 |---|---|---|
 | `photoshop.action.list` | READ | **두 단계** — `set` 없으면 세트만, 있으면 그 세트의 액션 |
-| `photoshop.action.declared` | READ | `actions.json` 에 선언되어 **부를 수 있는** 것 |
-| `photoshop.action.run` | DESTRUCTIVE | 선언된 것만. **액션은 내용을 알 수 없다** |
+| `photoshop.action.declared` | READ | **사용자가 패널에서 고른** 부를 수 있는 것 |
+| `photoshop.action.run` | DESTRUCTIVE | 고른 것만. `set`+`action`. **내용을 알 수 없다** |
 
 
 | `photoshop.camera_raw.apply` | EDIT | Camera Raw 필터. **Tool 은 이 하나뿐이다** |

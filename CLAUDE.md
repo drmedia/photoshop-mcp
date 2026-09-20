@@ -183,9 +183,16 @@ Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `f
 알 수 없다** — 실기 목록에 이미 `내보내기 > PSD로 저장` 이 있어 승인된 작업 폴더
 밖으로 파일을 쓴다. 그래서 **`action.run` 은 `destructive`** 이고 기본 허용 밖이다.
 
-**`actions.json` 은 권한이 아니라 목록이다.** 레벨을 액션마다 선언하게 하지
-않았다 — 안을 읽을 수 없는데 `edit` 이라고 적으면 희망이지 사실이 아니다.
-이 파일은 **어느 것을 부를 수 있는가**만 정한다. `set` 과 `action` 둘 다 필요하다.
+**허용 목록은 사용자가 Photoshop 패널에서 고른다**(ROADMAP §17.36). 설정 파일이
+아니다 — 처음에 `actions.json` 으로 만들었다가 한 커밋 만에 틀린 것이 드러났다.
+이 기기에만 액션이 91개인데 쓰고 싶은 것마다 손으로 적게 했다.
+
+작업 폴더 승인(§8.5)과 같은 자리다 — 액션은 Photoshop 안에 있고 고를 수 있는
+것은 사용자뿐이며, **플러그인은 서버의 작업 디렉터리에 파일을 쓸 수 없다.**
+
+**검사는 플러그인에 있다.** Extension 이 Command 를 직접 부를 수 있으므로
+위쪽에서만 막으면 그 길이 열린다. 서버는 **부를 때마다 조회**한다 — 기동 시 한 번
+읽으면 사용자가 바꾼 것이 반영되지 않는다.
 
 **이름을 그대로 받는 Tool 을 내놓지 않았다.** `action.play` 는 없다 — 있으면
 허용 목록이 무의미해진다.
@@ -834,7 +841,6 @@ npm run check        # format + lint + build + typecheck:tests + test
 | `PHOTOSHOP_MCP_ALLOW` | `read,edit` | 허용 권한. `all` · `none` 도 쓸 수 있다 |
 | `PHOTOSHOP_MCP_CAPABILITIES` | `<cwd>/capabilities.json` | 외부 처리기 설정 |
 | `PHOTOSHOP_MCP_WORKFLOWS` | `<cwd>/workflows.json` | 워크플로 설정 |
-| `PHOTOSHOP_MCP_ACTIONS` | `<cwd>/actions.json` | 액션 허용 목록 |
 
 Photoshop 없이 돌릴 때는 `PHOTOSHOP_MCP_BRIDGE=mock` 을 사용합니다.
 

@@ -37,7 +37,6 @@ function log(message: string): void {
  * - `PHOTOSHOP_MCP_EXTENSIONS` — Extension 디렉터리 (기본 `<cwd>/extensions`)
  * - `PHOTOSHOP_MCP_ALLOW` — 허용할 Permission Level (기본 `read,edit`)
  * - `PHOTOSHOP_MCP_CAPABILITIES` — 외부 처리기 설정 (기본 `<cwd>/capabilities.json`)
- * - `PHOTOSHOP_MCP_ACTIONS` — 액션 허용 목록 (기본 `<cwd>/actions.json`)
  * - `PHOTOSHOP_MCP_WORKFLOWS` — 워크플로 설정 (기본 `<cwd>/workflows.json`)
  */
 export function readOptionsFromEnv(env: Record<string, string | undefined> = process.env): {
@@ -45,7 +44,6 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
   port: number;
   extensionsDir: string;
   capabilityConfig: string;
-  actionConfig: string;
   workflowConfig: string;
   policy: PermissionPolicy;
 } {
@@ -75,23 +73,19 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
 
   const workflowConfig = resolve(env["PHOTOSHOP_MCP_WORKFLOWS"] ?? "workflows.json");
 
-  // 없으면 조용히 넘어간다. 액션을 안 쓰는 것은 정상이다.
-  const actionConfig = resolve(env["PHOTOSHOP_MCP_ACTIONS"] ?? "actions.json");
-
   return {
     mode,
     port,
     extensionsDir,
     capabilityConfig,
     workflowConfig,
-    actionConfig,
     policy: new PermissionPolicy(levels),
   };
 }
 
 /** CLI 진입점. 오류를 스스로 처리하며 예외를 던지지 않는다. */
 export async function main(): Promise<void> {
-  const { mode, port, extensionsDir, capabilityConfig, workflowConfig, actionConfig, policy } =
+  const { mode, port, extensionsDir, capabilityConfig, workflowConfig, policy } =
     readOptionsFromEnv();
 
   const options: StartOptions = {
@@ -100,7 +94,6 @@ export async function main(): Promise<void> {
     extensionsDir,
     capabilityConfig,
     workflowConfig,
-    actionConfig,
     policy,
     onBridgeStateChange: (state) => {
       log(`Bridge: ${STATE_LABEL[state] ?? state}`);

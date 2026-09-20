@@ -33,13 +33,56 @@ describe("permission", () => {
   });
 });
 
-describe("**실행 Tool 을 내놓지 않았다**", () => {
-  it("action.play 가 없다", () => {
-    // 이름만 보고는 무엇을 하는지 알 수 없다 — 실기 목록에 '내보내기 > PSD로 저장'
-    // 이 있었고 승인된 작업 폴더 밖으로 파일을 쓴다.
+describe("**임의 액션을 부를 수 없다** (ROADMAP §17.35)", () => {
+  it("이름을 그대로 받는 실행 Tool 이 없다", () => {
+    // 세트·액션 이름을 직접 받는 Tool 을 내놓으면 허용 목록이 무의미해진다.
+    // 실행은 actions.json 에 선언된 것만 부르는 photoshop.action.run 뿐이다.
+    expect(setup().tools.get("photoshop.action.play")).toBeUndefined();
+  });
+
+  it("action.run 은 destructive 다", () => {
+    // 액션이 무엇을 하는지 알 수 없다. 실기 목록에 '내보내기 > PSD로 저장' 이
+    // 있었고 승인된 작업 폴더 밖으로 파일을 쓴다.
+    expect(
+      setup(["read", "edit", "external", "destructive"]).tools.get("photoshop.action.run")
+        ?.permission,
+    ).toBe("destructive");
+  });
+
+  it("기본 권한에서는 막힌다", async () => {
     const mcp = setup();
-    expect(mcp.tools.get("photoshop.action.play")).toBeUndefined();
-    expect(mcp.tools.get("photoshop.action.run")).toBeUndefined();
+    await expect(
+      mcp.tools.invoke("photoshop.action.run", { name: "x" }, { requestId: "r" }),
+    ).rejects.toThrow(/권한|permission/iu);
+  });
+
+  it("**선언이 없으면 아무것도 부를 수 없다**", async () => {
+    const mcp = setup(["read", "edit", "external", "destructive"]);
+    await expect(
+      mcp.tools.invoke("photoshop.action.run", { name: "x" }, { requestId: "r" }),
+    ).rejects.toThrow(/선언된 액션이 없습니다/u);
+  });
+
+  it("어떻게 선언하는지 말한다", async () => {
+    const mcp = setup(["read", "edit", "external", "destructive"]);
+    await expect(
+      mcp.tools.invoke("photoshop.action.run", { name: "x" }, { requestId: "r" }),
+    ).rejects.toThrow(/actions\.json/u);
+  });
+
+  it("선언 조회는 read 다", () => {
+    // 무엇을 부를 수 있는지 보는 것은 실행이 아니다.
+    expect(setup().tools.get("photoshop.action.declared")?.permission).toBe("read");
+  });
+
+  it("선언이 없으면 빈 목록이다", async () => {
+    const result = (await setup().tools.invoke(
+      "photoshop.action.declared",
+      {},
+      { requestId: "r" },
+    )) as { actions: unknown[]; total: number };
+    expect(result.actions).toEqual([]);
+    expect(result.total).toBe(0);
   });
 });
 

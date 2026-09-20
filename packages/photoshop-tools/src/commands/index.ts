@@ -94,7 +94,14 @@ import {
   documentFlattenCommand,
 } from "./document-lifecycle.js";
 import { DODGE_BURN_DAB, DodgeBurnParamsSchema, dodgeBurnDabCommand } from "./dodge-burn.js";
-import { ACTION_LIST, ActionListParamsSchema, actionListCommand } from "./action.js";
+import {
+  ACTION_LIST,
+  ACTION_PLAY,
+  ActionListParamsSchema,
+  ActionPlayParamsSchema,
+  actionListCommand,
+  actionPlayCommand,
+} from "./action.js";
 import {
   FONT_LIST,
   FontListParamsSchema,
@@ -319,6 +326,12 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     // 액션 목록을 읽을 뿐 실행하지 않는다.
     permission: "read",
     schema: ActionListParamsSchema,
+  });
+  registry.register(ACTION_PLAY, actionPlayCommand, {
+    // **액션이 무엇을 하는지 알 수 없다.** 파일 저장·평탄화가 들어 있어도
+    // 이름만으로는 모른다. 모르는 것을 edit 으로 두면 조용히 경계를 넘는다.
+    permission: "destructive",
+    schema: ActionPlayParamsSchema,
   });
   registry.register(TEXT_CREATE, textCreateCommand, {
     permission: "edit",

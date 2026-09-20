@@ -28,6 +28,7 @@ import { z } from "zod";
  */
 
 export const ACTION_LIST = "ACTION_LIST";
+export const ACTION_PLAY = "ACTION_PLAY";
 
 export const ActionListParamsSchema = z
   .object({
@@ -85,5 +86,66 @@ export const actionListCommand: CommandHandler<ActionListParams, ActionListResul
     });
   }
 
+  return parsed.data;
+};
+
+/**
+ * 액션 실행. (ROADMAP §17.35)
+ *
+ * ## **permission 은 `destructive` 다**
+ *
+ * 액션이 무엇을 하는지 알 수 없다. 실기 목록에 `내보내기 > PSD로 저장` 이 있었고
+ * 평탄화·레이어 삭제·`.jsx` 실행이 들어 있어도 이름만으로는 모른다.
+ *
+ * 모르는 것을 `edit` 으로 두면 조용히 경계를 넘는다. `window.capture` 가
+ * 찍는 것이 문서가 아니라 화면이라 `external` 인 것과 같은 판단이다(§17.11).
+ *
+ * 기본 허용(`read` · `edit`) 밖이라 **꺼져 있는 것이 기본**이고
+ * `PHOTOSHOP_MCP_ALLOW` 로 켠다.
+ *
+ * ## 어느 액션을 부를 수 있는지는 따로 정한다
+ *
+ * 이 Command 는 세트·액션 이름을 그대로 받는다. **무엇을 부를 수 있는가**는
+ * `actions.json` 이 정하고 `photoshop.action.run` 이 강제한다 —
+ * Capability 가 `capabilities.json` 으로 실행 파일을 가두는 것과 같다(§19).
+ */
+export const ActionPlayParamsSchema = z
+  .object({
+    /** 액션 세트의 **정확한 이름**. */
+    set: z.string().trim().min(1).max(255),
+    /** 액션의 **정확한 이름**. */
+    action: z.string().trim().min(1).max(255),
+  })
+  .strict();
+
+export type ActionPlayParams = z.infer<typeof ActionPlayParamsSchema>;
+
+export const ActionPlayResultSchema = z.object({
+  set: z.string(),
+  action: z.string(),
+  /**
+   * 대화상자를 실제로 껐는지.
+   *
+   * **끄지 못했는데 껐다고 말하지 않는다.** `false` 면 액션 안의 대화상자가
+   * 뜰 수 있고, 뜨면 플러그인이 멈춘다.
+   */
+  dialogsSuppressed: z.boolean(),
+  durationMs: z.number().int(),
+});
+
+export type ActionPlayResult = z.infer<typeof ActionPlayResultSchema>;
+
+export const actionPlayCommand: CommandHandler<ActionPlayParams, ActionPlayResult> = async (
+  command,
+  context,
+) => {
+  const raw = await context.bridge.executeCommand<unknown>(command);
+  const parsed = ActionPlayResultSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new PhotoshopMcpError(ErrorCode.PROTOCOL_ERROR, "액션 실행 결과가 예상과 다릅니다.", {
+      details: { issues: parsed.error.issues },
+      cause: parsed.error,
+    });
+  }
   return parsed.data;
 };

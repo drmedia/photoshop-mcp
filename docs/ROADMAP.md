@@ -4607,6 +4607,100 @@ set="없는세트"   거절 — "set 없이 photoshop.action.list 를 부르면�
 
 ---
 
+# 17.35 액션 실행 — 선언한 것만
+
+## permission 은 `destructive` 다
+
+액션이 무엇을 하는지 **알 수 없다.** §17.34 에서 뽑은 목록에 이미
+`내보내기 > PSD로 저장` 이 있었고, 평탄화·레이어 삭제·`.jsx` 실행이 들어 있어도
+이름만으로는 모른다.
+
+모르는 것을 `edit` 으로 두면 조용히 경계를 넘는다. `window.capture` 가 찍는 것이
+문서가 아니라 화면이라 `external` 인 것과 같은 판단이다(§17.11).
+
+기본 허용(`read` · `edit`) 밖이라 **꺼져 있는 것이 기본**이고
+`PHOTOSHOP_MCP_ALLOW` 로 켠다.
+
+## `actions.json` 은 권한이 아니라 목록이다
+
+레벨을 액션마다 선언하게 하지 **않았다.** 선언이 사실일 보장이 없기 때문이다 —
+액션 안을 읽을 수 없는데 `edit` 이라고 적으면 그것은 희망이지 사실이 아니다.
+이 프로젝트는 모르는 것을 그럴듯한 값으로 덮지 않는다(`rawBitDepth` 와 같은 원칙).
+
+그래서 이 파일이 정하는 것은 그보다 앞의 질문 — **어느 것을 부를 수 있는가** 다.
+`capabilities.json` 이 실행 파일을 가두는 것과 같은 자리다(§19).
+
+```json
+{
+  "starXTerminatorUnscreen": {
+    "set": "RC Astro StarXTerminator Actions",
+    "action": "StarXTerminator Unscreen",
+    "description": "별 레이어를 unscreen 으로 분리한다. 레이어를 추가한다"
+  }
+}
+```
+
+`set` 과 `action` 둘 다 필요하다 — 이름이 유일하지 않다(§17.34).
+
+`description` 은 **LLM 이 읽는 유일한 단서다.** 이름만으로는 파일을 쓰는지
+레이어를 지우는지 알 수 없다.
+
+## 이름을 그대로 받는 Tool 을 내놓지 않았다
+
+`photoshop.action.play` 는 없다. 세트·액션 이름을 직접 받으면 허용 목록이
+무의미해진다. 실행 통로는 `photoshop.action.run { name }` 하나다.
+
+`ACTION_PLAY` Command 는 있지만 `destructive` 이고, Extension 이 직접 부르려면
+manifest 에 선언해야 한다(§22).
+
+## 대화상자를 끄지 못한다
+
+**`app.displayDialogs` 가 UXP 에 없다.** 실기에서 확인했다.
+
+결과의 `dialogsSuppressed` 가 그 사실을 담는다. **껐다고 말하고 안 끄는 것이
+가장 나쁘다** — 액션 안의 대화상자가 뜨면 플러그인이 멈추고 Bridge 가 15초에
+타임아웃한다. 이 프로젝트에서 다섯 번째로 만나는 같은 실패다.
+
+지금은 사용자가 액션의 대화상자 토글을 꺼 두어야 한다. `window.capture`(§17.11)
+로 막힌 창을 볼 수는 있다.
+
+## 실기 검증
+
+Photoshop 27.8, `StarXTerminator Unscreen`.
+
+```text
+action.declared                  선언 2개
+action.run "없는이름"             거절 — available 에 있는 이름을 함께 준다
+action.run "starXTerminatorUnscreen"
+    dialogsSuppressed false
+    durationMs 11897
+
+실행 전   배경 · 레이어 1(text)
+실행 후   배경 · Starless · Stars(screen) · 레이어 1
+```
+
+**별 분리가 실제로 됐다.** 외부 플러그인(StarXTerminator)을 부르는 액션이
+11.9초 만에 레이어 둘을 만들었다.
+
+## 60초를 넘는 액션은 아직 다루지 않았다
+
+`longRunning` 필드는 선언에 넣어 두었지만 Job(§14)으로 감싸지 않았다.
+11.9초는 MCP 기본 타임아웃 60초 안이라 이번 검증에서는 드러나지 않았다.
+더 긴 액션을 만나면 그때 연다 — 없는 요구에 코드를 먼저 쓰지 않는다.
+
+## 체크리스트
+
+- [x] `photoshop.action.run` — DESTRUCTIVE. 선언된 것만
+- [x] `photoshop.action.declared` — READ
+- [x] `ActionRegistry` + `actions.json` (`PHOTOSHOP_MCP_ACTIONS`)
+- [x] 이름을 그대로 받는 Tool 을 내놓지 않는다
+- [x] `dialogsSuppressed` 로 끄지 못했음을 드러낸다
+- [x] `actions.json` 을 `.gitignore` 에, 예시만 커밋
+- [x] 실기 검증 — StarXTerminator Unscreen
+- [ ] 60초 넘는 액션의 Job 감싸기 — 요구가 생기면
+
+---
+
 # 18. Phase 14 — Distribution
 
 검토 대상:

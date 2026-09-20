@@ -54,6 +54,7 @@ import { dodgeBurnDab } from "./dom/dodge-burn.js";
 import { maskDab, paintDab } from "./dom/paint.js";
 import { fontList, textCreate, textSet } from "./dom/text.js";
 import { actionList } from "./dom/action.js";
+import { actionPlay } from "./dom/action-play.js";
 import { documentOpen } from "./dom/document-open.js";
 import { layerReorder } from "./dom/layer-reorder.js";
 import { documentStatistics } from "./dom/document-statistics.js";
@@ -129,6 +130,9 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("DODGE_BURN_DAB", async (p) =>
     dodgeBurnDab(p as Parameters<typeof dodgeBurnDab>[0]),
+  );
+  dispatcher.register("ACTION_PLAY", async (p) =>
+    actionPlay(p as Parameters<typeof actionPlay>[0]),
   );
   dispatcher.register("ACTION_LIST", async (p) =>
     actionList(p as Parameters<typeof actionList>[0]),

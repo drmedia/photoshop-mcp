@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **76개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **78개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 83). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 85). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -40,7 +40,7 @@ Tool 까지 더한 수다(지금 83). 한동안 이 값을 Core 개수로 옮겨
 - 국소 명암: `dodge_burn.dab` — 부드러운 원형 얼룩. **softLight 빈 레이어에 칠한다**
 - 칠하기: `paint.dab` (색) · `mask.dab` (마스크에 **더한다**)
 - 텍스트: `text.create` · `text.set` · `font.list` — **워터마크·서명 범위**
-- 액션: `action.list` — **조회만**. 실행은 아직 열지 않았다
+- 액션: `action.list` (조회) · `action.declared` · `action.run` — **선언한 것만**
 - Camera Raw: `camera_raw.apply` — **Tool 은 이 하나뿐이다**
 
 ## 캡처 (ROADMAP §17.10)
@@ -179,10 +179,20 @@ Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `f
 
 ## 액션 (ROADMAP §17.34)
 
-**조회만 열었다.** 액션은 사용자가 녹화한 것이라 LLM 이 내용을 만들지는 못하지만
-**무엇을 하는지도 알 수 없다** — 실기 목록에 이미 `내보내기 > PSD로 저장` 이 있어
-승인된 작업 폴더 밖으로 파일을 쓴다. 실행은 `actions.json` 으로 사용자가 선언한
-것만 돌리는 설계이고 아직 만들지 않았다.
+액션은 사용자가 녹화한 것이라 LLM 이 내용을 만들지는 못하지만 **무엇을 하는지도
+알 수 없다** — 실기 목록에 이미 `내보내기 > PSD로 저장` 이 있어 승인된 작업 폴더
+밖으로 파일을 쓴다. 그래서 **`action.run` 은 `destructive`** 이고 기본 허용 밖이다.
+
+**`actions.json` 은 권한이 아니라 목록이다.** 레벨을 액션마다 선언하게 하지
+않았다 — 안을 읽을 수 없는데 `edit` 이라고 적으면 희망이지 사실이 아니다.
+이 파일은 **어느 것을 부를 수 있는가**만 정한다. `set` 과 `action` 둘 다 필요하다.
+
+**이름을 그대로 받는 Tool 을 내놓지 않았다.** `action.play` 는 없다 — 있으면
+허용 목록이 무의미해진다.
+
+**`app.displayDialogs` 가 UXP 에 없어 대화상자를 끄지 못한다.** 결과의
+`dialogsSuppressed` 가 그 사실을 담는다. 액션의 대화상자 토글은 사용자가 꺼 둬야
+한다. 안 그러면 플러그인이 멈춘다.
 
 **UXP 는 속성 하나마다 Photoshop 으로 왕복한다.** 액션 91개를 한 번에 읽으려다
 두 번 타임아웃했다(속성 3개 300왕복 · 2개 200왕복). `action.list` 는 **두 단계**다 —
@@ -824,6 +834,7 @@ npm run check        # format + lint + build + typecheck:tests + test
 | `PHOTOSHOP_MCP_ALLOW` | `read,edit` | 허용 권한. `all` · `none` 도 쓸 수 있다 |
 | `PHOTOSHOP_MCP_CAPABILITIES` | `<cwd>/capabilities.json` | 외부 처리기 설정 |
 | `PHOTOSHOP_MCP_WORKFLOWS` | `<cwd>/workflows.json` | 워크플로 설정 |
+| `PHOTOSHOP_MCP_ACTIONS` | `<cwd>/actions.json` | 액션 허용 목록 |
 
 Photoshop 없이 돌릴 때는 `PHOTOSHOP_MCP_BRIDGE=mock` 을 사용합니다.
 

@@ -248,6 +248,7 @@ describe("Core Tool 분류", () => {
       "LAYER_DELETE",
       "DOCUMENT_FLATTEN",
       "DOCUMENT_CLOSE",
+      "ACTION_PLAY",
       "DOCUMENT_SAVE",
       "WORKSPACE_DELETE",
     ]);
@@ -273,16 +274,18 @@ describe("Core Tool 분류", () => {
         mcp.commands.permissionOf(type),
       );
     }
-    // 위험 등급이 문서 저장·가져오기·파일 삭제·레이어 삭제 말고 늘어나지
-    // 않았는지 확인한다. `LAYER_DELETE` 는 ROADMAP §17.18 에서,
-    // `DOCUMENT_FLATTEN` · `DOCUMENT_CLOSE` 는 §17.25 에서 더했다.
+    // 위험 등급이 문서 저장·가져오기·파일 삭제·레이어 삭제·액션 실행 말고
+    // 늘어나지 않았는지 확인한다. `LAYER_DELETE` 는 ROADMAP §17.18 에서,
+    // `DOCUMENT_FLATTEN` · `DOCUMENT_CLOSE` 는 §17.25 에서,
+    // `ACTION_PLAY` 는 §17.35 에서 더했다 — 액션은 내용을 알 수 없다.
     expect(
       [...risky].every(
         (type) =>
           type.startsWith("DOCUMENT_") ||
           type === "LAYER_PLACE" ||
           type === "LAYER_DELETE" ||
-          type === "WORKSPACE_DELETE",
+          type === "WORKSPACE_DELETE" ||
+          type === "ACTION_PLAY",
       ),
     ).toBe(true);
   });

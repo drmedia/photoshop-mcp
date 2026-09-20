@@ -35,6 +35,7 @@ import { createDocumentCloseTool, createDocumentFlattenTool } from "./document-l
 import { createDocumentOpenTool } from "./document-open.js";
 import { createSmartObjectConvertTool } from "./smart-object.js";
 import { createDodgeBurnDabTool } from "./dodge-burn.js";
+import { createMaskDabTool, createPaintDabTool } from "./paint.js";
 import { createLayerReorderTool } from "./layer-reorder.js";
 import { createMeasureTiltTool } from "./measure-tilt.js";
 import { createDocumentStatisticsTool } from "./document-statistics.js";
@@ -101,6 +102,7 @@ export * from "./document-lifecycle.js";
 export * from "./document-open.js";
 export * from "./smart-object.js";
 export * from "./dodge-burn.js";
+export * from "./paint.js";
 export * from "./document-statistics.js";
 export * from "./retouch.js";
 export * from "./camera-raw.js";
@@ -137,6 +139,8 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createLayerReorderTool(engine));
   registry.register(createSmartObjectConvertTool(engine));
   registry.register(createDodgeBurnDabTool(engine));
+  registry.register(createPaintDabTool(engine));
+  registry.register(createMaskDabTool(engine));
   registry.register(createDocumentOpenTool(engine));
   registry.register(createDocumentFlattenTool(engine));
   registry.register(createDocumentCloseTool(engine));

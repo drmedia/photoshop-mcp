@@ -51,6 +51,7 @@ import { documentTilt } from "./dom/document-tilt.js";
 import { documentClose, documentFlatten } from "./dom/document-lifecycle.js";
 import { smartObjectConvert } from "./dom/smart-object.js";
 import { dodgeBurnDab } from "./dom/dodge-burn.js";
+import { maskDab, paintDab } from "./dom/paint.js";
 import { documentOpen } from "./dom/document-open.js";
 import { layerReorder } from "./dom/layer-reorder.js";
 import { documentStatistics } from "./dom/document-statistics.js";
@@ -127,6 +128,8 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("DODGE_BURN_DAB", async (p) =>
     dodgeBurnDab(p as Parameters<typeof dodgeBurnDab>[0]),
   );
+  dispatcher.register("PAINT_DAB", async (p) => paintDab(p as Parameters<typeof paintDab>[0]));
+  dispatcher.register("MASK_DAB", async (p) => maskDab(p as Parameters<typeof maskDab>[0]));
   dispatcher.register("SMART_OBJECT_CONVERT", async (p) =>
     smartObjectConvert(p as Parameters<typeof smartObjectConvert>[0]),
   );

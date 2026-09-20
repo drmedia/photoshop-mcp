@@ -95,6 +95,14 @@ import {
 } from "./document-lifecycle.js";
 import { DODGE_BURN_DAB, DodgeBurnParamsSchema, dodgeBurnDabCommand } from "./dodge-burn.js";
 import {
+  MASK_DAB,
+  MaskDabParamsSchema,
+  PAINT_DAB,
+  PaintDabParamsSchema,
+  maskDabCommand,
+  paintDabCommand,
+} from "./paint.js";
+import {
   SMART_OBJECT_CONVERT,
   SmartObjectConvertParamsSchema,
   smartObjectConvertCommand,
@@ -213,6 +221,7 @@ export * from "./document-lifecycle.js";
 export * from "./document-open.js";
 export * from "./smart-object.js";
 export * from "./dodge-burn.js";
+export * from "./paint.js";
 export * from "./document-statistics.js";
 export * from "./retouch.js";
 export * from "./camera-raw.js";
@@ -291,6 +300,16 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.
     permission: "edit",
     schema: DodgeBurnParamsSchema,
+  });
+  registry.register(PAINT_DAB, paintDabCommand, {
+    // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.
+    permission: "edit",
+    schema: PaintDabParamsSchema,
+  });
+  registry.register(MASK_DAB, maskDabCommand, {
+    // 마스크만 바꾼다. 픽셀은 건드리지 않는다.
+    permission: "edit",
+    schema: MaskDabParamsSchema,
   });
   registry.register(LAYER_REORDER, layerReorderCommand, {
     permission: "edit",

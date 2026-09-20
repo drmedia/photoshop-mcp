@@ -1,4 +1,3 @@
-import { action } from "photoshop";
 import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
@@ -6,7 +5,7 @@ import { findLayerById } from "./layer-edit.js";
 import { toLayerInfo } from "./layers.js";
 import { toLayerType } from "./mappings.js";
 import { runModal } from "./modal.js";
-import { featherFor } from "./dodge-burn-geometry.js";
+import { applyDabs, monochromeFill, type Dab } from "./dab.js";
 
 /**
  * 닷징 · 버닝. (ROADMAP §17.31)
@@ -37,30 +36,6 @@ import { featherFor } from "./dodge-burn-geometry.js";
  * 걸면 되돌릴 수 없다. `retouch.remove_spots` 와 같은 규칙이며, 같은 이유로
  * **모르면 막지 않는다** — 없는 것을 참으로 읽어 멀쩡한 호출을 막는 것이 더 나쁘다.
  */
-
-export interface Dab {
-  x: number;
-  y: number;
-  radius: number;
-  /** 1–100. 채우기 불투명도로 간다. */
-  strength: number;
-  /** 0–100. 0 이면 가장 부드럽다. 페더 = radius × (1 − hardness/100). */
-  hardness?: number;
-}
-
-function px(value: number): { _unit: string; _value: number } {
-  return { _unit: "pixelsUnit", _value: value };
-}
-
-async function play(label: string, descriptor: Record<string, unknown>): Promise<void> {
-  const results = await action.batchPlay([descriptor], {});
-  const failure = results.find((result) => result["message"] !== undefined);
-  if (failure !== undefined) {
-    throw new DispatchError("COMMAND_FAILED", String(failure["message"]), {
-      details: { step: label },
-    });
-  }
-}
 
 export async function dodgeBurnDab(params: {
   dabs: Dab[];
@@ -108,62 +83,9 @@ export async function dodgeBurnDab(params: {
 
     // 닷징은 흰색, 버닝은 검정이다. Soft Light 에서 흰색은 밝히고 검정은 어둡게 한다.
     const fillWith = params.mode === "dodge" ? "white" : "black";
-    let applied = 0;
-
-    try {
-      for (const dab of params.dabs) {
-        const left = dab.x - dab.radius;
-        const top = dab.y - dab.radius;
-        const right = dab.x + dab.radius;
-        const bottom = dab.y + dab.radius;
-
-        // 문서 밖이면 선택이 비고, 빈 선택에 채우기를 걸면 Photoshop 이 원인을 알 수
-        // 없는 메시지로 거절한다. 여기서 이유를 말한다. (§17.14 와 같은 자리)
-        if (right <= 0 || bottom <= 0 || left >= document.width || top >= document.height) {
-          throw new DispatchError(
-            "INVALID_PARAMETER",
-            `얼룩 (${dab.x}, ${dab.y}) 반지름 ${dab.radius} 가 ` +
-              `문서(${document.width}×${document.height}) 밖입니다.`,
-            { recoverable: true, details: { dab, applied } },
-          );
-        }
-
-        await play("Select dab", {
-          _obj: "set",
-          _target: [{ _ref: "channel", _property: "selection" }],
-          to: {
-            _obj: "ellipse",
-            top: px(top),
-            left: px(left),
-            bottom: px(bottom),
-            right: px(right),
-          },
-        });
-
-        const feather = featherFor(dab.radius, dab.hardness ?? 0);
-        if (feather > 0) {
-          await play("Feather", { _obj: "feather", radius: px(feather) });
-        }
-
-        await play("Fill", {
-          _obj: "fill",
-          using: { _enum: "fillContents", _value: fillWith },
-          opacity: { _unit: "percentUnit", _value: dab.strength },
-          mode: { _enum: "blendMode", _value: "normal" },
-        });
-
-        applied += 1;
-      }
-    } finally {
-      // 선택을 남기지 않는다. 남기면 다음 Command 가 조용히 그 범위에만 걸린다.
-      await play("Deselect", {
-        _obj: "set",
-        _target: [{ _ref: "channel", _property: "selection" }],
-        to: { _enum: "ordinal", _value: "none" },
-      }).catch(() => {
-        // 이미 실패한 길이면 해제 실패까지 덮어쓰지 않는다.
-      });
-    }
+    const applied = await applyDabs(params.dabs, document, (dab) =>
+      monochromeFill(fillWith, dab.strength),
+    );
 
     return { layer: toLayerInfo(layer), applied };
   });

@@ -576,6 +576,78 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        * Mock 은 픽셀을 모르므로 **무엇을 거절하는가**만 흉내낸다. 이 Command 에서
        * 위험한 자리가 거기다 — 배경이나 조정 레이어에 칠하면 되돌릴 수 없다.
        */
+      /**
+       * 색 칠하기 · 마스크 칠하기. (ROADMAP §17.32)
+       *
+       * Mock 은 픽셀을 모르므로 **무엇을 거절하는가**만 흉내낸다.
+       * `PAINT_DAB` 은 배경·비픽셀을 막고, `MASK_DAB` 은 마스크가 없으면 막는다 —
+       * 그것이 이 둘에서 위험하거나 헷갈리는 자리다.
+       */
+      case "PAINT_DAB":
+      case "MASK_DAB": {
+        const document = this.#requireDocument();
+        const params = command.params as {
+          dabs: { x: number; y: number; radius: number }[];
+          layerId?: number;
+        };
+        const layer =
+          params.layerId === undefined
+            ? this.#layers.find((entry) => entry.id === this.#activeLayerId)
+            : this.#layers.find((entry) => entry.id === params.layerId);
+        if (layer === undefined) {
+          throw new PhotoshopMcpError(
+            ErrorCode.LAYER_NOT_FOUND,
+            params.layerId === undefined
+              ? "활성 레이어가 없습니다."
+              : `레이어 ${params.layerId} 를 찾을 수 없습니다.`,
+            { recoverable: true },
+          );
+        }
+        if (command.type === "PAINT_DAB") {
+          if (layer.type !== "pixel") {
+            throw new PhotoshopMcpError(
+              ErrorCode.INVALID_PARAMETER,
+              `${layer.type} 레이어에는 칠할 수 없습니다. ` +
+                "photoshop.layer.create 로 빈 픽셀 레이어를 만들고 그것을 지정하세요. " +
+                "마스크에 칠하려면 photoshop.mask.dab 을 쓰세요.",
+              { recoverable: true },
+            );
+          }
+          if (layer.isBackground === true) {
+            throw new PhotoshopMcpError(
+              ErrorCode.INVALID_PARAMETER,
+              "배경 레이어에는 칠하지 않습니다 — 원본 픽셀이 사라집니다. " +
+                "photoshop.layer.create 로 빈 레이어를 만들고 거기에 칠하세요.",
+              { recoverable: true },
+            );
+          }
+        } else if (layer.hasMask !== true) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "이 레이어에 마스크가 없습니다. mask.create 로 먼저 만드세요. " +
+              "layer.list 의 hasMask 로 확인할 수 있습니다.",
+            { recoverable: true },
+          );
+        }
+        for (const dab of params.dabs) {
+          if (
+            dab.x + dab.radius <= 0 ||
+            dab.y + dab.radius <= 0 ||
+            dab.x - dab.radius >= document.width ||
+            dab.y - dab.radius >= document.height
+          ) {
+            throw new PhotoshopMcpError(
+              ErrorCode.INVALID_PARAMETER,
+              `얼룩 (${dab.x}, ${dab.y}) 반지름 ${dab.radius} 가 ` +
+                `문서(${document.width}×${document.height}) 밖입니다.`,
+              { recoverable: true },
+            );
+          }
+        }
+        this.#snapshot(command.type === "PAINT_DAB" ? "Paint" : "Mask dab");
+        this.#hasSelection = false;
+        return { layer: { ...layer }, applied: params.dabs.length } as TResult;
+      }
       case "DODGE_BURN_DAB": {
         const document = this.#requireDocument();
         const params = command.params as {

@@ -1,5 +1,7 @@
 /**
- * 닷징 · 버닝의 순수 계산. (ROADMAP §17.31)
+ * 얼룩의 순수 계산. (ROADMAP §17.31)
+ *
+ * `dodge_burn.dab` · `paint.dab` · `mask.dab` 이 함께 쓴다.
  *
  * **`photoshop` 을 import 하지 않는다.** 떼어 두어야 단위 테스트가 실기 없이
  * 이 규칙을 고정할 수 있다. (`camera-raw-keys.ts` · `active-order.ts` 와 같은 이유)

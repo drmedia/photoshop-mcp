@@ -5,7 +5,7 @@ import {
   PermissionPolicy,
 } from "@photoshop-mcp/photoshop-bridge";
 import { describe, expect, it } from "vitest";
-import { featherFor } from "../photoshop-uxp/src/dom/dodge-burn-geometry.js";
+import { featherFor } from "../photoshop-uxp/src/dom/dab-geometry.js";
 
 /**
  * 닷징 · 버닝. (ROADMAP §17.31)

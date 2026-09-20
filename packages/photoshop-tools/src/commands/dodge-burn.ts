@@ -28,7 +28,7 @@ import { z } from "zod";
 
 export const DODGE_BURN_DAB = "DODGE_BURN_DAB";
 
-const DabSchema = z
+export const DabSchema = z
   .object({
     /** 얼룩 중심. 문서 좌상단이 원점. */
     x: z.number().min(0),

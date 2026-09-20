@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (70개)
+## 4. 구현된 Core API (72개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -207,6 +207,7 @@ RAW 의 현상 설정은 슬라이더를 보며 정하는 일이라 사람이 �
 |---|---|---|
 | `photoshop.retouch.remove_spots` | EDIT | 센서 먼지·잡티. **배경 레이어는 거절한다** |
 | `photoshop.dodge_burn.dab` | EDIT | 부드러운 원형 얼룩. **softLight 빈 레이어에 칠한다** |
+| `photoshop.paint.dab` | EDIT | 지정한 색 얼룩. 배경은 거절한다 |
 | `photoshop.camera_raw.apply` | EDIT | Camera Raw 필터. **Tool 은 이 하나뿐이다** |
 
 지점마다 타원으로 선택해 내용 인식 채우기를 건다. `spots` 로 여러 개를 한 번에 받는다.
@@ -281,6 +282,7 @@ Photoshop UI 는 그룹 끝에서 한 번 더 누르면 밖으로 나간다. 그
 |---|---|---|
 | `photoshop.mask.create` | EDIT | `from`: revealAll · hideAll · **fromSelection** |
 | `photoshop.mask.enable` | EDIT | |
+| `photoshop.mask.dab` | EDIT | 마스크에 얼룩을 **더한다**. 조정 레이어에도 쓴다 |
 | `photoshop.mask.disable` | EDIT | 마스크를 지우지 않고 해제만 한다 |
 | `photoshop.mask.gradient` | EDIT | 마스크에 그라디언트. **linear · radial**. 마스크가 있어야 한다 |
 | `photoshop.selection.set` | EDIT | `shape`: rectangle · ellipse · **canvas** · layerTransparency |

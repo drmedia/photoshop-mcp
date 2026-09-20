@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **70개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **72개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 77). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 79). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -38,6 +38,7 @@ Tool 까지 더한 수다(지금 77). 한동안 이 값을 Core 개수로 옮겨
 - 측정: `document.statistics` — **전체 해상도 원본**에서 히스토그램·채널 통계
 - 결함 제거: `retouch.remove_spots` — 먼지·잡티. **배경 레이어는 거절한다**
 - 국소 명암: `dodge_burn.dab` — 부드러운 원형 얼룩. **softLight 빈 레이어에 칠한다**
+- 칠하기: `paint.dab` (색) · `mask.dab` (마스크에 **더한다**)
 - Camera Raw: `camera_raw.apply` — **Tool 은 이 하나뿐이다**
 
 ## 캡처 (ROADMAP §17.10)
@@ -173,6 +174,24 @@ Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `f
 
 **성운에는 맞지 않는다** — 원형 얼룩이 구조를 못 따라간다. 형태가 복잡하면
 `selection.color_range` + `adjustment.curves` 쪽이다.
+
+## 마스크에 칠하기 (ROADMAP §17.32)
+
+`dodge_burn.dab` 의 논리는 내용과 대상을 바꿔도 성립한다 — `paint.dab` 은 지정한
+색을 픽셀에, `mask.dab` 은 흰색·검정을 **마스크에** 칠한다. 공통 경로는 `dab.ts` 다.
+
+**`mask.dab` 이 더 중요하다.** 조정 레이어의 마스크를 다듬으므로 비파괴 보정
+한가운데에 들어간다. `mask.gradient` 가 마스크를 덮어쓰는 것과 달리 **더한다.**
+선형·방사형으로 맞출 수 없는 비대칭한 빛 공해가 이것으로 풀린다.
+
+**이미 끝까지 간 마스크는 더 움직일 수 없다.** 검정인 곳에 `hide`, 흰색인 곳에
+`reveal` 은 아무 일도 하지 않는데 **오류도 나지 않는다.** 실기에서 두 번 겪었다.
+그때는 마스크가 아니라 곡선 자체를 고쳐야 한다.
+
+`reveal`/`hide` 로 받는다. `white`/`black` 이면 호출자가 매번 어느 쪽이 보이는
+쪽인지 되짚어야 한다.
+
+**`RGBColor` 의 녹색 키는 `green` 이 아니라 `grain` 이다.**
 
 ## 마스크는 밝기가 아니라 형태로 (ROADMAP §17.28)
 

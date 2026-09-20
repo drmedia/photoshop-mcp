@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **75개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **76개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 82). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 83). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -40,6 +40,7 @@ Tool 까지 더한 수다(지금 82). 한동안 이 값을 Core 개수로 옮겨
 - 국소 명암: `dodge_burn.dab` — 부드러운 원형 얼룩. **softLight 빈 레이어에 칠한다**
 - 칠하기: `paint.dab` (색) · `mask.dab` (마스크에 **더한다**)
 - 텍스트: `text.create` · `text.set` · `font.list` — **워터마크·서명 범위**
+- 액션: `action.list` — **조회만**. 실행은 아직 열지 않았다
 - Camera Raw: `camera_raw.apply` — **Tool 은 이 하나뿐이다**
 
 ## 캡처 (ROADMAP §17.10)
@@ -175,6 +176,19 @@ Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `f
 
 **성운에는 맞지 않는다** — 원형 얼룩이 구조를 못 따라간다. 형태가 복잡하면
 `selection.color_range` + `adjustment.curves` 쪽이다.
+
+## 액션 (ROADMAP §17.34)
+
+**조회만 열었다.** 액션은 사용자가 녹화한 것이라 LLM 이 내용을 만들지는 못하지만
+**무엇을 하는지도 알 수 없다** — 실기 목록에 이미 `내보내기 > PSD로 저장` 이 있어
+승인된 작업 폴더 밖으로 파일을 쓴다. 실행은 `actions.json` 으로 사용자가 선언한
+것만 돌리는 설계이고 아직 만들지 않았다.
+
+**UXP 는 속성 하나마다 Photoshop 으로 왕복한다.** 액션 91개를 한 번에 읽으려다
+두 번 타임아웃했다(속성 3개 300왕복 · 2개 200왕복). `action.list` 는 **두 단계**다 —
+`set` 없으면 세트 이름만(22왕복 6.5초), 주면 그 세트의 액션만.
+
+액션 이름은 **유일하지 않다.** `B and C Landscape` 가 두 세트에 있었다.
 
 ## 텍스트 (ROADMAP §17.33)
 

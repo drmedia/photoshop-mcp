@@ -654,6 +654,25 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        * Mock 은 폰트를 모르므로 목록은 비어 있고, `text.set` 이 **텍스트가 아닌
        * 레이어를 거절하는 것**만 흉내낸다 — 그것이 이 Command 에서 헷갈리는 자리다.
        */
+      /**
+       * 액션 조회. (ROADMAP §17.34)
+       *
+       * **Mock 은 액션을 지어내지 않는다.** 지어내면 Mock 으로 돌린 워크플로가
+       * 존재하지 않는 액션을 선언하고 그것이 성공으로 보인다.
+       * (`measure.tilt` · `font.list` 와 같은 규칙)
+       */
+      case "ACTION_LIST": {
+        const { set } = command.params as { set?: string };
+        if (set !== undefined) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `'${set}' 이라는 액션 세트가 없습니다. ` +
+              "set 없이 photoshop.action.list 를 부르면 세트 이름을 볼 수 있습니다.",
+            { recoverable: true },
+          );
+        }
+        return { sets: [], totalSets: 0 } as TResult;
+      }
       case "TEXT_CREATE": {
         this.#requireDocument();
         const params = command.params as {

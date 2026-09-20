@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (75개)
+## 4. 구현된 Core API (76개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -218,6 +218,16 @@ RAW 의 현상 설정은 슬라이더를 보며 정하는 일이라 사람이 �
 | `photoshop.text.create` | EDIT | 내용·위치·폰트·크기·색·불투명도·정렬 |
 | `photoshop.text.set` | EDIT | 기존 텍스트 레이어 수정. **텍스트가 아니면 거절** |
 | `photoshop.font.list` | READ | **`postScriptName` 이 `font` 에 넣을 값** |
+
+### 4.2.2 액션
+
+조회만 연다. **실행은 사용자가 선언한 것만** 돌릴 수 있게 할 계획이다 —
+액션은 내용을 알 수 없고 실기 목록에 이미 `내보내기 > PSD로 저장` 이 있었다.
+
+| API | Permission | 비고 |
+|---|---|---|
+| `photoshop.action.list` | READ | **두 단계** — `set` 없으면 세트만, 있으면 그 세트의 액션 |
+
 
 | `photoshop.camera_raw.apply` | EDIT | Camera Raw 필터. **Tool 은 이 하나뿐이다** |
 

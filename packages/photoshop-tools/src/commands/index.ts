@@ -94,6 +94,7 @@ import {
   documentFlattenCommand,
 } from "./document-lifecycle.js";
 import { DODGE_BURN_DAB, DodgeBurnParamsSchema, dodgeBurnDabCommand } from "./dodge-burn.js";
+import { ACTION_LIST, ActionListParamsSchema, actionListCommand } from "./action.js";
 import {
   FONT_LIST,
   FontListParamsSchema,
@@ -234,6 +235,7 @@ export * from "./smart-object.js";
 export * from "./dodge-burn.js";
 export * from "./paint.js";
 export * from "./text.js";
+export * from "./action.js";
 export * from "./document-statistics.js";
 export * from "./retouch.js";
 export * from "./camera-raw.js";
@@ -312,6 +314,11 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.
     permission: "edit",
     schema: DodgeBurnParamsSchema,
+  });
+  registry.register(ACTION_LIST, actionListCommand, {
+    // 액션 목록을 읽을 뿐 실행하지 않는다.
+    permission: "read",
+    schema: ActionListParamsSchema,
   });
   registry.register(TEXT_CREATE, textCreateCommand, {
     permission: "edit",

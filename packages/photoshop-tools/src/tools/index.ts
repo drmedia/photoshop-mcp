@@ -32,6 +32,11 @@ import { createEventRecentTool, type EventReader } from "./event.js";
 import { createDocumentCropTool } from "./document-crop.js";
 import { createDocumentRotateTool } from "./document-rotate.js";
 import { createDocumentCloseTool, createDocumentFlattenTool } from "./document-lifecycle.js";
+import { createDocumentOpenTool } from "./document-open.js";
+import { createSmartObjectConvertTool } from "./smart-object.js";
+import { createDodgeBurnDabTool } from "./dodge-burn.js";
+import { createMaskDabTool, createPaintDabTool } from "./paint.js";
+import { createFontListTool, createTextCreateTool, createTextSetTool } from "./text.js";
 import { createLayerReorderTool } from "./layer-reorder.js";
 import { createMeasureTiltTool } from "./measure-tilt.js";
 import { createDocumentStatisticsTool } from "./document-statistics.js";
@@ -58,7 +63,7 @@ import {
   createCaptureLayerTool,
   createCaptureSelectionTool,
 } from "./capture.js";
-import { createSelectionSkyTool } from "./selection-auto.js";
+import { createSelectionSkyTool, createSelectionSubjectTool } from "./selection-auto.js";
 import {
   createColorBalanceTool,
   createColorRangeTool,
@@ -78,7 +83,7 @@ import { createPingTool } from "./ping.js";
 
 export { DocumentGetInputSchema, createDocumentGetTool } from "./document-get.js";
 export { createLayerGetActiveTool } from "./layer-active.js";
-export { createSelectionSkyTool } from "./selection-auto.js";
+export { createSelectionSkyTool, createSelectionSubjectTool } from "./selection-auto.js";
 export * from "./capture.js";
 export * from "./workflow-gaps.js";
 export {
@@ -95,6 +100,11 @@ export * from "./document-rotate.js";
 export * from "./measure-tilt.js";
 export * from "./layer-reorder.js";
 export * from "./document-lifecycle.js";
+export * from "./document-open.js";
+export * from "./smart-object.js";
+export * from "./dodge-burn.js";
+export * from "./paint.js";
+export * from "./text.js";
 export * from "./document-statistics.js";
 export * from "./retouch.js";
 export * from "./camera-raw.js";
@@ -121,6 +131,7 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createLayerListTool(engine));
   registry.register(createLayerGetActiveTool(engine));
   registry.register(createSelectionSkyTool(engine));
+  registry.register(createSelectionSubjectTool(engine));
   registry.register(createDocumentStatisticsTool(engine));
   registry.register(createRemoveSpotsTool(engine));
   registry.register(createCameraRawApplyTool(engine));
@@ -128,6 +139,14 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createDocumentCropTool(engine));
   registry.register(createDocumentRotateTool(engine));
   registry.register(createLayerReorderTool(engine));
+  registry.register(createSmartObjectConvertTool(engine));
+  registry.register(createDodgeBurnDabTool(engine));
+  registry.register(createTextCreateTool(engine));
+  registry.register(createTextSetTool(engine));
+  registry.register(createFontListTool(engine));
+  registry.register(createPaintDabTool(engine));
+  registry.register(createMaskDabTool(engine));
+  registry.register(createDocumentOpenTool(engine));
   registry.register(createDocumentFlattenTool(engine));
   registry.register(createDocumentCloseTool(engine));
   registry.register(createMeasureTiltTool(engine));

@@ -42,6 +42,56 @@ function describeSelection(): SelectionResult {
   return { hasSelection: has, bounds: has ? selectionBounds() : null };
 }
 
+/**
+ * Photoshop 네이티브 자동 선택 — `선택 > 피사체`. (ROADMAP §17.28)
+ *
+ * ## descriptor 를 짐작하지 않았다
+ *
+ * CORE_API §7 이 "`autoCutout` descriptor 가 거부된다" 고 적어 두고 §5 후보로
+ * 돌려 둔 것이다. 그때는 이름을 문서에서 가져왔다.
+ *
+ * `addNotificationListener(["all"])` 로 잡아 보니 **이름은 맞았다.**
+ *
+ * ```text
+ * invokeCommand      commandID 1461
+ * historyStateChanged name "Select Subject"
+ * autoCutout         { sampleAllLayers: false }
+ * ```
+ *
+ * 틀린 것은 이름이 아니라 **부르는 자리**였다.
+ *
+ * ## 모달 안이어야 한다
+ *
+ * 처음에는 "모달 밖에서 불러야 한다" 고 짐작했다. 재 보니 **반대였다.**
+ *
+ * ```text
+ * Event: autoCutout may modify the state of Photoshop.
+ * Such events are only allowed from inside a modal scope.
+ * ```
+ *
+ * 그러니 막혔던 이유는 자리가 아니라 다른 데 있다.
+ */
+export async function selectionSubject(): Promise<SelectionResult> {
+  const document = requireActiveDocument();
+
+  // 하늘 선택과 같은 제약이다. 그룹이 활성이면 Photoshop 이 거부하는데
+  // 원문으로는 왜인지 알 수 없다.
+  const active = document.activeLayers[0];
+  if (active !== undefined && toLayerType(active.kind).type === "group") {
+    throw new DispatchError(
+      "INVALID_PARAMETER",
+      "그룹이 활성 레이어면 피사체를 선택할 수 없습니다. " +
+        "layer.select 로 픽셀 레이어를 먼저 고르세요.",
+      { recoverable: true, details: { layerId: active.id } },
+    );
+  }
+
+  return runModal("Select subject", async () => {
+    await play("Select subject", { _obj: "autoCutout", sampleAllLayers: false });
+    return describeSelection();
+  });
+}
+
 export async function selectionSky(): Promise<SelectionResult> {
   return runModal("Select sky", async () => {
     const document = requireActiveDocument();

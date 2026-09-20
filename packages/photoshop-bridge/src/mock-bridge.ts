@@ -233,6 +233,24 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
           command.params as { name?: string; layerIds?: number[]; parentId?: number | null },
         ) as TResult;
       /**
+       * 열기. (ROADMAP §17.26)
+       *
+       * Mock 에는 파일 시스템이 없다. 그럴듯한 문서를 지어내면 Mock 으로 돌린
+       * 워크플로가 존재하지 않는 파일을 열었다고 믿는다 — `measure.tilt` 가
+       * 각도를 지어내지 않는 것과 같은 이유다.
+       *
+       * 형식 검사는 Command 스키마가 하므로 여기까지 온 것은 이미 통과한 것이다.
+       */
+      case "DOCUMENT_OPEN": {
+        const { filename } = command.params as { filename: string };
+        throw new PhotoshopMcpError(
+          ErrorCode.COMMAND_FAILED,
+          "Mock Bridge 는 파일을 읽지 않아 문서를 열 수 없습니다. " +
+            "실제 Photoshop 연결이 필요합니다.",
+          { recoverable: false, details: { filename } },
+        );
+      }
+      /**
        * 평탄화. (ROADMAP §17.25)
        *
        * **숨긴 레이어가 사라지는 것까지 흉내낸다.** 합쳐진다고 두면 그 손실이
@@ -335,6 +353,11 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         this.#snapshot("Select sky");
         this.#hasSelection = this.#document !== null;
         return this.#selectionState() as TResult;
+      // 피사체 선택. (ROADMAP §17.28) Mock 은 픽셀을 모르므로 선택 유무만 흉내낸다.
+      case "SELECTION_SUBJECT":
+        this.#snapshot("Select subject");
+        this.#hasSelection = this.#document !== null;
+        return this.#selectionState() as TResult;
       // 워크플로 공백 보완. (ROADMAP §17.8)
       case "ADJUSTMENT_COLOR_BALANCE":
         this.#snapshot("Color Balance");
@@ -356,6 +379,35 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         this.#layers[index] = promoted;
         this.#activeLayerId = promoted.id;
         return { ...promoted } as TResult;
+      }
+      /**
+       * 스마트 오브젝트 변환. (ROADMAP §17.27)
+       *
+       * **id 가 바뀌는 것까지 흉내낸다.** 그러지 않으면 "옛 id 로 이어서 작업" 이라는
+       * 실패 경로가 테스트에 영원히 나오지 않는다 — 배경 승격에서 이미 겪은 일이다.
+       * (ARCHITECTURE §8.4)
+       *
+       * 배경 레이어는 변환되면서 배경이 아니게 된다. `isBackground` 를 떼지 않으면
+       * "배경인 스마트 오브젝트" 라는 존재하지 않는 상태가 만들어진다.
+       */
+      case "SMART_OBJECT_CONVERT": {
+        const index = this.#requireLayerIndex((command.params as { layerId?: number }).layerId);
+        const current = this.#layers[index] as LayerInfo;
+        const previousId = current.id;
+        // 이미 스마트 오브젝트면 아무것도 하지 않는다. History 도 남기지 않는다.
+        if (current.type === "smartObject") {
+          return { layer: { ...current }, converted: false, previousId } as TResult;
+        }
+        this.#snapshot("Convert to smart object");
+        const { isBackground: _wasBackground, ...rest } = current;
+        const wrapped: LayerInfo = {
+          ...rest,
+          id: this.#nextLayerId++,
+          type: "smartObject",
+        };
+        this.#layers[index] = wrapped;
+        this.#activeLayerId = wrapped.id;
+        return { layer: { ...wrapped }, converted: true, previousId } as TResult;
       }
       case "FILTER_HIGH_PASS":
         this.#snapshot("High pass");
@@ -518,6 +570,209 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       //
       // 특히 배경 거절을 빠뜨리면 안 된다 — 이 Command 의 가장 중요한 성질이고,
       // Mock 이 너그러우면 그 경로는 테스트에 영영 나오지 않는다.
+      /**
+       * 닷징 · 버닝. (ROADMAP §17.31)
+       *
+       * Mock 은 픽셀을 모르므로 **무엇을 거절하는가**만 흉내낸다. 이 Command 에서
+       * 위험한 자리가 거기다 — 배경이나 조정 레이어에 칠하면 되돌릴 수 없다.
+       */
+      /**
+       * 색 칠하기 · 마스크 칠하기. (ROADMAP §17.32)
+       *
+       * Mock 은 픽셀을 모르므로 **무엇을 거절하는가**만 흉내낸다.
+       * `PAINT_DAB` 은 배경·비픽셀을 막고, `MASK_DAB` 은 마스크가 없으면 막는다 —
+       * 그것이 이 둘에서 위험하거나 헷갈리는 자리다.
+       */
+      case "PAINT_DAB":
+      case "MASK_DAB": {
+        const document = this.#requireDocument();
+        const params = command.params as {
+          dabs: { x: number; y: number; radius: number }[];
+          layerId?: number;
+        };
+        const layer =
+          params.layerId === undefined
+            ? this.#layers.find((entry) => entry.id === this.#activeLayerId)
+            : this.#layers.find((entry) => entry.id === params.layerId);
+        if (layer === undefined) {
+          throw new PhotoshopMcpError(
+            ErrorCode.LAYER_NOT_FOUND,
+            params.layerId === undefined
+              ? "활성 레이어가 없습니다."
+              : `레이어 ${params.layerId} 를 찾을 수 없습니다.`,
+            { recoverable: true },
+          );
+        }
+        if (command.type === "PAINT_DAB") {
+          if (layer.type !== "pixel") {
+            throw new PhotoshopMcpError(
+              ErrorCode.INVALID_PARAMETER,
+              `${layer.type} 레이어에는 칠할 수 없습니다. ` +
+                "photoshop.layer.create 로 빈 픽셀 레이어를 만들고 그것을 지정하세요. " +
+                "마스크에 칠하려면 photoshop.mask.dab 을 쓰세요.",
+              { recoverable: true },
+            );
+          }
+          if (layer.isBackground === true) {
+            throw new PhotoshopMcpError(
+              ErrorCode.INVALID_PARAMETER,
+              "배경 레이어에는 칠하지 않습니다 — 원본 픽셀이 사라집니다. " +
+                "photoshop.layer.create 로 빈 레이어를 만들고 거기에 칠하세요.",
+              { recoverable: true },
+            );
+          }
+        } else if (layer.hasMask !== true) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "이 레이어에 마스크가 없습니다. mask.create 로 먼저 만드세요. " +
+              "layer.list 의 hasMask 로 확인할 수 있습니다.",
+            { recoverable: true },
+          );
+        }
+        for (const dab of params.dabs) {
+          if (
+            dab.x + dab.radius <= 0 ||
+            dab.y + dab.radius <= 0 ||
+            dab.x - dab.radius >= document.width ||
+            dab.y - dab.radius >= document.height
+          ) {
+            throw new PhotoshopMcpError(
+              ErrorCode.INVALID_PARAMETER,
+              `얼룩 (${dab.x}, ${dab.y}) 반지름 ${dab.radius} 가 ` +
+                `문서(${document.width}×${document.height}) 밖입니다.`,
+              { recoverable: true },
+            );
+          }
+        }
+        this.#snapshot(command.type === "PAINT_DAB" ? "Paint" : "Mask dab");
+        this.#hasSelection = false;
+        return { layer: { ...layer }, applied: params.dabs.length } as TResult;
+      }
+      /**
+       * 텍스트 레이어. (ROADMAP §17.33)
+       *
+       * Mock 은 폰트를 모르므로 목록은 비어 있고, `text.set` 이 **텍스트가 아닌
+       * 레이어를 거절하는 것**만 흉내낸다 — 그것이 이 Command 에서 헷갈리는 자리다.
+       */
+      case "TEXT_CREATE": {
+        this.#requireDocument();
+        const params = command.params as {
+          contents: string;
+          name?: string;
+          font?: string;
+          size?: number;
+          color?: unknown;
+          opacity?: number;
+          alignment?: string;
+        };
+        this.#snapshot("Create text");
+        const created: LayerInfo = {
+          id: this.#nextLayerId++,
+          name: params.name ?? params.contents,
+          type: "text",
+          visible: true,
+          opacity: params.opacity ?? 100,
+          parentId: null,
+          blendMode: "normal",
+          isBackground: false,
+        };
+        this.#layers.unshift(created);
+        this.#activeLayerId = created.id;
+        const applied = (["font", "size", "color", "alignment", "opacity"] as const).filter(
+          (key) => params[key] !== undefined,
+        );
+        return { layer: { ...created }, applied } as TResult;
+      }
+      case "TEXT_SET": {
+        this.#requireDocument();
+        const params = command.params as {
+          layerId?: number;
+          contents?: string;
+          opacity?: number;
+          [key: string]: unknown;
+        };
+        const index = this.#requireLayerIndex(params.layerId);
+        const layer = this.#layers[index] as LayerInfo;
+        if (layer.type !== "text") {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `${layer.type} 레이어는 텍스트가 아닙니다. photoshop.layer.list 의 type 으로 확인하세요.`,
+            { recoverable: true },
+          );
+        }
+        this.#snapshot("Set text");
+        const updated: LayerInfo = {
+          ...layer,
+          ...(params.contents === undefined ? {} : { name: params.contents }),
+          ...(params.opacity === undefined ? {} : { opacity: params.opacity }),
+        };
+        this.#layers[index] = updated;
+        const applied = ["contents", "font", "size", "color", "alignment", "opacity"].filter(
+          (key) => params[key] !== undefined,
+        );
+        return { layer: { ...updated }, applied } as TResult;
+      }
+      case "FONT_LIST":
+        // Mock 에는 폰트가 없다. 지어내면 Mock 으로 돌린 워크플로가 없는 폰트를
+        // 지정하고 그것이 성공으로 보인다. (`measure.tilt` 와 같은 규칙)
+        return { fonts: [], total: 0 } as TResult;
+      case "DODGE_BURN_DAB": {
+        const document = this.#requireDocument();
+        const params = command.params as {
+          dabs: { x: number; y: number; radius: number }[];
+          mode: "dodge" | "burn";
+          layerId?: number;
+        };
+        const layer =
+          params.layerId === undefined
+            ? this.#layers.find((entry) => entry.id === this.#activeLayerId)
+            : this.#layers.find((entry) => entry.id === params.layerId);
+        if (layer === undefined) {
+          throw new PhotoshopMcpError(
+            ErrorCode.LAYER_NOT_FOUND,
+            params.layerId === undefined
+              ? "활성 레이어가 없습니다."
+              : `레이어 ${params.layerId} 를 찾을 수 없습니다.`,
+            { recoverable: true },
+          );
+        }
+        if (layer.type !== "pixel") {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `${layer.type} 레이어에는 칠할 수 없습니다. ` +
+              "photoshop.layer.create 로 빈 픽셀 레이어를 만들고 " +
+              "photoshop.layer.set_blend_mode 로 softLight 를 건 뒤 그 레이어를 지정하세요.",
+            { recoverable: true },
+          );
+        }
+        if (layer.isBackground === true) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "배경 레이어에는 닷징·버닝을 걸지 않습니다 — 원본 픽셀이 바뀝니다. " +
+              "photoshop.layer.create 로 빈 레이어를 만들고 softLight 를 건 뒤 거기에 칠하세요.",
+            { recoverable: true },
+          );
+        }
+        for (const dab of params.dabs) {
+          if (
+            dab.x + dab.radius <= 0 ||
+            dab.y + dab.radius <= 0 ||
+            dab.x - dab.radius >= document.width ||
+            dab.y - dab.radius >= document.height
+          ) {
+            throw new PhotoshopMcpError(
+              ErrorCode.INVALID_PARAMETER,
+              `얼룩 (${dab.x}, ${dab.y}) 반지름 ${dab.radius} 가 ` +
+                `문서(${document.width}×${document.height}) 밖입니다.`,
+              { recoverable: true },
+            );
+          }
+        }
+        this.#snapshot("Dodge and burn");
+        // 실기는 선택을 남기지 않는다.
+        this.#hasSelection = false;
+        return { layer: { ...layer }, applied: params.dabs.length } as TResult;
+      }
       case "RETOUCH_REMOVE_SPOTS": {
         const document = this.#requireDocument();
         const params = command.params as {

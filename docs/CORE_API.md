@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (66개)
+## 4. 구현된 Core API (75개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -125,6 +125,7 @@ P3  확장 기능
 |---|---|---|
 | `photoshop.document.crop` | EDIT | 캔버스를 줄인다. **픽셀은 버리지 않는다** |
 | `photoshop.document.rotate` | EDIT | 문서 전체를 돌린다. **수평 교정용** |
+| `photoshop.document.open` | EXTERNAL | 승인된 폴더의 파일을 연다. **RAW 는 거절한다** |
 | `photoshop.document.flatten` | DESTRUCTIVE | 하나로 합친다. **숨긴 레이어는 버려진다** |
 | `photoshop.document.close` | DESTRUCTIVE | 닫는다. **저장하지 않는다** |
 | `photoshop.measure.tilt` | READ | 경계선 기울기. **각도와 잔차를 함께 준다** |
@@ -189,11 +190,35 @@ Mock Bridge 는 픽셀을 읽지 않으므로 **실패한다.** 그럴듯한 각
 
 `remainingDocuments` 가 0 이면 이후 Command 가 전부 `DOCUMENT_NOT_FOUND` 로 실패한다.
 
+`open` 은 **승인된 작업 폴더 안**으로 가둔다. 저장과 같은 규칙이다 — 호출자는
+폴더를 고를 수 없고 파일 이름만 준다. 읽기라고 느슨하게 두지 않았다: 임의 경로를
+열 수 있으면 사용자의 어느 파일이든 Photoshop 으로 가져와 캡처로 볼 수 있다.
+
+열 수 있는 형식은 `psd` · `psb` · `tif` · `tiff` · `png` · `jpg` · `jpeg` 다.
+**카메라 RAW 는 거절한다** — Camera Raw 대화상자가 떠 플러그인이 멈춘다.
+RAW 의 현상 설정은 슬라이더를 보며 정하는 일이라 사람이 직접 여는 편이 맞다.
+
+`alreadyOpen` 이 `true` 면 그 파일이 이미 열려 있어 **디스크에서 다시 읽은 것이
+아니라 기존 창이 활성화된 것**이다. 편집 중인 내용이 있으면 디스크의 것과 다르다.
+
 ### 4.1.2 결함 제거
 
 | API | Permission | 비고 |
 |---|---|---|
 | `photoshop.retouch.remove_spots` | EDIT | 센서 먼지·잡티. **배경 레이어는 거절한다** |
+| `photoshop.dodge_burn.dab` | EDIT | 부드러운 원형 얼룩. **softLight 빈 레이어에 칠한다** |
+| `photoshop.paint.dab` | EDIT | 지정한 색 얼룩. 배경은 거절한다 |
+
+### 4.2.1 텍스트
+
+워터마크·서명 범위다. 자간·행간·단락·변형은 §5.12 에 남겨 두었다.
+
+| API | Permission | 비고 |
+|---|---|---|
+| `photoshop.text.create` | EDIT | 내용·위치·폰트·크기·색·불투명도·정렬 |
+| `photoshop.text.set` | EDIT | 기존 텍스트 레이어 수정. **텍스트가 아니면 거절** |
+| `photoshop.font.list` | READ | **`postScriptName` 이 `font` 에 넣을 값** |
+
 | `photoshop.camera_raw.apply` | EDIT | Camera Raw 필터. **Tool 은 이 하나뿐이다** |
 
 지점마다 타원으로 선택해 내용 인식 채우기를 건다. `spots` 로 여러 개를 한 번에 받는다.
@@ -218,6 +243,7 @@ Mock Bridge 는 픽셀을 읽지 않으므로 **실패한다.** 그럴듯한 각
 | `photoshop.layer.set_blend_mode` | EDIT | normal · multiply · screen · overlay · softLight 등 |
 | `photoshop.layer.from_background` | EDIT | 배경 → 일반 레이어. id 가 바뀐다 |
 | `photoshop.layer.stamp_visible` | EDIT | 보이는 레이어를 합친 복제본 |
+| `photoshop.smart_object.convert` | EDIT | 스마트 필터를 걸 수 있게 만든다. **id 가 바뀐다** |
 | `photoshop.layer.delete` | DESTRUCTIVE | **id 를 명시한다.** 패턴을 받지 않는다 |
 
 `layerId` 를 생략하면 활성 레이어를 대상으로 한다. 그것이 무엇인지는
@@ -267,10 +293,12 @@ Photoshop UI 는 그룹 끝에서 한 번 더 누르면 밖으로 나간다. 그
 |---|---|---|
 | `photoshop.mask.create` | EDIT | `from`: revealAll · hideAll · **fromSelection** |
 | `photoshop.mask.enable` | EDIT | |
+| `photoshop.mask.dab` | EDIT | 마스크에 얼룩을 **더한다**. 조정 레이어에도 쓴다 |
 | `photoshop.mask.disable` | EDIT | 마스크를 지우지 않고 해제만 한다 |
 | `photoshop.mask.gradient` | EDIT | 마스크에 그라디언트. **linear · radial**. 마스크가 있어야 한다 |
 | `photoshop.selection.set` | EDIT | `shape`: rectangle · ellipse · **canvas** · layerTransparency |
 | `photoshop.selection.sky` | EDIT | Photoshop 의 `선택 > 하늘` |
+| `photoshop.selection.subject` | EDIT | Photoshop 의 `선택 > 피사체`. **형태**로 잡는다 |
 | `photoshop.selection.clear` | EDIT | |
 | `photoshop.selection.invert` | EDIT | 선택이 없으면 실패한다 |
 | `photoshop.selection.modify` | EDIT | feather · expand · contract · smooth |
@@ -387,7 +415,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 |---|---|---|---|
 | `photoshop.document.list` | P1 | READ | 열린 문서 전체 |
 | `photoshop.document.create` | P1 | EDIT | |
-| `photoshop.document.open` | P1 | EXTERNAL | 파일을 읽는다 |
 | `photoshop.document.duplicate` | P2 | EDIT | |
 | `photoshop.document.mode_convert` | P2 | EDIT | RGB · CMYK · Lab |
 | `photoshop.document.bit_depth_convert` | P2 | EDIT | 8 · 16 · 32 |
@@ -421,7 +448,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
-| `photoshop.selection.subject` | P1 | EDIT | `선택 > 피사체`. 아래 참조 |
 | `photoshop.selection.from_layer` | P2 | EDIT | 레이어 투명도에서 |
 
 ### 5.5 Adjustment
@@ -467,7 +493,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
 | `photoshop.smart_object.get_info` | P2 | READ | |
-| `photoshop.smart_object.convert` | P2 | EDIT | |
 | `photoshop.smart_object.replace_contents` | P2 | EXTERNAL | 파일을 읽는다 |
 | `photoshop.smart_object.open_contents` | P2 | EDIT | |
 | `photoshop.smart_object.relink` | P3 | EXTERNAL | |
@@ -509,8 +534,8 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 전부 P3 다. 실제 요구가 확인된 뒤에 연다. 지금은 이름만 잡아 둔다.
 
 ```text
-photoshop.text.create · get · set_content · set_font · set_size
-                        set_color · set_alignment · set_tracking
+photoshop.text.get · set_tracking · set_leading · set_paragraph · warp
+   (create · set · font.list 은 §4.2.1 에서 열었다 — 워터마크·서명 범위)
 
 photoshop.shape.rectangle · ellipse · line · set_fill · set_stroke
                             set_stroke_width · convert_to_path
@@ -583,8 +608,9 @@ Core 에서는 가능한 한 저수준 기능만 제공한다.
 단계에서 막혔고, 사각형으로 근사할 수밖에 없었다. 실제 지평선은 직선이 아니므로
 그 결과는 쓸모가 없다. 뒤따르는 네 단계가 전부 의미를 잃었다.
 
-`선택 > 피사체` 도 같은 이유로 Core 에 속하지만 **아직 구현하지 못했다.**
-`autoCutout` descriptor 가 거부된다. 관찰한 것:
+`선택 > 피사체` 도 같은 이유로 Core 에 속한다. **§17.28 에서 구현했다.**
+
+한동안 여기에 "`autoCutout` descriptor 가 거부된다" 고 적혀 있었다.
 
 ```text
 조정 레이어 활성:  "피사체 선택" 명령은 현재 사용할 수 없습니다.
@@ -592,8 +618,12 @@ Core 에서는 가능한 한 저수준 기능만 제공한다.
              (sampleAllLayers: false 를 줘도, 빼도 같다)
 ```
 
-레이어 종류에 따라 오류가 달라지므로 대상 조건과 파라미터 둘 다 봐야 한다.
-동작하지 않는 Tool 을 남기지 않기 위해 §5 후보로 돌려 두었다.
+**이름은 처음부터 맞았다.** 알림을 `["all"]` 로 받아 메뉴 실행을 캡처하니
+`autoCutout { sampleAllLayers: false }` 그대로였다. 틀린 것은 **부르는 자리**였다 —
+`executeAsModal` 안에서는 거부된다. 이 Command 만 `runModal` 을 쓰지 않는다.
+
+"파라미터가 유효하지 않다" 는 메시지가 파라미터를 가리킨 것이 아니었다.
+문서에서 이름을 가져다 쓰고 오류 문구를 그대로 믿은 것이 막힌 이유였다.
 
 ### 실제로 그렇게 됐는가
 

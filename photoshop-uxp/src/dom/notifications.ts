@@ -16,7 +16,26 @@ import { action, app } from "photoshop";
  * 실제 버그를 잡았다. 그럴듯한 이름으로 덮으면 틀린 것을 알 수 없다.
  */
 
-/** 구독할 액션. 너무 넓게 잡으면 사용자가 조금만 움직여도 쏟아진다. */
+/**
+ * **`["all"]` 로 등록한다.** (ROADMAP §17.28)
+ *
+ * 한동안 아래 이름 목록으로 등록했고 알림이 **하나도 오지 않았다.** 등록은
+ * 성공하는데(문자열 배열·객체 배열 양쪽 모두) 전달이 안 된다. 그래서 "Photoshop
+ * 27.8 에서는 알림이 안 된다" 고 적어 두었는데 **틀렸다** — `["all"]` 로 걸면 온다.
+ * Camera Raw descriptor 를 잡아낸 것이 그 방법이었다(§17.17).
+ *
+ * ```text
+ * ["make", "set", …]   등록 성공 · 전달 0
+ * ["all"]              전달됨
+ * ```
+ *
+ * 넓게 받는 대신 **거르는 쪽에서 좁힌다.** 아는 액션은 이름을 붙이고, 모르는
+ * 것은 `photoshop.unknown` 으로 원본과 함께 보낸다 — 이 파일 맨 위가 말하는
+ * 원칙 그대로다. 버퍼가 고리형이라 쏟아져도 메모리가 늘지 않는다.
+ */
+const REGISTER = ["all"] as const;
+
+/** 이름을 붙여 줄 액션. 나머지는 `photoshop.unknown` 으로 간다. */
 const WATCHED = [
   "open",
   "close",
@@ -135,8 +154,8 @@ export function startNotifications(send: NotificationSink): () => void {
    * 어느 쪽이 먹었는지 보고한다 — 다음 사람이 같은 데서 막히지 않도록.
    */
   const forms: { label: string; events: unknown }[] = [
-    { label: "string[]", events: [...WATCHED] },
-    { label: "{event}[]", events: WATCHED.map((event) => ({ event })) },
+    { label: "string[]", events: [...REGISTER] },
+    { label: "{event}[]", events: REGISTER.map((event) => ({ event })) },
   ];
 
   let registered: string | null = null;
@@ -170,18 +189,20 @@ export function startNotifications(send: NotificationSink): () => void {
   // "started" 라고만 보내면 동작하는 것처럼 읽힌다. 실기에서는 등록이 성공해도
   // 알림이 하나도 오지 않았다. 등록과 전달은 별개라는 것을 이름과 내용에 담는다.
   send("photoshop.notifications.registered", {
-    events: [...WATCHED],
+    events: [...REGISTER],
+    named: [...WATCHED],
     form: registered,
     delivery: "unverified",
     note:
-      "등록은 성공했습니다. Photoshop 27.8 / manifestVersion 4 에서는 실제 알림이 " +
-      "전달되지 않는 것을 확인했습니다. 이 이벤트 이후 photoshop.* 이 하나도 오지 " +
-      "않으면 이 환경에서는 지원되지 않는 것입니다.",
+      "등록은 성공했습니다. 전달은 별개이므로 photoshop.event.recent 로 실제 알림이 " +
+      "오는지 확인하세요. 이름 있는 액션 목록으로 등록하면 전달이 되지 않아 " +
+      '["all"] 로 등록합니다.',
   });
 
   return () => {
     try {
-      const events = registered === "string[]" ? [...WATCHED] : WATCHED.map((event) => ({ event }));
+      const events =
+        registered === "string[]" ? [...REGISTER] : REGISTER.map((event) => ({ event }));
       (
         action.removeNotificationListener as unknown as
           ((events: unknown, listener: unknown) => void) | undefined

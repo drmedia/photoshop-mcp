@@ -1,4 +1,8 @@
-import { asDouble, buildCameraRawDescriptor } from "../photoshop-uxp/src/dom/camera-raw-keys.js";
+import {
+  asDouble,
+  buildCameraRawDescriptor,
+  flattenCurve,
+} from "../photoshop-uxp/src/dom/camera-raw-keys.js";
 import { createPhotoshopMcp, createSilentLogger } from "@photoshop-mcp/mcp-core";
 import { MockPhotoshopBridge } from "@photoshop-mcp/photoshop-bridge";
 import { describe, expect, it } from "vitest";
@@ -81,6 +85,187 @@ describe("Camera Raw", () => {
       const { descriptor, applied } = buildCameraRawDescriptor({ exposure: 1.5 });
       expect(applied).toEqual(["exposure"]);
       expect(Object.keys(descriptor)).toEqual(["_obj", "$Ex12"]);
+    });
+  });
+
+  /**
+   * 색상 혼합(HSL). (ROADMAP §17.29)
+   *
+   * 키 24개는 알림 캡처로 잡은 것이다. 여기서 고정하지 않으면 오타 하나가
+   * **오류 없이 조용히 무시되는** 경로가 된다 — `$Ex12` 정수 함정과 같은 종류다.
+   */
+  describe("색상 혼합", () => {
+    const COLORS = ["Red", "Orange", "Yellow", "Green", "Aqua", "Blue", "Purple", "Magenta"];
+    const SUFFIX = ["R", "O", "Y", "G", "A", "B", "P", "M"];
+
+    it("**잡아낸 키 그대로 나간다**", () => {
+      for (const [index, color] of COLORS.entries()) {
+        const suffix = SUFFIX[index] as string;
+        expect(buildCameraRawDescriptor({ [`hue${color}`]: 11 }).descriptor[`$HA_${suffix}`]).toBe(
+          11,
+        );
+        expect(
+          buildCameraRawDescriptor({ [`saturation${color}`]: 22 }).descriptor[`$SA_${suffix}`],
+        ).toBe(22);
+        expect(
+          buildCameraRawDescriptor({ [`luminance${color}`]: 33 }).descriptor[`$LA_${suffix}`],
+        ).toBe(33);
+      }
+    });
+
+    it("**정수를 실수로 밀지 않는다**", () => {
+      // `$Ex12` 만 실수를 요구한다. 여기까지 밀면 실기에서 잡은 값과 달라진다.
+      expect(buildCameraRawDescriptor({ saturationOrange: 5 }).descriptor["$SA_O"]).toBe(5);
+      expect(buildCameraRawDescriptor({ luminanceBlue: -8 }).descriptor["$LA_B"]).toBe(-8);
+    });
+
+    it("전역 saturation 과 섞이지 않는다", () => {
+      // 전역은 `$` 가 없는 `saturation` 이고 색상별은 `$SA_*` 다. 이름이 비슷해 위험하다.
+      const { descriptor } = buildCameraRawDescriptor({ saturation: 9, saturationOrange: 5 });
+      expect(descriptor["saturation"]).toBe(9);
+      expect(descriptor["$SA_O"]).toBe(5);
+    });
+
+    it("색상 혼합만으로는 화이트밸런스를 건드리지 않는다", () => {
+      expect(buildCameraRawDescriptor({ saturationOrange: 5 }).descriptor["$WBal"]).toBeUndefined();
+    });
+
+    it("**버전 키를 넣지 않는다**", () => {
+      // 잡힌 descriptor 에는 $CrVe·$PrVN·$PrVe 가 있었지만 빼도 동작한다.
+      // 박아 넣으면 다른 Camera Raw 버전에서 깨진다.
+      const { descriptor } = buildCameraRawDescriptor({ saturationOrange: 5, hueBlue: 3 });
+      for (const key of ["$CrVe", "$PrVN", "$PrVe"]) {
+        expect(descriptor[key]).toBeUndefined();
+      }
+    });
+
+    it("24개가 전부 있다", () => {
+      const params: Record<string, number> = {};
+      for (const color of COLORS) {
+        params[`hue${color}`] = 1;
+        params[`saturation${color}`] = 2;
+        params[`luminance${color}`] = 3;
+      }
+      const { applied, descriptor } = buildCameraRawDescriptor(params);
+      expect(applied).toHaveLength(24);
+      // _obj 하나를 더한 수다.
+      expect(Object.keys(descriptor)).toHaveLength(25);
+    });
+  });
+
+  /**
+   * 곡선. (ROADMAP §17.30)
+   *
+   * `curve` 에 `$` 가 없다 — `saturation` 에 이은 두 번째 예외다.
+   * 규칙성을 가정하면 이것 하나가 조용히 빠진다.
+   */
+  describe("곡선", () => {
+    it("**파라메트릭 키를 잡아낸 그대로 보낸다**", () => {
+      const { descriptor } = buildCameraRawDescriptor({
+        curveHighlights: -43,
+        curveLights: 0,
+        curveDarks: 27,
+        curveShadows: -14,
+      });
+      expect(descriptor["$PC_H"]).toBe(-43);
+      expect(descriptor["$PC_L"]).toBe(0);
+      expect(descriptor["$PC_D"]).toBe(27);
+      expect(descriptor["$PC_S"]).toBe(-14);
+    });
+
+    it("구간 경계는 $PC_1·2·3 이다", () => {
+      const { descriptor } = buildCameraRawDescriptor({
+        curveShadowSplit: 25,
+        curveMidtoneSplit: 50,
+        curveHighlightSplit: 75,
+      });
+      expect(descriptor["$PC_1"]).toBe(25);
+      expect(descriptor["$PC_2"]).toBe(50);
+      expect(descriptor["$PC_3"]).toBe(75);
+    });
+
+    it("**RGB 포인트 곡선 키에는 `$` 가 없다**", () => {
+      const { descriptor } = buildCameraRawDescriptor({
+        curveRgb: [
+          { x: 0, y: 0 },
+          { x: 128, y: 140 },
+          { x: 255, y: 255 },
+        ],
+      });
+      expect(descriptor["curve"]).toEqual([0, 0, 128, 140, 255, 255]);
+      expect(descriptor["$curve"]).toBeUndefined();
+    });
+
+    it("채널 곡선은 $CrvR·G·B 다", () => {
+      const points = [
+        { x: 0, y: 0 },
+        { x: 255, y: 255 },
+      ];
+      expect(buildCameraRawDescriptor({ curveRed: points }).descriptor["$CrvR"]).toEqual([
+        0, 0, 255, 255,
+      ]);
+      expect(buildCameraRawDescriptor({ curveGreen: points }).descriptor["$CrvG"]).toEqual([
+        0, 0, 255, 255,
+      ]);
+      expect(buildCameraRawDescriptor({ curveBlue: points }).descriptor["$CrvB"]).toEqual([
+        0, 0, 255, 255,
+      ]);
+    });
+
+    it("점을 평탄 배열로 편다", () => {
+      expect(
+        flattenCurve([
+          { x: 0, y: 0 },
+          { x: 67, y: 57 },
+          { x: 255, y: 255 },
+        ]),
+      ).toEqual([0, 0, 67, 57, 255, 255]);
+    });
+
+    it("**파라메트릭을 주면 구간 경계를 자동으로 채운다**", () => {
+      // 경계 없이 $PC_H 만 보내면 ok 를 돌려주면서 아무 일도 하지 않는다.
+      // 실기에서 달이 1레벨도 안 움직였다.
+      const { descriptor } = buildCameraRawDescriptor({ curveHighlights: -60 });
+      expect(descriptor["$PC_1"]).toBe(25);
+      expect(descriptor["$PC_2"]).toBe(50);
+      expect(descriptor["$PC_3"]).toBe(75);
+    });
+
+    it("호출자가 준 경계를 덮지 않는다", () => {
+      const { descriptor } = buildCameraRawDescriptor({
+        curveDarks: 10,
+        curveMidtoneSplit: 40,
+      });
+      expect(descriptor["$PC_2"]).toBe(40);
+      expect(descriptor["$PC_1"]).toBe(25);
+    });
+
+    it("포인트 곡선만 주면 경계를 넣지 않는다", () => {
+      // 파라메트릭을 쓰지 않는데 경계가 붙으면 없던 설정을 만들어내는 셈이다.
+      const { descriptor } = buildCameraRawDescriptor({
+        curveRgb: [
+          { x: 0, y: 0 },
+          { x: 255, y: 255 },
+        ],
+      });
+      expect(descriptor["$PC_1"]).toBeUndefined();
+    });
+
+    it("채도 미세 조정은 $crfs 다", () => {
+      // descriptor 에 잡혀 있었지만 뜻을 몰라 한동안 빼 두었던 키다.
+      expect(buildCameraRawDescriptor({ curveRefineSaturation: 60 }).descriptor["$crfs"]).toBe(60);
+    });
+
+    it("곡선만 주면 화이트밸런스를 건드리지 않는다", () => {
+      const { descriptor } = buildCameraRawDescriptor({ curveDarks: 10 });
+      expect(descriptor["$WBal"]).toBeUndefined();
+    });
+
+    it("기본 패널의 highlights 와 다른 키다", () => {
+      // 이름이 비슷해 섞이기 쉽다. $Hi12 와 $PC_H 는 다른 것이다.
+      const { descriptor } = buildCameraRawDescriptor({ highlights: -20, curveHighlights: -43 });
+      expect(descriptor["$Hi12"]).toBe(-20);
+      expect(descriptor["$PC_H"]).toBe(-43);
     });
   });
 

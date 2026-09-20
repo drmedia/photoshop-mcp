@@ -153,6 +153,15 @@ declare module "photoshop" {
   export interface PhotoshopApp {
     readonly activeDocument: PhotoshopDocument | null;
     readonly documents: readonly PhotoshopDocument[];
+
+    /**
+     * 파일을 연다. **비동기다.**
+     *
+     * 인자 없이 부르면 파일 선택 대화상자가 뜨므로 **반드시 entry 를 준다.**
+     * RAW 를 주면 Camera Raw 대화상자가 뜬다 — Command 스키마가 미리 막는다.
+     * (ROADMAP §17.26)
+     */
+    open(entry: Entry): Promise<PhotoshopDocument>;
   }
 
   export interface ExecuteAsModalContext {

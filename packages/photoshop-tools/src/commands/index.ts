@@ -84,6 +84,7 @@ import {
 } from "./document-save.js";
 import { LAYER_GET_ACTIVE, layerGetActiveCommand } from "./layer-active.js";
 import { DOCUMENT_CROP, DocumentCropParamsSchema, documentCropCommand } from "./document-crop.js";
+import { DOCUMENT_OPEN, DocumentOpenParamsSchema, documentOpenCommand } from "./document-open.js";
 import {
   DOCUMENT_CLOSE,
   DOCUMENT_FLATTEN,
@@ -92,6 +93,31 @@ import {
   documentCloseCommand,
   documentFlattenCommand,
 } from "./document-lifecycle.js";
+import { DODGE_BURN_DAB, DodgeBurnParamsSchema, dodgeBurnDabCommand } from "./dodge-burn.js";
+import {
+  FONT_LIST,
+  FontListParamsSchema,
+  TEXT_CREATE,
+  TEXT_SET,
+  TextCreateParamsSchema,
+  TextSetParamsSchema,
+  fontListCommand,
+  textCreateCommand,
+  textSetCommand,
+} from "./text.js";
+import {
+  MASK_DAB,
+  MaskDabParamsSchema,
+  PAINT_DAB,
+  PaintDabParamsSchema,
+  maskDabCommand,
+  paintDabCommand,
+} from "./paint.js";
+import {
+  SMART_OBJECT_CONVERT,
+  SmartObjectConvertParamsSchema,
+  smartObjectConvertCommand,
+} from "./smart-object.js";
 import { LAYER_REORDER, LayerReorderParamsSchema, layerReorderCommand } from "./layer-reorder.js";
 import { MEASURE_TILT, MeasureTiltParamsSchema, measureTiltCommand } from "./measure-tilt.js";
 import {
@@ -122,7 +148,12 @@ import {
   captureLayerCommand,
   captureSelectionCommand,
 } from "./capture.js";
-import { SELECTION_SKY, selectionSkyCommand } from "./selection-auto.js";
+import {
+  SELECTION_SKY,
+  SELECTION_SUBJECT,
+  selectionSkyCommand,
+  selectionSubjectCommand,
+} from "./selection-auto.js";
 import {
   ADJUSTMENT_COLOR_BALANCE,
   ColorBalanceParams,
@@ -198,6 +229,11 @@ export * from "./document-rotate.js";
 export * from "./measure-tilt.js";
 export * from "./layer-reorder.js";
 export * from "./document-lifecycle.js";
+export * from "./document-open.js";
+export * from "./smart-object.js";
+export * from "./dodge-burn.js";
+export * from "./paint.js";
+export * from "./text.js";
 export * from "./document-statistics.js";
 export * from "./retouch.js";
 export * from "./camera-raw.js";
@@ -228,6 +264,7 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_LIST, layerListCommand, { permission: "read" });
   registry.register(LAYER_GET_ACTIVE, layerGetActiveCommand, { permission: "read" });
   registry.register(SELECTION_SKY, selectionSkyCommand, { permission: "edit" });
+  registry.register(SELECTION_SUBJECT, selectionSubjectCommand, { permission: "edit" });
   registry.register(LAYER_DELETE, layerDeleteCommand, {
     // CORE_API §8 이 미리 정해 둔 분류다. 작업을 없애는 것이 목적이다.
     permission: "destructive",
@@ -251,6 +288,11 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     permission: "edit",
     schema: DocumentCropParamsSchema,
   });
+  registry.register(DOCUMENT_OPEN, documentOpenCommand, {
+    // 파일을 읽는다. 승인된 폴더 안으로 가두지만 경계를 넘는 것은 같다.
+    permission: "external",
+    schema: DocumentOpenParamsSchema,
+  });
   registry.register(DOCUMENT_FLATTEN, documentFlattenCommand, {
     // 조정 레이어가 구워지고 숨긴 레이어가 사라진다. (CORE_API §5.1)
     permission: "destructive",
@@ -260,6 +302,39 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     // 저장하지 않은 변경이 사라진다. (CORE_API §5.1)
     permission: "destructive",
     schema: DocumentCloseParamsSchema,
+  });
+  registry.register(SMART_OBJECT_CONVERT, smartObjectConvertCommand, {
+    // 픽셀을 버리지 않는다. 레이어가 한 겹 감싸질 뿐이고 rasterize 로 되돌린다.
+    permission: "edit",
+    schema: SmartObjectConvertParamsSchema,
+  });
+  registry.register(DODGE_BURN_DAB, dodgeBurnDabCommand, {
+    // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.
+    permission: "edit",
+    schema: DodgeBurnParamsSchema,
+  });
+  registry.register(TEXT_CREATE, textCreateCommand, {
+    permission: "edit",
+    schema: TextCreateParamsSchema,
+  });
+  registry.register(TEXT_SET, textSetCommand, {
+    permission: "edit",
+    schema: TextSetParamsSchema,
+  });
+  registry.register(FONT_LIST, fontListCommand, {
+    // 설치된 폰트를 읽을 뿐 문서를 바꾸지 않는다.
+    permission: "read",
+    schema: FontListParamsSchema,
+  });
+  registry.register(PAINT_DAB, paintDabCommand, {
+    // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.
+    permission: "edit",
+    schema: PaintDabParamsSchema,
+  });
+  registry.register(MASK_DAB, maskDabCommand, {
+    // 마스크만 바꾼다. 픽셀은 건드리지 않는다.
+    permission: "edit",
+    schema: MaskDabParamsSchema,
   });
   registry.register(LAYER_REORDER, layerReorderCommand, {
     permission: "edit",

@@ -14,15 +14,16 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **66개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **75개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 73). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 82). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
 - 조회: `ping`, `document.get`, `layer.list`
 - 레이어: create / duplicate / rename / select / set_visibility / set_opacity / reorder
+- 스마트 오브젝트: `smart_object.convert` — 뒤에 거는 필터가 스마트 필터가 된다
 - 그룹: create / move_layer · History: undo
 - 조정 레이어: curves / levels / brightness_contrast
 - 마스크: create / enable / disable · 선택: clear / invert
@@ -36,6 +37,9 @@ Tool 까지 더한 수다(지금 73). 한동안 이 값을 Core 개수로 옮겨
 - 측정: `measure.tilt` — 경계선 기울기. **각도와 잔차를 함께 준다**
 - 측정: `document.statistics` — **전체 해상도 원본**에서 히스토그램·채널 통계
 - 결함 제거: `retouch.remove_spots` — 먼지·잡티. **배경 레이어는 거절한다**
+- 국소 명암: `dodge_burn.dab` — 부드러운 원형 얼룩. **softLight 빈 레이어에 칠한다**
+- 칠하기: `paint.dab` (색) · `mask.dab` (마스크에 **더한다**)
+- 텍스트: `text.create` · `text.set` · `font.list` — **워터마크·서명 범위**
 - Camera Raw: `camera_raw.apply` — **Tool 은 이 하나뿐이다**
 
 ## 캡처 (ROADMAP §17.10)
@@ -155,6 +159,114 @@ Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `f
 **공백이라고 적기 전에 있는 것부터 확인한다.** 두 번 모두 "도구가 부족하다" 가
 아니라 "쓸 줄 몰랐다" 였다.
 
+## 닷징 · 버닝 (ROADMAP §17.31)
+
+**브러시가 아니라 얼룩이다.** 치유 브러시를 만들지 않은 이유(§17.14)는 획 경로가
+필요하다는 것이었는데, 닷징·버닝은 `중심 · 반지름 · 강도 · 경도` 로 결정된다.
+타원 선택 → 페더 → 채우기로, `fill` descriptor 는 §17.14 에서 검증된 것이다.
+
+**빈 투명 레이어에 칠한다.** Soft Light 에서 투명 픽셀도 회색과 같이 중립이라
+50% 회색을 채울 필요가 없다. 레이어 준비는 이 Command 가 하지 않는다 —
+`layer.create` + `layer.set_blend_mode softLight` 다.
+
+**실효 범위가 지정 반지름의 약 2.5배다.** 경도 0 이면 페더가 반지름과 같고 페더는
+양쪽으로 번진다. 실기에서 반지름 600 이 1500 까지 닿았고 600 지점에 아직 절반이
+남아 있었다. 모르면 옆 영역까지 밝힌다.
+
+**성운에는 맞지 않는다** — 원형 얼룩이 구조를 못 따라간다. 형태가 복잡하면
+`selection.color_range` + `adjustment.curves` 쪽이다.
+
+## 텍스트 (ROADMAP §17.33)
+
+**워터마크·서명까지만 열었다.** 자간·행간·단락·워프는 `CORE_API.md` §5.12 에
+남아 있다 — 안 쓰는 파라미터가 스키마에 있으면 호출자가 무엇이 중요한지 모른다.
+
+**DOM 에 있는지 재 봤고 있었다** — `document.createTextLayer` · `textItem.
+characterStyle` · `app.fonts`. batchPlay 를 한 줄도 쓰지 않았다.
+
+**`SolidColor` 는 통째로 대입할 수 없다.** `app.SolidColor` 로 만들고
+`solid.rgb.red = 255` 처럼 **속성을 하나씩** 넣는다. `{ rgb: {...} }` 도
+`solid.rgb = {...}` 도 거절당한다.
+
+**없는 폰트는 조용히 대체된다.** 오류 없이 다른 폰트로 그려서 호출자는 걸렸다고
+믿는다. `app.fonts` 에서 미리 찾아보고 거절한다. `font.list` 가 주는
+**`postScriptName`** 이 `font` 에 넣을 값이고 화면 이름이 아니다.
+
+## 마스크에 칠하기 (ROADMAP §17.32)
+
+`dodge_burn.dab` 의 논리는 내용과 대상을 바꿔도 성립한다 — `paint.dab` 은 지정한
+색을 픽셀에, `mask.dab` 은 흰색·검정을 **마스크에** 칠한다. 공통 경로는 `dab.ts` 다.
+
+**`mask.dab` 이 더 중요하다.** 조정 레이어의 마스크를 다듬으므로 비파괴 보정
+한가운데에 들어간다. `mask.gradient` 가 마스크를 덮어쓰는 것과 달리 **더한다.**
+선형·방사형으로 맞출 수 없는 비대칭한 빛 공해가 이것으로 풀린다.
+
+**이미 끝까지 간 마스크는 더 움직일 수 없다.** 검정인 곳에 `hide`, 흰색인 곳에
+`reveal` 은 아무 일도 하지 않는데 **오류도 나지 않는다.** 실기에서 두 번 겪었다.
+그때는 마스크가 아니라 곡선 자체를 고쳐야 한다.
+
+`reveal`/`hide` 로 받는다. `white`/`black` 이면 호출자가 매번 어느 쪽이 보이는
+쪽인지 되짚어야 한다.
+
+**`RGBColor` 의 녹색 키는 `green` 이 아니라 `grain` 이다.**
+
+## 마스크는 밝기가 아니라 형태로 (ROADMAP §17.28)
+
+**밝기 마스크와 `shadows` 는 서로를 무효화한다.**
+
+```text
+selection.color_range highlights  →  어두운 부분을 뺀다
+camera_raw shadows                →  어두운 부분에만 작용한다
+```
+
+교량 보정에서 실제로 겪었다. 입체감이 필요한 곳은 상판 아래와 교각 — 어두운
+면인데 마스크가 바로 그곳을 제외했다. 같은 값으로 두 마스크를 비교하면 이렇다.
+
+```text
+             밝기 마스크        피사체 마스크
+교각 σ       1.134 → 1.134     1.134 → 1.273
+```
+
+`photoshop.selection.subject` 는 **형태**로 잡으므로 어두운 면이 함께 들어온다.
+무엇을 피사체로 볼지는 Photoshop 이 정하니 결과의 `bounds` 를 확인한다.
+
+**`texture` · `clarity` 는 대상에 따라 효과가 크게 다르다.** 달(매끄러운 면)은
+`texture 18` 로 σ +29% 였는데 교량(초점 맞은 금속 구조)은 `texture 25` 로 +6.7%
+였다. 이미 국소 대비가 높으면 금방 포화한다.
+
+**국소 보정이 격리됐는지는 σ 로 본다.** 밝기는 거의 안 변하면서 노이즈만 변하는
+경우가 있어 L 만 보면 놓친다.
+
+## 국소 보정은 별도 레이어에 (ROADMAP §17.27)
+
+**스마트 필터 마스크는 레이어당 하나다.** 전역 Camera Raw 가 걸린 Smart Object 에
+선택 영역을 주고 한 번 더 걸면 그 마스크가 **스택 전체**에 걸린다 — 맞춰 둔 전역
+톤까지 그 선택 안에만 적용된다. 그래서 국소 보정은 별도 레이어여야 한다.
+
+```text
+layer.duplicate / stamp_visible
+ ↓
+selection.*  →  mask.create { from: "fromSelection" }
+ ↓
+smart_object.convert
+ ↓
+camera_raw.apply            → 스마트 필터로 남아 값만 고칠 수 있다
+```
+
+**`mask.create` 의 `from` 기본값은 `revealAll` 이다.** 선택이 있어도 자동으로 쓰지
+않는다. 빠뜨리면 전부 흰 마스크가 되어 국소 보정이 조용히 전역에 걸린다.
+
+`smart_object.convert` 하면 **마스크가 SO 안으로 흡수되고 SO 가 그 범위로 잘린다.**
+`hasMask` 가 `false` 가 되는 것이 그 증거다. 그리고 **id 가 바뀐다** — 옛 id 는
+사라지므로 결과의 `layer.id` 를 이어 쓴다. `previousId` 가 옛 값을 담는다.
+
+이미 스마트 오브젝트면 `converted: false` 로 답하고 아무것도 하지 않는다. 겹치면
+스마트 오브젝트 안에 스마트 오브젝트가 생긴다.
+
+**국소 보정이 격리됐는지는 레이어를 껐다 켜며 같은 영역을 재서 확인한다.**
+실기에서 `from` 을 빠뜨려 전역에 걸린 것을 눈으로는 못 봤다 — 밝기가 거의 안
+변했기 때문이다(하늘 L 25.11 → 25.08). 잡아낸 것은 노이즈였다(σ 0.93 → 1.24).
+
 ## Camera Raw (ROADMAP §17.17)
 
 **Tool 은 `camera_raw.apply` 하나뿐이다.** 슬라이더마다 Tool 을 두지 않는다 —
@@ -163,6 +275,22 @@ Camera Raw 는 슬라이더들이 한 렌더링 파이프라인 안에서 함께
 `basic` · `detail` 같은 묶음 Tool 도 두지 않는다 — 이어 부르면 똑같이 두 번 구워진다.
 
 **키는 짐작한 것이 하나도 없다.** `addNotificationListener(["all"])` 로 잡아냈다.
+**색상 혼합(HSL) 24개**도 같은 방법으로 잡았다(ROADMAP §17.29) — `$HA_*` 색조 ·
+`$SA_*` 채도 · `$LA_*` 광도, 접미사는 `R·O·Y·G·A·B·P·M` 이다. 이쪽은 **정수**로 간다.
+
+**곡선**도 있다(ROADMAP §17.30) — `$PC_H·L·D·S` 파라메트릭, `$PC_1·2·3` 구간 경계,
+`curve`·`$CrvR·G·B` 포인트, `$crfs` 채도 미세 조정.
+
+**`curve` 에는 `$` 가 없다** — `saturation` 에 이은 두 번째 예외다.
+
+**파라메트릭 곡선은 구간 경계가 함께 있어야 적용된다.** 없으면 `ok` 를 돌려주면서
+아무 일도 안 한다 — 실기에서 달이 1레벨도 안 움직였다. 빌더가 기본값 25·50·75 를
+채운다. 이 프로젝트의 "조용한 실패" 세 번째다(배경 `set_opacity` · `$Ex12` · 이것).
+
+descriptor 를 캡처할 때: **이벤트 버퍼는 MCP 서버 프로세스에 있다.** 서버 하나를
+띄워 둔 채로 사람이 메뉴를 실행해야 한다. 그리고 **빈 레이어(`layer.create`)에는
+걸리지 않는다** — 조정할 색이 없어 색상 혼합이 흑백 믹서로 떨어진다.
+`layer.stamp_visible` 로 내용이 있는 레이어를 만든다.
 
 함정 넷. **`$Ex12` 에 정수가 가면 조용히 무시된다** — `ok:true` 를 돌려주면서 아무것도
 안 한다. 빌더가 0.0001 밀어 실수로 만든다. **`saturation` 만 `$` 가 없다.**
@@ -313,6 +441,16 @@ Extension 의 manifest `permissions` 는 **강제된다.** 선언 밖의 Tool �
 **복제본**을 만들어 평탄화·심도 변환 후 저장하고 닫는다. 원본을 건드리지 않기 위함이다.
 `bitDepth` 는 8 또는 16, 생략하면 문서 심도를 따른다. 결과의 `bitDepth` 는 요청값이
 아니라 **실제값**이다.
+
+`document.open` 은 승인된 폴더 안의 파일만 연다(ROADMAP §17.26). 저장과 같은 규칙이다 —
+읽기라고 느슨하게 두면 어느 파일이든 가져와 캡처로 볼 수 있다.
+
+**RAW 는 거절한다.** Camera Raw 대화상자가 떠 플러그인이 멈춘다. 대화상자는 이
+프로젝트에서 세 번 반복된 실패 유형이다(§17.11 · §17.25 · §17.26). 열 수 있는
+형식을 늘릴 때는 **실기에서 대화상자가 뜨지 않는 것을 확인한다.**
+
+`alreadyOpen` 은 Photoshop 이 같은 파일을 두 번 열지 않고 기존 창을 활성화한다는
+사실을 드러낸다. 편집 중이면 디스크의 것과 다르다.
 
 `document.flatten` · `document.close` 를 만들었다(ROADMAP §17.25). 둘 다 `destructive` 다.
 
@@ -496,17 +634,18 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`milky://state`). unloa
 **Command 수명 이벤트는 동작한다** — `command.started` · `command.completed` ·
 `command.failed`. Photoshop 연결이 없어도 난다.
 
-**Photoshop 알림은 동작한다 — `["all"]` 로 등록해야 한다.** (ROADMAP §17.17)
+**Photoshop 알림은 동작한다 — `["all"]` 로 등록해야 한다.** (ROADMAP §17.17, §17.28)
 
 한동안 "알림이 하나도 오지 않는다" 고 적어 두었는데 **틀렸다.** 그때는 이름 있는
-이벤트로만 시험했다. `["all"]` 로 등록하면 온다. 등록 직후 실제 수신까지 확인했고,
-이것으로 Camera Raw 의 descriptor 를 잡아냈다.
+이벤트로만 시험했다. §17.28 에서 `startNotifications` 를 `["all"]` 로 고쳤고
+`photoshop.event.recent` 로 실제 수신을 확인했다. 아는 액션만 이름을 붙이고
+나머지는 `photoshop.unknown` 으로 원본과 함께 나간다.
 
-`photoshop.event.recent` 가 쓰는 이름별 등록 경로는 여전히 미검증이다.
-고치려면 그쪽도 `["all"]` 로 받아 걸러내는 쪽을 봐야 한다.
+**이벤트 버퍼는 MCP 서버 프로세스에 있다.** 스크립트를 돌릴 때마다 새 서버가 떠서
+버퍼가 빈다 — descriptor 를 잡으려면 서버를 띄워 둔 채로 사람이 메뉴를 실행해야 한다.
 
-배선은 남겨두되 `photoshop.notifications.registered` 가 `delivery: "unverified"` 를
-담아 동작하는 것처럼 읽히지 않게 했다. **`command.*` 만 신뢰할 수 있다.**
+이것으로 Camera Raw 와 `autoCutout` 의 descriptor 를 잡아냈다. 막혀 있는 batchPlay
+이름은 문서에서 가져오지 말고 이 방법으로 확인한다.
 
 LLM 은 구독하지 않고 `photoshop.event.recent` 로 조회한다. MCP 에 임의 이벤트 통로가
 없기 때문이다. Extension 은 `context.events.on()` 으로 구독하며 unload 때 자동 해제된다.

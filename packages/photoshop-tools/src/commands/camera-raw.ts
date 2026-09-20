@@ -40,6 +40,45 @@ export const CAMERA_RAW_APPLY = "CAMERA_RAW_APPLY";
 
 /** ±100 슬라이더. Camera Raw UI 의 범위다. */
 const Slider = z.number().int().min(-100).max(100);
+
+/** 곡선의 범위 분할점. 0–100. 기본은 25 · 50 · 75 다. */
+const Split = z.number().int().min(0).max(100);
+
+/**
+ * 포인트 곡선의 한 점. 입력·출력 모두 0–255 다.
+ *
+ * **평탄 배열이 아니라 점으로 받는다.** `[0, 0, 255]` 같은 홀수 길이가
+ * 조용히 통과하는 상태를 만들지 않기 위해서다.
+ */
+const CurvePoint = z
+  .object({
+    x: z.number().int().min(0).max(255),
+    y: z.number().int().min(0).max(255),
+  })
+  .strict();
+
+/**
+ * 포인트 곡선.
+ *
+ * x 가 **엄격히 증가**해야 한다. 같거나 줄어들면 Camera Raw 가 어떻게 받는지
+ * 확인하지 않았고, 짐작해서 통과시키지 않는다.
+ */
+const Curve = z
+  .array(CurvePoint)
+  .min(2)
+  .max(16)
+  .superRefine((points, ctx) => {
+    for (let index = 1; index < points.length; index += 1) {
+      if ((points[index] as { x: number }).x <= (points[index - 1] as { x: number }).x) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [index, "x"],
+          message: "x 는 엄격히 증가해야 합니다.",
+        });
+        return;
+      }
+    }
+  });
 /** 0–100 슬라이더. */
 const Amount = z.number().int().min(0).max(100);
 
@@ -88,6 +127,74 @@ export const CameraRawParamsSchema = z
     vignetteMidpoint: Amount.optional(),
     vignetteFeather: Amount.optional(),
     vignetteRoundness: Slider.optional(),
+
+    // ── 곡선: 파라메트릭. (ROADMAP §17.30) ────────────────
+    //
+    // 이름은 Camera Raw UI 그대로다. 기본·세부의 highlights/shadows 와는 **다른
+    // 것이다** — 저쪽은 톤 범위를 직접 밀고 이쪽은 곡선의 해당 구간을 구부린다.
+    curveHighlights: Slider.optional(),
+    curveLights: Slider.optional(),
+    curveDarks: Slider.optional(),
+    curveShadows: Slider.optional(),
+
+    /** 곡선 구간의 경계. 기본 25 · 50 · 75. */
+    curveShadowSplit: Split.optional(),
+    curveMidtoneSplit: Split.optional(),
+    curveHighlightSplit: Split.optional(),
+
+    /**
+     * RGB 포인트 곡선의 **채도 미세 조정**. 0–100, 기본 100.
+     *
+     * 곡선으로 대비를 올리면 채도가 함께 오르는데 그 양을 조절한다.
+     * 낮추면 대비만 오르고 색은 덜 따라온다.
+     */
+    curveRefineSaturation: Split.optional(),
+
+    // ── 곡선: 포인트 ─────────────────────────────────────
+    //
+    // 점 목록으로 준다. 끝점(0,0)·(255,255)을 강제하지 않는다 — Camera Raw 가
+    // 낸 descriptor 에는 있었지만 필수인지 확인하지 않았다.
+    /** RGB 합성 곡선. */
+    curveRgb: Curve.optional(),
+    curveRed: Curve.optional(),
+    curveGreen: Curve.optional(),
+    curveBlue: Curve.optional(),
+
+    // ── 색상 혼합 (HSL). (ROADMAP §17.29) ─────────────────
+    //
+    // 색상별 조정이다. 전역 `vibrance` · `saturation` 과 달리 **특정 색만**
+    // 건드린다 — 야경에서 조명색만 살리고 하늘은 두는 식이다.
+    //
+    // 키 24개는 알림 캡처로 확인했다. 짐작한 것이 하나도 없다.
+    /** 색조. */
+    hueRed: Slider.optional(),
+    hueOrange: Slider.optional(),
+    hueYellow: Slider.optional(),
+    hueGreen: Slider.optional(),
+    hueAqua: Slider.optional(),
+    hueBlue: Slider.optional(),
+    huePurple: Slider.optional(),
+    hueMagenta: Slider.optional(),
+
+    /** 채도. */
+    saturationRed: Slider.optional(),
+    saturationOrange: Slider.optional(),
+    saturationYellow: Slider.optional(),
+    saturationGreen: Slider.optional(),
+    saturationAqua: Slider.optional(),
+    saturationBlue: Slider.optional(),
+    saturationPurple: Slider.optional(),
+    saturationMagenta: Slider.optional(),
+
+    /** 광도. */
+    luminanceRed: Slider.optional(),
+    luminanceOrange: Slider.optional(),
+    luminanceYellow: Slider.optional(),
+    luminanceGreen: Slider.optional(),
+    luminanceAqua: Slider.optional(),
+    luminanceBlue: Slider.optional(),
+    luminancePurple: Slider.optional(),
+    luminanceMagenta: Slider.optional(),
   })
   .strict()
   .superRefine((value, ctx) => {

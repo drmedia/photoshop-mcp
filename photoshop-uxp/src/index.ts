@@ -49,13 +49,18 @@ import { documentCrop } from "./dom/document-crop.js";
 import { documentRotate } from "./dom/document-rotate.js";
 import { documentTilt } from "./dom/document-tilt.js";
 import { documentClose, documentFlatten } from "./dom/document-lifecycle.js";
+import { smartObjectConvert } from "./dom/smart-object.js";
+import { dodgeBurnDab } from "./dom/dodge-burn.js";
+import { maskDab, paintDab } from "./dom/paint.js";
+import { fontList, textCreate, textSet } from "./dom/text.js";
+import { documentOpen } from "./dom/document-open.js";
 import { layerReorder } from "./dom/layer-reorder.js";
 import { documentStatistics } from "./dom/document-statistics.js";
 import { cameraRawApply } from "./dom/camera-raw.js";
 import { layerDelete } from "./dom/layer-delete.js";
 import { retouchRemoveSpots } from "./dom/retouch.js";
 import { maskGradient } from "./dom/mask-gradient.js";
-import { selectionSky } from "./dom/selection-auto.js";
+import { selectionSky, selectionSubject } from "./dom/selection-auto.js";
 import {
   layerStampVisible,
   selectionColorRange,
@@ -93,6 +98,7 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("LAYER_LIST", async () => layerList());
   dispatcher.register("LAYER_GET_ACTIVE", async () => layerGetActive());
   dispatcher.register("SELECTION_SKY", async () => selectionSky());
+  dispatcher.register("SELECTION_SUBJECT", async () => selectionSubject());
   dispatcher.register("LAYER_DELETE", async (p) =>
     layerDelete(p as Parameters<typeof layerDelete>[0]),
   );
@@ -116,6 +122,22 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("LAYER_REORDER", async (p) =>
     layerReorder(p as Parameters<typeof layerReorder>[0]),
+  );
+  dispatcher.register("DOCUMENT_OPEN", async (p) =>
+    documentOpen(p as Parameters<typeof documentOpen>[0]),
+  );
+  dispatcher.register("DODGE_BURN_DAB", async (p) =>
+    dodgeBurnDab(p as Parameters<typeof dodgeBurnDab>[0]),
+  );
+  dispatcher.register("TEXT_CREATE", async (p) =>
+    textCreate(p as Parameters<typeof textCreate>[0]),
+  );
+  dispatcher.register("TEXT_SET", async (p) => textSet(p as Parameters<typeof textSet>[0]));
+  dispatcher.register("FONT_LIST", async () => fontList());
+  dispatcher.register("PAINT_DAB", async (p) => paintDab(p as Parameters<typeof paintDab>[0]));
+  dispatcher.register("MASK_DAB", async (p) => maskDab(p as Parameters<typeof maskDab>[0]));
+  dispatcher.register("SMART_OBJECT_CONVERT", async (p) =>
+    smartObjectConvert(p as Parameters<typeof smartObjectConvert>[0]),
   );
   dispatcher.register("DOCUMENT_FLATTEN", async () => documentFlatten());
   dispatcher.register("DOCUMENT_CLOSE", async (p) =>

@@ -648,6 +648,74 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         this.#hasSelection = false;
         return { layer: { ...layer }, applied: params.dabs.length } as TResult;
       }
+      /**
+       * 텍스트 레이어. (ROADMAP §17.33)
+       *
+       * Mock 은 폰트를 모르므로 목록은 비어 있고, `text.set` 이 **텍스트가 아닌
+       * 레이어를 거절하는 것**만 흉내낸다 — 그것이 이 Command 에서 헷갈리는 자리다.
+       */
+      case "TEXT_CREATE": {
+        this.#requireDocument();
+        const params = command.params as {
+          contents: string;
+          name?: string;
+          font?: string;
+          size?: number;
+          color?: unknown;
+          opacity?: number;
+          alignment?: string;
+        };
+        this.#snapshot("Create text");
+        const created: LayerInfo = {
+          id: this.#nextLayerId++,
+          name: params.name ?? params.contents,
+          type: "text",
+          visible: true,
+          opacity: params.opacity ?? 100,
+          parentId: null,
+          blendMode: "normal",
+          isBackground: false,
+        };
+        this.#layers.unshift(created);
+        this.#activeLayerId = created.id;
+        const applied = (["font", "size", "color", "alignment", "opacity"] as const).filter(
+          (key) => params[key] !== undefined,
+        );
+        return { layer: { ...created }, applied } as TResult;
+      }
+      case "TEXT_SET": {
+        this.#requireDocument();
+        const params = command.params as {
+          layerId?: number;
+          contents?: string;
+          opacity?: number;
+          [key: string]: unknown;
+        };
+        const index = this.#requireLayerIndex(params.layerId);
+        const layer = this.#layers[index] as LayerInfo;
+        if (layer.type !== "text") {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `${layer.type} 레이어는 텍스트가 아닙니다. photoshop.layer.list 의 type 으로 확인하세요.`,
+            { recoverable: true },
+          );
+        }
+        this.#snapshot("Set text");
+        const updated: LayerInfo = {
+          ...layer,
+          ...(params.contents === undefined ? {} : { name: params.contents }),
+          ...(params.opacity === undefined ? {} : { opacity: params.opacity }),
+        };
+        this.#layers[index] = updated;
+        const applied = ["contents", "font", "size", "color", "alignment", "opacity"].filter(
+          (key) => params[key] !== undefined,
+        );
+        return { layer: { ...updated }, applied } as TResult;
+      }
+      case "FONT_LIST":
+        // Mock 에는 폰트가 없다. 지어내면 Mock 으로 돌린 워크플로가 없는 폰트를
+        // 지정하고 그것이 성공으로 보인다. (`measure.tilt` 와 같은 규칙)
+        return { fonts: [], total: 0 } as TResult;
       case "DODGE_BURN_DAB": {
         const document = this.#requireDocument();
         const params = command.params as {

@@ -14,10 +14,10 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **72개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
+Core Tool **75개** · Resource 6개. Extension 예제 2개(`example` 2 · `milkyscape` 5).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 79). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 82). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -39,6 +39,7 @@ Tool 까지 더한 수다(지금 79). 한동안 이 값을 Core 개수로 옮겨
 - 결함 제거: `retouch.remove_spots` — 먼지·잡티. **배경 레이어는 거절한다**
 - 국소 명암: `dodge_burn.dab` — 부드러운 원형 얼룩. **softLight 빈 레이어에 칠한다**
 - 칠하기: `paint.dab` (색) · `mask.dab` (마스크에 **더한다**)
+- 텍스트: `text.create` · `text.set` · `font.list` — **워터마크·서명 범위**
 - Camera Raw: `camera_raw.apply` — **Tool 은 이 하나뿐이다**
 
 ## 캡처 (ROADMAP §17.10)
@@ -174,6 +175,22 @@ Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `f
 
 **성운에는 맞지 않는다** — 원형 얼룩이 구조를 못 따라간다. 형태가 복잡하면
 `selection.color_range` + `adjustment.curves` 쪽이다.
+
+## 텍스트 (ROADMAP §17.33)
+
+**워터마크·서명까지만 열었다.** 자간·행간·단락·워프는 `CORE_API.md` §5.12 에
+남아 있다 — 안 쓰는 파라미터가 스키마에 있으면 호출자가 무엇이 중요한지 모른다.
+
+**DOM 에 있는지 재 봤고 있었다** — `document.createTextLayer` · `textItem.
+characterStyle` · `app.fonts`. batchPlay 를 한 줄도 쓰지 않았다.
+
+**`SolidColor` 는 통째로 대입할 수 없다.** `app.SolidColor` 로 만들고
+`solid.rgb.red = 255` 처럼 **속성을 하나씩** 넣는다. `{ rgb: {...} }` 도
+`solid.rgb = {...}` 도 거절당한다.
+
+**없는 폰트는 조용히 대체된다.** 오류 없이 다른 폰트로 그려서 호출자는 걸렸다고
+믿는다. `app.fonts` 에서 미리 찾아보고 거절한다. `font.list` 가 주는
+**`postScriptName`** 이 `font` 에 넣을 값이고 화면 이름이 아니다.
 
 ## 마스크에 칠하기 (ROADMAP §17.32)
 

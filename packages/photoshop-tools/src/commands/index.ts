@@ -95,6 +95,17 @@ import {
 } from "./document-lifecycle.js";
 import { DODGE_BURN_DAB, DodgeBurnParamsSchema, dodgeBurnDabCommand } from "./dodge-burn.js";
 import {
+  FONT_LIST,
+  FontListParamsSchema,
+  TEXT_CREATE,
+  TEXT_SET,
+  TextCreateParamsSchema,
+  TextSetParamsSchema,
+  fontListCommand,
+  textCreateCommand,
+  textSetCommand,
+} from "./text.js";
+import {
   MASK_DAB,
   MaskDabParamsSchema,
   PAINT_DAB,
@@ -222,6 +233,7 @@ export * from "./document-open.js";
 export * from "./smart-object.js";
 export * from "./dodge-burn.js";
 export * from "./paint.js";
+export * from "./text.js";
 export * from "./document-statistics.js";
 export * from "./retouch.js";
 export * from "./camera-raw.js";
@@ -300,6 +312,19 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.
     permission: "edit",
     schema: DodgeBurnParamsSchema,
+  });
+  registry.register(TEXT_CREATE, textCreateCommand, {
+    permission: "edit",
+    schema: TextCreateParamsSchema,
+  });
+  registry.register(TEXT_SET, textSetCommand, {
+    permission: "edit",
+    schema: TextSetParamsSchema,
+  });
+  registry.register(FONT_LIST, fontListCommand, {
+    // 설치된 폰트를 읽을 뿐 문서를 바꾸지 않는다.
+    permission: "read",
+    schema: FontListParamsSchema,
   });
   registry.register(PAINT_DAB, paintDabCommand, {
     // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.

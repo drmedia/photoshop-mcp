@@ -4418,6 +4418,100 @@ mask 없는 레이어                        거절 — "mask.create 로 먼저 
 
 ---
 
+# 17.33 텍스트 — 워터마크까지만 연다
+
+## 범위를 요구에 맞춘다
+
+`CORE_API.md` §5.12 가 텍스트 전체를 P3 로 두고 **"실제 요구가 확인된 뒤에
+연다"** 고 적어 둔 자리다. 확인된 요구가 워터마크·서명이므로 거기까지만 열었다.
+
+```text
+열었다    text.create · text.set · font.list
+안 열었다  자간 · 행간 · 단락 · 워프 · 변형 · convert_to_shape
+```
+
+안 쓰는 파라미터가 스키마에 있으면 호출자가 무엇이 중요한지 알 수 없다.
+
+**설정마다 Tool 을 두지 않았다.** `set_font` · `set_size` · `set_color` 대신
+`text.set` 하나다 — 워터마크는 한 번에 만들고 고칠 때도 여러 속성을 같이
+바꾼다. (`camera_raw.apply` 와 같은 판단)
+
+## DOM 에 있는지 재 봤고, 있었다
+
+`document.rotate`(§17.19) 때와 같은 방식이다. 임시 탐침을 붙여 확인하고 지웠다.
+
+```text
+document.createTextLayer(options)     function · 인자 1개
+layer.textItem.contents               내용
+layer.textItem.characterStyle         font · size · color · tracking · leading …
+layer.textItem.paragraphStyle         justification …
+app.fonts                             607개 · { _family, _name, _postScriptName, _style }
+```
+
+**batchPlay 를 한 줄도 쓰지 않았다.** DOM 이 있으면 DOM 을 쓴다.
+
+## `SolidColor` 에서 두 번 틀렸다
+
+짐작으로 두 번 틀렸고 두 번 다 실기가 답을 줬다.
+
+```text
+{ rgb: {...} } 를 color 에    'color' is of type object. Expecting type SolidColor.
+solid.rgb = {...} 통째 대입    Argument 1 has an invalid type … actual type: undefined
+solid.rgb.red = 255 하나씩     red=255 green=255 blue=255  ✓
+```
+
+생성자는 `app.SolidColor` 다 — `photoshop` 모듈 최상위에는 없다.
+**`rgb` 는 통째로 바꿀 수 없고 속성을 하나씩 넣어야 한다.**
+
+어느 속성이 문제인지는 **하나씩 걸어서** 갈랐다. `size` · `font` · `opacity` ·
+`alignment` 는 전부 통과했고 `color` 만 실패했다.
+
+## 없는 폰트는 조용히 대체된다
+
+**이것이 이 Command 에서 가장 위험한 자리다.** 없는 PostScript 이름을 주면
+Photoshop 이 오류 없이 다른 폰트로 그린다. 호출자는 지정한 폰트가 걸렸다고 믿는다 —
+배경 `set_opacity` 가 무시되던 것과 같은 종류다(ARCHITECTURE §8.4).
+
+그래서 `app.fonts` 에서 미리 찾아보고 없으면 **거절한다.** 목록을 얻지 못하면
+막지 않는다 — 없는 것을 참으로 읽어 멀쩡한 호출을 막는 것이 더 나쁘다.
+
+`font.list` 가 주는 것은 **`postScriptName`** 이다. 화면에 보이는 이름이 아니다.
+
+## 거르기는 서버가 한다
+
+607개를 통째로 주면 LLM 의 맥락만 먹는다. `query` 와 `limit`(기본 50)으로 거르되
+**그 계산은 서버에서 한다** — Plugin 은 실행 Agent 이고 같은 계산을 두 곳에서
+하지 않는다. (CLAUDE.md 의존 방향 6)
+
+`total` 은 거르기 전 전체 수다. 몇 개 중에서 골랐는지 알 수 있어야 한다.
+
+## 실기 검증
+
+Photoshop 27.8, `새비재01_04.tif`.
+
+```text
+font.list query="gmarket"        3개 / 전체 607
+text.create 워터마크              applied [font, size, color, alignment, opacity]
+                                  한글 포함 렌더 확인
+text.set                          applied [contents, size, opacity]
+픽셀 레이어에 text.set             거절 — "pixel 레이어는 텍스트가 아닙니다"
+없는 폰트                          거절 — "'없는폰트123' 폰트가 이 기기에 없습니다"
+```
+
+## 체크리스트
+
+- [x] `photoshop.text.create` — EDIT
+- [x] `photoshop.text.set` — EDIT. 텍스트가 아니면 거절
+- [x] `photoshop.font.list` — READ. `postScriptName` 을 준다
+- [x] 없는 폰트를 미리 거절한다
+- [x] `applied` 에 실제로 적용한 것만 담는다
+- [x] Mock 은 폰트를 지어내지 않는다
+- [x] 임시 탐침 제거
+- [x] `docs/CORE_API.md` §4.2.1 신설, §5.12 에서 이동
+- [x] 실기 검증 — 생성 · 수정 · 거절 경로 · 한글 렌더
+
+---
+
 # 18. Phase 14 — Distribution
 
 검토 대상:

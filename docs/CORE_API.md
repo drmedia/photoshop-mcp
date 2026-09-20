@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (72개)
+## 4. 구현된 Core API (75개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -208,6 +208,17 @@ RAW 의 현상 설정은 슬라이더를 보며 정하는 일이라 사람이 �
 | `photoshop.retouch.remove_spots` | EDIT | 센서 먼지·잡티. **배경 레이어는 거절한다** |
 | `photoshop.dodge_burn.dab` | EDIT | 부드러운 원형 얼룩. **softLight 빈 레이어에 칠한다** |
 | `photoshop.paint.dab` | EDIT | 지정한 색 얼룩. 배경은 거절한다 |
+
+### 4.2.1 텍스트
+
+워터마크·서명 범위다. 자간·행간·단락·변형은 §5.12 에 남겨 두었다.
+
+| API | Permission | 비고 |
+|---|---|---|
+| `photoshop.text.create` | EDIT | 내용·위치·폰트·크기·색·불투명도·정렬 |
+| `photoshop.text.set` | EDIT | 기존 텍스트 레이어 수정. **텍스트가 아니면 거절** |
+| `photoshop.font.list` | READ | **`postScriptName` 이 `font` 에 넣을 값** |
+
 | `photoshop.camera_raw.apply` | EDIT | Camera Raw 필터. **Tool 은 이 하나뿐이다** |
 
 지점마다 타원으로 선택해 내용 인식 채우기를 건다. `spots` 로 여러 개를 한 번에 받는다.
@@ -523,8 +534,8 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 전부 P3 다. 실제 요구가 확인된 뒤에 연다. 지금은 이름만 잡아 둔다.
 
 ```text
-photoshop.text.create · get · set_content · set_font · set_size
-                        set_color · set_alignment · set_tracking
+photoshop.text.get · set_tracking · set_leading · set_paragraph · warp
+   (create · set · font.list 은 §4.2.1 에서 열었다 — 워터마크·서명 범위)
 
 photoshop.shape.rectangle · ellipse · line · set_fill · set_stroke
                             set_stroke_width · convert_to_path

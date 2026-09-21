@@ -188,6 +188,48 @@ describe("namespace 격리", () => {
   });
 });
 
+describe("**고른 것만 적재한다**", () => {
+  /* 번들된 Extension 은 Core 가 아니다 — 예제 · 아키텍처 검증 · 특정 서드파티
+   * 패널용이다. 쓰지 않는 사람에게 Tool 목록에 보이면 무엇이 이 서버의
+   * 능력인지 흐려진다. */
+
+  it("생략하면 전부 적재한다", async () => {
+    const mcp = setup();
+    await fixture("one", manifestOf("one"), sourceRegistering("one.tool"));
+    await fixture("two", manifestOf("two"), sourceRegistering("two.tool"));
+
+    expect(await mcp.extensions.loadAll(root)).toHaveLength(2);
+  });
+
+  it("고른 것만 적재한다", async () => {
+    const mcp = setup();
+    await fixture("one", manifestOf("one"), sourceRegistering("one.tool"));
+    await fixture("two", manifestOf("two"), sourceRegistering("two.tool"));
+
+    const loaded = await mcp.extensions.loadAll(root, ["two"]);
+    expect(loaded.map((item) => item.manifest.namespace)).toEqual(["two"]);
+    expect(mcp.tools.has("one.tool")).toBe(false);
+    expect(mcp.tools.has("two.tool")).toBe(true);
+  });
+
+  it("**빈 목록은 하나도 적재하지 않는다**", async () => {
+    // 생략(전부)과 구분한다. Core 만 있는 서버를 만들 수 있어야 한다.
+    const mcp = setup();
+    await fixture("one", manifestOf("one"), sourceRegistering("one.tool"));
+
+    expect(await mcp.extensions.loadAll(root, [])).toHaveLength(0);
+  });
+
+  it("**디렉터리 이름이 아니라 namespace 로 고른다**", async () => {
+    // 둘이 다른 것이 있다 — extensions/milkyscape 의 namespace 는 milky 다.
+    const mcp = setup();
+    await fixture("long-directory-name", manifestOf("short"), sourceRegistering("short.tool"));
+
+    expect(await mcp.extensions.loadAll(root, ["long-directory-name"])).toHaveLength(0);
+    expect(await mcp.extensions.loadAll(root, ["short"])).toHaveLength(1);
+  });
+});
+
 describe("적재 실패 격리", () => {
   it("하나가 실패해도 나머지는 적재된다", async () => {
     const mcp = setup();

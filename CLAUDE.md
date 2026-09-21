@@ -623,6 +623,12 @@ UXP 의 실기 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 
 등록할 수 있고, Photoshop 은 Core Command 로만 건드린다. Bridge 에는 닿지 않는다.
 하나가 실패해도 나머지와 서버는 계속 기동한다.
 
+**번들된 Extension 은 Core 가 아니다** (ROADMAP §18.2). `example` 은 예제,
+`milkyscape` 는 아키텍처 검증, `graxpert` 는 특정 서드파티 패널용이다. 쓰지 않는
+사람에게 Tool 목록에 보이면 무엇이 이 서버의 능력인지 흐려진다.
+`PHOTOSHOP_MCP_EXTENSIONS_ENABLED` 로 고르며 **디렉터리 이름이 아니라 namespace**
+다 — `extensions/milkyscape` 의 namespace 는 `milky` 다. 못 찾은 이름은 경고한다.
+
 `ExtensionContext` 에는 **대응 런타임이 있는 것만 넣는다.** 동작하지 않는 껍데기를 두면
 Extension 작성자가 있는 줄 알고 쓴다. 그래서 `capabilities`(Phase 8) · `jobs`(Phase 10) ·
 `events`(Phase 11) · `resources`(Phase 12) 는 각 런타임이 생긴 뒤에 추가했다.
@@ -889,6 +895,7 @@ npm run check        # format + lint + build + typecheck:tests + test
 | `PHOTOSHOP_MCP_BRIDGE` | `uxp` | `uxp` 또는 `mock` |
 | `PHOTOSHOP_MCP_PORT` | `8765` | Bridge WebSocket 포트 |
 | `PHOTOSHOP_MCP_EXTENSIONS` | `<cwd>/extensions` | Extension 디렉터리 |
+| `PHOTOSHOP_MCP_EXTENSIONS_ENABLED` | (생략=전부) | 적재할 **namespace**. 빈 문자열이면 하나도 안 함 |
 | `PHOTOSHOP_MCP_ALLOW` | `read,edit` | 허용 권한. `all` · `none` 도 쓸 수 있다 |
 | `PHOTOSHOP_MCP_CAPABILITIES` | `<cwd>/capabilities.json` | 외부 처리기 설정 |
 | `PHOTOSHOP_MCP_WORKFLOWS` | `<cwd>/workflows.json` | 워크플로 설정 |

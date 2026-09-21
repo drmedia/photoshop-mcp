@@ -5190,7 +5190,60 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 - [x] 검색 뿌리를 주입 가능하게 — 테스트가 기계를 따라 달라지지 않는다
 - [x] `tests/doctor.test.ts` 14개
 - [x] MCP 클라이언트 설정 스니펫 — **고칠 것이 있을 때만** 낸다
-- [ ] Installer · Extension Package — Phase 14 의 나머지
+- [x] 번들 Extension 을 고를 수 있게 — `PHOTOSHOP_MCP_EXTENSIONS_ENABLED`
+- [ ] Installer · Extension Package — **두 번째 사용자가 생기면**
+
+## 18.2 번들 Extension 은 Core 가 아니다
+
+저장소에 Extension 셋이 들어 있는데 **성격이 다 다르다.**
+
+```text
+example      쓰는 법을 보여 주는 예제
+milkyscape   아키텍처 검증 소재. 은하수 사진 도메인
+graxpert     특정 서드파티 패널 하나를 부린다
+```
+
+**어느 것도 Core 의 기능이 아니다.** 그런데 서버가 `extensions/` 를 통째로
+훑어 전부 적재하므로, 이 저장소를 그대로 쓰면 Tool 목록에 `milky.*` 5개와
+`gx.*` 3개가 늘 보인다. StarNet2 도 GraXpert 패널도 없는 사람에게는 **쓸 수
+없는 Tool 이고, 무엇이 이 서버의 능력인지 흐려진다.**
+
+`PHOTOSHOP_MCP_EXTENSIONS_ENABLED` 로 고른다. 값을 주면 그것이 **전체 목록**
+이다 — `PHOTOSHOP_MCP_ALLOW` 와 같은 규칙이다.
+
+```text
+생략        전부 적재 (지금까지의 동작)
+"milky"     milky 만
+""          하나도 적재하지 않는다 — Core 만 있는 서버
+```
+
+**빈 문자열과 생략을 구분한다.** 둘을 같게 두면 Core 만 있는 서버를 만들 수
+없다.
+
+## 디렉터리 이름이 아니라 namespace 다
+
+`extensions/milkyscape` 의 namespace 는 `milky` 다. Tool 이름과 `diagnostics`
+에 나오는 것이 namespace 이므로 그쪽으로 고른다.
+
+**그래서 `milkyscape` 라고 적으면 하나도 안 걸린다.** 처음 구현은 그때 조용히
+빈 목록을 돌려줬다 — Tool 이 없는 이유를 알 수 없다. 찾지 못한 이름을 경고로
+낸다.
+
+```text
+[photoshop-mcp] warn 적재할 Extension 으로 지정한 이름을 찾지 못했습니다:
+                milkyscape — 디렉터리 이름이 아니라 manifest 의 namespace 입니다
+```
+
+## 저장소를 쪼개지 않았다
+
+공개하려면 Extension 을 별도 저장소로 빼는 것이 맞아 보이지만 **지금은 아니다.**
+
+Extension 은 워크스페이스 안에 있어야 `@photoshop-mcp/extension-sdk` 해석이
+된다. 밖으로 빼려면 SDK 를 먼저 공개해야 하는데, 그건 패키징 결정과 묶여 있고
+**패키징은 두 번째 사용자가 생길 때까지 미뤘다.**
+
+지금 필요한 것은 "안 쓰는 것을 끌 수 있다" 까지다. 그 이상은 없는 사용자를
+위해 만드는 것이 된다.
 
 ## 스니펫은 필요할 때만
 

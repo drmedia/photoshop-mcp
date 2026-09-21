@@ -36,6 +36,7 @@ function log(message: string): void {
  * - `PHOTOSHOP_MCP_PORT` — Bridge WebSocket 포트 (기본 8765)
  * - `PHOTOSHOP_MCP_BRIDGE` — `uxp` (기본) 또는 `mock`
  * - `PHOTOSHOP_MCP_EXTENSIONS` — Extension 디렉터리 (기본 `<cwd>/extensions`)
+ * - `PHOTOSHOP_MCP_EXTENSIONS_ENABLED` — 적재할 namespace. 생략하면 전부
  * - `PHOTOSHOP_MCP_ALLOW` — 허용할 Permission Level (기본 `read,edit`)
  * - `PHOTOSHOP_MCP_CAPABILITIES` — 외부 처리기 설정 (기본 `<cwd>/capabilities.json`)
  * - `PHOTOSHOP_MCP_WORKFLOWS` — 워크플로 설정 (기본 `<cwd>/workflows.json`)
@@ -44,6 +45,7 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
   mode: BridgeMode;
   port: number;
   extensionsDir: string;
+  enabledExtensions: readonly string[] | undefined;
   capabilityConfig: string;
   workflowConfig: string;
   policy: PermissionPolicy;
@@ -60,6 +62,19 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
 
   // 디렉터리가 없으면 조용히 건너뛴다. Extension 이 없는 것은 정상이다.
   const extensionsDir = resolve(env["PHOTOSHOP_MCP_EXTENSIONS"] ?? "extensions");
+
+  /* 값을 주면 그것이 **전체 목록**이다. `PHOTOSHOP_MCP_ALLOW` 와 같은 규칙이다.
+   *
+   * 빈 문자열은 "하나도 적재하지 않는다" 다 — 생략(전부)과 구분한다. Core 만
+   * 있는 서버를 만들 수 있어야 한다. */
+  const rawEnabled = env["PHOTOSHOP_MCP_EXTENSIONS_ENABLED"];
+  const enabledExtensions =
+    rawEnabled === undefined
+      ? undefined
+      : rawEnabled
+          .split(",")
+          .map((name) => name.trim())
+          .filter((name) => name.length > 0);
 
   // 값을 주면 그것이 **전체 목록**이다. 기존 기본값에 더하지 않는다.
   // 그래야 `PHOTOSHOP_MCP_ALLOW=read` 로 읽기 전용 서버를 만들 수 있다.
@@ -78,6 +93,7 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
     mode,
     port,
     extensionsDir,
+    enabledExtensions,
     capabilityConfig,
     workflowConfig,
     policy: new PermissionPolicy(levels),
@@ -86,13 +102,14 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
 
 /** CLI 진입점. 오류를 스스로 처리하며 예외를 던지지 않는다. */
 export async function main(): Promise<void> {
-  const { mode, port, extensionsDir, capabilityConfig, workflowConfig, policy } =
+  const { mode, port, extensionsDir, enabledExtensions, capabilityConfig, workflowConfig, policy } =
     readOptionsFromEnv();
 
   const options: StartOptions = {
     mode,
     port,
     extensionsDir,
+    ...(enabledExtensions === undefined ? {} : { enabledExtensions }),
     capabilityConfig,
     workflowConfig,
     policy,

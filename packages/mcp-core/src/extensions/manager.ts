@@ -226,12 +226,30 @@ export class ExtensionManager {
   }
 
   /** 디렉터리를 훑어 모두 적재한다. 하나가 실패해도 나머지는 계속 적재한다. */
-  async loadAll(root: string): Promise<LoadedExtension[]> {
+  async loadAll(root: string, enabled?: readonly string[]): Promise<LoadedExtension[]> {
     const discovered = await this.discover(root);
     const loaded: LoadedExtension[] = [];
+    // 고른 이름이 실제로 있었는지 센다. 오타를 조용히 넘기지 않기 위함이다.
+    const matched = new Set<string>();
 
     for (const candidate of discovered) {
       try {
+        if (enabled !== undefined) {
+          /* **고를 수 있게 한다.** 번들된 Extension 은 Core 가 아니다 —
+           * `example` 은 예제, `milkyscape` 는 아키텍처 검증, `graxpert` 는
+           * 특정 서드파티 패널용이다. 쓰지 않는 사람에게 Tool 목록에 보이면
+           * 무엇이 이 서버의 능력인지 흐려진다.
+           *
+           * 디렉터리 이름이 아니라 **namespace** 로 고른다. Tool 이름과
+           * `diagnostics` 에 나오는 것이 그것이다 — `milkyscape` 디렉터리의
+           * namespace 는 `milky` 다. */
+          const manifest = await this.validate(candidate.manifestPath);
+          if (!enabled.includes(manifest.namespace)) {
+            this.#logger.debug(`Extension 건너뜀 (선택되지 않음): ${manifest.namespace}`);
+            continue;
+          }
+          matched.add(manifest.namespace);
+        }
         loaded.push(await this.load(candidate));
       } catch (error) {
         // 하나가 잘못되어도 서버는 떠야 한다. (ARCHITECTURE §17 Invalid Extension isolation)
@@ -239,6 +257,20 @@ export class ExtensionManager {
         this.#logger.error(`Extension 적재 실패: ${candidate.manifestPath}`, normalized.toJSON());
       }
     }
+
+    /* **없는 이름을 조용히 넘기지 않는다.**
+     *
+     * 디렉터리 이름과 namespace 가 다른 것이 있다(`milkyscape` → `milky`).
+     * 오타나 착각으로 하나도 안 걸리면 Tool 이 없는 이유를 알 수 없다.
+     * `PHOTOSHOP_MCP_ALLOW` 가 모르는 값에 경고하는 것과 같은 규칙이다. */
+    const unknown = (enabled ?? []).filter((name) => !matched.has(name));
+    if (unknown.length > 0) {
+      this.#logger.warn(
+        `적재할 Extension 으로 지정한 이름을 찾지 못했습니다: ${unknown.join(", ")} — ` +
+          "디렉터리 이름이 아니라 manifest 의 namespace 입니다",
+      );
+    }
+
     return loaded;
   }
 

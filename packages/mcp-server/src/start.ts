@@ -40,6 +40,14 @@ export interface StartOptions extends CreatePhotoshopMcpOptions {
    */
   extensionsDir?: string;
   /**
+   * 적재할 Extension namespace. 생략하면 디렉터리에 있는 것을 **전부** 적재한다.
+   *
+   * 번들된 Extension 은 Core 가 아니다 — `example` 은 예제, `milkyscape` 는
+   * 아키텍처 검증, `graxpert` 는 특정 서드파티 패널용이다. 쓰지 않는 사람에게
+   * Tool 목록에 보이면 무엇이 이 서버의 능력인지 흐려진다.
+   */
+  enabledExtensions?: readonly string[];
+  /**
    * Capability Provider 설정 파일. (ROADMAP §12)
    *
    * 생략하면 외부 처리기를 등록하지 않는다. 파일이 없어도 오류가 아니다 —
@@ -88,6 +96,7 @@ export async function startPhotoshopMcpServer(
     onBridgeStateChange,
     transport,
     extensionsDir,
+    enabledExtensions,
     capabilityConfig,
     workflowConfig,
     ...coreOptions
@@ -135,7 +144,9 @@ export async function startPhotoshopMcpServer(
 
   // Tool 목록을 노출하기 전에 적재한다.
   const loadedExtensions =
-    extensionsDir === undefined ? [] : await mcp.extensions.loadAll(extensionsDir);
+    extensionsDir === undefined
+      ? []
+      : await mcp.extensions.loadAll(extensionsDir, enabledExtensions);
 
   try {
     await mcp.server.start(transport);

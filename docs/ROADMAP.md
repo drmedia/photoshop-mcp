@@ -5016,15 +5016,23 @@ if (skyAI && !maskToken) { skyAI = false; scope = "layer"; }
 
 Photoshop 27.8 · 4032×6048 16비트.
 
+정식 API 로 옮긴 뒤 **실제 MCP 클라이언트**로 다시 통과시켰다.
+
 ```text
-gx.status                          panelResponding true · busy false
-gx.run_denoise {strength:0.6}      75초 · 레이어 97 · strength 0.6 그대로 들어감
-gx.run_gradient (선택 없음)         즉시 거절 — "photoshop.selection.sky 로 고른 뒤"
-photoshop.selection.sky            bounds 0,0 4032,4507
-gx.run_gradient {smoothing:0.5}    18초 · 레이어 102 "… - Sky Merged" · skyApplied true
+gx.status         panelRunning true · automationEnabled true · statusAgeMs 18
+                  → 명령을 보내지 않으므로 즉시 답한다
+gx.run_denoise    76초 · 레이어 44 · strength 0.4 그대로
+selection.sky     bounds 0,0 4032,4510
+gx.run_gradient   16초 · 레이어 48 "… - Sky Merged"
+                  selectionAtStart true · skyApplied true
 ```
 
 노이즈 감소가 2분을 넘는 경우가 있다 — Job 으로 감싼 이유 그대로다.
+
+**`.mcp.json` 에 `PHOTOSHOP_MCP_ALLOW` 가 없어 `external` 이 막혀 있었다.**
+이 저장소 설정으로는 `gx.*` 도 `milky.*` 도 `document.export` 도 부를 수 없었다 —
+기본값이 실사용과 어긋나 있었다. `read,edit,external` 로 열었다. `destructive`
+(덮어쓰기 · 평탄화 · 액션 실행)는 그대로 닫아 둔다.
 
 ## 체크리스트
 

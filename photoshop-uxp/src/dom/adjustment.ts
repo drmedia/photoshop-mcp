@@ -40,12 +40,31 @@ export async function makeAdjustmentLayer(
   return runModal(commandName, async () => {
     const document = requireActiveDocument();
 
+    /* **`presetKind` 가 없으면 Photoshop 속성 패널이 열리지 않는다.**
+     *
+     * 조정 레이어의 존재 이유는 나중에 값을 고칠 수 있다는 것인데, 이것이
+     * 빠지면 레이어는 만들어지고 보정도 적용되지만 슬라이더를 볼 수 없다.
+     * 실기에서 채도를 다시 만지려다 드러났다 — 만드는 것만 확인하고
+     * **고칠 수 있는지는 확인하지 않았다.**
+     *
+     * 키는 짐작한 것이 아니라 `addNotificationListener(["all"])` 로 잡았다.
+     * 사람이 색조/채도 조정 레이어를 만들 때 Photoshop 이 쓰는 것이다(§17.17).
+     *
+     * `presetKindCustom` 이다. Photoshop 이 기본값으로 만들 때는
+     * `presetKindDefault` 를 쓰지만, 우리는 언제나 값을 지정해 만든다.
+     *
+     * 호출자가 이미 넣었으면 덮지 않는다 — 타입마다 다른 값이 필요할 수 있다. */
+    const typeWithPreset: Record<string, unknown> = {
+      presetKind: { _enum: "presetKindType", _value: "presetKindCustom" },
+      ...type,
+    };
+
     const descriptor: Record<string, unknown> = {
       _obj: "make",
       _target: [{ _ref: "adjustmentLayer" }],
       using: {
         _obj: "adjustmentLayer",
-        type,
+        type: typeWithPreset,
         ...(name === undefined ? {} : { name }),
       },
     };

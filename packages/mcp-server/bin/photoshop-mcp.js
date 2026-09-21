@@ -4,7 +4,12 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const entry = new URL("../dist/run.js", import.meta.url);
+// 하위 명령은 **진입점을 고르는 것까지만** 여기서 한다. 판정과 출력은 src 에 있다.
+const SUBCOMMANDS = { doctor: "../dist/doctor.js", init: "../dist/init.js" };
+
+const command = process.argv[2];
+const module = SUBCOMMANDS[command] ?? "../dist/run.js";
+const entry = new URL(module, import.meta.url);
 
 if (!existsSync(fileURLToPath(entry))) {
   console.error("[photoshop-mcp] 빌드 산출물이 없습니다. 먼저 npm run build 를 실행하세요.");

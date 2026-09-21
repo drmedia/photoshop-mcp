@@ -684,10 +684,21 @@ push 가 없다" 고 적은 것은 *임의 이벤트*에 한한 이야기였다.
 Extension 은 자기 namespace 의 URI 만 등록한다 (`milky://state`). unload 하면
 함께 사라진다.
 
-## 진단과 임시 파일 (ROADMAP §17)
+## 진단과 임시 파일 (ROADMAP §17, §18.1)
 
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
+
+**서버가 뜰 때도 막힌 것을 한 줄로 낸다.** 실기에서 `.mcp.json` 에 `PHOTOSHOP_MCP_ALLOW`
+가 없어 `external` Tool 이 전부 막혀 있었는데, `diagnostics` 가 이미 그 말을 하고 있었지만
+**부르지 않아 못 봤다.** 짧은 이름만 나열한다 — 기동마다 설명을 쏟으면 안 읽게 된다.
+
+클라이언트가 붙기 전에는 `npx photoshop-mcp doctor` 로 본다. 판정은 `listBlockers()`
+하나를 `diagnostics` 와 같이 쓴다 — 두 벌이면 서로 다른 말을 한다. 다만 **터미널의
+doctor 는 클라이언트가 넘길 env 를 모르므로** 권한은 참고용이다.
+
+`capabilities.json` 은 `npx photoshop-mcp init` 이 만든다. **찾은 것만 쓰고 이미 있으면
+덮어쓰지 않는다.**
 
 외부 처리기는 한 번 돌 때마다 140MB 짜리 TIFF 를 여러 개 만든다. 실기 검증만으로
 1.7GB 가 쌓인 적이 있다. `photoshop.workspace.usage` 로 확인하고
@@ -855,6 +866,9 @@ npm run build        # tsc -b
 npm start            # 빌드된 dist 를 bin launcher 로 실행 (프로덕션)
 
 npm test             # vitest run
+
+npx photoshop-mcp doctor   # 무엇이 막혀 있는지 (빌드 필요)
+npx photoshop-mcp init     # capabilities.json 을 찾아서 만든다
 npm run lint
 npm run typecheck:tests   # tests/ 타입체크 (tsc -b 대상이 아니다)
 npm run check        # format + lint + build + typecheck:tests + test

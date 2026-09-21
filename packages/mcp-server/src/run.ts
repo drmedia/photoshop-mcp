@@ -16,6 +16,7 @@ import {
   PermissionPolicy,
   parsePermissionLevels,
 } from "@photoshop-mcp/photoshop-bridge";
+import { listBlockers } from "@photoshop-mcp/photoshop-tools";
 import { startPhotoshopMcpServer, type BridgeMode, type StartOptions } from "./start.js";
 
 const STATE_LABEL: Record<string, string> = {
@@ -128,6 +129,34 @@ export async function main(): Promise<void> {
         .map((extension) => `${extension.manifest.name}(${extension.manifest.namespace})`)
         .join(", ");
       log(`Extension ${mcp.loadedExtensions.length}개: ${extensionNames}`);
+    }
+
+    /* **막혀 있는 것을 붙는 순간 알린다.** (ROADMAP §18)
+     *
+     * 이 정보는 `photoshop.diagnostics` 에 이미 있었는데, 부르지 않으면 못 본다.
+     * 실기에서 `.mcp.json` 에 `PHOTOSHOP_MCP_ALLOW` 가 없어 `external` Tool 이
+     * 전부 막혀 있었고, 실제로 불러 보고 나서야 알았다 — 정보가 없어서가 아니라
+     * 아무도 안 봐서 못 찾은 것이다.
+     *
+     * 로그는 조용한 것이 기본이지만 **실패는 디버그가 아니어도 남긴다**는
+     * 규칙이 이미 있고, 기동 시 막힘은 거기에 해당한다.
+     *
+     * `connected: null` 이다 — Bridge 는 서버가 뜬 뒤에 붙으므로 이 시점의
+     * "연결 안 됨" 은 정상이다. 연결 상태는 `onBridgeStateChange` 가 따로 낸다. */
+    const blocked = listBlockers({
+      connected: null,
+      allowed: policy.allowed,
+      providers: await mcp.capabilities.describeAsync(),
+      extensions: mcp.loadedExtensions,
+    });
+    if (blocked.length > 0) {
+      /* **짧은 이름만 나열한다.**
+       *
+       * 기동마다 설명을 네 줄씩 쏟으면 사람이 안 읽게 되고, 그러면 이 줄을
+       * 넣은 이유가 사라진다. 무엇이 꺼져 있는지만 보이고 고치는 방법은
+       * 물어볼 곳을 가리킨다. */
+      log(`막힘 ${blocked.length}건: ${blocked.map((item) => item.label).join(" · ")}`);
+      log("  고치는 방법은 photoshop.diagnostics 를 부르면 나옵니다");
     }
 
     // 잡히지 않은 오류를 알아볼 수 있게 남긴다. (ROADMAP §17 Crash recovery)

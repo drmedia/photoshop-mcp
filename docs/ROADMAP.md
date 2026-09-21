@@ -5071,8 +5071,126 @@ Photoshop UXP Plugin Installer
 
 Extension Package
 
-Configuration UI
+Configuration UI      ← 첫 슬라이스 완료. 아래 참조
 ```
+
+## 18.1 설정 UI 는 UI 가 아니었다
+
+"Configuration UI" 를 어떻게 만들지 보려고 **설정이 실제로 어디 있는지**부터
+세었다.
+
+```text
+① MCP 클라이언트 설정 (env)   .mcp.json · Claude Desktop json · VS Code
+                              우리가 안정적으로 쓸 수 없는 남의 파일
+② capabilities.json           서버 cwd · 기기마다 다름 · gitignore
+③ workflows.json              서버 cwd
+④ 플러그인 localStorage        작업 폴더 승인 · 액션 허용 목록
+                              ← 이미 UI 가 있다 (§8.5 · §17.36)
+```
+
+**④ 는 끝나 있었고 거기엔 이유가 있다.** 사용자만 할 수 있는 일이고 플러그인은
+서버 cwd 에 쓸 수 없다. 반대로 ②는 서버가 실행하는 프로그램의 경로라 플러그인이
+알 바가 아니다. 이 경계는 §17.36 에서 이미 정리됐다.
+
+그래서 새 UI 가 더할 수 있는 것은 **②뿐**이고, ①은 스니펫을 뽑아 주는 것까지다.
+
+## 웹 설정 UI 를 만들지 않았다
+
+서버가 stdio 로 뜨고 **클라이언트마다 별개 프로세스**다. 포트를 하나 더 열면
+오늘 겪은 것이 그대로 난다.
+
+```text
+listen EADDRINUSE: address already in use 127.0.0.1:8765
+```
+
+듣는 포트를 늘리는 것은 §23 이 좁혀 온 방향과 반대이고, 서버는 클라이언트가
+끄면 같이 죽으니 **설정하러 열어 둘 수도 없다.**
+
+## 정보는 이미 있었다. 볼 자리가 없었을 뿐이다
+
+`.mcp.json` 권한 누락(§17.37)은 `photoshop.diagnostics` 가 **이미 말하고
+있었다.**
+
+```text
+"external 권한이 없어 파일 저장·외부 처리기·가져오기를 쓸 수 없습니다.
+ PHOTOSHOP_MCP_ALLOW 에 external 을 넣으세요."
+```
+
+정보가 없어서가 아니라 **아무도 안 봐서** 못 찾았다. UI 를 만들어도 안 열어보면
+같다. 그래서 만든 것은 UI 가 아니라 **볼 자리 셋**이다.
+
+## 기동 시 한 줄
+
+서버가 뜰 때 막힌 것이 있으면 stderr 에 낸다. 로그는 조용한 것이 기본이지만
+**실패는 디버그가 아니어도 남긴다**는 규칙이 이미 있다.
+
+```text
+[photoshop-mcp] 막힘 3건: external 권한 · destructive 권한 · 외부 처리기 미설정
+[photoshop-mcp]   고치는 방법은 photoshop.diagnostics 를 부르면 나옵니다
+```
+
+**짧은 이름만 나열한다.** 처음에는 설명을 통째로 냈는데 네 줄이 됐다 — 기동마다
+그러면 사람이 안 읽게 되고, 그러면 이 줄을 넣은 이유가 사라진다.
+
+`connected` 는 `null` 로 준다. Bridge 는 서버가 뜬 뒤에 붙으므로 이 시점의
+"연결 안 됨" 은 정상이다. 그것까지 내면 정상 기동마다 경고가 뜬다.
+
+## `photoshop-mcp doctor`
+
+`diagnostics` 는 **MCP 클라이언트가 붙은 뒤에야** 부를 수 있다. 설치 중에
+막히면 그 시점에는 클라이언트가 없다.
+
+```text
+[OK  ] Node         v22.21.1
+[주의] Bridge 포트    8765 을 이미 쓰고 있습니다...
+[OK  ] 외부 처리기    3개 선언, 실행 파일 모두 있음
+[OK  ] Extension    example(2) · gx(3) · milky(5)
+[주의] 권한          PHOTOSHOP_MCP_ALLOW 가 이 셸에 없습니다...
+```
+
+**선언만 보지 않는다.** 실행 파일이 실제로 있는지 확인하고, Extension 은 Mock
+Bridge 로 **실제로 적재해 본다** — 선언만 보면 import 실패를 놓친다.
+
+**터미널의 doctor 는 MCP 클라이언트가 넘길 env 를 모른다.** `.mcp.json` 의
+`env` 는 클라이언트가 서버를 띄울 때만 적용된다. 그래서 권한은 "지금 이렇다" 가
+아니라 **"이렇게 넣으세요"** 로 낸다. 이 구분을 흐리면 doctor 가 통과했으니
+됐다고 믿게 된다.
+
+판정은 `listBlockers()` 하나만 쓴다. 두 벌을 만들면 `diagnostics` 와 doctor 가
+다른 말을 하게 되고, 그때 어느 쪽을 믿어야 할지 알 수 없다.
+
+## `photoshop-mcp init`
+
+`capabilities.json` 은 `.gitignore` 에 있어 **클론한 사람에게는 처음부터
+없다.** 알려진 설치 경로를 훑어 **실제로 있는 것만** 쓴다.
+
+**없는 처리기를 example 에서 가져다 넣지 않는다.** 있는 것처럼 보이는 설정은
+`capability.list` 에 이름만 올리고 쓸 때 실패한다.
+
+**이미 있으면 덮어쓰지 않는다.** 손으로 고친 경로가 들어 있을 수 있고, 그것을
+말없이 날리는 것이 이 프로젝트에서 가장 나쁜 실패다.
+
+## 테스트에서 또 같은 것을 밟았다
+
+처음에 가짜 홈만 주고 `C:/Program Files` 는 상수로 두었다. **이 기계에
+StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 아니었다 —
+`graxpert` 테스트가 진짜 패널을 건드릴 뻔한 것과 같은 실수다(§17.37).
+
+검색 뿌리를 전부 주입하게 바꿨다. **"바깥을 보는 기본값" 이 있으면 테스트는
+기계를 따라 달라진다.**
+
+## 체크리스트
+
+- [x] 설정이 어디 있는지 먼저 세었다 — ④는 이미 UI 가 있었다
+- [x] 웹 설정 UI 를 만들지 않는다 — 포트·수명이 stdio 와 맞지 않는다
+- [x] 기동 시 막힘 한 줄 (짧은 이름만)
+- [x] `photoshop-mcp doctor` — 실행 파일 존재 · Extension 실제 적재 · 종료 코드
+- [x] `photoshop-mcp init` — 찾은 것만 · 덮어쓰지 않음
+- [x] 판정은 `listBlockers()` 하나 — `diagnostics` 와 같은 말을 한다
+- [x] 검색 뿌리를 주입 가능하게 — 테스트가 기계를 따라 달라지지 않는다
+- [x] `tests/doctor.test.ts` 11개
+- [ ] MCP 클라이언트 설정 스니펫 출력 — `doctor` 에 붙일 자리는 있다
+- [ ] Installer · Extension Package — Phase 14 의 나머지
 
 향후 배포 구조 예:
 

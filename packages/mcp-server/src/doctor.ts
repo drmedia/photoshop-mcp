@@ -1,4 +1,5 @@
 import { createServer } from "node:net";
+import { fileURLToPath } from "node:url";
 import { access, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { createPhotoshopMcp, createSilentLogger } from "@photoshop-mcp/mcp-core";
@@ -40,6 +41,13 @@ export interface DoctorReport {
   checks: DoctorCheck[];
   /** `fail` 이 하나라도 있으면 거짓. 종료 코드가 된다. */
   healthy: boolean;
+  /**
+   * MCP 클라이언트 설정에 넣을 조각. 넣을 것이 없으면 `null`.
+   *
+   * **고칠 것이 있을 때만 낸다.** 매번 JSON 을 쏟으면 기동 로그를 줄인 이유가
+   * 되돌아온다 — 늘 나오는 것은 읽히지 않는다.
+   */
+  snippet: string | null;
 }
 
 const MIN_NODE_MAJOR = 22;
@@ -189,7 +197,45 @@ export async function runDoctor(
 
   await probe.server.stop().catch(() => undefined);
 
-  return { checks, healthy: !checks.some((check) => check.level === "fail") };
+  return {
+    checks,
+    healthy: !checks.some((check) => check.level === "fail"),
+    // 권한이 이미 맞으면 낼 것이 없다.
+    snippet: permissionBlockers.some((item) => item.code === "no_external")
+      ? clientSnippet()
+      : null,
+  };
+}
+
+/**
+ * MCP 클라이언트 설정 조각.
+ *
+ * **`destructive` 는 넣지 않는다.** 덮어쓰기(`document.save`) · 평탄화 ·
+ * 액션 실행이 거기 있어서 기본으로 열 것이 아니다. 필요한 사람이 스스로
+ * 더하게 둔다.
+ *
+ * 경로는 **이 파일이 있는 위치에서** 만든다. 문서에 적어 두면 옮겼을 때
+ * 틀린 경로를 복사하게 된다.
+ */
+function clientSnippet(): string {
+  // JSON 에 역슬래시가 들어가면 이스케이프가 필요하고 손으로 고칠 때 틀린다.
+  // Node 는 Windows 에서도 `/` 를 받는다.
+  const bin = fileURLToPath(new URL("../bin/photoshop-mcp.js", import.meta.url))
+    .split("\\")
+    .join("/");
+  const config = {
+    mcpServers: {
+      photoshop: {
+        command: "node",
+        args: [bin],
+        env: {
+          PHOTOSHOP_MCP_BRIDGE: "uxp",
+          PHOTOSHOP_MCP_ALLOW: "read,edit,external",
+        },
+      },
+    },
+  };
+  return JSON.stringify(config, null, 2);
 }
 
 const MARK: Record<DoctorCheck["level"], string> = { ok: "OK  ", warn: "주의", fail: "실패" };
@@ -205,5 +251,16 @@ export async function main(): Promise<void> {
       ? "\n고쳐야 할 것은 없습니다. 주의 항목은 기본값이거나 참고용입니다."
       : "\n실패 항목을 고친 뒤 다시 실행하세요.",
   );
+
+  if (report.snippet !== null) {
+    console.error(
+      "\nMCP 클라이언트 설정에 이렇게 넣으면 external 이 열립니다." +
+        "\n  Claude Code — 프로젝트의 .mcp.json" +
+        "\n  Claude Desktop — claude_desktop_config.json" +
+        "\n설정을 고친 뒤에는 MCP 서버를 다시 연결해야 적용됩니다.\n",
+    );
+    console.error(report.snippet);
+  }
+
   process.exitCode = report.healthy ? 0 : 1;
 }

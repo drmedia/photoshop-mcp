@@ -96,6 +96,31 @@ describe("doctor", () => {
     expect(providerLines).toHaveLength(0);
   });
 
+  it("**external 이 없으면 설정 조각을 준다**", async () => {
+    const report = await runDoctor(env());
+    expect(report.snippet).not.toBeNull();
+    const parsed = JSON.parse(report.snippet ?? "{}") as {
+      mcpServers: { photoshop: { args: string[]; env: Record<string, string> } };
+    };
+    expect(parsed.mcpServers.photoshop.env["PHOTOSHOP_MCP_ALLOW"]).toBe("read,edit,external");
+    // 경로는 문서에 적어 두지 않고 실제 설치 위치에서 만든다.
+    expect(parsed.mcpServers.photoshop.args[0]).toMatch(/photoshop-mcp\.js$/u);
+    // JSON 에 역슬래시가 들어가면 손으로 고칠 때 틀린다.
+    expect(parsed.mcpServers.photoshop.args[0]).not.toMatch(/\\/u);
+  });
+
+  it("**destructive 는 권하지 않는다**", async () => {
+    // 덮어쓰기 · 평탄화 · 액션 실행이 거기 있다. 기본으로 열 것이 아니다.
+    const report = await runDoctor(env());
+    expect(report.snippet).not.toMatch(/destructive/u);
+  });
+
+  it("**권한이 이미 맞으면 조각을 내지 않는다**", async () => {
+    // 늘 나오는 것은 읽히지 않는다. 기동 로그를 줄인 것과 같은 이유다.
+    const report = await runDoctor(env({ PHOTOSHOP_MCP_ALLOW: "read,edit,external" }));
+    expect(report.snippet).toBeNull();
+  });
+
   it("포트가 비어 있으면 ok 다", async () => {
     const report = await runDoctor(env());
     expect(find(report.checks, "Bridge 포트")?.level).toBe("ok");

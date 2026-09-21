@@ -30,20 +30,51 @@ import { join } from "node:path";
  * 끌어당긴다.
  */
 
-/** 패널이 `os.tmpdir()/GraXpert_Photoshop` 을 쓴다. 이 경로는 패널이 정한다. */
-const DIR = join(tmpdir(), "GraXpert_Photoshop");
-const COMMAND_FILE = join(DIR, "automation_command.json");
-const RESPONSE_FILE = join(DIR, "automation_response.json");
-const STATUS_FILE = join(DIR, "automation_status.json");
+/**
+ * 패널이 `os.tmpdir()/GraXpert_Photoshop` 을 쓴다. 이 경로는 패널이 정한다.
+ *
+ * `PHOTOSHOP_MCP_GRAXPERT_DIR` 로 바꾼다. **테스트가 이것을 쓴다** — 진짜
+ * 경로를 그대로 두면 떠 있는 패널이 테스트의 명령을 받아 실제로 GraXpert 를
+ * 돌린다. 한 번 그렇게 만들어 두었다가 알았다(그때는 패널이 닫혀 있어
+ * 우연히 통과했다).
+ */
+function defaultDir(): string {
+  const override = process.env["PHOTOSHOP_MCP_GRAXPERT_DIR"];
+  return override === undefined || override === ""
+    ? join(tmpdir(), "GraXpert_Photoshop")
+    : override;
+}
+
+/**
+ * 주고받는 파일들.
+ *
+ * 디렉터리를 인자로 받는다. 상수로 박아 두면 **테스트가 떠 있는 진짜 패널과
+ * 같은 파일을 쓴다** — 명령을 실제로 실행시키거나 응답을 가로챌 수 있다.
+ */
+export interface ChannelPaths {
+  dir: string;
+  command: string;
+  response: string;
+  status: string;
+  /** 패널 확인 주기가 350ms 다. 그보다 촘촘히 볼 이유가 없다. */
+  pollMs: number;
+  /** 응답을 기다리는 한도. 패널이 닫혀 있으면 영원히 안 온다. */
+  responseTimeoutMs: number;
+}
+
+export function channelPaths(dir: string = defaultDir()): ChannelPaths {
+  return {
+    dir,
+    command: join(dir, "automation_command.json"),
+    response: join(dir, "automation_response.json"),
+    status: join(dir, "automation_status.json"),
+    pollMs: 250,
+    responseTimeoutMs: 10_000,
+  };
+}
 
 /** 패널이 검사하는 값. 맞지 않으면 `unsupported_schema` 로 거절한다. */
 const SCHEMA_VERSION = 1;
-
-/** 패널 명령 파일 확인 주기가 350ms 다. 그보다 촘촘히 볼 이유가 없다. */
-const POLL_MS = 250;
-
-/** 응답을 기다리는 한도. 패널이 닫혀 있으면 영원히 안 온다. */
-const RESPONSE_TIMEOUT_MS = 10_000;
 
 /**
  * 상태 파일을 믿을 수 있는 한도.
@@ -128,11 +159,13 @@ function readJson<T>(path: string): T | null {
  * 더미 명령을 보내면 `duplicate_id` 방지용 id 를 쓰게 되고, 켜져 있지 않으면
  * `automation_disabled` 응답만 받는다.
  */
-export function readStatus(): { status: PanelStatus; fresh: boolean } | null {
-  if (!existsSync(STATUS_FILE)) {
+export function readStatus(
+  paths: ChannelPaths = channelPaths(),
+): { status: PanelStatus; fresh: boolean } | null {
+  if (!existsSync(paths.status)) {
     return null;
   }
-  const status = readJson<PanelStatus>(STATUS_FILE);
+  const status = readJson<PanelStatus>(paths.status);
   if (status === null) {
     return null;
   }
@@ -140,7 +173,7 @@ export function readStatus(): { status: PanelStatus; fresh: boolean } | null {
   // 다를 수 있다. 둘 중 새것을 쓴다.
   let writtenAt = status.at;
   try {
-    writtenAt = Math.max(writtenAt, statSync(STATUS_FILE).mtimeMs);
+    writtenAt = Math.max(writtenAt, statSync(paths.status).mtimeMs);
   } catch {
     // mtime 을 못 읽으면 `at` 만 쓴다.
   }
@@ -160,12 +193,13 @@ export async function requestRun(
   mode: PanelMode,
   options: BackgroundOptions | DenoiseOptions,
   signal: AbortSignal,
+  paths: ChannelPaths = channelPaths(),
 ): Promise<PanelResponse> {
-  mkdirSync(DIR, { recursive: true });
+  mkdirSync(paths.dir, { recursive: true });
 
   const id = `photoshop-mcp-${mode}-${Date.now()}`;
   writeFileSync(
-    COMMAND_FILE,
+    paths.command,
     JSON.stringify({
       schemaVersion: SCHEMA_VERSION,
       id,
@@ -179,16 +213,16 @@ export async function requestRun(
     "utf8",
   );
 
-  const deadline = Date.now() + RESPONSE_TIMEOUT_MS;
+  const deadline = Date.now() + paths.responseTimeoutMs;
   while (Date.now() < deadline) {
     if (signal.aborted) {
       throw new Error("취소되었습니다.");
     }
-    await wait(POLL_MS);
-    if (!existsSync(RESPONSE_FILE)) {
+    await wait(paths.pollMs);
+    if (!existsSync(paths.response)) {
       continue;
     }
-    const response = readJson<PanelResponse>(RESPONSE_FILE);
+    const response = readJson<PanelResponse>(paths.response);
     // **id 로 가린다.** 옛 응답 파일이 남아 있을 수 있고, 지우고 시작하면
     // 패널이 쓰는 중과 겹친다. 에코된 id 가 그래서 있는 것이다.
     if (response !== null && response.id === id) {
@@ -197,8 +231,8 @@ export async function requestRun(
   }
 
   throw new Error(
-    "GraXpert 패널이 10초 동안 응답하지 않았습니다. " +
-      "패널이 열려 있는지 확인하세요 — 닫혀 있으면 명령 파일을 읽는 쪽이 없습니다. " +
+    `GraXpert 패널이 ${Math.round(paths.responseTimeoutMs / 1000)}초 동안 응답하지 않았습니다. ` +
+      +"패널이 열려 있는지 확인하세요 — 닫혀 있으면 명령 파일을 읽는 쪽이 없습니다. " +
       "gx.status 로 패널이 살아 있는지 볼 수 있습니다.",
   );
 }
@@ -229,4 +263,19 @@ export function explainRejection(response: PanelResponse): string {
     lines.push(`상태를 켠 곳: ${response.busyFrom}`);
   }
   return lines.join(" ");
+}
+
+/**
+ * 하늘 워크플로를 **실제로 탔는지** 결과 레이어 이름으로 판정한다.
+ *
+ * 패널은 그 경로를 탔을 때만 이름 끝에 ` - Sky Merged`(합성) 또는
+ * ` - Sky Masked`(마스크만) 를 붙인다. 응답의 `settings.method` 는 언제나
+ * `"AI"` 라 **"요청했다" 까지만** 말한다 — 선택이 없어 일반 처리로 간 경우와
+ * 구별되지 않는다.
+ *
+ * 실기에서 이것이 필요했다. 노이즈 감소를 두 번 돌리는 사이 선택이 사라졌고
+ * 그다음 그래디언트 제거가 12초 만에 끝나 성공처럼 보였다.
+ */
+export function skyApplied(layerNames: readonly string[]): boolean {
+  return layerNames.some((name) => / - Sky (Merged|Masked)$/u.test(name));
 }

@@ -11,6 +11,7 @@ import {
   explainRejection,
   readStatus,
   requestRun,
+  skyApplied,
   type PanelMode,
   type PanelResponse,
 } from "./panel.js";
@@ -176,20 +177,16 @@ export function activate(context: ExtensionContext): void {
       }
       job.report(100, "완료");
 
-      /* **하늘 경로를 실제로 탔는지는 레이어 이름으로 확인한다.**
-       *
-       * 패널이 이름 끝에 ` - Sky Merged` 또는 ` - Sky Masked` 를 붙이는데
-       * 그 분기가 곧 하늘 워크플로다. 응답의 `settings` 를 되읽으면 "AI 로
-       * 요청했다" 까지만 알 수 있고 "하늘로 돌았다" 는 알 수 없다. */
-      const skyApplied =
-        mode === "background" &&
-        created.some((layer) => / - Sky (Merged|Masked)$/u.test(layer.name));
+      // 하늘 경로를 실제로 탔는지는 레이어 이름으로 본다. (panel.ts 의 skyApplied)
+      const sky = mode === "background" && skyApplied(created.map((layer) => layer.name));
 
       return {
         mode: response.mode,
         // 요청값이 아니라 패널에 실제로 들어간 값이다.
         settings: response.settings,
-        ...(mode === "background" ? { selectionAtStart: selection.hasSelection, skyApplied } : {}),
+        ...(mode === "background"
+          ? { selectionAtStart: selection.hasSelection, skyApplied: sky }
+          : {}),
         document: { name: document.name, size: `${document.width}x${document.height}` },
         layers: created.map((layer) => ({ id: layer.id, name: layer.name })),
       };

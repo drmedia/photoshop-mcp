@@ -7,40 +7,44 @@ import {
   type LayerInfo,
 } from "@photoshop-mcp/extension-sdk";
 import { z } from "zod";
-import { explainRejection, requestRun, type PanelAck } from "./panel.js";
+import {
+  explainRejection,
+  readStatus,
+  requestRun,
+  type PanelMode,
+  type PanelResponse,
+} from "./panel.js";
 
 /**
  * GraXpert 패널 Extension.
  *
  * Core 는 Photoshop 을 알고, 이 Extension 은 GraXpert 패널이라는 도메인을 안다.
- * (ARCHITECTURE §1) 명령 파일 형식·패널의 버릇은 전부 여기 갇혀 있다.
+ * (ARCHITECTURE §1) 통로 형식과 패널의 버릇은 전부 `panel.ts` 에 갇혀 있다.
  *
- * **왜 Core Tool 이 아닌가.** 이건 Photoshop 기능이 아니라 특정 서드파티 패널을
- * 부리는 일이다. Core 에 넣으면 그 패널을 안 쓰는 사람에게도 목록에 보인다.
+ * **왜 Core Tool 이 아닌가.** 이건 Photoshop 기능이 아니라 특정 패널을 부리는
+ * 일이다. Core 에 넣으면 그 패널을 안 쓰는 사람에게도 목록에 보인다.
  *
- * 통로의 근거와 제약은 `panel.ts` 에 적어 두었다.
+ * 계약은 패널 저장소의 `docs/EXTERNAL_AUTOMATION.md` 다.
  */
 
-/** 모두 0–1 범위다. 패널 슬라이더와 같다. */
+/** 패널이 0–1 밖을 거절한다. 여기서 먼저 막아 왕복을 아낀다. */
 const Unit = z.number().min(0).max(1);
 
 /**
  * 그래디언트 제거 입력.
  *
- * **`method` 를 받지 않는다. 언제나 AI 다.**
+ * **`method` 를 받지 않는다.** 외부 자동화의 Background Extraction 은 언제나
+ * AI Auto 다 — 패널이 `method` 를 top-level 에서도 옵션에서도 받지 않고
+ * `unsupported_parameter` 로 거절한다.
  *
- * 패널의 다른 방식(`sample`)은 사용자가 배경 포인트를 화면에서 찍는 작업이다.
- * 미리보기를 보며 점을 옮기는 UX 는 MCP 로 옮길 수 없고 옮길 이유도 없다 —
- * MilkyScape 패널을 사람 도구로 남겨 둔 것과 같은 판단이다.
- *
- * 고를 수 있게 열어 두면 `sample` 을 준 호출이 포인트 없이 돌아 엉뚱한 결과를
- * 낸다. 열지 않는 편이 낫다.
+ * Sample Point 방식은 사용자가 배경 포인트를 화면에서 찍는 작업이라 통로 자체가
+ * 열려 있지 않다. 미리보기를 보며 점을 옮기는 UX 는 MCP 로 옮길 수 없다.
  */
 const RunBackgroundInput = z
   .object({
     correction: z.enum(["Subtraction", "Division"]).optional(),
     smoothing: Unit.optional(),
-    /** 결과를 하늘에만 합성할지. AI 모드에서만 뜻이 있다. */
+    /** 보정한 하늘을 원본 전경과 합쳐 새 픽셀 레이어로 만들지. */
     mergeSky: z.boolean().optional(),
     /** 배경 모델 레이어를 함께 만들지. GraXpert 의 `-bg` 다. */
     addBackgroundLayer: z.boolean().optional(),
@@ -51,7 +55,10 @@ const RunBackgroundInput = z
 const RunDenoiseInput = z
   .object({
     strength: Unit.optional(),
-    batchSize: z.number().int().positive().optional(),
+    /** 패널이 이 여섯 값만 받는다. */
+    batchSize: z
+      .union([z.literal(1), z.literal(2), z.literal(4), z.literal(8), z.literal(16), z.literal(32)])
+      .optional(),
     gpu: z.boolean().optional(),
   })
   .strict();
@@ -65,7 +72,7 @@ const LAYER_POLL_MS = 3_000;
  * 결과를 기다리는 한도.
  *
  * GraXpert 는 이미지 크기와 GPU 유무에 따라 크게 다르다. 실기에서 4032×6048
- * AI 그래디언트가 30초 안쪽이었지만 CPU 로 돌면 훨씬 길어진다.
+ * 노이즈 감소가 75초, 사용자 환경에서 2분을 넘은 적이 있다.
  */
 const RESULT_TIMEOUT_MS = 20 * 60 * 1000;
 
@@ -81,68 +88,74 @@ export function activate(context: ExtensionContext): void {
   const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
   /**
-   * 하늘 선택이 있는지 확인한다. **Job 을 띄우기 전에** 부른다.
+   * 패널이 명령을 받을 수 있는 상태인지 미리 본다.
    *
-   * 즉시 알 수 있는 것을 Job 으로 넘기면 호출자가 status 를 한 번 더 물어야
-   * 안다. 반환 타입은 그대로 jobId 다 — 바뀌는 것은 실패 시점뿐이다.
-   *
-   * **하늘은 사용자가 고른다.** 패널이 하늘을 스스로 찾지 않고 활성 선택
-   * 영역(없으면 활성 레이어의 마스크)을 하늘로 삼는다.
-   *
-   * 선택이 없으면 패널은 오류를 내지 않고 **말없이 일반 처리로 떨어진다**
-   * (`if (skyAI && !maskToken) { skyAI = false; }`). 레이어가 생기고 진행
-   * 막대도 끝까지 가서 성공처럼 보인다. 실기에서 걸렸고, 결과 레이어 이름에
-   * ` - Sky Merged` 가 없는 것만이 유일한 단서였다.
-   *
-   * 막기만 하고 선택을 대신 만들지는 않는다 — 무엇을 하늘로 볼지는 이
-   * Extension 이 정할 일이 아니다.
+   * **Job 을 띄우기 전에** 부른다. 상태 파일을 읽을 뿐이라 명령을 보내지 않고,
+   * 즉시 알 수 있는 거절을 `job.status` 로 미루지 않는다. 반환 타입은 그대로
+   * `jobId` 이고 바뀌는 것은 실패 시점뿐이다.
    */
-  async function requireSkySelection(requestId: string): Promise<void> {
-    const selection = await exec<{ hasSelection: boolean }>(SELECTION_GET, {}, requestId);
-    if (selection.hasSelection) {
-      return;
+  function requirePanelReady(): void {
+    const current = readStatus();
+    if (current === null) {
+      throw new Error(
+        "GraXpert 패널의 상태 파일이 없습니다. 패널을 한 번도 열지 않았거나 설치되어 있지 않습니다.",
+      );
     }
-    throw new Error(
-      "선택 영역이 없습니다. GraXpert 의 AI 그래디언트 제거는 **선택 영역을 하늘로 삼습니다** — " +
-        "패널이 하늘을 스스로 찾지 않습니다. " +
-        "photoshop.selection.sky 로 하늘을 고른 뒤 다시 부르세요. " +
-        "이대로 두면 패널이 오류 없이 일반 처리로 떨어져 성공처럼 보입니다.",
-    );
+    if (!current.fresh) {
+      throw new Error(
+        "GraXpert 패널이 떠 있지 않습니다. 상태 파일이 갱신되지 않고 있습니다 — " +
+          "Photoshop 에서 GraXpert 패널을 여세요.",
+      );
+    }
+    if (!current.status.enabled) {
+      throw new Error(
+        "GraXpert 패널의 외부 자동화가 꺼져 있습니다. " +
+          "패널 설정에서 **Allow External Automation** 을 켜세요. 기본이 꺼짐입니다.",
+      );
+    }
   }
 
   /**
    * 실행을 요청하고 **새 레이어가 나타날 때까지** 기다린다.
    *
    * 패널은 끝났다고 알려주지 않는다 — 응답은 "명령을 받았다" 까지다. 그래서
-   * 완료 판정을 Photoshop 쪽에서 한다. 패널이 만드는 것은 새 레이어이므로,
-   * 실행 **전에** id 목록을 떠 두고 없던 id 를 찾는다.
+   * 완료 판정을 Photoshop 쪽에서 한다. 실행 **전에** id 목록을 떠 두고 없던
+   * id 를 찾는다.
    *
    * 위치나 이름으로 찾지 않는다. 이름은 여러 장이 같고(`GraXpert - AI Gradient -
    * Sky Merged` 가 열 장 쌓인 문서를 실기에서 봤다), 위치는 활성 레이어에 따라
    * 달라진다. (`mutation-result.ts` 와 같은 원칙)
    */
   async function runPanel(
-    mode: "background" | "denoise",
-    input: Record<string, unknown>,
+    mode: PanelMode,
+    options: Record<string, unknown>,
     requestId: string,
     job: { report: (percent: number | null, message: string) => void; signal: AbortSignal },
   ): Promise<unknown> {
     job.report(5, "문서 확인");
     const document = await exec<DocumentInfo>(DOCUMENT_GET, {}, requestId);
 
+    /* 선택 유무를 **막지 않고 기록한다.**
+     *
+     * 패널은 선택이 있으면 하늘 워크플로로, 없으면 활성 레이어 전체로 간다.
+     * 둘 다 의도된 동작이므로 한쪽을 거절하면 멀쩡한 호출을 막게 된다.
+     *
+     * 다만 어느 쪽으로 갔는지는 호출자가 알아야 한다. 실기에서 노이즈 감소를
+     * 두 번 돌리는 사이 선택이 사라졌고, 그다음 그래디언트 제거가 하늘 경로를
+     * 타지 않았는데도 성공으로 보였다. */
+    const selection =
+      mode === "background"
+        ? await exec<{ hasSelection: boolean }>(SELECTION_GET, {}, requestId)
+        : { hasSelection: false };
+
     const before = new Set((await listLayers(requestId)).map((layer) => layer.id));
 
     job.report(10, "GraXpert 패널에 실행 요청");
-    // method 는 고정이다. 패널 라디오가 딴 값으로 남아 있을 수 있어 매번 준다.
-    const command =
-      mode === "background"
-        ? { action: "run", mode, method: "AI", ...input }
-        : { action: "run", mode, ...input };
-    const ack: PanelAck = await requestRun(command, job.signal);
-    if (!ack.accepted) {
-      throw new Error(explainRejection(ack));
+    const response: PanelResponse = await requestRun(mode, options, job.signal);
+    if (!response.accepted) {
+      throw new Error(explainRejection(response));
     }
-    logger.info(`GraXpert ${mode} 시작: ${JSON.stringify(ack.settings)}`);
+    logger.info(`GraXpert ${mode} 시작: ${JSON.stringify(response.settings)}`);
 
     job.report(20, `GraXpert ${mode === "background" ? "그래디언트 제거" : "노이즈 감소"} 처리 중`);
     const deadline = Date.now() + RESULT_TIMEOUT_MS;
@@ -158,40 +171,28 @@ export function activate(context: ExtensionContext): void {
       await wait(LAYER_POLL_MS);
       const layers = await listLayers(requestId);
       const created = layers.filter((layer) => !before.has(layer.id));
-      if (created.length > 0) {
-        job.report(100, "완료");
-
-        /* **하늘 경로를 실제로 탔는지는 레이어 이름으로 확인한다.**
-         *
-         * 패널이 이름 끝에 ` - Sky Merged` 또는 ` - Sky Masked` 를 붙이는데,
-         * 그 분기가 곧 `skyAI` 다. 설정값을 되읽으면 "AI 로 요청했다" 까지만
-         * 알 수 있고 "AI 로 돌았다" 는 알 수 없다. */
-        const skyApplied =
-          mode === "background" &&
-          created.some((layer) => / - Sky (Merged|Masked)$/u.test(layer.name));
-
-        return {
-          mode: ack.mode,
-          // 요청값이 아니라 패널에 실제로 들어간 값이다. 범위를 벗어난
-          // 요청은 잘려서 들어가므로 여기서 그 사실이 드러난다.
-          settings: ack.settings,
-          ...(mode === "background"
-            ? {
-                skyApplied,
-                ...(skyApplied
-                  ? {}
-                  : {
-                      warning:
-                        "**하늘 경로를 타지 않았습니다.** 결과 레이어 이름에 ' - Sky Merged' 가 " +
-                        "없습니다 — 패널이 선택 영역에서 마스크를 만들지 못해 일반 그래디언트 " +
-                        "제거로 처리했습니다. 선택 영역을 확인하고 다시 부르세요.",
-                    }),
-              }
-            : {}),
-          document: { name: document.name, size: `${document.width}x${document.height}` },
-          layers: created.map((layer) => ({ id: layer.id, name: layer.name })),
-        };
+      if (created.length === 0) {
+        continue;
       }
+      job.report(100, "완료");
+
+      /* **하늘 경로를 실제로 탔는지는 레이어 이름으로 확인한다.**
+       *
+       * 패널이 이름 끝에 ` - Sky Merged` 또는 ` - Sky Masked` 를 붙이는데
+       * 그 분기가 곧 하늘 워크플로다. 응답의 `settings` 를 되읽으면 "AI 로
+       * 요청했다" 까지만 알 수 있고 "하늘로 돌았다" 는 알 수 없다. */
+      const skyApplied =
+        mode === "background" &&
+        created.some((layer) => / - Sky (Merged|Masked)$/u.test(layer.name));
+
+      return {
+        mode: response.mode,
+        // 요청값이 아니라 패널에 실제로 들어간 값이다.
+        settings: response.settings,
+        ...(mode === "background" ? { selectionAtStart: selection.hasSelection, skyApplied } : {}),
+        document: { name: document.name, size: `${document.width}x${document.height}` },
+        layers: created.map((layer) => ({ id: layer.id, name: layer.name })),
+      };
     }
 
     throw new Error(
@@ -206,45 +207,62 @@ export function activate(context: ExtensionContext): void {
     name: "gx.status",
     description:
       "GraXpert 패널을 부를 수 있는 상태인지 확인한다. " +
-      "패널이 열려 있는지, 지금 처리 중인지, 처리 중이라면 얼마나 오래됐는지를 보고한다. " +
-      "**아무것도 실행하지 않는다.** gx.run_* 이 거절당할 때 먼저 부른다.",
+      "패널이 떠 있는지, 외부 자동화가 켜져 있는지, 지금 처리 중인지를 보고한다. " +
+      "**명령을 보내지 않는다** — 패널이 1초마다 쓰는 상태 파일을 읽을 뿐이다. " +
+      "gx.run_* 이 거절당하면 먼저 부른다.",
     permission: "read",
     inputSchema: Empty,
-    handler: async (_input, toolContext) => {
-      const { requestId } = toolContext;
-      const layers = await listLayers(requestId);
-      // mode 를 주지 않으면 패널이 거절하면서 상태만 돌려준다. 실행되지 않는다.
-      // 응답 대기가 10초 한도라 취소 통로 없이 불러도 MCP 타임아웃 안에서 끝난다.
-      const ack = await requestRun({ action: "run" }, new AbortController().signal);
-      return {
-        extension: { id: manifest.id, version: manifest.version },
-        panelResponding: true,
-        mode: ack.mode,
-        busy: ack.panelBusy,
-        busyForMs: ack.busyForMs,
-        busyLabel: ack.busyLabel,
-        settings: ack.settings,
-        layerCount: layers.length,
-      };
+    handler: (_input, _toolContext) => {
+      const extension = { id: manifest.id, version: manifest.version };
+      const current = readStatus();
+      if (current === null) {
+        return Promise.resolve({
+          extension,
+          panelRunning: false,
+          // 상태 파일이 없으면 나머지를 지어내지 않는다. 모르는 것은 null 이다.
+          automationEnabled: null,
+          mode: null,
+          busy: null,
+          gradientResultBusy: null,
+          statusAgeMs: null,
+          blocked:
+            "상태 파일이 없습니다. GraXpert 패널을 한 번도 열지 않았거나 설치되어 있지 않습니다.",
+        });
+      }
+      const { status, fresh } = current;
+      return Promise.resolve({
+        extension,
+        // 파일이 낡았으면 패널이 닫힌 것이다. 남은 값을 현재 상태로 보고하지 않는다.
+        panelRunning: fresh,
+        automationEnabled: status.enabled as boolean | null,
+        mode: status.mode as string | null,
+        busy: status.panelBusy as boolean | null,
+        gradientResultBusy: status.gradientResultBusy as boolean | null,
+        statusAgeMs: (Date.now() - status.at) as number | null,
+        blocked: !fresh
+          ? "패널이 떠 있지 않습니다. Photoshop 에서 GraXpert 패널을 여세요."
+          : !status.enabled
+            ? "패널 설정에서 **Allow External Automation** 을 켜세요. 기본이 꺼짐입니다."
+            : null,
+      });
     },
   });
 
   tools.register({
     name: "gx.run_gradient",
     description:
-      "GraXpert 패널의 AI 그래디언트 제거를 실행한다. " +
-      "**활성 선택 영역을 하늘로 삼는다** — 먼저 photoshop.selection.sky 등으로 하늘을 고른다. " +
-      "선택이 없으면 실행하지 않고 거절한다(패널은 조용히 일반 처리로 떨어진다). " +
-      "지상부를 합성 평면으로 덮은 뒤 GraXpert 에 넣으므로 CLI 에 원본을 그대로 넣는 것과 결과가 다르다. " +
-      "생략한 값은 패널에 지금 설정된 것을 그대로 쓴다. " +
+      "GraXpert 패널의 그래디언트 제거를 실행한다. 외부 자동화는 **언제나 AI Auto** 다. " +
+      "**활성 선택 영역이 있으면 그것을 하늘로 삼아** 전경을 가상 하늘로 덮고 계산한 뒤 " +
+      "보정된 하늘만 합성한다. 선택이 없으면 활성 레이어 전체를 처리한다 — " +
+      "어느 쪽으로 갔는지는 결과의 skyApplied 에 담긴다. " +
+      "지상 풍경이 든 사진은 선택이 있어야 산·나무가 그래디언트 모델을 끌어당기지 않는다. " +
       "**즉시 jobId 를 반환한다.** 수 분 걸릴 수 있어 MCP 요청 안에서 끝낼 수 없다. " +
       "photoshop.job.status 로 확인하고, completed 가 되면 result.layers 에 새 레이어가 담긴다.",
     permission: "external",
     inputSchema: RunBackgroundInput,
-    handler: async (input, toolContext) => {
+    handler: (input, toolContext) => {
       const { requestId } = toolContext;
-      // 즉시 알 수 있는 것은 Job 으로 미루지 않는다.
-      await requireSkySelection(requestId);
+      requirePanelReady();
       const jobId = jobs.start("gx.run_gradient", async (job) =>
         runPanel("background", input as Record<string, unknown>, requestId, job),
       );
@@ -258,7 +276,7 @@ export function activate(context: ExtensionContext): void {
   tools.register({
     name: "gx.run_denoise",
     description:
-      "GraXpert 패널의 Noise Reduction 을 실행한다. " +
+      "GraXpert 패널의 노이즈 감소를 실행한다. " +
       "그래디언트 제거와는 GraXpert 를 아예 다른 명령으로 부른다(-cmd denoising). " +
       "생략한 값은 패널에 지금 설정된 것을 그대로 쓴다. " +
       "**즉시 jobId 를 반환한다.** photoshop.job.status 로 확인한다.",
@@ -266,6 +284,7 @@ export function activate(context: ExtensionContext): void {
     inputSchema: RunDenoiseInput,
     handler: (input, toolContext) => {
       const { requestId } = toolContext;
+      requirePanelReady();
       const jobId = jobs.start("gx.run_denoise", async (job) =>
         runPanel("denoise", input as Record<string, unknown>, requestId, job),
       );

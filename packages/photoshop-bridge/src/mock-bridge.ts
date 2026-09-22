@@ -1093,6 +1093,17 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         ) as TResult;
       case "DOCUMENT_SAVE":
         return this.#save() as TResult;
+      case "SELECTION_EXPORT_MASK":
+        /* **선택이 없으면 실패한다.** 실기가 그렇게 동작하는데 Mock 이
+         * 성공하면 그 경로는 테스트에 영원히 안 나온다. */
+        this.#requireDocument();
+        if (!this.#hasSelection) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "선택 영역 마스크를 내보내려면 선택 영역이 있어야 합니다.",
+          );
+        }
+        return this.#saveInto(command.params as { filename: string }, "tiff") as TResult;
       case "SELECTION_GET":
         this.#requireDocument();
         return {

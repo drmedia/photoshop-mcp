@@ -4,6 +4,7 @@ import type { SaveResult } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
 import { runModal } from "./modal.js";
+import { exportSelectionMask } from "./export-mask.js";
 import { exportTiff } from "./export-tiff.js";
 import { entryExists, requireWorkspace } from "./workspace.js";
 
@@ -119,6 +120,18 @@ export async function documentExport(params: {
 
     return { path, filename, format };
   });
+}
+
+/**
+ * `SELECTION_EXPORT_MASK` — 선택 영역을 16비트 TIFF 마스크로 내보낸다.
+ *
+ * 파일 만들기는 `export` 와 같은 규칙이다 — 승인된 폴더 안, 덮어쓰지 않는다.
+ * 그래서 권한도 같은 `external` 이다.
+ */
+export async function selectionExportMask(params: { filename: string }): Promise<SaveResult> {
+  const folder = await requireWorkspace();
+  const { file, path } = await createTarget(folder, params.filename);
+  return exportSelectionMask(file, path, params);
 }
 
 /**

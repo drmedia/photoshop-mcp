@@ -6,10 +6,13 @@ import {
   DOCUMENT_SAVE_AS,
   EmptyParamsSchema,
   ExportParamsSchema,
+  SELECTION_EXPORT_MASK,
   SaveAsParamsSchema,
+  SelectionExportMaskParamsSchema,
   WORKSPACE_STATUS,
   type ExportParams,
   type SaveAsParams,
+  type SelectionExportMaskParams,
 } from "../commands/document-save.js";
 
 /**
@@ -93,6 +96,37 @@ export function createSaveTool(
     handler: async (_input, context) =>
       engine.execute<SaveResult>(
         { type: DOCUMENT_SAVE, params: {} },
+        { requestId: context.requestId },
+      ),
+  };
+}
+
+/**
+ * `photoshop.selection.export_mask` — 선택 영역을 마스크 파일로.
+ *
+ * 외부 처리기가 **어디가 하늘인지** 를 알아야 하는 경우가 있다. GraXpert 는
+ * 지상 풍경이 프레임에 있으면 산·나무가 배경 모델을 끌어당겨 하늘에서 뺄 것을
+ * 거의 못 찾는다 — 실기에서 결과가 원본과 눈으로 구분되지 않았다.
+ *
+ * `selection.capture` 는 축소본이고 `selection.save_channel` 은 문서 안에만
+ * 남는다. 전체 해상도로 **파일**에 내보내는 길이 없었다.
+ */
+export function createSelectionExportMaskTool(
+  engine: CommandEngine,
+): ToolDefinition<SelectionExportMaskParams, SaveResult> {
+  return {
+    name: "photoshop.selection.export_mask",
+    description:
+      "현재 선택 영역을 16비트 TIFF 마스크로 승인된 작업 폴더에 내보낸다 — " +
+      "선택 안이 흰색, 밖이 검정이다. 외부 처리기에게 어느 영역을 다르게 " +
+      "다뤄야 하는지 알려 줄 때 쓴다. 파일 이름만 받으며 같은 이름이 있으면 " +
+      "덮어쓰지 않고 실패한다. **열려 있는 문서는 바뀌지 않는다** — 복제본에서 " +
+      "만들고 닫는다. 선택이 없으면 실패한다.",
+    permission: "external",
+    inputSchema: SelectionExportMaskParamsSchema,
+    handler: async (input, context) =>
+      engine.execute<SaveResult>(
+        { type: SELECTION_EXPORT_MASK, params: input },
         { requestId: context.requestId },
       ),
   };

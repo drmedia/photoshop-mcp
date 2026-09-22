@@ -242,6 +242,7 @@ describe("Core Tool 분류", () => {
       "DOCUMENT_OPEN",
       "DOCUMENT_SAVE_AS",
       "DOCUMENT_EXPORT",
+      "SELECTION_EXPORT_MASK",
       "LAYER_PLACE",
     ]);
     expect(byLevel("destructive")).toEqual([
@@ -285,6 +286,9 @@ describe("Core Tool 분류", () => {
           type === "LAYER_PLACE" ||
           type === "LAYER_DELETE" ||
           type === "WORKSPACE_DELETE" ||
+          /* 선택 영역을 파일로 내보낸다. 파일을 만드는 규칙이 `DOCUMENT_EXPORT`
+           * 와 같아 같은 등급이다 — 승인된 폴더 안, 덮어쓰지 않는다. */
+          type === "SELECTION_EXPORT_MASK" ||
           type === "ACTION_PLAY",
       ),
     ).toBe(true);

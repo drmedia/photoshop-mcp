@@ -372,6 +372,7 @@ History **조회**는 Tool 이 아니라 `photoshop://history` Resource 다. (§
 | `photoshop.workspace.usage` | READ | 파일과 총 용량을 큰 것부터 |
 | `photoshop.document.save_as` | EXTERNAL | psd · psb. 레이어 유지. **덮어쓰지 않는다** |
 | `photoshop.document.export` | EXTERNAL | png · jpg · tiff. 평탄화. tiff 는 16비트 유지 |
+| `photoshop.selection.export_mask` | EXTERNAL | 선택 영역을 16비트 TIFF 마스크로. 흰색=선택 안 |
 | `photoshop.layer.place` | EXTERNAL | 승인 폴더의 파일을 스마트 오브젝트로. `rasterize` 로 픽셀 |
 | `photoshop.document.save` | DESTRUCTIVE | 원본 덮어쓰기 |
 | `photoshop.workspace.delete` | DESTRUCTIVE | **이름을 명시한** 파일만. 패턴을 받지 않는다 |

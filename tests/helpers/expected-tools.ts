@@ -85,6 +85,7 @@ export const EXPECTED_TOOLS = [
   "photoshop.workspace.status",
   "photoshop.document.save_as",
   "photoshop.document.export",
+  "photoshop.selection.export_mask",
   "photoshop.document.save",
   // Phase 8 — 외부 처리기 (ROADMAP §12)
   //
@@ -182,6 +183,7 @@ export const EXPECTED_COMMANDS = [
   "DOCUMENT_SAVE_AS",
   "DOCUMENT_EXPORT",
   "DOCUMENT_SAVE",
+  "SELECTION_EXPORT_MASK",
   "LAYER_PLACE",
   "WORKSPACE_USAGE",
   "WORKSPACE_DELETE",

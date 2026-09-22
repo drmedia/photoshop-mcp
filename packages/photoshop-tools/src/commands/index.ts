@@ -75,11 +75,14 @@ import {
   DOCUMENT_SAVE,
   DOCUMENT_SAVE_AS,
   ExportParamsSchema,
+  SELECTION_EXPORT_MASK,
   SaveAsParamsSchema,
+  SelectionExportMaskParamsSchema,
   WORKSPACE_STATUS,
   exportCommand,
   saveAsCommand,
   saveCommand,
+  selectionExportMaskCommand,
   workspaceStatusCommand,
 } from "./document-save.js";
 import { LAYER_GET_ACTIVE, layerGetActiveCommand } from "./layer-active.js";
@@ -567,6 +570,12 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     schema: ExportParamsSchema,
   });
   registry.register(DOCUMENT_SAVE, saveCommand, { permission: "destructive" });
+  /* 선택 영역을 파일로 내보낸다. 외부 처리기가 "어디가 하늘인지" 를 알아야
+   * 하는 경우가 있다 — GraXpert 는 지상이 배경 모델을 끌어당긴다. */
+  registry.register(SELECTION_EXPORT_MASK, selectionExportMaskCommand, {
+    permission: "external",
+    schema: SelectionExportMaskParamsSchema,
+  });
 
   // 외부 처리 결과를 되돌리는 길. 승인된 폴더 안이라도 Photoshop 밖 파일을 읽으므로
   // export 와 같은 external 이다.

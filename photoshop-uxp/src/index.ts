@@ -79,7 +79,7 @@ import { startNotifications } from "./dom/notifications.js";
 import { historyList, selectionGet } from "./dom/state-read.js";
 import { workspaceDelete, workspaceUsage } from "./dom/workspace-files.js";
 import { layerPlace } from "./dom/place.js";
-import { documentExport, documentSave, documentSaveAs } from "./dom/save.js";
+import { documentExport, documentSave, documentSaveAs, selectionExportMask } from "./dom/save.js";
 import { approveFolder, revokeFolder, workspaceStatus } from "./dom/workspace.js";
 import { BridgeClient, type ClientState } from "./transport/ws-client.js";
 
@@ -279,6 +279,11 @@ export function createDispatcher(): CommandDispatcher {
     documentExport(p as Parameters<typeof documentExport>[0]),
   );
   dispatcher.register("DOCUMENT_SAVE", async () => documentSave());
+  /* 선택 영역을 파일로 내보낸다. 외부 처리기가 "어디가 하늘인지" 를 알아야
+   * 하는 경우가 있다 — GraXpert 는 지상이 배경 모델을 끌어당긴다. */
+  dispatcher.register("SELECTION_EXPORT_MASK", async (p) =>
+    selectionExportMask(p as Parameters<typeof selectionExportMask>[0]),
+  );
 
   // 외부 처리 결과를 Photoshop 으로 되돌리는 길. (Phase 8 과 짝을 이룬다)
   dispatcher.register("LAYER_PLACE", async (p) =>

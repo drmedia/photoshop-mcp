@@ -32,6 +32,7 @@ export const WORKSPACE_STATUS = "WORKSPACE_STATUS";
 export const DOCUMENT_SAVE_AS = "DOCUMENT_SAVE_AS";
 export const DOCUMENT_EXPORT = "DOCUMENT_EXPORT";
 export const DOCUMENT_SAVE = "DOCUMENT_SAVE";
+export const SELECTION_EXPORT_MASK = "SELECTION_EXPORT_MASK";
 
 export const EmptyParamsSchema = z.object({}).strict();
 
@@ -41,6 +42,13 @@ export const SaveAsParamsSchema = z
     filename: FilenameSchema,
     /** 저장 형식. 생략하면 `psd`. */
     format: LayeredFormatSchema.optional(),
+  })
+  .strict();
+
+export const SelectionExportMaskParamsSchema = z
+  .object({
+    /** 승인된 폴더 안의 파일 이름. 경로를 포함할 수 없다. */
+    filename: FilenameSchema,
   })
   .strict();
 
@@ -82,6 +90,7 @@ export const ExportParamsSchema = z
 
 export type SaveAsParams = z.infer<typeof SaveAsParamsSchema>;
 export type ExportParams = z.infer<typeof ExportParamsSchema>;
+export type SelectionExportMaskParams = z.infer<typeof SelectionExportMaskParamsSchema>;
 
 /** Plugin 응답을 스키마로 검증해서 돌려준다. */
 function forward<TParams, TResult>(schema: z.ZodType<TResult>): CommandHandler<TParams, TResult> {
@@ -129,3 +138,15 @@ export const workspaceStatusCommand = forward<Record<string, never>, WorkspaceSt
 export const saveAsCommand = forwardSave<SaveAsParams>("psd");
 export const exportCommand = forwardSave<ExportParams>("png");
 export const saveCommand = forward<Record<string, never>, SaveResult>(SaveResultSchema);
+
+/**
+ * 선택 영역을 16비트 TIFF 마스크로 내보낸다.
+ *
+ * 파일을 만드는 규칙이 `export` 와 같다 — 승인된 폴더 안, 덮어쓰지 않는다.
+ * 그래서 `external` 이고 확장자도 같은 방식으로 붙인다.
+ *
+ * **형식을 고르게 하지 않는다.** 이 파일을 읽는 것은 사람이 아니라 외부
+ * 처리 코드이고, 16비트 TIFF 하나만 지원한다. 고를 수 있게 두면 png 로
+ * 내보낸 뒤 "왜 안 되지" 가 된다.
+ */
+export const selectionExportMaskCommand = forwardSave<SelectionExportMaskParams>("tiff");

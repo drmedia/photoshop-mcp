@@ -22,7 +22,7 @@ import { fileSystem } from "./workspace.js";
  */
 
 /** TIFF 저장 descriptor. 압축 없이, 레이어 없이 저장한다. */
-function tiffDescriptor(token: string): Record<string, unknown> {
+export function tiffDescriptor(token: string): Record<string, unknown> {
   return {
     _obj: "save",
     as: {

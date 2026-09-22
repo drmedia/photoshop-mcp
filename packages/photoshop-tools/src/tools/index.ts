@@ -56,6 +56,7 @@ import {
   createExportTool,
   createSaveAsTool,
   createSaveTool,
+  createSelectionExportMaskTool,
   createWorkspaceStatusTool,
 } from "./document-save.js";
 import { createLayerGetActiveTool } from "./layer-active.js";
@@ -214,6 +215,7 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createWorkspaceStatusTool(engine));
   registry.register(createSaveAsTool(engine));
   registry.register(createExportTool(engine));
+  registry.register(createSelectionExportMaskTool(engine));
   registry.register(createSaveTool(engine));
   registry.register(createLayerPlaceTool(engine));
 

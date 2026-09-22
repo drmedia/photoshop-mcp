@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "MCP 서버 부트스트랩과 Tool Registry",
+  "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

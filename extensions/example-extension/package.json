@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "extension-api 사용법을 보여주는 예제 확장",
+  "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

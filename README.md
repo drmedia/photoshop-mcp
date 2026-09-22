@@ -401,3 +401,8 @@ Extension 의 namespace 를 쓰면 적재가 거부됩니다. 하나가 잘못�
 ## 다음 단계
 
 [docs/ROADMAP.md](docs/ROADMAP.md) 가 Phase 의 유일한 기준입니다.
+
+## 라이선스
+
+[MIT](LICENSE). 의존하는 패키지도 모두 허용적입니다 — `ws` · `zod` ·
+`@modelcontextprotocol/sdk` 는 MIT, `zod-to-json-schema` 는 ISC 입니다.

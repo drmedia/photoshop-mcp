@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "RC-Astro CLI Extension — BlurXTerminator 를 Capability 로 호출한다",
+  "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

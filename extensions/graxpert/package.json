@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "GraXpert Photoshop 패널 Extension — 명령 파일로 패널을 구동한다",
+  "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

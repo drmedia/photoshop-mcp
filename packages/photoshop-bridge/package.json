@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Photoshop Bridge 추상화 · 프로토콜 타입 · 에러 모델 · Mock 구현",
+  "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Photoshop Core MCP Tool 및 Command 정의",
+  "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

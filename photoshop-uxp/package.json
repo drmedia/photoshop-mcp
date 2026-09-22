@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Photoshop UXP 플러그인 (Bridge 구현체)",
+  "license": "MIT",
   "scripts": {
     "build": "tsc -b"
   },

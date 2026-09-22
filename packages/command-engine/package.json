@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Command Registry 및 Command Engine",
+  "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

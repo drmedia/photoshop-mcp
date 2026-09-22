@@ -661,6 +661,13 @@ UXP 의 실기 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 
 namespace** 다 — `extensions/example-extension` 의 namespace 는 `example` 다.
 못 찾은 이름은 경고한다.
 
+**`extensions/` 는 배포물이 아니다.** `npm pack` 에 들어가지 않고, 서버의 cwd 는
+MCP 클라이언트가 정하므로 설치한 사용자에게 `<cwd>/extensions` 는 존재하지
+않는다. 이 디렉터리는 **개발·검증 자산**이고 위 스위치는 이 저장소에서 작업할
+때를 위한 것이다. 그래서 **`graxpert` 를 패널 저장소로 옮기는 것은 할 일이
+아니라 조건부다** — `extension-api` 가 publish 된 뒤에나 가능하고, 근거였던
+"안 쓰는 사람에게 보인다" 는 이미 성립하지 않는다. (ROADMAP §18.3)
+
 **가르는 기준은 제품 이름이 아니라 설치 단위다.** `rc-astro.exe` 하나가
 `bxt`·`nxt`·`sxt` 를 가지므로 `rcastro` 하나이고, `starnet2.exe` 는 따로 설치하므로
 별도다. 같은 `starRemoval` Capability 를 둘이 제공하므로 **각 Tool 이 `provider` 를

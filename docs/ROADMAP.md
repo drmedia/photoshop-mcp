@@ -5482,8 +5482,62 @@ ToolRegistry.setChangeListener      등록·해제 양쪽에서 알린다
 - [x] PhotoshopMCP 패널의 Extension 등록 모달
 - [x] Bridge 가 붙으면 서버가 물어 적재한다 — `tests/extension-from-panel.test.ts`
 - [x] 실기 검증 — 번들 적재를 끈 채로 `gx.*` 가 패널 등록으로 붙었다
-- [ ] `graxpert` 를 패널 저장소로 이동 · 번들 빌드
+- [~] `graxpert` 를 패널 저장소로 이동 — **조건부다. 아래 참조**
 - [x] `milkyscape` 제거 — 아키텍처 검증 역할이 끝났다 (아래 참조)
+
+## `graxpert` 이동은 할 일이 아니라 조건부다
+
+체크리스트에 남겨 두었더니 "남은 일" 로 읽혔다. 점검해 보니 **원래 근거가
+이미 풀렸고 선행 조건이 안 됐다.**
+
+### 옮기려던 이유는 사라졌다
+
+근거는 "저장소에 있으면 GraXpert 를 안 쓰는 사람에게도 `gx.*` 가 보인다"
+였다. 그런데 **배포 패키지에 `extensions/` 가 들어가지 않는다.**
+
+```text
+npm pack @photoshop-mcp/mcp-server
+→ bin · dist 만. extension 파일 0개
+```
+
+서버의 cwd 는 MCP 클라이언트가 정하므로 설치한 사용자에게 `<cwd>/extensions`
+는 **존재하지도 않는다.** 자동 적재될 것이 없다. `extensions/graxpert` 는
+배포물이 아니라 **개발·검증 자산**이고, §18.2 의 스위치는 이 저장소에서
+작업할 때를 위한 것이다.
+
+### 지금은 옮길 수도 없다
+
+**Extension 은 워크스페이스 안에 있어야 한다.** 밖에 두면
+`@photoshop-mcp/extension-api` 해석이 실패한다. 옮기려면 그것이 먼저
+publish 되어야 하고, 그건 Phase 14 의 배포 단위 결정에 달려 있다.
+**순서가 뒤집혀 있었다.**
+
+### 옮기면 잃는 것
+
+`tests/graxpert.test.ts` 가 스무 개 넘게 고정한다 — 낡은 상태 파일 판정,
+다른 클라이언트 응답 차단, 거절 코드별 안내, Job 을 안 띄우는 조건. 패널
+저장소로 가면 vitest·워크스페이스를 통째로 옮기거나 이 테스트들을 버린다.
+
+그리고 **패널을 구동하는 Extension 의 유일한 예제**다. `rcastro`·`starnet`
+은 CLI Capability 형이고 `example` 은 껍데기다. §17.37 이 "액션으로는 안
+된다 · 메뉴를 거치느냐가 기준이다" 로 갈라 둔 그 경로의 참조 구현이 없어진다.
+
+### 남는 진짜 이유는 하나다
+
+**계약이 저쪽에 있다.** `extensions/graxpert/README.md` 가 이미 그렇게 적는다 —
+External Automation API 의 계약은 패널 저장소의 `docs/EXTERNAL_AUTOMATION.md`
+이고 어긋나면 그쪽이 맞다. 패널이 API 를 바꾸면 이 Extension 이 따라가야
+하는데, 두 저장소의 릴리스 주기가 다르면 어긋난 채로 돈다.
+
+지금은 위험이 낮다 — 패널도 이 Extension 도 같은 사람이 만들고, 코드에 버전
+협상이 없으니 어긋나면 `automation_disabled` 같은 거절 코드로 드러난다.
+
+### 언제 다시 본다
+
+```text
+조건   extension-api 가 publish 된 뒤 · 패널 설치 관리자를 만들 때
+결정   테스트를 함께 옮길지 · 참조 구현을 무엇으로 대체할지
+```
 
 ## `milkyscape` 를 해체했다
 

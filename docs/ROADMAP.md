@@ -5282,8 +5282,10 @@ CLI 로 두 번 돌려 표본 207,850개 중 99.9%가 달랐다(최대 차이 0.
 - [x] `tests/graxpert.test.ts` 18개 — 패널 IPC 를 재던 것은 대상이 사라졌다
 - [x] 실기 검증 — `export(tiff,16) → GraXpert CLI → FITS→TIFF → place` 가 끝까지 돌았다
 - [x] `photoshop.selection.export_mask` — 하늘 마스크를 파일로
-- [ ] `sky-fill` 을 서버로 옮긴다 (평면 적합 + 지상 치환)
-- [ ] `gx.run_gradient` 가 선택이 있으면 그 경로를 탄다
+- [x] `sky-fill` 을 서버로 옮긴다 (평면 적합 + 지상 치환)
+- [x] `CapabilityRequest.prepare` — 입력 준비. `convert` 의 짝이다
+- [x] `gx.run_gradient` 가 선택이 있으면 그 경로를 탄다
+- [ ] 하늘 경로 실기 검증 — 아직
 
 변환 경로가 실기에서 처음 지나갔다. 테스트는 `outputSuffix`·`convert` 를 빼고
 Extension 의 흐름만 재므로(그쪽은 `fits.test.ts` 가 따로 잰다) 이 조합은

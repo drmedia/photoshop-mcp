@@ -6,6 +6,7 @@ import {
   type JobRecord,
   type ProviderConfig,
 } from "@photoshop-mcp/photoshop-bridge";
+import { tiffHeader } from "../packages/mcp-core/src/capabilities/fits.js";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -71,6 +72,38 @@ function argv(): string[] {
   return JSON.parse(readFileSync(process.env["GRAXPERT_ARGV_LOG"] as string, "utf8")) as string[];
 }
 
+/**
+ * Mock 이 쓰는 파일을 **진짜 16비트 TIFF** 로 만든다.
+ *
+ * 하늘 경로는 서버에서 `sky-fill` 을 실제로 돌린다 — 내용이 텍스트면 TIFF
+ * 파싱에서 막힌다. 파일 이름에 `_mask` 가 있으면 마스크(위 20행 흰색)로,
+ * 아니면 장면(위는 기울기, 아래는 어둠)으로 쓴다.
+ */
+const W = 32;
+const H = 32;
+const HORIZON = 20;
+
+function writeTiffFile(path: string): void {
+  const isMask = path.includes("_mask");
+  const header = tiffHeader(W, H);
+  const body = Buffer.alloc(W * H * 6);
+  for (let y = 0; y < H; y += 1) {
+    for (let x = 0; x < W; x += 1) {
+      const at = (y * W + x) * 6;
+      let v: number;
+      if (isMask) {
+        v = y < HORIZON ? 65535 : 0;
+      } else {
+        v = y < HORIZON ? 4000 + y * 100 + x * 10 : 800;
+      }
+      body.writeUInt16LE(v, at);
+      body.writeUInt16LE(v, at + 2);
+      body.writeUInt16LE(v, at + 4);
+    }
+  }
+  writeFileSync(path, Buffer.concat([header, body]));
+}
+
 interface Setup {
   mcp: ReturnType<typeof createPhotoshopMcp>;
 }
@@ -87,7 +120,9 @@ async function setup(options: Options = {}): Promise<Setup> {
   const bridge = new MockPhotoshopBridge({
     workspacePath: workspace,
     files: {
-      write: (path) => writeFileSync(path, "내보낸 픽셀", "utf8"),
+      write: (path) => {
+        writeTiffFile(path);
+      },
       exists: (path) => existsSync(path),
     },
   });
@@ -291,28 +326,73 @@ describe("인자", () => {
   });
 });
 
-describe("하늘 격리는 하지 않는다", () => {
-  it("**선택 영역을 만들지도 읽지도 않는다**", async () => {
-    /* 패널은 선택 영역을 하늘로 삼아 지상부를 덮었다. 그 판단은 호출자가
-     * 한다 — Tool 이 흐름을 박으면 호출자가 그 결정을 못 바꾼다. */
+describe("하늘 격리", () => {
+  it("**선택이 없으면 전체를 처리한다**", async () => {
     const s = await setup();
-    await run(s, "gx.run_gradient");
-
-    const selection = await s.mcp.engine.execute<{ hasSelection: boolean }>(
-      { type: "SELECTION_GET", params: {} },
-      { requestId: "r" },
+    const result = await run<{ selectionAtStart: boolean; skyApplied: boolean; files: string[] }>(
+      s,
+      "gx.run_gradient",
     );
-    expect(selection.hasSelection).toBe(false);
+
+    expect(result.selectionAtStart).toBe(false);
+    expect(result.skyApplied).toBe(false);
+    // 내보내기와 출력 둘뿐이다. 마스크도 준비 파일도 없다.
+    expect(result.files).toHaveLength(2);
   });
 
-  it("**설명이 격리 방법을 알려준다**", async () => {
-    /* "하늘만 고르지 않는다" 만 적고 끝내면 호출자가 다음에 무엇을 할지
-     * 모른다. 쓸 Tool 이름을 함께 준다. */
+  it("**선택이 있으면 마스크를 내보내고 하늘에만 씌운다**", async () => {
+    /* 지상부를 하늘의 연장 평면으로 덮어서 넣는다. 그러지 않으면 산·나무가
+     * 배경 모델을 끌어당겨 하늘에서 뺄 것을 거의 못 찾는다(ROADMAP §19). */
+    const s = await setup();
+    await s.mcp.engine.execute(
+      { type: "SELECTION_SET", params: { shape: "canvas" } },
+      { requestId: "sel" },
+    );
+
+    const result = await run<{
+      selectionAtStart: boolean;
+      skyApplied: boolean;
+      files: string[];
+      layer: { id: number };
+    }>(s, "gx.run_gradient");
+
+    expect(result.selectionAtStart).toBe(true);
+    expect(result.skyApplied).toBe(true);
+    // 내보내기 · 출력 · 마스크 · 준비 파일 넷이다.
+    expect(result.files).toHaveLength(4);
+    expect(result.files.some((name) => name.includes("_mask"))).toBe(true);
+
+    const layers = await s.mcp.engine.execute<{ id: number; hasMask?: boolean }[]>(
+      { type: "LAYER_LIST", params: {} },
+      { requestId: "r" },
+    );
+    expect(layers.find((layer) => layer.id === result.layer.id)?.hasMask).toBe(true);
+  });
+
+  it("**노이즈 감소는 선택을 보지 않는다**", async () => {
+    /* 하늘 격리는 배경 추출의 문제다. 노이즈 감소는 전체에 거는 것이
+     * 맞고, 선택이 있다고 다르게 굴면 호출자가 예측할 수 없다. */
+    const s = await setup();
+    await s.mcp.engine.execute(
+      { type: "SELECTION_SET", params: { shape: "canvas" } },
+      { requestId: "sel" },
+    );
+
+    const result = await run<{ selectionAtStart: boolean; skyApplied: boolean }>(
+      s,
+      "gx.run_denoise",
+    );
+
+    expect(result.selectionAtStart).toBe(false);
+    expect(result.skyApplied).toBe(false);
+  });
+
+  it("**설명이 어느 쪽으로 가는지 말한다**", async () => {
     const s = await setup();
     const text = s.mcp.tools.get("gx.run_gradient")?.description ?? "";
 
     expect(text).toMatch(/selection\.sky/u);
-    expect(text).toMatch(/mask\.create/u);
+    expect(text).toMatch(/skyApplied/u);
   });
 });
 

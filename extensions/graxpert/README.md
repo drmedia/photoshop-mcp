@@ -44,23 +44,33 @@ modalJavaScriptScopeExit    80
 CLI 는 같은 실행 파일이고 왕복이 이미 실기에서 검증되어 있었다 —
 `export(tiff) → GraXpert 7초(GPU) → FITS→TIFF → place`.
 
-## 하늘 격리는 하지 않는다
+## 하늘 격리 — 선택이 있으면 탄다
 
-패널은 선택 영역을 하늘로 삼아 **지상부를 합성 평면으로 덮은 뒤** GraXpert 에
-넣었다. 지상 풍경이 든 사진에서 산·나무가 배경 모델을 끌어당기기 때문이다.
-
-**그 판단은 호출자가 한다.** Tool 은 활성 레이어에 GraXpert 를 걸 뿐이다.
+**활성 선택 영역이 있으면 그것을 하늘로 삼는다.** 없으면 활성 레이어 전체다.
+둘 다 정상이라 막지 않고 어느 쪽인지를 결과에 담는다.
 
 ```text
-photoshop.document.statistics    격리가 필요한지 잰다
-photoshop.selection.sky          하늘을 고른다
-gx.run_gradient                  전체를 처리한다
-photoshop.mask.create            결과를 하늘에만 씌운다
-   { from: "fromSelection" }
+photoshop.selection.sky   호출자가 하늘을 고른다 (또는 손으로 다듬는다)
+gx.run_gradient
+   ├ selection.export_mask   하늘 마스크를 16비트 TIFF 로
+   ├ prepare: extendSkyPlane  지상부를 하늘의 연장 평면으로 덮는다
+   ├ GraXpert (AI)
+   ├ layer.place
+   └ mask.create fromSelection  결과를 하늘에만 씌운다
 ```
 
-흐름을 Tool 안에 박으면 **호출자가 그 결정을 못 바꾼다.** 어떤 사진은 격리가
-필요 없고, 어떤 사진은 하늘 선택을 손으로 다듬어야 한다.
+실기에서 **전체 이미지로 돌리면 결과가 원본과 눈으로 구분되지 않았다.** 지상이
+프레임에 있으면 산·나무가 배경 모델을 끌어당긴다.
+
+**덮는 것은 단색이 아니라 평면이다.** 하늘의 기울기를 지상까지 연장하므로 AI 가
+경계를 구조로 읽지 않는다. 채널마다 1차 평면을 적합하고 MAD 로 이상치를 세 번
+걸러낸다 — 별과 옅은 구름이 평면을 끌어당긴다.
+
+**무엇을 하늘로 볼지는 Tool 이 정하지 않는다.** 어떤 사진은 격리가 필요 없고,
+어떤 사진은 선택을 손으로 다듬어야 한다. 격리가 필요한지는
+`photoshop.document.statistics` 로 재서 판단한다.
+
+`gx.run_denoise` 는 선택을 보지 않는다 — 노이즈 감소는 전체에 거는 것이 맞다.
 
 ## 강도를 지정할 수 없다 — 노이즈 감소
 
@@ -131,6 +141,13 @@ document.get → layer.list → document.export(tiff, 16bit)
 
 ## 중간 파일
 
-한 번 돌 때마다 큰 TIFF 가 둘 생긴다(입력·출력). 결과의 `files` 에 담기며
+한 번 돌 때마다 큰 TIFF 가 생긴다. 결과의 `files` 에 전부 담기며
 `photoshop.workspace.usage` 로 확인하고 `photoshop.workspace.delete` 로 이름을
 명시해 지운다.
+
+```text
+선택 없음   입력 · 출력                       2개
+하늘 경로   입력 · 출력 · 마스크 · 준비 파일    4개
+```
+
+4032×6048 16비트면 **하나에 140MB** 다. 알려 주지 않으면 조용히 쌓인다.

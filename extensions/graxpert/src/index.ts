@@ -4,6 +4,9 @@ import {
   LAYER_LIST,
   LAYER_PLACE,
   LAYER_SELECT,
+  MASK_CREATE,
+  SELECTION_EXPORT_MASK,
+  SELECTION_GET,
   type DocumentInfo,
   type ExtensionContext,
   type LayerInfo,
@@ -84,10 +87,12 @@ export function activate(context: ExtensionContext): void {
     description:
       "그래디언트(빛 공해·배경 기울기)를 제거한다 — GraXpert. 현재 문서를 16비트 TIFF 로 " +
       "내보내 처리한 뒤 **픽셀 레이어 한 장**으로 가져온다. 기존 레이어를 바꾸지 않는다. " +
-      "**활성 레이어 전체를 처리한다 — 하늘만 고르지 않는다.** 지상 풍경이 든 사진은 " +
-      "산·나무가 배경 모델을 끌어당기므로, 하늘에만 적용하려면 photoshop.selection.sky 로 " +
-      "고른 뒤 결과 레이어에 photoshop.mask.create { from: 'fromSelection' } 를 씌운다. " +
-      "격리가 필요한지는 photoshop.document.statistics 로 재서 판단한다. " +
+      "**활성 선택 영역이 있으면 그것을 하늘로 삼는다** — 지상부를 하늘의 연장 평면으로 " +
+      "덮어서 넣고, 결과를 그 선택에만 씌운다. 지상 풍경이 든 사진은 선택이 없으면 " +
+      "산·나무가 배경 모델을 끌어당겨 하늘에서 뺄 것을 거의 못 찾는다. " +
+      "하늘을 고르려면 먼저 photoshop.selection.sky 를 부른다. " +
+      "선택이 없으면 활성 레이어 전체를 처리한다 — 어느 쪽으로 갔는지는 결과의 " +
+      "selectionAtStart 와 skyApplied 에 담긴다. " +
       "**즉시 jobId 를 반환한다.** photoshop.job.status 로 확인한다.",
     permission: "external",
     inputSchema: RunGradientInput,
@@ -212,6 +217,14 @@ export function activate(context: ExtensionContext): void {
     const document = await exec<DocumentInfo>(DOCUMENT_GET, {}, requestId);
     const before = await exec<LayerInfo[]>(LAYER_LIST, {}, requestId);
 
+    /* **선택이 있으면 그것을 하늘로 삼는다.** 판단은 호출자가 한다 — 여기서
+     * 고르지 않고 있는 그대로 읽어 결과에 담는다. 지상 풍경이 든 사진은
+     * 선택이 없으면 산·나무가 배경 모델을 끌어당긴다(ROADMAP §19). */
+    const selection =
+      spec.kind === "gradient"
+        ? await exec<{ hasSelection: boolean }>(SELECTION_GET, {}, requestId)
+        : { hasSelection: false };
+
     const prefix = spec.kind === "gradient" ? "GraXpert" : "GraXpert NR";
     const name = nextLayerName(before, prefix);
     const stem = runStem(document.name, spec.kind === "gradient" ? "graxpert" : "graxpert-nr");
@@ -231,11 +244,32 @@ export function activate(context: ExtensionContext): void {
     /* GraXpert 3.x 는 `-output out.tif` 를 줘도 `out.tif.fits` 를 만든다.
      * 그 버릇은 `outputSuffix` · `convert` 로 설정에 선언되어 있고 Registry 가
      * 찾아 변환한다. 여기서는 요청한 파일이 나온다고만 알면 된다. */
+    /* 하늘 선택이 있으면 마스크를 파일로 내보내 지상부를 덮게 한다.
+     * 덮는 것은 Capability 가 한다 — 파일 수준 작업이고 서버 쪽에 있다. */
+    let maskFile: string | null = null;
+    if (selection.hasSelection) {
+      job.report(18, "하늘 마스크 내보내기");
+      const mask = await exec<SaveResult>(
+        SELECTION_EXPORT_MASK,
+        { filename: `${stem}_mask` },
+        requestId,
+      );
+      maskFile = mask.filename;
+    }
+
     job.report(25, `${spec.label} 처리 중`);
     const output = `${stem}_out.tif`;
-    await capabilities.execute(
+    const run = await capabilities.execute(
       spec.capability,
-      { input: exported.filename, output, provider: spec.provider, params: spec.params },
+      {
+        input: exported.filename,
+        output,
+        provider: spec.provider,
+        params: spec.params,
+        ...(maskFile === null
+          ? {}
+          : { prepare: { kind: "extendSkyPlane" as const, mask: maskFile } }),
+      },
       // 취소하면 프로세스를 실제로 죽인다.
       { signal: job.signal },
     );
@@ -255,13 +289,31 @@ export function activate(context: ExtensionContext): void {
       requestId,
     );
 
-    logger.info(`${spec.label} 완료: ${placed.name}`);
+    /* **결과를 하늘에만 씌운다.** 지상부는 우리가 덮어 넣은 가짜라 그대로
+     * 두면 안 된다. 선택이 아직 살아 있으므로 `fromSelection` 이 그대로 쓴다. */
+    let masked = false;
+    if (maskFile !== null) {
+      job.report(95, "하늘에만 합성");
+      await exec(MASK_CREATE, { layerId: placed.id, from: "fromSelection" }, requestId);
+      masked = true;
+    }
+
+    logger.info(`${spec.label} 완료: ${placed.name}${masked ? " (하늘만)" : ""}`);
     job.report(100, "완료");
     return {
       layer: placed,
-      /* 중간 파일을 알려 준다. 한 번 돌 때마다 140MB 가 둘 생긴다 —
+      /* **어느 경로로 갔는지 담는다.** 선택이 있었는지와 실제로 하늘에만
+       * 씌웠는지는 다른 사실이다 — 설정값이 아니라 한 일을 말한다. */
+      selectionAtStart: selection.hasSelection,
+      skyApplied: masked,
+      /* 중간 파일을 알려 준다. 한 번 돌 때마다 140MB 가 여럿 생긴다 —
        * photoshop.workspace.usage 로 확인하고 delete 로 지운다. */
-      files: [exported.filename, output],
+      files: [
+        exported.filename,
+        output,
+        ...(maskFile === null ? [] : [maskFile]),
+        ...(run.preparedPath === undefined ? [] : [run.preparedPath]),
+      ],
       provider: spec.provider,
     };
   }

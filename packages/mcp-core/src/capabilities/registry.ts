@@ -20,6 +20,7 @@ import {
 } from "@photoshop-mcp/photoshop-bridge";
 
 import { convertFitsToTiff } from "./fits.js";
+import { fillGroundWithSkyPlane } from "./sky-fill.js";
 
 /**
  * Capability Registry. (ARCHITECTURE §19, ROADMAP §12)
@@ -312,9 +313,30 @@ export class CapabilityRegistry implements ExtensionCapabilityRegistry {
 
     await assertReadable(inputPath, request.input);
 
+    /* **입력을 준비한다.** 처리기에 그대로 넣으면 안 되는 경우가 있다 —
+     * GraXpert 는 지상 풍경이 프레임에 있으면 산·나무가 배경 모델을 끌어당겨
+     * 하늘에서 뺄 것을 거의 못 찾는다(ROADMAP §19).
+     *
+     * 준비한 파일도 승인된 폴더 안에 만든다. 결과의 `files` 에 담아 호출자가
+     * 지울 수 있게 한다 — 140MB 짜리가 조용히 쌓이면 안 된다. */
+    let effectiveInput = inputPath;
+    let preparedName: string | null = null;
+    if (request.prepare !== undefined) {
+      const maskPath = resolveInside(folder, request.prepare.mask, "prepare.mask");
+      await assertReadable(maskPath, request.prepare.mask);
+      preparedName = `${request.input}.prepared.tif`;
+      const preparedPath = resolveInside(folder, preparedName, "prepare.output");
+      const filled = await fillGroundWithSkyPlane(inputPath, maskPath, preparedPath);
+      this.#logger.info(
+        `입력 준비: extendSkyPlane — 표본 ${String(filled.samples)}개` +
+          (filled.fullSky ? " (지상 없음, 그대로 복사)" : ""),
+      );
+      effectiveInput = preparedPath;
+    }
+
     const args = buildArgs({
       config,
-      inputPath,
+      inputPath: effectiveInput,
       outputPaths,
       ...(request.params === undefined ? {} : { params: request.params }),
     });
@@ -407,6 +429,9 @@ export class CapabilityRegistry implements ExtensionCapabilityRegistry {
     return {
       capability,
       provider: config.id,
+      ...(preparedName === null
+        ? {}
+        : { preparedPath: resolveInside(folder, preparedName, "prepare.output") }),
       outputPath: outputPaths["output"] as string,
       outputPaths,
       durationMs,

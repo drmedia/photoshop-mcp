@@ -201,6 +201,17 @@ export interface CapabilityRequest {
   params?: Record<string, string | number | boolean>;
   /** 특정 Provider 를 지정한다. 생략하면 우선순위로 고른다. */
   provider?: string;
+  /**
+   * 입력을 처리기에 넣기 **전에** 준비하는 방법. 생략하면 그대로 넣는다.
+   *
+   * `convert` 가 출력 쪽의 이름 붙은 변환인 것과 짝을 이룬다. 처리기마다
+   * 필요한 준비가 다르고, 그것을 아는 것은 Extension 이다.
+   *
+   * - `extendSkyPlane` — 마스크 밖(지상부)을 마스크 안(하늘)의 평면으로
+   *   덮는다. GraXpert 는 지상이 프레임에 있으면 산·나무가 배경 모델을
+   *   끌어당겨 하늘에서 뺄 것을 거의 못 찾는다. (ROADMAP §19)
+   */
+  prepare?: { kind: "extendSkyPlane"; mask: string };
 }
 
 /** Capability 실행 결과. */
@@ -220,6 +231,12 @@ export interface CapabilityResult {
   durationMs: number;
   /** 형식을 바꾼 출력이 있으면 그 내용. 없으면 없다. */
   converted?: Record<string, string>;
+  /**
+   * `prepare` 로 만든 중간 파일의 경로. 준비하지 않았으면 없다.
+   *
+   * **알려 주지 않으면 조용히 쌓인다** — 4032×6048 16비트면 140MB 다.
+   */
+  preparedPath?: string;
 }
 
 /**

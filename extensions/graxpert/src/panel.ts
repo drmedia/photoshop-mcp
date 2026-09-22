@@ -232,7 +232,7 @@ export async function requestRun(
 
   throw new Error(
     `GraXpert 패널이 ${Math.round(paths.responseTimeoutMs / 1000)}초 동안 응답하지 않았습니다. ` +
-      +"패널이 열려 있는지 확인하세요 — 닫혀 있으면 명령 파일을 읽는 쪽이 없습니다. " +
+      "패널이 열려 있는지 확인하세요 — 닫혀 있으면 명령 파일을 읽는 쪽이 없습니다. " +
       "gx.status 로 패널이 살아 있는지 볼 수 있습니다.",
   );
 }

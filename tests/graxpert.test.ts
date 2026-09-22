@@ -164,6 +164,24 @@ describe("요청", () => {
     );
   });
 
+  it("**응답 없음 메시지가 고치는 방법까지 담는다**", async () => {
+    /* 실기 전에 이 문장이 `NaN` 으로 바뀌어 있었다 — 치환 실수로 문자열에
+     * 단항 플러스가 붙었다(`+ +"패널이 열려…"`). 타입 검사도 빌드도 통과하고,
+     * `/응답하지 않았습니다/` 만 보던 테스트도 통과했다.
+     *
+     * **"오류가 났다" 만 확인하면 안내 문구가 사라진 것을 놓친다.** 막힌
+     * 사람에게 남는 것은 그 문구뿐이다. */
+    let message = "";
+    try {
+      await requestRun("denoise", {}, new AbortController().signal, paths);
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toMatch(/패널이 열려 있는지/u);
+    expect(message).toMatch(/gx\.status/u);
+    expect(message).not.toMatch(/NaN|undefined|\[object/u);
+  });
+
   it("취소하면 기다리기를 멈춘다", async () => {
     const controller = new AbortController();
     const pending = requestRun("denoise", {}, controller.signal, paths);

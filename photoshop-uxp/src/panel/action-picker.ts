@@ -86,7 +86,16 @@ export async function openActionPicker(): Promise<number> {
   const chosen = new Set(readAllowed().map((entry) => KEY(entry.set, entry.action)));
 
   const dialog = document.createElement("dialog");
-  dialog.style.width = "460px";
+  /* **패널·Extension 등록 모달과 같은 골격이다.** 위아래는 고정, 가운데만
+   * 늘어나고 스크롤된다. `resize: "both"` 를 허용하므로 목록이 따라 늘어나야
+   * 한다 — 예전에는 `height:340px` 으로 박혀 있어 창을 키워도 그대로였고
+   * 아래만 비었다. 이 기기에 액션이 91개다.
+   *
+   * `height` · `display:flex` · `margin:0` 셋이 다 필요하다. 자세한 이유는
+   * `extension-picker.ts` 에 적었다. */
+  dialog.style.cssText =
+    "width:460px;height:100vh;margin:0;padding:0;box-sizing:border-box;" +
+    "display:flex;flex-direction:column";
   /* **색을 직접 정한다.** 실기에서 글자가 배경에 묻혀 거의 안 보였다 —
    * UXP 대화상자는 패널과 달리 텍스트 색을 물려주지 않는다.
    *
@@ -97,16 +106,17 @@ export async function openActionPicker(): Promise<number> {
   const DIM = "var(--uxp-host-text-color-secondary, #b0b0b0)";
   const LINE = "var(--uxp-host-border-color, #6a6a6a)";
   dialog.innerHTML = [
-    `<div style="font-family:sans-serif;font-size:12px;padding:10px;color:${TEXT}">`,
-    '<div style="display:flex;align-items:center;margin-bottom:6px">',
+    `<div style="flex:1;min-height:0;display:flex;flex-direction:column;`,
+    `font-family:sans-serif;font-size:12px;padding:10px;color:${TEXT}">`,
+    '<div style="flex-shrink:0;display:flex;align-items:center;margin-bottom:6px">',
     `<b style="color:${TEXT}">실행을 허용할 액션</b>`,
     `<span id="ap-count" style="margin-left:8px"></span>`,
     "</div>",
-    `<div style="color:${DIM};margin-bottom:6px">세트를 눌러 펼칩니다. 고른 것만 부를 수 있습니다.</div>`,
-    `<div id="ap-list" style="height:340px;overflow:auto;border:1px solid ${LINE};`,
+    `<div style="flex-shrink:0;color:${DIM};margin-bottom:6px">세트를 눌러 펼칩니다. 고른 것만 부를 수 있습니다.</div>`,
+    `<div id="ap-list" style="flex:1;min-height:0;overflow:auto;border:1px solid ${LINE};`,
     `padding:6px;color:${TEXT}"></div>`,
     // UXP 는 flex 의 `gap` 을 지원하지 않는다. 간격은 margin 으로 준다.
-    '<div style="margin-top:10px;display:flex;align-items:center">',
+    '<div style="flex-shrink:0;margin-top:10px;display:flex;align-items:center">',
     // `cursor` 가 sp-action-button 에서는 먹는지 재 본다. 일반 div 에서는 안 먹었다.
     '<sp-action-button size="s" id="ap-none" style="margin-right:6px;cursor:pointer">모두 해제</sp-action-button>',
     '<sp-action-button size="s" id="ap-save" style="cursor:pointer">저장</sp-action-button>',

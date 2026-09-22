@@ -2,10 +2,24 @@
 
 Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입니다.
 
-> **현재 상태: Phase 13 (Production Hardening) 까지 완료. 남은 것은 Phase 14 (Distribution) 입니다.**
+*Control Adobe Photoshop from an MCP client. Korean documentation.*
+
+## 필요한 것
+
+| | |
+|---|---|
+| Photoshop | 24.0 이상. **27.8 에서 실기 검증** |
+| Node | 22.12 이상 (런타임 자체는 18+ 로 돌지만 개발·테스트 도구가 요구) |
+| OS | Windows. macOS 는 `window.capture` 만 미지원이고 나머지는 미검증 |
+| 플러그인 | UXP 플러그인을 Photoshop 에 적재해야 합니다 ([연결](#photoshop-연결)) |
+
+MCP 클라이언트는 Claude Code · VS Code Copilot Chat 에서 확인했습니다.
+
+> **현재 상태: Phase 13 (Production Hardening) 까지 완료. Phase 14 (Distribution) 는 준비만 되어 있습니다.**
 > Core Tool 78개, Resource 6개. Extension 4개(`example` 2 · `graxpert` 3 · `rcastro` 3 ·
 > `starnet` 1)를 포함해 Photoshop 27.8 에서 실기 검증했습니다.
 > 모든 Tool 과 Command 가 권한 레벨을 선언하며, 기본값은 `read` · `edit` 만 허용합니다.
+> npm 에는 아직 올리지 않았습니다 — 클론해서 쓰십시오.
 
 ## 빠른 시작
 

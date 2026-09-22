@@ -5171,6 +5171,58 @@ Extension Package
 Configuration UI      ← 첫 슬라이스 완료. 아래 참조
 ```
 
+## 18.0 준비는 끝났고 publish 는 보류한다
+
+점검해 보니 **기술적 장애물은 하나였다** — `uxp plugin package` 가 아이콘이
+없어 막혔다. 나머지는 전부 결정이었다.
+
+```text
+배포 단위   A(6개 publish)로 정했다 — 번들은 extension-api 가 사라진다
+이름        bin 을 가진 패키지가 무스코프 `photoshop-mcp` 를 갖는다
+LICENSE     MIT
+아이콘      임시본으로 .ccx 가 나오는 것까지 확인했다 (441KB)
+```
+
+### 그런데 지금 올릴 이유가 없다
+
+```text
+두 번째 사용자가 있나          없다
+남이 Extension 을 만들려 하나   아직 없다
+지금 못 하고 있는 일이 있나     없다
+```
+
+**publish 는 문을 닫는다.** 오늘 하루 `extension-api` 의 의존, `photoshop-bridge`
+를 가를지, Command 이름을 상수로 둘지를 따졌고 결론은 전부 "지금은 그대로"
+였다. 그 결론이 유효한 이유가 **아직 안 올렸기 때문**이다. 올리는 순간 패키지
+이름과 경계가 공개 API 가 되고 미뤄 둔 것들이 breaking change 가 된다.
+
+### GitHub 공개가 먼저다
+
+```text
+                   GitHub 공개     npm publish
+남이 쓸 수 있나      된다            된다
+이름이 잠기나        아니다          잠긴다
+경계를 바꿀 수 있나   된다            breaking change
+버전 규율            불필요          필요
+```
+
+**낮은 비용에 값의 대부분을 준다.** 클론하거나 `npm i github:...` 로 쓴다.
+쓰는 사람이 생기면 그때 publish 하고, 그때 이름과 경계가 굳어도 된다.
+
+공개 전 훑은 것 — 추적 파일 313개에 비밀값 0, 로컬 절대 경로 3곳(맥락이 붙은
+것), 이메일 0. `capabilities.json` · `*.psd` · `testimage/` 는 이미
+`.gitignore` 에 있다.
+
+### 남은 것
+
+```text
+npm publish          쓰는 사람이 생길 때
+.ccx 전달 경로       건네줄 사람이 생길 때 (서명·Exchange·개발자 모드)
+패키징에 src 포함     uxp plugin package 가 폴더를 통째로 압축한다
+                     제외 옵션이 없어 스테이징 폴더가 필요하다
+```
+
+---
 ## 18.1 설정 UI 는 UI 가 아니었다
 
 "Configuration UI" 를 어떻게 만들지 보려고 **설정이 실제로 어디 있는지**부터

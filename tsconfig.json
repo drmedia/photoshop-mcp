@@ -17,16 +17,19 @@
       "path": "packages/mcp-server"
     },
     {
-      "path": "packages/extension-sdk"
+      "path": "packages/extension-api"
     },
     {
       "path": "extensions/example-extension"
     },
     {
-      "path": "extensions/milkyscape"
+      "path": "extensions/graxpert"
     },
     {
-      "path": "extensions/graxpert"
+      "path": "extensions/rcastro"
+    },
+    {
+      "path": "extensions/starnet"
     },
     {
       "path": "photoshop-uxp"

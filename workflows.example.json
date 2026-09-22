@@ -6,7 +6,7 @@
       "description": "별을 분리하고, 별 없는 레이어를 기준으로 선명화합니다. StarNet2와 BlurXTerminator가 필요합니다.",
       "steps": [
         {
-          "tool": "milky.remove_stars",
+          "tool": "starnet.remove_stars",
           "label": "별 분리",
           "awaitJob": true
         },
@@ -16,9 +16,10 @@
           "input": { "layerId": "{{steps.0.result.starless.id}}" }
         },
         {
-          "tool": "milky.enhance",
+          "tool": "rcastro.bxt",
           "label": "선명화",
-          "input": { "nonstellar": 0.4 }
+          "awaitJob": true,
+          "input": { "sharpenNonstellar": 0.4 }
         }
       ]
     },

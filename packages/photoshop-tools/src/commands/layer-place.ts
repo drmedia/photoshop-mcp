@@ -39,6 +39,18 @@ export const LayerPlaceParamsSchema = z
     filename: FilenameSchema,
     /** 만들어질 레이어 이름. 생략하면 파일 이름을 쓴다. */
     name: z.string().trim().min(1).max(255).optional(),
+    /**
+     * 가져온 뒤 픽셀로 굽는다. 기본은 스마트 오브젝트다.
+     *
+     * **외부 처리기의 결과에는 스마트 오브젝트가 얻는 것이 없다** — 더블클릭해도
+     * 그 처리기가 다시 돌지 않고 구워진 파일이 열릴 뿐이다. 마스크·블렌딩에는
+     * 픽셀이 편하고 파일도 작다.
+     *
+     * 나중에 굽는 길은 없다. Core 에 rasterize Command 가 없고, `stamp_visible`
+     * 로 우회하면 중간 스마트 오브젝트가 남는 데다 보이는 레이어가 1장이면
+     * 거절당한다. **안 만드는 것이 지우는 것보다 낫다.**
+     */
+    rasterize: z.boolean().optional(),
   })
   .strict();
 

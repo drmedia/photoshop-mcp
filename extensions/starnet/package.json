@@ -1,9 +1,9 @@
 {
-  "name": "@photoshop-mcp/milkyscape",
+  "name": "@photoshop-mcp/starnet",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "MilkyScape Extension — 은하수 사진 편집 도메인 로직",
+  "description": "StarNet2 Extension — 별 분리를 Capability 로 호출한다",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -21,7 +21,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@photoshop-mcp/extension-sdk": "0.1.0",
+    "@photoshop-mcp/extension-api": "0.1.0",
     "zod": "^3.25.76"
   }
 }

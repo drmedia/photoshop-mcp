@@ -11,7 +11,7 @@ import type { ToolDefinition } from "./tool.js";
  * **구현하는** 쪽(Extension)이 같은 타입을 알아야 한다. 그래서 `ToolDefinition` 과
  * 같은 이유로 contracts 계층에 둔다.
  *
- * `@photoshop-mcp/extension-sdk` 가 이것을 재노출하며, Extension 작성자는 그 패키지만 쓴다.
+ * `@photoshop-mcp/extension-api` 가 이것을 재노출하며, Extension 작성자는 그 패키지만 쓴다.
  */
 
 /**
@@ -34,8 +34,12 @@ export const RESERVED_NAMESPACES = ["photoshop"] as const;
 /**
  * Permission 선언. (ARCHITECTURE §22)
  *
- * Phase 5 에서는 **선언만 받고 강제하지 않는다.** Permission System 은 Phase 9 다.
- * 지금 강제하지 않는다는 사실을 Extension 작성자가 알 수 있도록 필드는 받아둔다.
+ * **강제된다.** 선언 밖의 권한을 요구하는 Tool 은 등록 자체가 막히고,
+ * Command 호출과 Capability 실행에도 같은 상한이 걸린다.
+ * (`mcp-core/src/extensions/manager.ts` 의 `grantedLevels`)
+ *
+ * **선언하지 않으면 아무 권한도 없다.** 기본값을 주면 권한을 적지 않은
+ * Extension 이 조용히 편집 권한을 얻는다.
  */
 export const PermissionSchema = z.enum([
   "photoshop.read",
@@ -60,11 +64,11 @@ export const ExtensionManifestSchema = z
     description: z.string().max(1000).optional(),
     requires: z
       .object({
-        /** 요구하는 Core 버전 범위. Phase 9 에서 검증한다. */
+        /** 요구하는 Core 버전 범위. 아직 검증하지 않는다. */
         photoshopMcp: z.string().min(1).max(64),
       })
       .optional(),
-    /** Phase 9 의 Permission System 이 강제한다. 지금은 선언만 받는다. */
+    /** 강제된다. 생략하면 아무 권한도 없다 — `PermissionSchema` 참조. */
     permissions: z.array(PermissionSchema).optional(),
   })
   .strict();

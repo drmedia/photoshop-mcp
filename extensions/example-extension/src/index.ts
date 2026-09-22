@@ -4,7 +4,7 @@ import {
   type DocumentInfo,
   type ExtensionContext,
   type LayerInfo,
-} from "@photoshop-mcp/extension-sdk";
+} from "@photoshop-mcp/extension-api";
 import { z } from "zod";
 
 /**

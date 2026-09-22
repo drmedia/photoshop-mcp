@@ -30,6 +30,14 @@ export interface FakePluginOptions {
   failWith?: Record<string, { code: string; message: string; recoverable?: boolean }>;
   /** 응답 대신 잘못된 형태를 보낸다. 스키마 검증 테스트에 사용한다. */
   malformedResults?: Record<string, unknown>;
+  /**
+   * 지정한 Command 에 이 값을 그대로 응답한다.
+   *
+   * Plugin 이 보관하는 상태(작업 폴더 · 액션 허용 목록 · 등록된 Extension)는
+   * 이 가짜 Plugin 이 흉내낼 수 없다 — 지어내면 없는 것을 있다고 말하게 된다.
+   * 테스트가 필요한 값을 직접 넣는다.
+   */
+  results?: Record<string, unknown>;
 }
 
 export const FAKE_DOCUMENT: DocumentInfo = {
@@ -219,6 +227,11 @@ export class FakeUxpPlugin {
 
     if (this.#options.malformedResults !== undefined && command in this.#options.malformedResults) {
       this.#sendResult(socket, id, this.#options.malformedResults[command]);
+      return;
+    }
+
+    if (this.#options.results !== undefined && command in this.#options.results) {
+      this.#sendResult(socket, id, this.#options.results[command]);
       return;
     }
 

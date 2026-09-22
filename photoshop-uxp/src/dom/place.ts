@@ -1,4 +1,4 @@
-import { action, app } from "photoshop";
+import { action, app, constants, type PhotoshopLayer } from "photoshop";
 import type { Folder } from "uxp";
 import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
@@ -39,7 +39,34 @@ async function findFile(folder: Folder, filename: string): Promise<unknown> {
   return found;
 }
 
-export async function layerPlace(params: { filename: string; name?: string }): Promise<LayerInfo> {
+/**
+ * 가져온 레이어를 픽셀로 굽는다.
+ *
+ * **스마트 오브젝트로 두면 얻는 것이 없는 경우가 있다.** 외부 처리기가 구워
+ * 돌려준 결과가 그렇다 — 더블클릭해도 그 처리기가 다시 돌지 않고 구워진 파일이
+ * 열릴 뿐이다. 마스크·블렌딩에는 픽셀이 편하고 파일도 작다.
+ *
+ * **상수를 얻지 못하면 시험 삼아 부르지 않고 실패한다.** `document.close` 의
+ * `SaveOptions` 와 같은 규칙이다 — 짐작한 값으로 부르면 무엇이 일어날지 모른다.
+ */
+async function rasterizeLayer(layer: PhotoshopLayer, filename: string): Promise<void> {
+  const entire = constants.RasterizeType?.ENTIRELAYER;
+  if (entire === undefined || typeof layer.rasterize !== "function") {
+    throw new DispatchError(
+      "COMMAND_NOT_SUPPORTED",
+      "이 Photoshop 버전에서는 레이어를 픽셀로 구울 수 없습니다. " +
+        "rasterize 없이 가져온 뒤 Photoshop 에서 직접 래스터화하세요.",
+      { recoverable: true, details: { filename } },
+    );
+  }
+  await layer.rasterize(entire);
+}
+
+export async function layerPlace(params: {
+  filename: string;
+  name?: string;
+  rasterize?: boolean;
+}): Promise<LayerInfo> {
   return runModal("Place file", async () => {
     const document = requireActiveDocument();
     const folder = await requireWorkspace();
@@ -83,6 +110,21 @@ export async function layerPlace(params: { filename: string; name?: string }): P
       placed.name = params.name;
     }
 
-    return describeLayer(document, placed);
+    if (params.rasterize === true) {
+      await rasterizeLayer(placed, params.filename);
+    }
+
+    /* **구워졌는지 확인한다.** `rasterize` 가 던지지 않았다고 픽셀이 된 것은
+     * 아니다 — 만드는 것만 확인하고 넘어가 조정 레이어 여섯 종류를 놓친 적이
+     * 있다(ROADMAP §17.38). `describeLayer` 가 읽는 `kind` 가 근거다. */
+    const described = describeLayer(document, placed);
+    if (params.rasterize === true && described.type === "smartObject") {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        "레이어를 픽셀로 굽지 못했습니다. 스마트 오브젝트로 남아 있습니다.",
+        { details: { filename: params.filename, layerId: described.id } },
+      );
+    }
+    return described;
   });
 }

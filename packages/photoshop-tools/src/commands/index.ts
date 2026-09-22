@@ -95,6 +95,11 @@ import {
 } from "./document-lifecycle.js";
 import { DODGE_BURN_DAB, DodgeBurnParamsSchema, dodgeBurnDabCommand } from "./dodge-burn.js";
 import {
+  EXTENSION_REGISTRY,
+  ExtensionRegistryParamsSchema,
+  extensionRegistryCommand,
+} from "./extension-registry.js";
+import {
   ACTION_ALLOWLIST,
   ACTION_LIST,
   ACTION_PLAY,
@@ -220,6 +225,7 @@ export * from "./document-save.js";
 export * from "./layer-place.js";
 export * from "./state-read.js";
 export * from "./workspace-files.js";
+export * from "./extension-registry.js";
 export * from "./adjustment.js";
 export * from "./filter.js";
 export * from "./gap-tools.js";
@@ -334,6 +340,11 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     // 사용자가 패널에서 고른 것을 읽을 뿐이다.
     permission: "read",
     schema: ActionAllowlistParamsSchema,
+  });
+  registry.register(EXTENSION_REGISTRY, extensionRegistryCommand, {
+    // 목록을 보는 것은 적재가 아니다. 적재는 서버가 하고 그쪽에 권한이 걸린다.
+    permission: "read",
+    schema: ExtensionRegistryParamsSchema,
   });
   registry.register(ACTION_PLAY, actionPlayCommand, {
     // **액션이 무엇을 하는지 알 수 없다.** 파일 저장·평탄화가 들어 있어도

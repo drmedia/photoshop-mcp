@@ -35,7 +35,7 @@ Core API 는 다음을 따른다.
 
 - Photoshop 일반 기능만 포함한다
 - 특정 사진 장르나 도메인 기능은 제외한다 (§7)
-- 도메인 기능은 Extension 으로 구현한다 — `milky.*` · `portrait.*`
+- 도메인 기능은 Extension 으로 구현한다 — `rcastro.*` · `starnet.*` · `portrait.*`
 - 모든 API 는 `photoshop.*` namespace 를 쓴다
 - 모든 API 는 Permission Level 을 **필수로** 선언한다
 
@@ -372,7 +372,7 @@ History **조회**는 Tool 이 아니라 `photoshop://history` Resource 다. (§
 | `photoshop.workspace.usage` | READ | 파일과 총 용량을 큰 것부터 |
 | `photoshop.document.save_as` | EXTERNAL | psd · psb. 레이어 유지. **덮어쓰지 않는다** |
 | `photoshop.document.export` | EXTERNAL | png · jpg · tiff. 평탄화. tiff 는 16비트 유지 |
-| `photoshop.layer.place` | EXTERNAL | 승인 폴더의 파일을 스마트 오브젝트로 |
+| `photoshop.layer.place` | EXTERNAL | 승인 폴더의 파일을 스마트 오브젝트로. `rasterize` 로 픽셀 |
 | `photoshop.document.save` | DESTRUCTIVE | 원본 덮어쓰기 |
 | `photoshop.workspace.delete` | DESTRUCTIVE | **이름을 명시한** 파일만. 패턴을 받지 않는다 |
 
@@ -513,7 +513,13 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 | `photoshop.smart_object.relink` | P3 | EXTERNAL | |
 | `photoshop.smart_object.update` | P3 | EDIT | |
 | `photoshop.smart_object.new_via_copy` | P3 | EDIT | |
-| `photoshop.smart_object.rasterize` | P2 | DESTRUCTIVE | |
+| `photoshop.smart_object.rasterize` | P2 | DESTRUCTIVE | 아래 참조 |
+
+`smart_object.rasterize` 가 `DESTRUCTIVE` 인 이유는 **되돌릴 수 없기 때문**이다 —
+스마트 오브젝트 안의 원본이 사라진다. 그래서 **만들지 않는 쪽이 지우는 것보다 낫다.**
+외부 처리기가 구워 돌려준 결과처럼 다시 편집할 원본이 없는 경우는
+`layer.place` 의 `rasterize` 로 애초에 픽셀 레이어로 가져온다 — 중간에 스마트
+오브젝트가 생기지 않으므로 잃을 것도 없고 `EXTERNAL` 로 충분하다.
 
 ### 5.9 Channel
 
@@ -600,7 +606,7 @@ Photoshop 쪽 변경 알림(`photoshop.*` 이벤트)은 이 환경에서 동작�
 인물 피부 보정 · 주파수 분리 · 제품 배경 정리 · 풍경 하늘 강조
 ```
 
-Extension namespace 예: `milky.*` · `portrait.*` · `landscape.*` · `product.*`
+Extension namespace 예: `rcastro.*` · `starnet.*` · `portrait.*` · `landscape.*`
 
 다음은 Core API 가 아니라 고수준 워크플로 또는 Extension 으로 본다.
 
@@ -642,8 +648,12 @@ Core 에서는 가능한 한 저수준 기능만 제공한다.
 
 ### 실제로 그렇게 됐는가
 
-됐다. `extensions/milkyscape` 가 별 분리·그래디언트 제거·선명화를 Core Tool 과
-Capability 만 조합해 구현한다. Core 에 천체사진 코드가 한 줄도 없다.
+됐다. `extensions/starnet`(별 분리) · `extensions/rcastro`(선명화·노이즈·별 분리) ·
+`extensions/graxpert`(그래디언트 제거)가 Core Tool 과 Capability 만 조합해 구현한다.
+Core 에 천체사진 코드가 한 줄도 없다.
+
+처음에는 `extensions/milkyscape` 하나가 셋을 다 했는데, 도구별로 쪼갰다 —
+그 도구를 쓰는 사람에게만 Tool 이 보여야 한다 (ROADMAP §18.3).
 
 반대로 `create_sky_mask` 는 **범위에서 뺐다.** 기존 패널이 하늘 마스크를 만들지 않고
 사용자가 만든 것을 소비한다는 것을 확인했기 때문이다. 짐작으로 알고리즘을 만들지 않는다.

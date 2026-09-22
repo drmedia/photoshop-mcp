@@ -682,6 +682,14 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        */
       case "ACTION_ALLOWLIST":
         return { actions: [], total: 0, persisted: false } as TResult;
+      /**
+       * 등록된 Extension 도 같은 이유로 **비어 있다.** (ROADMAP §18.3)
+       *
+       * 기본은 "아무 패널도 안 깔려 있다" 다. 지어내면 Mock 으로 돌린 서버가
+       * 존재하지 않는 경로를 적재하려 한다.
+       */
+      case "EXTENSION_REGISTRY":
+        return { extensions: [], total: 0, persisted: false } as TResult;
       case "ACTION_PLAY": {
         const { set, action } = command.params as { set: string; action: string };
         throw new PhotoshopMcpError(
@@ -1106,7 +1114,9 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         return this.#deleteFiles(command.params as { filenames: string[] }) as TResult;
       case "LAYER_PLACE":
         this.#snapshot("Place file");
-        return this.#place(command.params as { filename: string; name?: string }) as TResult;
+        return this.#place(
+          command.params as { filename: string; name?: string; rasterize?: boolean },
+        ) as TResult;
 
       default:
         throw new PhotoshopMcpError(
@@ -1268,7 +1278,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
    *
    * 실제 구현과 같은 계약을 지킨다 — 승인된 폴더 안에 **있는** 파일만 가져올 수 있다.
    */
-  #place(params: { filename: string; name?: string }): LayerInfo {
+  #place(params: { filename: string; name?: string; rasterize?: boolean }): LayerInfo {
     this.#requireDocument();
     if (this.#workspacePath === null) {
       throw new PhotoshopMcpError(
@@ -1293,10 +1303,13 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     const activeIndex = this.#layers.findIndex((layer) => layer.id === this.#activeLayerId);
     const anchor = activeIndex < 0 ? undefined : this.#layers[activeIndex];
 
+    /* **`rasterize` 를 흉내낸다.** Mock 이 현실과 다르면 그 경로는 테스트에
+     * 영원히 나오지 않는다 — 배경 `set_opacity` 승격이 실기에서만 드러난 이유가
+     * 그것이다. (CLAUDE.md — Capability) */
     const layer: LayerInfo = {
       id: this.#nextLayerId++,
       name: params.name ?? params.filename,
-      type: "smartObject",
+      type: params.rasterize === true ? "pixel" : "smartObject",
       visible: true,
       opacity: anchor?.opacity ?? 100,
       parentId: anchor?.parentId ?? null,

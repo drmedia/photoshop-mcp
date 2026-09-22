@@ -236,13 +236,12 @@ export class ExtensionManager {
       try {
         if (enabled !== undefined) {
           /* **고를 수 있게 한다.** 번들된 Extension 은 Core 가 아니다 —
-           * `example` 은 예제, `milkyscape` 는 아키텍처 검증, `graxpert` 는
-           * 특정 서드파티 패널용이다. 쓰지 않는 사람에게 Tool 목록에 보이면
-           * 무엇이 이 서버의 능력인지 흐려진다.
+           * `example` 은 예제이고 나머지는 특정 도구용이다. 쓰지 않는 사람에게
+           * Tool 목록에 보이면 무엇이 이 서버의 능력인지 흐려진다.
            *
            * 디렉터리 이름이 아니라 **namespace** 로 고른다. Tool 이름과
-           * `diagnostics` 에 나오는 것이 그것이다 — `milkyscape` 디렉터리의
-           * namespace 는 `milky` 다. */
+           * `diagnostics` 에 나오는 것이 그것이다 — `example-extension`
+           * 디렉터리의 namespace 는 `example` 다. */
           const manifest = await this.validate(candidate.manifestPath);
           if (!enabled.includes(manifest.namespace)) {
             this.#logger.debug(`Extension 건너뜀 (선택되지 않음): ${manifest.namespace}`);
@@ -260,7 +259,7 @@ export class ExtensionManager {
 
     /* **없는 이름을 조용히 넘기지 않는다.**
      *
-     * 디렉터리 이름과 namespace 가 다른 것이 있다(`milkyscape` → `milky`).
+     * 디렉터리 이름과 namespace 가 다른 것이 있다(`example-extension` → `example`).
      * 오타나 착각으로 하나도 안 걸리면 Tool 이 없는 이유를 알 수 없다.
      * `PHOTOSHOP_MCP_ALLOW` 가 모르는 값에 경고하는 것과 같은 규칙이다. */
     const unknown = (enabled ?? []).filter((name) => !matched.has(name));
@@ -432,7 +431,7 @@ export class ExtensionManager {
       recent: (query) => bus.recent(query ?? {}),
     };
 
-    // Resource 도 namespace 로 가둔다. `milky://` 만 쓸 수 있다.
+    // Resource 도 namespace 로 가둔다. 자기 namespace 의 URI 만 쓸 수 있다.
     // Tool 이름 규칙과 같은 이유다 — Core 나 다른 Extension 의 것을 덮어쓸 수 없다.
     const resourceRegistry = this.#resources;
     const scheme = `${namespace}://`;

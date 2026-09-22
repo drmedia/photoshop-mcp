@@ -1,0 +1,10 @@
+{
+  "id": "com.drmedia.rcastro",
+  "name": "RC-Astro CLI Tools",
+  "version": "0.1.0",
+  "namespace": "rcastro",
+  "main": "dist/index.js",
+  "description": "RC-Astro CLI 의 BlurXTerminator 로 선명화한다",
+  "requires": { "photoshopMcp": "^0.1.0" },
+  "permissions": ["photoshop.read", "photoshop.edit", "photoshop.external"]
+}

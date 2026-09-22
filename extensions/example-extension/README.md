@@ -1,6 +1,6 @@
 # example-extension
 
-`@photoshop-mcp/extension-sdk` 사용법을 보여주는 예제 확장입니다. (ROADMAP §9.5)
+`@photoshop-mcp/extension-api` 사용법을 보여주는 예제 확장입니다. (ROADMAP §9.5)
 
 ## Tool
 

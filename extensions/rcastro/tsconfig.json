@@ -6,5 +6,5 @@
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
   "include": ["src/**/*"],
-  "references": [{ "path": "../../packages/extension-sdk" }]
+  "references": [{ "path": "../../packages/extension-api" }]
 }

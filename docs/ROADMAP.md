@@ -20,10 +20,10 @@ photoshop.adjustment.curves
 반면 다음과 같은 기능은 Extension으로 구현한다.
 
 ```text
-milky.*
+rcastro.*
+starnet.*
 portrait.*
 landscape.*
-product.*
 ```
 
 첫 번째 실제 Extension은 `MilkyScapeTools`를 사용한다.
@@ -124,14 +124,14 @@ PhotoshopMCP/
 │   ├─ ARCHITECTURE.md
 │   ├─ ROADMAP.md
 │   ├─ PROTOCOL.md
-│   └─ EXTENSION_SDK.md
+│   └─ EXTENSION_API.md
 │
 ├─ packages/
 │   ├─ mcp-core/
 │   ├─ command-engine/
 │   ├─ photoshop-tools/
 │   ├─ photoshop-bridge/
-│   └─ extension-sdk/
+│   └─ extension-api/
 │
 ├─ photoshop-uxp/
 │
@@ -998,6 +998,10 @@ Extension 계약 · Capability · 파일 왕복 · 권한 상한이 모두 실�
 - [x] `milky.enhance` — BlurXTerminator 선명화
 - [x] `milky.remove_gradient` — GraXpert CLI 의 FITS 출력을 Provider 설정으로 보정해서 붙였다
 - [ ] ~~`milky.create_sky_mask`~~ · ~~`milky.create_foreground_mask`~~ — **범위에서 뺀다**
+
+> `extensions/milkyscape` 는 §18.3 에서 **제거했다.** 위 기록은 그때 한 일이고,
+> 외부 처리기를 부르던 셋은 `rcastro.bxt` · `starnet.remove_stars` ·
+> `gx.run_gradient` 로 옮겼다.
 
 ### 하늘/전경 마스크를 빼는 이유
 
@@ -5306,17 +5310,43 @@ GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는�
 
 ## 어제 "SDK 를 먼저 공개해야 한다" 고 한 것은 과했다
 
-Extension 을 워크스페이스 밖에 두면 `@photoshop-mcp/extension-sdk` 해석이 실패한다고
+Extension 을 워크스페이스 밖에 두면 `@photoshop-mcp/extension-api` 해석이 실패한다고
 적었는데, **무엇이 실제로 필요한지 재 보지 않았다.**
 
 ```text
-SDK 런타임 산출물   2.4KB. photoshop-bridge 를 재수출할 뿐
 graxpert 가 쓰는 것 문자열 상수 셋 + zod. 타입은 컴파일에 사라진다
 inputSchema.parse   덕 타이핑 — 번들한 zod 사본도 통한다
 zodToJsonSchema     zod 내부를 읽지만 같은 메이저면 호환된다
 ```
 
 **번들해서 폴더째 떨어뜨리면 된다.** npm 공개가 전제가 아니었다.
+
+### "SDK 런타임 2.4KB" 라고 적었던 것은 오해를 부른다
+
+여기 `SDK 런타임 산출물 2.4KB` 라고 적어 두었는데 **문 앞의 간판 크기였다.**
+`dist/index.js` 는 자기 코드가 0 이고 세 줄이 전부 재수출이다.
+
+```text
+extension-api        8KB     1 js    ← 배럴
+photoshop-bridge   344KB    23 js
+photoshop-tools    838KB    79 js
+command-engine      31KB     4 js
+```
+
+ESM 이 배럴을 해석하면 뒤의 두 index 를 통째로 적재한다. 그래서 이 수치를
+근거로 "npm 에 올리면 된다" 로 가면 **Core 넷을 함께 공개해야 하고**, 그러면
+Command 핸들러와 Bridge 구현이 공개 API 가 되어 §23 이 지키려던 경계가 열린다.
+
+**그리고 그 길로 갈 필요가 없다.** 세 Extension 이 값으로 쓰는 것을 세 보면
+Command 이름 문자열뿐이다 — `PhotoshopMcpError` 도 스키마도 쓰는 곳이 없고
+오류는 전부 `throw new Error(...)` 다. 필요한 것은 **타입 선언과 이름 목록**이다.
+
+`extension-api` 라는 이름을 보고 "배포용 개발 키트" 를 상정해 npm·계층 역전·
+번들을 따졌는데, **있는 것부터 세지 않고 규모를 먼저 상정한 것**이다.
+§17.16 과 같은 실수다.
+
+규격은 [EXTENSION_API.md](EXTENSION_API.md) 에 적었다. §12 가 저장소 밖에서
+만들 때의 현재 제약과 우회법이다 — 타입을 직접 선언하면 의존이 `zod` 뿐이다.
 
 ## 등록은 패널이 한다
 
@@ -5359,12 +5389,110 @@ ToolRegistry.setChangeListener      등록·해제 양쪽에서 알린다
 - [x] `ToolRegistry` 가 등록·해제 양쪽에서 알린다
 - [x] 전송이 붙기 전 등록도 던지지 않는다 — 기동 시 적재 경로다
 - [x] `tests/tool-list-changed.test.ts` — 실제 MCP 클라이언트로 확인
-- [ ] Bridge 로 등록 목록을 묻는 Command
-- [ ] PhotoshopMCP 패널의 Extension 등록 모달
+- [x] Bridge 로 등록 목록을 묻는 Command — `EXTENSION_REGISTRY` (`read`)
+- [x] PhotoshopMCP 패널의 Extension 등록 모달
+- [x] Bridge 가 붙으면 서버가 물어 적재한다 — `tests/extension-from-panel.test.ts`
+- [x] 실기 검증 — 번들 적재를 끈 채로 `gx.*` 가 패널 등록으로 붙었다
 - [ ] `graxpert` 를 패널 저장소로 이동 · 번들 빌드
-- [ ] `milkyscape` 제거 — 아키텍처 검증 역할이 끝났다
+- [x] `milkyscape` 제거 — 아키텍처 검증 역할이 끝났다 (아래 참조)
+
+## `milkyscape` 를 해체했다
+
+통째로 옮기지 않고 **필요한 것만 하나씩 다시 구현**했다. 외부 처리기를 부르던
+셋이 대상이고, 나머지는 옮길 이유가 없었다.
+
+```text
+milky.enhance          → rcastro.bxt            RC-Astro CLI
+milky.remove_stars     → starnet.remove_stars   StarNet2
+milky.remove_gradient  → gx.run_gradient        GraXpert 패널. 먼저 있었다
+milky.get_state        → diagnostics + layer.list 로 덮인다
+milky.restore_stars    → 새 Tool 이 별 레이어에 Screen 을 걸어 두어 불필요
+```
+
+**가르는 기준은 제품 이름이 아니라 설치 단위다.** `rc-astro.exe` 하나가
+`bxt`·`nxt`·`sxt` 를 가지므로 `rcastro` 하나이고, `starnet2.exe` 는 따로 설치하므로
+별도다. `rcastro.sxt` 와 `starnet.remove_stars` 가 같은 `starRemoval` Capability 를
+쓰므로 **각 Tool 이 `provider` 를 못 박는다** — 우선순위로 고르게 두면 설정에 따라
+다른 것이 돌면서 호출자는 모른다.
+
+### 실기 검증 (같은 문서 · 같은 영역 · 같은 입력)
+
+```text
+rcastro.bxt           10초   σ(L) 0.653 → 0.685  (+7.7%)   선명화
+rcastro.nxt            7초   σ(L) 0.685 → 0.587  (−14.3%)  노이즈 감소
+rcastro.sxt            6초   별 없는 것 σ 0.245 · 복원 오차 +0.01
+starnet.remove_stars  66초   별 없는 것 σ 0.710 · 복원 오차 −0.33
+```
+
+**σ 가 두 방향으로 움직여 서로를 검증한다** — 선명화는 오르고 노이즈 감소는
+내린다. 별 분리는 별 레이어를 Screen 으로 얹어 **원본이 복원되는지**로 본다.
+복원이 안 되면 분리해도 다시 합칠 수 없어 Tool 이 쓸모없어진다.
+
+`milkyscape` 의 Phase 6 기록은 아래 §10 에 그대로 둔다. 그때 한 일이 없어진 것이
+아니라 있을 자리가 바뀐 것이다.
+
+## 묻는 시점을 두 번 틀렸다
+
+처음에는 전송을 만들자마자 수신 대기를 열고, Core 를 조립한 뒤에 `connected`
+콜백을 걸었다. **그 사이에 이미 열려 있던 패널이 붙으면 콜백이 사라진다.**
+이벤트 하나가 없어지는 것은 넘어갈 수 있지만 이쪽을 놓치면 **등록한 Extension 이
+붙지 않고 그 이유도 어디에도 안 보인다.**
+
+걸쇠를 먼저 달았다가 지웠다. **문을 늦게 여는 편이 낫다** — 받을 곳을 전부
+채운 뒤 `wsTransport.start()` 를 부른다. 놓칠 틈이 없어야 놓쳤는지 따질 일도 없다.
+같은 구멍이 있던 `pendingEvents`("그 전에 온 이벤트는 버린다")도 함께 막혔다.
+
+두 번째는 **없는 Command 를 불러 놓고 실패를 삼킨 것**이다. 옛 플러그인에는
+`EXTENSION_REGISTRY` 가 없어 붙을 때마다 경고가 한 줄씩 났다 — 정상인데 무언가
+잘못된 것처럼 보이고 진짜 경고가 그 사이에 묻힌다. **핸드셰이크가 이미 Command
+목록을 싣고 온다**(PROTOCOL.md §3.2). 지원한다고 말한 것만 묻고, 그래 놓고
+실패하면 그때는 알린다.
+
+이것을 고치자 `tests/bridge-integration.test.ts` 가 손대지 않고 다시 통과했다.
+기존 테스트를 고쳐야 한다고 느낄 때는 **설계가 틀린 쪽을 먼저 본다.**
+
+## 실기 검증
+
+`PHOTOSHOP_MCP_EXTENSIONS_ENABLED=""` 로 **번들 자동 적재를 끈 채로** 확인했다.
+이것을 켜 두면 `extensions/` 를 훑어 `gx` 가 이미 붙으므로 패널 등록이 namespace
+충돌로 거부되고, **무엇으로 붙었는지 구분할 수 없다.**
+
+```text
+commands      71 → 72          EXTENSION_REGISTRY
+extensions    3개 → gx 하나    example · milky 는 자동 적재에서 빠졌다
+tools         81 = 78 + 3      gx.* 는 사용자가 고른 경로에서 왔다
+gx.status     panelRunning     등록만이 아니라 동작한다
+```
+
+**등록만 확인하고 끝내지 않았다.** `gx.status` 는 `read` 라서 **늦게 붙은
+Extension 의 `external` 권한이 통하는지**를 증명하지 못한다. 그것이 아래
+"아직 풀지 않은 것" 에 적어 둔 질문이었으므로 `gx.run_gradient` 를 끝까지 돌렸다.
+
+```text
+gx.run_gradient   external 통과 → Job 18초 → GraXpert 패널 → 레이어 생성
+layer.delete      PERMISSION_DENIED (destructive 미허용)
+```
+
+**상한이 함께 살아 있다.** `external` 을 쓸 수 있으면서 `destructive` 는 막혔다 —
+manifest 선언과 기동 시 policy 가 둘 다 작용한다. 늦게 붙어도 예외가 아니다.
+
+두 경로를 갈라서 봤다(§17.37). 하늘 선택이 있을 때 **지상부가 64개 히스토그램
+빈까지 배경과 완전히 같았다.** 같은 자리에서 전체 경로는 휘도가 25.5 → 45.95 로
+올랐다 — 측정 구역이 둔해서 같게 나온 것이 아니다.
+
+**`skyApplied` 를 설정값으로 판정하지 않은 것이 여기서 값을 했다.** `mergeSky:
+true` 는 두 경로 모두 같았고 갈린 것은 결과 레이어 이름뿐이다. 설정을 믿었으면
+전체 경로도 `true` 로 보고했을 것이다.
+
+플러그인 적재는 UXP DevTools CLI 로 했다. **설치 위치를 기록해 둔다** — `D:\Dev\uxp-cli`.
+지난번에는 임시 폴더에 깔아 놓아 다시 찾지 못하고 재설치했다.
 
 ## 아직 풀지 않은 것
+
+**등록 직후에는 반영되지 않는다.** 서버는 **Bridge 가 붙는 순간에만** 목록을
+묻는다. 서버가 이미 떠 있는 상태에서 등록하면 재연결해야 한다 — 모달이 그 말을
+하고 있지만 안내로 메우는 것은 임시다. 플러그인이 등록 시점에 이벤트를 올리고
+서버가 다시 묻는 쪽이 맞다.
 
 **Permission.** §22 는 기동 시 policy 를 고정한다. 나중에 붙는 Extension 의
 manifest 권한을 어떻게 검사할지 다시 봐야 한다.
@@ -5417,7 +5545,7 @@ graxpert     특정 서드파티 패널 하나를 부린다
 
 공개하려면 Extension 을 별도 저장소로 빼는 것이 맞아 보이지만 **지금은 아니다.**
 
-Extension 은 워크스페이스 안에 있어야 `@photoshop-mcp/extension-sdk` 해석이
+Extension 은 워크스페이스 안에 있어야 `@photoshop-mcp/extension-api` 해석이
 된다. 밖으로 빼려면 SDK 를 먼저 공개해야 하는데, 그건 패키징 결정과 묶여 있고
 **패키징은 두 번째 사용자가 생길 때까지 미뤘다.**
 

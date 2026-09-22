@@ -91,6 +91,38 @@ describe("가져오기", () => {
     ).resolves.toMatchObject({ name: "처리결과.png", type: "smartObject", visible: true });
   });
 
+  it("**rasterize 를 켜면 픽셀 레이어로 들어간다**", async () => {
+    /* 외부 처리기가 구워 돌려준 결과에는 스마트 오브젝트가 얻는 것이 없다 —
+     * 더블클릭해도 그 처리기가 다시 돌지 않고 구워진 파일이 열릴 뿐이다.
+     *
+     * **나중에 굽는 길이 마땅치 않아 안 만드는 것이 낫다.** Core 에 rasterize
+     * Command 가 없고, `smart_object.rasterize` 는 계획상 DESTRUCTIVE 다 —
+     * 스마트 오브젝트 안의 원본이 사라지기 때문이다. */
+    const { mcp, bridge } = setup();
+    bridge.addExistingFile("sharp.tif");
+
+    await expect(
+      call<LayerInfo>(mcp, "photoshop.layer.place", { filename: "sharp.tif", rasterize: true }),
+    ).resolves.toMatchObject({ type: "pixel" });
+  });
+
+  it("기본은 스마트 오브젝트다 — 조용히 바꾸지 않는다", async () => {
+    // 기존 호출자의 결과 타입이 말없이 달라지면 안 된다.
+    const { mcp, bridge } = setup();
+    bridge.addExistingFile("sharp.tif");
+
+    await expect(
+      call<LayerInfo>(mcp, "photoshop.layer.place", { filename: "sharp.tif" }),
+    ).resolves.toMatchObject({ type: "smartObject" });
+  });
+
+  it("rasterize 도 external 이다 — 등급이 오르지 않는다", () => {
+    /* 스마트 오브젝트를 만들지 않으므로 잃을 것이 없다.
+     * 이미 만들어진 것을 굽는 `smart_object.rasterize` 와 다르다. */
+    const { mcp } = setup();
+    expect(mcp.tools.get("photoshop.layer.place")?.permission).toBe("external");
+  });
+
   it("이름을 지정할 수 있다", async () => {
     const { mcp, bridge } = setup();
     bridge.addExistingFile("out.tif");

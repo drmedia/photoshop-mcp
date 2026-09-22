@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import type {
   CreatePhotoshopMcpOptions,
   LoadedExtension,
@@ -42,9 +43,9 @@ export interface StartOptions extends CreatePhotoshopMcpOptions {
   /**
    * 적재할 Extension namespace. 생략하면 디렉터리에 있는 것을 **전부** 적재한다.
    *
-   * 번들된 Extension 은 Core 가 아니다 — `example` 은 예제, `milkyscape` 는
-   * 아키텍처 검증, `graxpert` 는 특정 서드파티 패널용이다. 쓰지 않는 사람에게
-   * Tool 목록에 보이면 무엇이 이 서버의 능력인지 흐려진다.
+   * 번들된 Extension 은 Core 가 아니다 — `example` 은 예제이고 나머지는 특정
+   * 도구용이다. 쓰지 않는 사람에게 Tool 목록에 보이면 무엇이 이 서버의 능력인지
+   * 흐려진다.
    */
   enabledExtensions?: readonly string[];
   /**
@@ -106,23 +107,57 @@ export async function startPhotoshopMcpServer(
   let bridge = coreOptions.bridge;
   let pendingEvents: ((event: string, payload: unknown) => void) | null = null;
 
+  /**
+   * Bridge 가 붙었을 때 부를 곳. Core 를 아직 조립하지 않아 나중에 채운다.
+   * (`pendingEvents` 와 같은 지연 연결)
+   */
+  let pendingConnected: (() => void) | null = null;
+
+  /**
+   * **수신 대기를 나중에 시작한다.**
+   *
+   * 예전에는 Bridge 전송을 만들자마자 열었다. 그러면 Core 를 조립하는 동안
+   * 이미 열려 있던 Photoshop 패널이 붙을 수 있고, 그 사이에 온 것은 받을
+   * 곳이 없어 사라진다. 이벤트 하나가 사라지는 것은 그나마 넘어갈 수 있지만
+   * `connected` 를 놓치면 **사용자가 패널에서 등록한 Extension 이 붙지 않고
+   * 그 이유도 어디에도 안 보인다**(ROADMAP §18.3).
+   *
+   * 걸쇠를 두는 대신 문을 늦게 연다. 놓칠 틈이 없어야 놓쳤는지 따질 일도 없다.
+   */
+  let openBridge: (() => Promise<void>) | null = null;
+
+  /**
+   * 붙어 있는 Plugin 이 등록한 Command 목록. 핸드셰이크가 싣고 온다.
+   * Mock 모드나 주입된 Bridge 에는 없으므로 `null` 이다.
+   */
+  let pluginCommands: (() => string[] | null) | null = null;
+
   if (bridge === undefined) {
     if (mode === "mock") {
       bridge = new MockPhotoshopBridge();
     } else {
-      // Plugin 이 보낸 이벤트를 받아둘 곳. Core 를 아직 조립하지 않았으므로
-      // 나중에 채워 넣는다. 그 전에 온 이벤트는 버린다 — 받을 곳이 없다.
+      // Plugin 이 보낸 것을 받아둘 곳. Core 를 아직 조립하지 않았으므로
+      // 나중에 채워 넣는다. 그 전에는 열지 않으므로 놓치는 것도 없다.
       const wsTransport = new WebSocketBridgeTransport({
         port: port ?? DEFAULT_PORT,
-        ...(onBridgeStateChange === undefined ? {} : { onStateChange: onBridgeStateChange }),
+        onStateChange: (state) => {
+          onBridgeStateChange?.(state);
+          if (state === "connected") {
+            pendingConnected?.();
+          }
+        },
         onEvent: (event, payload) => {
           pendingEvents?.(event, payload);
         },
       });
-      // Photoshop 이 실행 중이 아니어도 수신 대기는 시작한다. (PROTOCOL.md §1)
-      await wsTransport.start();
       bridgeTransport = wsTransport;
       bridge = new UXPPhotoshopBridge(wsTransport);
+      // Photoshop 이 실행 중이 아니어도 수신 대기는 시작한다. (PROTOCOL.md §1)
+      // 다만 받을 곳이 다 준비된 뒤다 — 위 `openBridge` 참조.
+      openBridge = async () => {
+        await wsTransport.start();
+      };
+      pluginCommands = () => wsTransport.plugin?.commands ?? null;
     }
   }
 
@@ -148,7 +183,83 @@ export async function startPhotoshopMcpServer(
       ? []
       : await mcp.extensions.loadAll(extensionsDir, enabledExtensions);
 
+  /* **사용자가 패널에서 등록한 Extension 을 Bridge 가 붙은 뒤 적재한다.**
+   * (ROADMAP §18.3)
+   *
+   * 기본은 "아무 패널도 안 깔려 있다" 다. 저장소에 넣어 두면 그것을 안 쓰는
+   * 사람에게도 Tool 이 보인다. 사용자가 설치하고 패널에서 고른 것만 붙인다.
+   *
+   * 기동 시점에는 물어볼 수 없다 — Bridge 는 서버가 뜬 뒤에 붙는다. 그래서
+   * `tools/list_changed` 가 필요했다(§18.3).
+   *
+   * **재연결마다 다시 적재하지 않는다.** Photoshop 이 끊겼다 붙으면 이 콜백이
+   * 다시 오는데, 이미 적재한 것을 또 넣으면 namespace 충돌로 거부된다. */
+  const loadedFromPanel = new Set<string>();
+  pendingConnected = () => {
+    void (async () => {
+      /* **지원한다고 말한 것만 묻는다.**
+       *
+       * 옛 플러그인에는 이 Command 가 없다. 그냥 불러 보고 실패를 삼키면
+       * Command Engine 이 붙을 때마다 경고를 한 줄씩 낸다 — 정상 동작인데
+       * 무언가 잘못된 것처럼 보이고, 진짜 경고가 그 사이에 묻힌다.
+       *
+       * 핸드셰이크가 이미 목록을 싣고 온다(PROTOCOL.md §3.2). 짐작할 일이 아니다. */
+      const supported = pluginCommands?.();
+      if (
+        supported !== null &&
+        supported !== undefined &&
+        !supported.includes("EXTENSION_REGISTRY")
+      ) {
+        return;
+      }
+
+      let registry: { extensions: { path: string }[] };
+      try {
+        registry = await mcp.engine.execute<{ extensions: { path: string }[] }>({
+          type: "EXTENSION_REGISTRY",
+          params: {},
+        });
+      } catch (error) {
+        /* 목록이 있다고 했는데 실패했다면 그것은 알려야 한다. 위에서 없는
+         * 경우는 이미 걸러졌으므로 여기 오는 것은 진짜 문제다. */
+        mcp.logger.warn(
+          "등록된 Extension 목록을 읽지 못했습니다 — " +
+            (error instanceof Error ? error.message : String(error)),
+        );
+        return;
+      }
+
+      for (const entry of registry.extensions) {
+        if (loadedFromPanel.has(entry.path)) {
+          continue;
+        }
+        try {
+          const loaded = await mcp.extensions.load({
+            directory: entry.path,
+            manifestPath: join(entry.path, "extension.json"),
+          });
+          /* **성공한 뒤에 표시한다.** 실패했으면 적재된 것이 없으므로 다음
+           * 연결에서 다시 시도하는 것이 맞다. 미리 표시하면 한 번의 실패가
+           * 세션 끝까지 굳는다. */
+          loadedFromPanel.add(entry.path);
+          mcp.logger.info(
+            `패널에서 등록한 Extension 적재: ${loaded.manifest.name} (${loaded.manifest.namespace})`,
+          );
+        } catch (error) {
+          /* **실패를 조용히 넘기지 않는다.** 사용자는 패널에서 등록했는데
+           * Tool 이 안 붙는 이유를 알 수 없다. namespace 충돌이 가장 흔하다. */
+          mcp.logger.warn(
+            `패널에서 등록한 Extension 적재 실패: ${entry.path} — ` +
+              (error instanceof Error ? error.message : String(error)),
+          );
+        }
+      }
+    })();
+  };
+
+  // 받을 곳이 모두 준비되었다. 이제 연다. (위 `openBridge` 참조)
   try {
+    await openBridge?.();
     await mcp.server.start(transport);
   } catch (error) {
     await bridgeTransport?.stop();

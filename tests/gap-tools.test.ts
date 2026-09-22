@@ -198,7 +198,7 @@ describe("색보정 조정", () => {
 
 describe("§8.6 이후 가능해진 워크플로", () => {
   it("선택 → 마스크 → 혼합 모드 → 조정", async () => {
-    // Phase 6 의 milky.create_sky_mask / restore_stars 가 필요로 하는 조합이다.
+    // 하늘 마스크를 만들어 국소 보정하는 흐름이 필요로 하는 조합이다.
     const mcp = setup();
 
     const copy = await call<Layer>(mcp, "photoshop.layer.duplicate");

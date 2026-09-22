@@ -14,7 +14,8 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **78개** · Resource 6개. Extension 3개(`example` 2 · `milkyscape` 5 · `graxpert` 3).
+Core Tool **78개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 3 ·
+`rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
 Tool 까지 더한 수다(지금 85). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
@@ -653,11 +654,32 @@ UXP 의 실기 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 
 등록할 수 있고, Photoshop 은 Core Command 로만 건드린다. Bridge 에는 닿지 않는다.
 하나가 실패해도 나머지와 서버는 계속 기동한다.
 
-**번들된 Extension 은 Core 가 아니다** (ROADMAP §18.2). `example` 은 예제,
-`milkyscape` 는 아키텍처 검증, `graxpert` 는 특정 서드파티 패널용이다. 쓰지 않는
-사람에게 Tool 목록에 보이면 무엇이 이 서버의 능력인지 흐려진다.
-`PHOTOSHOP_MCP_EXTENSIONS_ENABLED` 로 고르며 **디렉터리 이름이 아니라 namespace**
-다 — `extensions/milkyscape` 의 namespace 는 `milky` 다. 못 찾은 이름은 경고한다.
+**번들된 Extension 은 Core 가 아니다** (ROADMAP §18.2). `example` 은 예제이고
+`graxpert`(사용자 CEP 패널) · `rcastro`(RC-Astro CLI) · `starnet`(StarNet2) 은
+특정 도구용이다. 쓰지 않는 사람에게 Tool 목록에 보이면 무엇이 이 서버의 능력인지
+흐려진다. `PHOTOSHOP_MCP_EXTENSIONS_ENABLED` 로 고르며 **디렉터리 이름이 아니라
+namespace** 다 — `extensions/example-extension` 의 namespace 는 `example` 다.
+못 찾은 이름은 경고한다.
+
+**가르는 기준은 제품 이름이 아니라 설치 단위다.** `rc-astro.exe` 하나가
+`bxt`·`nxt`·`sxt` 를 가지므로 `rcastro` 하나이고, `starnet2.exe` 는 따로 설치하므로
+별도다. 같은 `starRemoval` Capability 를 둘이 제공하므로 **각 Tool 이 `provider` 를
+못 박는다** — 우선순위로 고르게 두면 설정에 따라 다른 것이 돌면서 호출자는 모른다.
+
+**설치한 것은 사용자가 패널에서 등록한다** (ROADMAP §18.3). 기본은 "아무 패널도 안
+깔려 있다" 다. 서버의 cwd 는 MCP 클라이언트가 정해 통제할 수 없으므로 **플러그인이
+경로를 알려 준다** — 작업 폴더 승인(§8.5) · 액션 허용 목록(§17.36) 과 같은 자리다.
+`getFolder()` 가 사용자 제스처를 요구하는 것이 그대로 안전장치다 — **LLM 은 임의
+폴더의 코드를 적재시킬 수 없다.** 서버는 Bridge 가 붙은 뒤 `EXTENSION_REGISTRY` 로
+묻고 `tools/list_changed` 로 알린다.
+
+**받을 곳을 다 채운 뒤에 수신 대기를 연다.** 전송을 만들자마자 열면 Core 를 조립하는
+동안 이미 열려 있던 패널이 붙어 `connected` 가 사라진다 — 등록한 Extension 이 안 붙고
+그 이유도 안 보인다. 걸쇠를 다는 것보다 **문을 늦게 여는 것**이 낫다.
+
+**없는 Command 를 불러 놓고 실패를 삼키지 않는다.** 핸드셰이크가 Plugin 의 Command
+목록을 싣고 오므로(PROTOCOL.md §3.2) 지원한다고 말한 것만 묻는다. 그러지 않으면 옛
+플러그인이 붙을 때마다 경고가 한 줄씩 나고 진짜 경고가 그 사이에 묻힌다.
 
 `ExtensionContext` 에는 **대응 런타임이 있는 것만 넣는다.** 동작하지 않는 껍데기를 두면
 Extension 작성자가 있는 줄 알고 쓴다. 그래서 `capabilities`(Phase 8) · `jobs`(Phase 10) ·
@@ -672,13 +694,19 @@ GraXpert 도 실기에서 검증했다 — 같은 문서로 `export(tiff) → Gr
 FITS → TIFF 변환 → place` 를 통과시켰다. 변환기가 `0..1 float` 로 판정해 늘리지
 않았고 표본 픽셀 범위는 7844–25656 이었다.
 
-**Phase 6 첫 슬라이스 완료.** `extensions/milkyscape` 에 별 워크플로 Tool 4개가 있고
-실기 검증했다 — StarNet2 67초, BXT 10초.
+**`extensions/milkyscape` 는 제거했다.** 아키텍처 검증 소재였고 은하수 도메인에
+묶여 있었다. 외부 처리기를 부르던 셋은 도구별 Extension 으로 옮겼다.
 
-`create_sky_mask` · `create_foreground_mask` 는 **범위에서 뺐다.** 기존 MilkyScape 는
-하늘 마스크를 만들지 않고 사용자가 만든 것을 소비한다. 짐작으로 알고리즘을 만들지 않는다.
+```text
+milky.enhance          → rcastro.bxt            RC-Astro CLI
+milky.remove_stars     → starnet.remove_stars   StarNet2
+milky.remove_gradient  → gx.run_gradient        GraXpert 패널
+```
 
-Extension 은 워크스페이스 안에 있어야 한다. 밖에 두면 `@photoshop-mcp/extension-sdk`
+`milky.get_state` · `milky.restore_stars` 는 외부 처리기를 쓰지 않아 옮기지 않았다 —
+새 Tool 들이 별 레이어에 Screen 을 걸어 두므로 "둘 다 켜면 원본" 이 이미 성립한다.
+
+Extension 은 워크스페이스 안에 있어야 한다. 밖에 두면 `@photoshop-mcp/extension-api`
 해석이 실패한다.
 
 **MilkyScape 기능을 더 옮기지 않는다.** 이 프로젝트의 목적은 PhotoshopMCP 자체이고
@@ -734,7 +762,7 @@ push 가 없다" 고 적은 것은 *임의 이벤트*에 한한 이야기였다.
 끝나면 관련 리소스가 낡았다고 알린다 — Photoshop 알림이 안 되는 환경에서도
 **우리가 만든 변경**은 알릴 수 있다.
 
-Extension 은 자기 namespace 의 URI 만 등록한다 (`milky://state`). unload 하면
+Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unload 하면
 함께 사라진다.
 
 ## 진단과 임시 파일 (ROADMAP §17, §18.1)
@@ -790,7 +818,8 @@ LLM 은 구독하지 않고 `photoshop.event.recent` 로 조회한다. MCP 에 �
 `workflows.json` 에 Tool 순서를 선언한다. Extension 을 만들려면 TypeScript 를 쓰고
 빌드해야 하는데, 순서만 바꾸고 싶을 때는 과하다.
 
-**Extension 이 이미 워크플로다.** `milky.remove_stars` 가 5단계를 한 Job 으로 묶는다.
+**Extension 이 이미 워크플로다.** `starnet.remove_stars` 가 내보내기·처리·배치·혼합
+모드를 한 Job 으로 묶는다.
 이 계층은 코드 없이 정의하는 경우만 더한다.
 
 값 전달은 `{{steps.0.result.layer.id}}` 형태만 허용한다. 임의 식을 평가하지 않는다 —
@@ -849,18 +878,18 @@ photoshop-uxp                  Photoshop 내부 실행 Agent (contracts 타입�
 ```text
 extensions
    ↓
-extension-sdk
+extension-api
    ↓
 Core public API                (photoshop-tools + command-engine + photoshop-bridge contracts)
 ```
 
-`extension-sdk` 는 Core Command **이름 상수**를 재노출한다. Command 핸들러 · `CommandRegistry` ·
+`extension-api` 는 Core Command **이름 상수**를 재노출한다. Command 핸들러 · `CommandRegistry` ·
 `ToolRegistry` · `PhotoshopBridge` 는 노출하지 않는다. Extension 은 Core Command 를 호출할 수
 있을 뿐 Core 의 구성을 바꿀 수 없다.
 
 규칙:
 
-1. **Core → Extension 의존 금지.** Extension → Core public API(`extension-sdk`) 방향만 허용한다.
+1. **Core → Extension 의존 금지.** Extension → Core public API(`extension-api`) 방향만 허용한다.
 2. `photoshop-bridge` 는 최하위 **contracts** 계층이다. 모든 계층이 여기에만 직접 의존할 수 있다.
    `ToolDefinition` · `ToolRegistry` 도 여기에 둔다. MCP 서버 구현과 Tool 정의가 서로를 참조하지
    않게 하기 위함이다.
@@ -886,7 +915,7 @@ Core public API                (photoshop-tools + command-engine + photoshop-bri
 - `packages/*` — 각자 독립된 package.json 과 tsconfig.json 을 가진다.
 - `photoshop-uxp/` — Photoshop 내부에서 실행되는 UXP 플러그인. **CommonJS 로 컴파일한다**
   (UXP 가 `require("photoshop")` 를 쓴다). Node API 사용 불가 — tsconfig 에 `types: []` 로 차단.
-- `extensions/*` — `extension-sdk` 기반 확장. Core 내부 모듈을 직접 import 하지 않는다.
+- `extensions/*` — `extension-api` 기반 확장. Core 내부 모듈을 직접 import 하지 않는다.
 - `tests/` — 테스트는 소스 옆이 아니라 여기에 모은다.
 - `docs/` — 설계 문서. 한글로 작성한다. Prettier 대상에서 제외되어 있다(`.prettierignore`).
 

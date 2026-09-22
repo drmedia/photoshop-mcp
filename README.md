@@ -3,8 +3,8 @@
 Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입니다.
 
 > **현재 상태: Phase 13 (Production Hardening) 까지 완료. 남은 것은 Phase 14 (Distribution) 입니다.**
-> Core Tool 61개, Resource 6개. Extension 예제 2개(`example` 2개 · `milkyscape` 5개)를 포함해
-> Photoshop 27.8 에서 실기 검증했습니다.
+> Core Tool 78개, Resource 6개. Extension 4개(`example` 2 · `graxpert` 3 · `rcastro` 3 ·
+> `starnet` 1)를 포함해 Photoshop 27.8 에서 실기 검증했습니다.
 > 모든 Tool 과 Command 가 권한 레벨을 선언하며, 기본값은 `read` · `edit` 만 허용합니다.
 
 ## 빠른 시작
@@ -167,10 +167,11 @@ Photoshop 27.8 / manifestVersion 4 에서 UXP 알림 API 는 있고 등록도 �
     "id": "starless-sharpen",
     "name": "별 분리 후 선명화",
     "steps": [
-      { "tool": "milky.remove_stars", "label": "별 분리", "awaitJob": true },
+      { "tool": "starnet.remove_stars", "label": "별 분리", "awaitJob": true },
       { "tool": "photoshop.layer.select",
         "input": { "layerId": "{{steps.0.result.starless.id}}" } },
-      { "tool": "milky.enhance", "input": { "nonstellar": 0.4 } }
+      { "tool": "rcastro.bxt", "awaitJob": true,
+        "input": { "sharpenNonstellar": 0.4 } }
     ]
   }]
 }
@@ -190,7 +191,7 @@ Photoshop 27.8 / manifestVersion 4 에서 UXP 알림 API 는 있고 등록도 �
 그래서 오래 걸리는 Tool 은 **즉시 jobId 를 반환**하고 상태를 따로 조회합니다.
 
 ```
-milky.remove_stars  →  { jobId: "09f3ad43-..." }     0초
+starnet.remove_stars →  { jobId: "09f3ad43-..." }    0초
 photoshop.job.status →  running | 25% StarNet2 로 별 분리 중
 photoshop.job.status →  completed | result: {...}    75초
 ```
@@ -345,7 +346,7 @@ mcp-server → mcp-core → photoshop-tools → command-engine → photoshop-bri
 | `packages/photoshop-tools` | Photoshop Core Tool / Command 정의 | command-engine, photoshop-bridge |
 | `packages/mcp-core` | `PhotoshopMcpServer`, `createPhotoshopMcp()`. **라이브러리 (bin 없음)** | photoshop-tools, command-engine, photoshop-bridge |
 | `packages/mcp-server` | 실행 진입점 `bin/photoshop-mcp` | mcp-core |
-| `packages/extension-sdk` | Extension 용 Core public API 표면 | photoshop-tools, command-engine, photoshop-bridge |
+| `packages/extension-api` | Extension 용 Core public API 표면 | photoshop-tools, command-engine, photoshop-bridge |
 
 `ToolDefinition` / `ToolRegistry` 는 contracts 계층에 있습니다. MCP 서버 구현과 Tool 정의가
 서로를 참조하지 않게 하기 위한 것입니다.
@@ -353,7 +354,7 @@ mcp-server → mcp-core → photoshop-tools → command-engine → photoshop-bri
 Extension 은 별도 계통입니다. Core 는 Extension 을 참조하지 않습니다.
 
 ```text
-extensions → extension-sdk → Core public API
+extensions → extension-api → Core public API
 ```
 
 자세한 규칙은 [CLAUDE.md](CLAUDE.md#의존-방향) 를 참고하세요.
@@ -373,7 +374,7 @@ Extension 은 자신의 namespace 로만 Tool 을 등록할 수 있습니다. `p
 Extension 의 namespace 를 쓰면 적재가 거부됩니다. 하나가 잘못되어도 나머지 Extension 과
 서버는 계속 기동합니다.
 
-작성법은 [`packages/extension-sdk/README.md`](packages/extension-sdk/README.md) 를 보세요.
+작성법은 [`packages/extension-api/README.md`](packages/extension-api/README.md) 를 보세요.
 
 ## 문서
 
@@ -381,7 +382,7 @@ Extension 의 namespace 를 쓰면 적재가 거부됩니다. 하나가 잘못�
 - [Core API](docs/CORE_API.md) — 구현된 Tool 61개와 후보 목록, Permission 기준
 - [로드맵](docs/ROADMAP.md) — Phase 별 진행 상황
 - [프로토콜](docs/PROTOCOL.md) — Bridge 메시지 규약과 3단계 핸드셰이크
-- [확장 SDK](packages/extension-sdk/README.md) — Extension 작성법과 공개 API 표면
+- [확장 SDK](packages/extension-api/README.md) — Extension 작성법과 공개 API 표면
 
 ## 아직 없는 것
 

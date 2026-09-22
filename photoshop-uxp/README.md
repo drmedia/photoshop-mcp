@@ -249,6 +249,9 @@ node node_modules/@adobe/uxp-devtools-helper/scripts/devtools_setup.js
 
 ### 사용
 
+**이 기기의 설치 위치는 `D:\Dev\uxp-cli` 다.** 한 번 임시 폴더에 깔았다가
+다시 찾지 못해 재설치했다 — 위치를 적어 두지 않으면 실기 때마다 찾는다.
+
 ```bash
 UXP=<설치경로>/node_modules/@adobe/uxp-devtools-cli/src/uxp.js
 

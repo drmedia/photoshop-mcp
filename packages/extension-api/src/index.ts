@@ -4,7 +4,7 @@
  * 의존 방향은 한 방향만 허용한다.
  *
  * ```text
- * extensions  →  extension-sdk  →  Core public API
+ * extensions  →  extension-api  →  Core public API
  * ```
  *
  * Core 패키지는 Extension 을 참조하지 않는다.

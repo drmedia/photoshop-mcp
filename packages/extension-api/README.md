@@ -1,11 +1,11 @@
-# @photoshop-mcp/extension-sdk
+# @photoshop-mcp/extension-api
 
 Extension 이 Core 를 사용하기 위한 공개 API 표면입니다.
 
 허용되는 의존 방향은 한 방향뿐입니다.
 
 ```text
-extensions  →  extension-sdk  →  Core public API
+extensions  →  extension-api  →  Core public API
 ```
 
 Core 패키지는 Extension 을 참조하지 않습니다.
@@ -51,7 +51,7 @@ batchPlay descriptor 나 JavaScript 를 Photoshop 으로 보낼 수 없습니다
 `src/index.ts`:
 
 ```typescript
-import { DOCUMENT_GET, type DocumentInfo, type ExtensionContext } from "@photoshop-mcp/extension-sdk";
+import { DOCUMENT_GET, type DocumentInfo, type ExtensionContext } from "@photoshop-mcp/extension-api";
 import { z } from "zod";
 
 export function activate(context: ExtensionContext): void {

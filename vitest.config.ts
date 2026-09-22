@@ -12,7 +12,7 @@ export default defineConfig({
       "@photoshop-mcp/command-engine": pkg("command-engine"),
       "@photoshop-mcp/mcp-core": pkg("mcp-core"),
       "@photoshop-mcp/photoshop-tools": pkg("photoshop-tools"),
-      "@photoshop-mcp/extension-sdk": pkg("extension-sdk"),
+      "@photoshop-mcp/extension-api": pkg("extension-api"),
       "@photoshop-mcp/mcp-server": pkg("mcp-server"),
     },
   },

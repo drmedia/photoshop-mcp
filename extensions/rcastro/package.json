@@ -1,9 +1,9 @@
 {
-  "name": "@photoshop-mcp/graxpert",
+  "name": "@photoshop-mcp/rcastro",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "GraXpert Photoshop 패널 Extension — 명령 파일로 패널을 구동한다",
+  "description": "RC-Astro CLI Extension — BlurXTerminator 를 Capability 로 호출한다",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

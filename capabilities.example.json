@@ -25,8 +25,16 @@
           "values": ["Subtraction", "Division"],
           "default": "Subtraction"
         },
-        "smoothing": { "type": "number", "min": 0, "max": 1, "default": 0.5 },
-        "gpu": { "type": "boolean", "default": true }
+        "smoothing": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.5
+        },
+        "gpu": {
+          "type": "boolean",
+          "default": true
+        }
       },
       "outputSuffix": ".fits",
       "convert": "fitsToTiff",
@@ -45,33 +53,134 @@
         "{{output}}",
         "--unscreen",
         "{{output.stars}}",
+        "--stride",
+        "{{stride}}",
         "--machine-progress"
       ],
       "outputs": {
-        "stars": { "description": "별만 남긴 이미지. restore_stars 에 쓴다." }
+        "stars": {
+          "description": "별만 남긴 이미지. restore_stars 에 쓴다."
+        }
       },
       "timeoutMs": 1800000,
-      "priority": 10
+      "priority": 10,
+      "params": {
+        "stride": {
+          "type": "number",
+          "min": 2,
+          "max": 512,
+          "default": 256
+        }
+      }
     },
     {
       "id": "bxt",
       "capability": "deconvolution",
-      "label": "BlurXTerminator (RC-Astro CLI)",
+      "label": "BlurXTerminator (RC-Astro CLI 2.6)",
       "executable": "C:/Program Files/RC-Astro/CLI/rc-astro.exe",
       "args": [
         "bxt",
         "{{input}}",
-        "--sharpen-nonstellar",
-        "{{nonstellar}}",
+        "--sharpen-stars={{sharpenStars}}",
+        "--sharpen-nonstellar={{sharpenNonstellar}}",
+        "--adjust-star-halos={{starHalos}}",
+        "--lunar-planetary={{lunarPlanetary}}",
+        "--correct-only={{correctOnly}}",
         "--output",
         "{{output}}",
         "--overwrite"
       ],
       "params": {
-        "nonstellar": { "type": "number", "min": 0, "max": 1, "default": 0.5 }
+        "sharpenStars": {
+          "type": "number",
+          "min": 0,
+          "max": 0.7,
+          "default": 0.5
+        },
+        "sharpenNonstellar": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.5
+        },
+        "starHalos": {
+          "type": "number",
+          "min": -0.5,
+          "max": 0.5,
+          "default": 0
+        },
+        "lunarPlanetary": {
+          "type": "boolean",
+          "default": false
+        },
+        "correctOnly": {
+          "type": "boolean",
+          "default": false
+        }
       },
       "timeoutMs": 1800000,
       "priority": 10
+    },
+    {
+      "id": "nxt",
+      "capability": "noiseReduction",
+      "label": "NoiseXTerminator (RC-Astro CLI 2.6)",
+      "executable": "C:/Program Files/RC-Astro/CLI/rc-astro.exe",
+      "args": [
+        "nxt",
+        "{{input}}",
+        "--denoise-intensity={{denoiseIntensity}}",
+        "--denoise-color={{denoiseColor}}",
+        "--iterations={{iterations}}",
+        "--output",
+        "{{output}}",
+        "--overwrite"
+      ],
+      "params": {
+        "denoiseIntensity": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.9
+        },
+        "denoiseColor": {
+          "type": "number",
+          "min": 0,
+          "max": 1,
+          "default": 0.9
+        },
+        "iterations": {
+          "type": "number",
+          "min": 1,
+          "max": 5,
+          "default": 2
+        }
+      },
+      "timeoutMs": 1800000,
+      "priority": 10
+    },
+    {
+      "id": "sxt",
+      "capability": "starRemoval",
+      "label": "StarXTerminator (RC-Astro CLI 2.6)",
+      "executable": "C:/Program Files/RC-Astro/CLI/rc-astro.exe",
+      "args": [
+        "sxt",
+        "{{input}}",
+        "--output-stars=true",
+        "--unscreen={{unscreen}}",
+        "--output",
+        "{{output}}",
+        "--overwrite"
+      ],
+      "params": {
+        "unscreen": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "timeoutMs": 1800000,
+      "priority": 20
     }
   ]
 }

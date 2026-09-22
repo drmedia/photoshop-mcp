@@ -60,6 +60,13 @@ declare module "photoshop" {
 
     /** 레이어를 다른 위치로 옮긴다. **비동기다.** */
     move(relativeObject: PhotoshopLayer | PhotoshopDocument, placement: string): Promise<void>;
+
+    /**
+     * 레이어를 픽셀로 굽는다. **비동기다.**
+     *
+     * UXP 버전에 따라 없을 수 있어 선택으로 둔다. 부르는 쪽이 있는지 확인한다.
+     */
+    rasterize?(target: string): Promise<void>;
   }
 
   export interface PhotoshopDocument {
@@ -226,6 +233,8 @@ declare module "photoshop" {
     readonly ElementPlacement: ElementPlacementConstants;
     /** 문서를 닫을 때의 저장 여부. 복제본은 DONOTSAVECHANGES 로 닫는다. */
     readonly SaveOptions?: { readonly DONOTSAVECHANGES: string };
+    /** 무엇을 구울지. 스마트 오브젝트는 ENTIRELAYER 로 통째로 굽는다. */
+    readonly RasterizeType?: { readonly ENTIRELAYER: string };
   };
 }
 

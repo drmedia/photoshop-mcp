@@ -221,7 +221,7 @@ describe("**고른 것만 적재한다**", () => {
   });
 
   it("**디렉터리 이름이 아니라 namespace 로 고른다**", async () => {
-    // 둘이 다른 것이 있다 — extensions/milkyscape 의 namespace 는 milky 다.
+    // 둘이 다른 것이 있다 — extensions/example-extension 의 namespace 는 example 다.
     const mcp = setup();
     await fixture("long-directory-name", manifestOf("short"), sourceRegistering("short.tool"));
 

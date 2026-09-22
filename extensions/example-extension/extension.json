@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "namespace": "example",
   "main": "dist/index.js",
-  "description": "extension-sdk 사용법을 보여주는 예제 확장",
+  "description": "extension-api 사용법을 보여주는 예제 확장",
   "requires": {
     "photoshopMcp": "^0.1.0"
   },

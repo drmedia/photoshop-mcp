@@ -116,7 +116,7 @@ photoshop.adjustment.levels
 Core에 넣지 않는 예:
 
 ```text
-milky.enhance
+rcastro.bxt
 portrait.skin_retouch
 landscape.sky_enhance
 astro.remove_stars
@@ -245,7 +245,7 @@ Extension namespace를 사용한다.
 예:
 
 ```text
-milky.*
+rcastro.*
 portrait.*
 landscape.*
 ```
@@ -583,19 +583,33 @@ Extension Context:
 
 ```typescript
 interface ExtensionContext {
-  tools: ToolRegistry;
+  manifest: ExtensionManifest;
 
-  commands: CommandEngine;
+  tools: ExtensionToolRegistry;
 
-  resources: ResourceRegistry;
+  commands: ExtensionCommandEngine;
 
-  capabilities: CapabilityRegistry;
+  capabilities: ExtensionCapabilityRegistry;
 
-  photoshop: PhotoshopService;
+  jobs: ExtensionJobRegistry;
+
+  events: ExtensionEventBus;
+
+  resources: ExtensionResourceRegistry;
 
   logger: Logger;
 }
 ```
+
+**전체 레지스트리를 주지 않는다.** 각 필드는 `Extension*` 로 좁힌 표면이며
+Extension 에 필요한 것만 담는다 — 등록은 하되 조회·해제·호출은 못 한다.
+최소 권한 원칙이다. (§17)
+
+`photoshop: PhotoshopService` 는 **없다.** 정의된 적이 없으므로 넣지 않는다 —
+동작하지 않는 껍데기를 두면 Extension 작성자가 있는 줄 알고 쓴다.
+
+기준은 `photoshop-bridge/src/extension.ts` 이고, 작성 규격은
+[EXTENSION_API.md](EXTENSION_API.md) 다.
 
 ---
 
@@ -606,22 +620,28 @@ interface ExtensionContext {
 ```typescript
 export async function activate(ctx: ExtensionContext) {
   ctx.tools.register({
-    name: "milky.enhance",
-    description: "Enhance Milky Way details",
+    name: "rcastro.bxt",
+    description: "Sharpen with BlurXTerminator",
+    permission: "edit",
     inputSchema: EnhanceSchema,
     handler: enhanceMilkyWay,
   });
 }
 ```
 
+**`permission` 은 선택 필드가 아니다.** 빠지면 등록이 거부된다. 그리고
+manifest 의 `permissions` 안에 있어야 한다 — 밖이면 호출 시점이 아니라
+**등록 시점에** 막는다. 호출 때 막으면 목록에는 떠 있는데 항상 실패하는
+상태가 된다. (§22)
+
 Extension은 자신의 namespace만 사용할 수 있다.
 
 허용:
 
 ```text
-milky.enhance
+rcastro.bxt
 
-milky.remove_stars
+rcastro.nxt
 ```
 
 금지:
@@ -641,7 +661,7 @@ Extension은 여러 Photoshop Command를 조합해서 하나의 Workflow를 만�
 예:
 
 ```text
-milky.prepare
+starnet.remove_stars
 ```
 
 내부:
@@ -887,7 +907,7 @@ PhotoshopMCP/
 │   ├─ CORE_API.md
 │   ├─ PROTOCOL.md
 │   ├─ ROADMAP.md
-│   └─ EXTENSION_SDK.md
+│   └─ EXTENSION_API.md
 │
 ├─ packages/
 │   │
@@ -913,7 +933,7 @@ PhotoshopMCP/
 │   │   ├─ protocol/
 │   │   └─ transport/
 │   │
-│   └─ extension-sdk/
+│   └─ extension-api/
 │       ├─ manifest/
 │       ├─ api/
 │       └─ types/

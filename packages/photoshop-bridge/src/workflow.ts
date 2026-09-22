@@ -5,7 +5,7 @@ import { z } from "zod";
  *
  * ## 무엇이 이미 되는가
  *
- * Extension 이 이미 워크플로다. `milky.remove_stars` 는 문서 조회 → 내보내기 →
+ * Extension 이 이미 워크플로다. `starnet.remove_stars` 는 문서 조회 → 내보내기 →
  * 외부 처리 → 가져오기 ×2 → 혼합까지 5단계를 한 Job 으로 묶고 진행률도 보고한다.
  *
  * ## 그래서 이 계층이 더하는 것

@@ -56,7 +56,9 @@ import { fontList, textCreate, textSet } from "./dom/text.js";
 import { actionList } from "./dom/action.js";
 import { actionPlay } from "./dom/action-play.js";
 import { actionAllowlist } from "./dom/action-allowlist.js";
+import { extensionRegistry } from "./dom/extension-registry.js";
 import { openActionPicker } from "./panel/action-picker.js";
+import { openExtensionPicker } from "./panel/extension-picker.js";
 import { documentOpen } from "./dom/document-open.js";
 import { layerReorder } from "./dom/layer-reorder.js";
 import { documentStatistics } from "./dom/document-statistics.js";
@@ -136,6 +138,7 @@ export function createDispatcher(): CommandDispatcher {
   // 허용 목록 조회. 선택 자체는 Command 가 아니다 — 패널 모달에서만 할 수 있고
   // 서버는 사용자를 대신해 고를 수 없다. (작업 폴더 승인과 같은 자리)
   dispatcher.register("ACTION_ALLOWLIST", async () => actionAllowlist());
+  dispatcher.register("EXTENSION_REGISTRY", async () => extensionRegistry());
   dispatcher.register("ACTION_PLAY", async (p) =>
     actionPlay(p as Parameters<typeof actionPlay>[0]),
   );
@@ -317,6 +320,7 @@ let statusElement: HTMLElement | null = null;
 let errorElement: HTMLElement | null = null;
 let workspaceElement: HTMLElement | null = null;
 let actionCountElement: HTMLElement | null = null;
+let extensionCountElement: HTMLElement | null = null;
 
 function renderState(state: ClientState): void {
   const label = STATE_LABEL[state];
@@ -364,6 +368,26 @@ async function renderActionCount(): Promise<void> {
 }
 
 /**
+ * 등록된 Extension 수를 패널에 그린다. (ROADMAP §18.3)
+ *
+ * 0 이 기본이다 — 아무 패널도 깔려 있지 않다는 것을 보여준다.
+ */
+async function renderExtensionCount(): Promise<void> {
+  if (extensionCountElement === null) {
+    return;
+  }
+  try {
+    const status = await extensionRegistry();
+    extensionCountElement.textContent =
+      status.total === 0
+        ? "Extension: 등록 없음"
+        : `Extension: ${String(status.total)}개${status.persisted ? "" : " (이번 세션만)"}`;
+  } catch (error) {
+    extensionCountElement.textContent = `확인 실패: ${describeError(error)}`;
+  }
+}
+
+/**
  * 작업 폴더 상태를 패널에 그린다.
  *
  * 승인은 여기서만 할 수 있다. `getFolder()` 가 사용자 제스처를 요구하므로
@@ -406,15 +430,18 @@ export function mountPanel(root: HTMLElement): void {
     `<button id="photoshop-mcp-approve" style="${BTN}">폴더 승인</button>`,
     `<button id="photoshop-mcp-revoke" style="${BTN}">해제</button>`,
     `<button id="photoshop-mcp-actions" style="${BTN}">액션 선택</button>`,
+    `<button id="photoshop-mcp-extensions" style="${BTN}">Extension</button>`,
     "</div>",
     // 2행 — 승인된 경로
     '<div id="photoshop-mcp-workspace" style="margin-top:5px;opacity:.85;',
     'word-break:break-all">폴더: 확인 중</div>',
     // 3행 — 허용된 액션 수. (ROADMAP §17.36)
     '<div id="photoshop-mcp-action-count" style="margin-top:3px;opacity:.85"></div>',
-    // 4행 — Bridge 상태
+    // 4행 — 등록된 Extension 수. (ROADMAP §18.3)
+    '<div id="photoshop-mcp-extension-count" style="margin-top:3px;opacity:.85"></div>',
+    // 5행 — Bridge 상태
     '<div id="photoshop-mcp-state" style="margin-top:3px;opacity:.85">-</div>',
-    // 5행 — 오류. 길어질 수 있으므로 맨 아래에 둔다.
+    // 6행 — 오류. 길어질 수 있으므로 맨 아래에 둔다.
     '<div id="photoshop-mcp-error" style="margin-top:5px;padding:4px;',
     'background:#4a1f1f;color:#ffb4b4;word-break:break-all;display:none"></div>',
     "</div>",
@@ -422,6 +449,7 @@ export function mountPanel(root: HTMLElement): void {
 
   statusElement = root.querySelector("#photoshop-mcp-state");
   actionCountElement = root.querySelector("#photoshop-mcp-action-count");
+  extensionCountElement = root.querySelector("#photoshop-mcp-extension-count");
   errorElement = root.querySelector("#photoshop-mcp-error");
   workspaceElement = root.querySelector("#photoshop-mcp-workspace");
 
@@ -449,10 +477,21 @@ export function mountPanel(root: HTMLElement): void {
       })
       .then(() => renderActionCount());
   });
+  root.querySelector("#photoshop-mcp-extensions")?.addEventListener("click", () => {
+    void openExtensionPicker()
+      .catch((error: unknown) => {
+        if (extensionCountElement !== null) {
+          extensionCountElement.textContent = `등록 실패: ${describeError(error)}`;
+        }
+        return null;
+      })
+      .then(() => renderExtensionCount());
+  });
 
   renderState(client.state);
   void renderWorkspace();
   void renderActionCount();
+  void renderExtensionCount();
 }
 
 /**

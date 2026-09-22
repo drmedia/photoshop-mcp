@@ -638,8 +638,13 @@ describe("설정 파일", () => {
     const registry = setup();
     const example = new URL("../capabilities.example.json", import.meta.url);
     const loaded = await registry.loadConfig(example.pathname.replace(/^\/([A-Za-z]:)/u, "$1"));
-    expect(loaded).toBe(3);
-    expect(registry.list()).toEqual(["deconvolution", "gradientRemoval", "starRemoval"]);
+    expect(loaded).toBe(5);
+    expect(registry.list()).toEqual([
+      "deconvolution",
+      "gradientRemoval",
+      "noiseReduction",
+      "starRemoval",
+    ]);
   });
 
   it("하나가 잘못되어도 나머지는 등록한다", async () => {

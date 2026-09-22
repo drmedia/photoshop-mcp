@@ -638,7 +638,8 @@ describe("설정 파일", () => {
     const registry = setup();
     const example = new URL("../capabilities.example.json", import.meta.url);
     const loaded = await registry.loadConfig(example.pathname.replace(/^\/([A-Za-z]:)/u, "$1"));
-    expect(loaded).toBe(5);
+    // bxt · nxt · sxt · starnet2 · graxpert · graxpert-denoise
+    expect(loaded).toBe(6);
     expect(registry.list()).toEqual([
       "deconvolution",
       "gradientRemoval",

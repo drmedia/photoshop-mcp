@@ -1,362 +1,385 @@
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { createPhotoshopMcp, createSilentLogger } from "@photoshop-mcp/mcp-core";
+import {
+  ErrorCode,
+  MockPhotoshopBridge,
+  PermissionPolicy,
+  type JobRecord,
+  type ProviderConfig,
+} from "@photoshop-mcp/photoshop-bridge";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createPhotoshopMcp, createSilentLogger } from "@photoshop-mcp/mcp-core";
-import { MockPhotoshopBridge, PermissionPolicy } from "@photoshop-mcp/photoshop-bridge";
-import {
-  channelPaths,
-  explainRejection,
-  readStatus,
-  requestRun,
-  skyApplied,
-  type ChannelPaths,
-  type PanelResponse,
-} from "../extensions/graxpert/src/panel.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 /**
- * GraXpert Extension. (ROADMAP §17.37)
+ * GraXpert Extension — **CLI 경로.**
  *
- * 패널이 없어도 고정할 수 있는 것을 고정한다 — 스키마, 상태 판정, 거절 안내,
- * 권한. **패널을 흉내 내지 않는다.** 실제 처리는 실기에서만 확인된다.
+ * 예전에는 GraXpert 의 Photoshop CEP 패널을 명령 파일로 구동했고, 이 파일도
+ * 그 IPC 를 쟀다. 패널을 뗐으므로 **그 테스트들은 대상이 사라졌다** — 통과시키려고
+ * 지운 것이 아니라 재던 코드가 없어졌다.
  *
- * 경로를 주입해서 돌린다. 진짜 경로(`%TEMP%/GraXpert_Photoshop`)를 쓰면
- * **떠 있는 패널이 테스트의 명령을 실제로 실행한다.**
+ * 패널을 뗀 이유는 실기 측정이다. 전제가 둘이었고 둘 다 사람만 할 수 있었는데,
+ * **패널을 여는 것은 Photoshop 알림을 하나도 남기지 않아** 자동화할 방법이
+ * 없었다.
+ *
+ * 고정하는 것은 넷이다.
+ *
+ * 1. **Tool 두 개가 각자 Provider 를 못 박는다** — `noiseReduction` 은
+ *    `rcastro.nxt` 도 제공한다
+ * 2. **하늘 격리를 하지 않는다** — 그 판단은 호출자가 한다
+ * 3. **준 값만 넘긴다** — 기본값을 겹쳐 두면 Provider 와 두 곳이 갈라진다
+ * 4. **설정이 없으면 Job 을 띄우지 않는다** — 띄운 뒤 실패하면 이유가 묻힌다
  */
 
 let workspace: string;
-let paths: ChannelPaths;
+
+const EXTENSION = fileURLToPath(new URL("../extensions/graxpert/", import.meta.url));
 
 beforeEach(async () => {
-  workspace = await mkdtemp(join(tmpdir(), "gx-"));
-  /* **Extension 안쪽도 이 경로를 보게 만든다.**
-   *
-   * `requirePanelReady()` 는 인자를 받지 않으므로 기본 경로를 읽는다. 진짜
-   * 경로를 그대로 두면 **떠 있는 패널이 테스트의 명령을 받아 실제로 GraXpert 를
-   * 돌린다.** 처음에 이렇게 만들어 두었는데, 그때 패널이 닫혀 있어 통과했다 —
-   * 환경에 따라 결과가 달라지는 테스트였다. */
-  process.env["PHOTOSHOP_MCP_GRAXPERT_DIR"] = workspace;
-  // 기본 10초를 그대로 쓰면 이 파일 하나가 전체 테스트 시간을 두 배로 만든다.
-  paths = { ...channelPaths(workspace), responseTimeoutMs: 600, pollMs: 50 };
+  workspace = await mkdtemp(join(tmpdir(), "graxpert-"));
+  process.env["GRAXPERT_ARGV_LOG"] = join(workspace, "argv.json");
 });
 
 afterEach(async () => {
-  delete process.env["PHOTOSHOP_MCP_GRAXPERT_DIR"];
+  delete process.env["GRAXPERT_ARGV_LOG"];
   await rm(workspace, { recursive: true, force: true });
 });
 
-const ALL = ["read", "edit", "external", "destructive"];
+/**
+ * 가짜 GraXpert.
+ *
+ * 받은 argv 를 남기고 출력을 만든다. **`outputSuffix`·`convert` 는 선언하지
+ * 않는다** — 실제 설정은 `out.tif.fits` 를 찾아 변환하지만 그 경로는
+ * `fits.test.ts` 가 따로 재고, 여기서 재는 것은 Extension 의 흐름이다.
+ */
+async function fakeGraXpert(): Promise<string> {
+  const script = join(workspace, "graxpert.cjs");
+  const lines = [
+    "const fs = require('node:fs');",
+    "const a = process.argv.slice(2);",
+    "fs.writeFileSync(process.env.GRAXPERT_ARGV_LOG, JSON.stringify(a));",
+    "fs.writeFileSync(a[a.indexOf('-output') + 1], 'processed');",
+  ];
+  await writeFile(script, lines.join("\n"), "utf8");
+  return script;
+}
 
-type Mcp = ReturnType<typeof createPhotoshopMcp>;
+/** 가짜 CLI 가 받은 argv. */
+function argv(): string[] {
+  return JSON.parse(readFileSync(process.env["GRAXPERT_ARGV_LOG"] as string, "utf8")) as string[];
+}
 
-async function setup(allow: string[] = ALL): Promise<Mcp> {
+interface Setup {
+  mcp: ReturnType<typeof createPhotoshopMcp>;
+}
+
+interface Options {
+  /** `false` 면 Provider 를 등록하지 않는다. */
+  gradient?: false;
+  denoise?: false;
+  /** 다른 id 로 등록해 "Provider 가 다르다" 를 만든다. */
+  gradientId?: string;
+}
+
+async function setup(options: Options = {}): Promise<Setup> {
+  const bridge = new MockPhotoshopBridge({
+    workspacePath: workspace,
+    files: {
+      write: (path) => writeFileSync(path, "내보낸 픽셀", "utf8"),
+      exists: (path) => existsSync(path),
+    },
+  });
+
   const mcp = createPhotoshopMcp({
-    bridge: new MockPhotoshopBridge(),
+    bridge,
     logger: createSilentLogger(),
-    policy: new PermissionPolicy(allow as never),
+    policy: new PermissionPolicy(["read", "edit", "external"] as never),
   });
-  const directory = join(workspace, "graxpert");
-  await mkdir(directory, { recursive: true });
-  const source = fileURLToPath(new URL("../extensions/graxpert/src/index.ts", import.meta.url));
-  await writeFile(
-    join(directory, "extension.json"),
-    JSON.stringify({
-      id: "com.drmedia.graxpert",
-      name: "GraXpert Panel Tools",
-      version: "0.1.0",
-      namespace: "gx",
-      main: source,
-      permissions: ["photoshop.read", "photoshop.external"],
-    }),
-    "utf8",
-  );
-  await mcp.extensions.load({ directory, manifestPath: join(directory, "extension.json") });
-  return mcp;
+
+  const script = await fakeGraXpert();
+
+  if (options.gradient !== false) {
+    const gradient: ProviderConfig = {
+      id: options.gradientId ?? "graxpert",
+      capability: "gradientRemoval",
+      executable: process.execPath,
+      args: [
+        script,
+        "-cmd",
+        "background-extraction",
+        "{{input}}",
+        "-cli",
+        "-gpu",
+        "{{gpu}}",
+        "-correction",
+        "{{correction}}",
+        "-smoothing",
+        "{{smoothing}}",
+        "-output",
+        "{{output}}",
+      ],
+      params: {
+        correction: { type: "enum", values: ["Subtraction", "Division"], default: "Subtraction" },
+        smoothing: { type: "number", min: 0, max: 1, default: 0.5 },
+        gpu: { type: "boolean", default: true },
+      },
+    };
+    await mcp.capabilities.register(gradient);
+  }
+
+  if (options.denoise !== false) {
+    const denoise: ProviderConfig = {
+      id: "graxpert-denoise",
+      capability: "noiseReduction",
+      executable: process.execPath,
+      // `-cmd denoising` 이 그래디언트 제거와 다른 유일한 지점이다.
+      args: [
+        script,
+        "-cmd",
+        "denoising",
+        "{{input}}",
+        "-cli",
+        "-gpu",
+        "{{gpu}}",
+        "-output",
+        "{{output}}",
+      ],
+      params: { gpu: { type: "boolean", default: true } },
+    };
+    await mcp.capabilities.register(denoise);
+  }
+
+  await mcp.extensions.load({
+    directory: EXTENSION,
+    manifestPath: join(EXTENSION, "extension.json"),
+  });
+
+  return { mcp };
 }
 
-const call = async <T>(mcp: Mcp, name: string, input: unknown = {}): Promise<T> =>
-  mcp.tools.invoke<T>(name, input, { requestId: "gx" });
+const call = async <T>(s: Setup, tool: string, input: Record<string, unknown> = {}): Promise<T> =>
+  (await s.mcp.tools.invoke(tool, input, { requestId: "r" })) as T;
 
-/** 패널이 쓰는 상태 파일을 흉내 낸다. */
-async function writeStatus(overrides: Record<string, unknown> = {}): Promise<void> {
-  await writeFile(
-    paths.status,
-    JSON.stringify({
-      schemaVersion: 1,
-      at: Date.now(),
-      enabled: true,
-      panelBusy: false,
-      gradientResultBusy: false,
-      mode: "background",
-      ...overrides,
-    }),
-    "utf8",
-  );
+async function awaitJob<T>(s: Setup, jobId: string): Promise<T> {
+  const record = await new Promise<JobRecord>((resolve, reject) => {
+    const timer = setInterval(() => {
+      const job = s.mcp.jobs.get(jobId);
+      if (job === null) {
+        return;
+      }
+      if (job.state === "completed" || job.state === "failed" || job.state === "cancelled") {
+        clearInterval(timer);
+        resolve(job);
+      }
+    }, 10);
+    setTimeout(() => {
+      clearInterval(timer);
+      reject(new Error("Job 이 끝나지 않았습니다"));
+    }, 10_000);
+  });
+
+  if (record.state !== "completed") {
+    throw new Error(`Job ${record.state}: ${JSON.stringify(record.error)}`);
+  }
+  return record.result as T;
 }
 
-describe("상태는 명령을 보내지 않고 읽는다", () => {
-  it("파일이 없으면 null 이다", () => {
-    // 지어내지 않는다. 없는 것은 없는 것이다.
-    expect(readStatus(paths)).toBeNull();
+async function run<T>(s: Setup, tool: string, input: Record<string, unknown> = {}): Promise<T> {
+  const { jobId } = await call<{ jobId: string }>(s, tool, input);
+  return awaitJob<T>(s, jobId);
+}
+
+describe("등록", () => {
+  it("**Tool 은 둘이다** — 패널 상태 조회는 사라졌다", async () => {
+    /* `gx.status` 는 패널이 살아 있는지 보는 것이었다. 패널을 떼면 볼 것이
+     * 없고, Capability 사용 가능 여부는 photoshop.capability.list 가 답한다. */
+    const s = await setup();
+    const names = s.mcp.tools
+      .list()
+      .map((tool) => tool.name)
+      .filter((name) => name.startsWith("gx."));
+
+    expect(names.sort()).toEqual(["gx.run_denoise", "gx.run_gradient"]);
   });
 
-  it("방금 쓴 것은 fresh 다", async () => {
-    await writeStatus();
-    expect(readStatus(paths)?.fresh).toBe(true);
+  it("둘 다 external 이다", async () => {
+    const s = await setup();
+    for (const name of ["gx.run_gradient", "gx.run_denoise"]) {
+      expect(s.mcp.tools.get(name)?.permission, name).toBe("external");
+    }
   });
 
-  it("**낡은 파일은 fresh 가 아니다**", async () => {
-    // 패널이 1초마다 쓴다. 닫히면 파일만 남는데, 그걸 현재 상태로 읽으면
-    // 닫힌 패널을 열려 있다고 보고하게 된다.
-    await writeStatus({ at: Date.now() - 60_000 });
-    // mtime 은 지금이라 fresh 로 잡힌다 — at 과 mtime 중 새것을 쓰기 때문이다.
-    // 파일을 오래된 것으로 만들려면 mtime 도 과거여야 한다.
-    const { utimes } = await import("node:fs/promises");
-    const past = new Date(Date.now() - 60_000);
-    await utimes(paths.status, past, past);
-    expect(readStatus(paths)?.fresh).toBe(false);
-  });
+  it("**즉시 jobId 를 반환한다**", async () => {
+    const s = await setup();
+    const started = await call<{ jobId?: string }>(s, "gx.run_gradient");
 
-  it("깨진 JSON 이면 null 이다", async () => {
-    await writeFile(paths.status, "{ 깨진", "utf8");
-    expect(readStatus(paths)).toBeNull();
-  });
-
-  it("**상태를 읽어도 명령 파일을 만들지 않는다**", async () => {
-    await writeStatus();
-    readStatus(paths);
-    const { existsSync } = await import("node:fs");
-    expect(existsSync(paths.command)).toBe(false);
+    expect(started.jobId).toEqual(expect.any(String));
+    expect(s.mcp.tools.get("gx.run_gradient")?.description).toMatch(/jobId/u);
   });
 });
 
-describe("요청", () => {
-  it("**정식 스키마로 쓴다**", async () => {
-    // 패널이 top-level 화이트리스트로 검사한다. 하나라도 빠지거나 더해지면 거절이다.
-    const pending = requestRun("denoise", { strength: 0.5 }, new AbortController().signal, paths);
-    // 응답이 없으므로 곧 실패한다. 파일만 확인하고 버린다.
-    void pending.catch(() => undefined);
-    const { readFileSync, existsSync } = await import("node:fs");
-    for (let i = 0; i < 50 && !existsSync(paths.command); i += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-    const command = JSON.parse(readFileSync(paths.command, "utf8")) as Record<string, unknown>;
-    expect(Object.keys(command).sort()).toEqual(
-      ["action", "client", "createdAt", "id", "mode", "options", "schemaVersion"].sort(),
+describe("결과", () => {
+  it("**픽셀 레이어 한 장을 만든다**", async () => {
+    const s = await setup();
+    const result = await run<{ layer: { id: number; name: string } }>(s, "gx.run_gradient");
+
+    expect(result.layer.name).toBe("GraXpert 01");
+
+    const layers = await s.mcp.engine.execute<{ id: number; type: string }[]>(
+      { type: "LAYER_LIST", params: {} },
+      { requestId: "r" },
     );
-    expect(command["schemaVersion"]).toBe(1);
-    expect(command["action"]).toBe("run");
-    expect(command["mode"]).toBe("denoise");
-    // 패널이 10초보다 오래된 명령을 거절한다.
-    expect(Date.now() - (command["createdAt"] as number)).toBeLessThan(2000);
+    expect(layers.find((layer) => layer.id === result.layer.id)?.type).toBe("pixel");
   });
 
-  it("**다른 클라이언트의 응답을 읽지 않는다**", async () => {
-    // 응답 파일은 공유된다. 실기에서 패널 JSX 액션이 쓴 것이 남아 있었다.
-    await writeFile(
-      paths.response,
-      JSON.stringify({ schemaVersion: 1, id: "photoshop-action-999", accepted: true }),
-      "utf8",
-    );
-    await expect(requestRun("denoise", {}, new AbortController().signal, paths)).rejects.toThrow(
-      /응답하지 않았습니다/u,
-    );
+  it("노이즈 감소는 이름이 다르다", async () => {
+    // 한 카운터를 쓰면 어느 것이 무엇인지 알 수 없다.
+    const s = await setup();
+    const result = await run<{ layer: { name: string } }>(s, "gx.run_denoise");
+
+    expect(result.layer.name).toBe("GraXpert NR 01");
   });
 
-  it("**응답 없음 메시지가 고치는 방법까지 담는다**", async () => {
-    /* 실기 전에 이 문장이 `NaN` 으로 바뀌어 있었다 — 치환 실수로 문자열에
-     * 단항 플러스가 붙었다(`+ +"패널이 열려…"`). 타입 검사도 빌드도 통과하고,
-     * `/응답하지 않았습니다/` 만 보던 테스트도 통과했다.
-     *
-     * **"오류가 났다" 만 확인하면 안내 문구가 사라진 것을 놓친다.** 막힌
-     * 사람에게 남는 것은 그 문구뿐이다. */
-    let message = "";
-    try {
-      await requestRun("denoise", {}, new AbortController().signal, paths);
-    } catch (error) {
-      message = error instanceof Error ? error.message : String(error);
-    }
-    expect(message).toMatch(/패널이 열려 있는지/u);
-    expect(message).toMatch(/gx\.status/u);
+  it("중간 파일을 알려준다", async () => {
+    // 한 번 돌 때마다 140MB 가 둘 생긴다. 알려주지 않으면 쌓인 줄 모른다.
+    const s = await setup();
+    const result = await run<{ files: string[] }>(s, "gx.run_gradient");
+
+    expect(result.files).toHaveLength(2);
+  });
+
+  it("**어느 Provider 로 돌았는지 담는다**", async () => {
+    /* `noiseReduction` 은 rcastro.nxt 도 제공한다. 결과만 보고 구분되지
+     * 않으면 설정에 따라 다른 것이 돌면서 호출자는 모른다. */
+    const s = await setup();
+    const result = await run<{ provider: string }>(s, "gx.run_denoise");
+
+    expect(result.provider).toBe("graxpert-denoise");
+  });
+});
+
+describe("인자", () => {
+  it("**준 값을 그대로 넘긴다**", async () => {
+    const s = await setup();
+    await run(s, "gx.run_gradient", { correction: "Division", smoothing: 0.2, gpu: false });
+
+    const a = argv();
+    expect(a).toContain("Division");
+    expect(a).toContain("0.2");
+    expect(a).toContain("false");
+  });
+
+  it("생략하면 Provider 기본값이 쓰인다", async () => {
+    // Extension 에 기본값을 겹쳐 두면 설정과 두 곳이 갈라진다.
+    const s = await setup();
+    await run(s, "gx.run_gradient");
+
+    const a = argv();
+    expect(a).toContain("Subtraction");
+    expect(a).toContain("0.5");
+  });
+
+  it("**노이즈 감소는 다른 명령이다**", async () => {
+    const s = await setup();
+    await run(s, "gx.run_denoise");
+
+    const a = argv();
+    expect(a).toContain("denoising");
+    expect(a).not.toContain("background-extraction");
+  });
+});
+
+describe("하늘 격리는 하지 않는다", () => {
+  it("**선택 영역을 만들지도 읽지도 않는다**", async () => {
+    /* 패널은 선택 영역을 하늘로 삼아 지상부를 덮었다. 그 판단은 호출자가
+     * 한다 — Tool 이 흐름을 박으면 호출자가 그 결정을 못 바꾼다. */
+    const s = await setup();
+    await run(s, "gx.run_gradient");
+
+    const selection = await s.mcp.engine.execute<{ hasSelection: boolean }>(
+      { type: "SELECTION_GET", params: {} },
+      { requestId: "r" },
+    );
+    expect(selection.hasSelection).toBe(false);
+  });
+
+  it("**설명이 격리 방법을 알려준다**", async () => {
+    /* "하늘만 고르지 않는다" 만 적고 끝내면 호출자가 다음에 무엇을 할지
+     * 모른다. 쓸 Tool 이름을 함께 준다. */
+    const s = await setup();
+    const text = s.mcp.tools.get("gx.run_gradient")?.description ?? "";
+
+    expect(text).toMatch(/selection\.sky/u);
+    expect(text).toMatch(/mask\.create/u);
+  });
+});
+
+describe("준비되지 않았을 때", () => {
+  it("**Job 을 띄우지 않고 이유를 준다**", async () => {
+    const s = await setup({ gradient: false });
+
+    const message = await call(s, "gx.run_gradient").then(
+      () => "",
+      (error: unknown) => (error instanceof Error ? error.message : String(error)),
+    );
+
+    expect(message).toMatch(/GraXpert/u);
+    expect(message).toMatch(/capabilities\.json/u);
     expect(message).not.toMatch(/NaN|undefined|\[object/u);
+    expect(s.mcp.jobs.list()).toHaveLength(0);
   });
 
-  it("취소하면 기다리기를 멈춘다", async () => {
-    const controller = new AbortController();
-    const pending = requestRun("denoise", {}, controller.signal, paths);
-    controller.abort();
-    await expect(pending).rejects.toThrow(/취소/u);
-  });
-});
+  it("**다른 Provider 면 거절한다**", async () => {
+    /* `gradientRemoval` 을 다른 처리기가 제공할 수 있다. 인자 모양이 달라
+     * 그대로 보내면 실패하는데, 그때는 Job 안이라 이유가 묻힌다. */
+    const s = await setup({ gradientId: "somethingelse" });
 
-describe("거절 안내", () => {
-  const response = (code: string, extra: Partial<PanelResponse> = {}): PanelResponse =>
-    ({
-      code,
-      reason: "사유",
-      busySince: null,
-      busyForMs: null,
-      busyLabel: "",
-      busyFrom: "",
-      ...extra,
-    }) as PanelResponse;
-
-  it("**코드마다 고치는 방법을 말한다**", () => {
-    // "거절되었습니다" 만으로는 사용자가 할 수 있는 일이 없다.
-    expect(explainRejection(response("automation_disabled"))).toMatch(/Allow External Automation/u);
-    expect(explainRejection(response("panel_busy"))).toMatch(/다른 처리/u);
-    expect(explainRejection(response("stale_command"))).toMatch(/시계|멈춰/u);
-  });
-
-  it("코드를 그대로 담는다", () => {
-    // 기계가 가릴 수 있어야 한다.
-    expect(explainRejection(response("unsupported_parameter"))).toMatch(
-      /\[unsupported_parameter\]/u,
+    const message = await call(s, "gx.run_gradient").then(
+      () => "",
+      (error: unknown) => (error instanceof Error ? error.message : String(error)),
     );
+
+    expect(message).toMatch(/graxpert/u);
+    expect(s.mcp.jobs.list()).toHaveLength(0);
   });
 
-  it("**busy 면 얼마나 오래됐는지와 어디서 켰는지를 말한다**", () => {
-    // 오래 켜져 있는데 진행이 없으면 패널의 setBusy(false) 가 빠진 것이다.
-    const text = explainRejection(
-      response("panel_busy", {
-        busySince: Date.now() - 41_000,
-        busyForMs: 41_000,
-        busyLabel: "Denoise 처리 중…",
-        busyFrom: "main.js:4516",
-      }),
+  it("노이즈 감소도 따로 본다", async () => {
+    // 그래디언트 제거만 설정해 둔 사람이 노이즈 감소를 부를 수 있다.
+    const s = await setup({ denoise: false });
+
+    const message = await call(s, "gx.run_denoise").then(
+      () => "",
+      (error: unknown) => (error instanceof Error ? error.message : String(error)),
     );
-    expect(text).toMatch(/41초째/u);
-    expect(text).toMatch(/main\.js:4516/u);
-  });
-});
 
-describe("Tool", () => {
-  it("권한 — 조회는 read, 실행은 external", async () => {
-    const mcp = await setup();
-    expect(mcp.tools.get("gx.status")?.permission).toBe("read");
-    expect(mcp.tools.get("gx.run_gradient")?.permission).toBe("external");
-    expect(mcp.tools.get("gx.run_denoise")?.permission).toBe("external");
-  });
-
-  it("**기본 권한에서는 실행이 막힌다**", async () => {
-    const mcp = await setup(["read", "edit"]);
-    await expect(call(mcp, "gx.run_denoise")).rejects.toThrow(/권한|permission/iu);
-  });
-
-  it("**패널이 없으면 Job 을 띄우지 않는다**", async () => {
-    // 즉시 알 수 있는 것을 job.status 로 미루지 않는다.
-    const mcp = await setup();
-    await expect(call(mcp, "gx.run_denoise")).rejects.toThrow(
-      /상태 파일이 없습니다|떠 있지 않습니다/u,
-    );
-    expect(mcp.jobs.list()).toHaveLength(0);
-  });
-
-  it("**자동화가 꺼져 있으면 Job 을 띄우지 않는다**", async () => {
-    // 패널은 열려 있지만 Allow External Automation 이 꺼진 상태.
-    await writeStatus({ enabled: false });
-    const mcp = await setup();
-    await expect(call(mcp, "gx.run_denoise")).rejects.toThrow(/Allow External Automation/u);
-    expect(mcp.jobs.list()).toHaveLength(0);
-  });
-
-  it("**패널이 준비되면 Job 이 뜬다**", async () => {
-    /* 앞의 두 테스트만 있으면 "항상 거절한다" 도 통과한다. 준비된 경우를
-     * 함께 고정해야 가드가 진짜 가드인지 알 수 있다.
-     *
-     * 이 테스트는 Extension 이 **주입된 경로**를 본다는 증거이기도 하다 —
-     * 진짜 패널을 보고 있다면 여기 쓴 가짜 상태가 보이지 않는다. */
-    await writeStatus();
-    const mcp = await setup();
-    const started = await call<{ jobId: string }>(mcp, "gx.run_denoise", { strength: 0.5 });
-    expect(started.jobId).toBeTypeOf("string");
-    expect(mcp.jobs.list()).toHaveLength(1);
-    // 응답할 패널이 없으므로 Job 은 곧 실패한다. 서버가 내려갈 때 정리된다.
-    mcp.jobs.cancelAll();
+    expect(message).toMatch(/graxpert-denoise/u);
+    expect(s.mcp.jobs.list()).toHaveLength(0);
   });
 });
 
 describe("스키마", () => {
-  let mcp: Mcp;
-  beforeEach(async () => {
-    mcp = await setup();
-  });
-
-  const reject = async (name: string, input: unknown): Promise<void> => {
-    await expect(call(mcp, name, input)).rejects.toThrow();
-  };
-
-  it("**`method` 를 받지 않는다**", async () => {
-    // 외부 자동화는 언제나 AI Auto 다. 패널이 unsupported_parameter 로 거절한다 —
-    // 여기서 먼저 막지 않으면 왕복 한 번을 버린다.
-    await reject("gx.run_gradient", { method: "AI" });
-    await reject("gx.run_gradient", { method: "sample" });
-  });
-
-  it("**`batchSize` 는 여섯 값뿐이다**", async () => {
-    // 패널이 1·2·4·8·16·32 만 받는다. 3 을 보내면 invalid_batch_size 다.
-    await reject("gx.run_denoise", { batchSize: 3 });
-    await reject("gx.run_denoise", { batchSize: 64 });
+  it("**강도를 받지 않는다** — CLI 에 플래그가 없다", async () => {
+    /* 없는 파라미터를 스키마에 두고 조용히 무시하면 호출자는 걸렸다고 믿는다.
+     * GraXpert CLI 에 `-cmd denoising` 용 플래그가 하나도 없다. */
+    const s = await setup();
+    await expect(call(s, "gx.run_denoise", { strength: 0.5 })).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
+    );
   });
 
   it("0–1 밖을 거절한다", async () => {
-    await reject("gx.run_gradient", { smoothing: 1.5 });
-    await reject("gx.run_denoise", { strength: -0.1 });
+    const s = await setup();
+    await expect(call(s, "gx.run_gradient", { smoothing: 1.5 })).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
+    );
   });
 
-  it("**모르는 필드를 거절한다**", async () => {
-    // 통로가 바뀌며 이름이 달라진 것들이 있다. 남아 있으면 조용히 무시된다.
-    await reject("gx.run_gradient", { interpolation: "RBF" });
-    await reject("gx.run_denoise", { strength: 0.5, bogus: 1 });
-  });
-
-  it("gx.status 는 인자를 받지 않는다", async () => {
-    await reject("gx.status", { verbose: true });
-  });
-});
-
-describe("gx.status 응답", () => {
-  it("**패널이 없으면 지어내지 않는다**", async () => {
-    const mcp = await setup();
-    const result = await call<Record<string, unknown>>(mcp, "gx.status");
-    expect(result["panelRunning"]).toBe(false);
-    // 모르는 것은 false 가 아니라 null 이다. false 로 덮으면 "꺼져 있다" 는
-    // 틀린 사실을 말하게 된다. (rawBitDepth · isBackground 와 같은 원칙)
-    expect(result["automationEnabled"]).toBeNull();
-    expect(result["blocked"]).toMatch(/상태 파일이 없습니다/u);
-  });
-});
-
-describe("**하늘 경로를 탔는지는 이름으로 판정한다**", () => {
-  // 응답의 settings.method 는 언제나 "AI" 라 "요청했다" 까지만 말한다.
-  // 선택이 없어 일반 처리로 간 경우와 구별되지 않는다.
-
-  it("합성·마스크 둘 다 하늘이다", () => {
-    expect(skyApplied(["GraXpert - AI Gradient - Sky Merged"])).toBe(true);
-    expect(skyApplied(["GraXpert - AI Gradient - Sky Masked"])).toBe(true);
-  });
-
-  it("**접미사가 없으면 하늘이 아니다**", () => {
-    // 실기에서 선택이 사라진 채 돌아 이 이름이 나왔고, 12초 만에 끝나
-    // 성공처럼 보였다. 이 한 줄이 그것을 잡는다.
-    expect(skyApplied(["GraXpert - AI Gradient"])).toBe(false);
-  });
-
-  it("Denoise 결과는 하늘이 아니다", () => {
-    expect(skyApplied(["GraXpert Denoise"])).toBe(false);
-  });
-
-  it("여러 장이면 하나라도 있으면 된다", () => {
-    expect(skyApplied(["배경 모델", "GraXpert - AI Gradient - Sky Merged"])).toBe(true);
-  });
-
-  it("빈 목록은 거짓이다", () => {
-    expect(skyApplied([])).toBe(false);
-  });
-
-  it("**끝에 있어야 한다**", () => {
-    // 사용자가 레이어 이름을 바꿔 그 말이 가운데 들어갈 수 있다.
-    expect(skyApplied(["Sky Merged 실험본"])).toBe(false);
+  it("모르는 필드를 거절한다", async () => {
+    const s = await setup();
+    await expect(call(s, "gx.run_gradient", { mergeSky: true })).rejects.toThrow(
+      expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
+    );
   });
 });

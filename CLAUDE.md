@@ -14,7 +14,7 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **78개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 3 ·
+Core Tool **78개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
@@ -217,33 +217,51 @@ method="dialog">` 제출로 닫히지 않아 `dialog.close(값)` 을 직접 걸�
 
 액션 이름은 **유일하지 않다.** `B and C Landscape` 가 두 세트에 있었다.
 
-## GraXpert 패널 (ROADMAP §17.37)
+## GraXpert 는 CLI 로 부른다 (ROADMAP §17.37, §19)
 
-`extensions/graxpert` 가 GraXpert Photoshop 패널을 MCP 에서 돌린다.
+`extensions/graxpert` 가 `GraXpert.exe` 를 Capability 로 돌린다. **Photoshop CEP
+패널은 쓰지 않는다.**
 
-**액션으로는 안 된다.** 이 패널은 Photoshop 에 descriptor 를 남기지 않는다 —
-`["all"]` 로 들어 보니 레이어를 두 장 만드는 동안 `make` 가 하나도 안 왔다.
-액션이 기록하는 것이 그 경로라 녹화할 것이 없다.
+한동안 패널의 External Automation API 로 구동했다. 전제가 둘이었고 **둘 다 사람만
+할 수 있었다** — 패널을 열어 두는 것과 `Allow External Automation` 을 켜는 것.
+LLM 은 정확한 거절 이유를 받지만 그 다음에 할 수 있는 일이 없었다.
 
-갈리는 기준은 "플러그인이냐" 가 아니라 **"메뉴를 거치느냐"** 다. StarXTerminator 는
-`필터 > RC-Astro` 메뉴를 거쳐서 `action.run` 으로 돌아간다.
+**패널을 여는 것은 Photoshop 알림을 하나도 남기지 않는다.** `["all"]` 로 듣는 동안
+손으로 열었는데 잡힌 `photoshop.*` 이벤트가 `modalJavaScriptScopeEnter/Exit` 120개
+뿐이었고 그건 전부 그 사이 돈 우리 Command 40개가 만든 것이다. descriptor 가 없으니
+**액션으로 녹화할 수도 재생할 수도 없다.**
 
-**CLI Capability 로 대체되지 않는다.** GraXpert 호출 인자는 CLI 와 똑같고 **입력이
-다르다** — 선택 영역으로 하늘 마스크를 만들어 지상부를 합성 평면으로 덮은 뒤 넣고,
-결과를 하늘에만 합성한다. 원본을 그냥 넣으면 산·나무가 그래디언트를 끌어당긴다.
+메뉴 command ID 로 여는 길(`menuBarInfo` + `performMenuCommand`)이 남아 있지만
+**"LLM 이 Photoshop 메뉴를 부를 수 있다" 는 새 권한 등급**을 여는 일이고(§23),
+얻는 것은 세션당 클릭 한 번이다. 그리고 두 번째 전제는 그래도 못 켠다.
 
-**하늘은 선택 영역이다.** 패널이 스스로 찾지 않는다. 선택이 있으면 하늘 워크플로,
-없으면 활성 레이어 전체 — **둘 다 정상이라 막지 않고** 어느 쪽인지를 결과에 담는다
-(`selectionAtStart` · `skyApplied`). `skyApplied` 는 설정값이 아니라 **결과 레이어
-이름**(` - Sky Merged`)으로 판정한다. 설정은 "요청했다" 까지만 말한다.
+**"CLI Capability 로 대체되지 않는다" 고 적어 두었던 것은 틀렸다.** 근거는 패널이
+지상부를 합성 평면으로 덮는다는 것이었는데, 그건 **패널이 대신 해 주던 판단**이지
+CLI 가 못 하는 일이 아니었다.
 
-통로는 패널의 **External Automation API** 다(`%TEMP%` 의 `automation_command.json`).
-계약은 패널 저장소 `docs/EXTERNAL_AUTOMATION.md` 이고 어긋나면 그쪽이 맞다.
-**기본이 꺼짐**이라 패널 설정에서 `Allow External Automation` 을 켜야 한다.
+**하늘 격리는 Tool 이 하지 않는다. 호출자가 판단한다.**
 
-**응답 파일은 클라이언트가 공유하므로 요청 `id` 로 가린다** — 실기에서 패널의 JSX
-액션이 쓴 응답이 남아 있었다. 상태는 `automation_status.json` 을 읽어 본다. 명령을
-보내 상태를 묻지 않는다 — `id` 를 태우고 거절만 받는다.
+```text
+document.statistics   격리가 필요한지 잰다
+selection.sky         하늘을 고른다
+gx.run_gradient       활성 레이어 전체를 처리한다
+mask.create           결과를 하늘에만 씌운다
+```
+
+흐름을 Tool 안에 박으면 호출자가 그 결정을 못 바꾼다. 어떤 사진은 격리가 필요 없고,
+어떤 사진은 하늘 선택을 손으로 다듬어야 한다.
+
+**노이즈 감소는 강도를 지정할 수 없다.** `GraXpert.exe -h` 에 `-cmd denoising` 용
+플래그가 하나도 없다 — `-smoothing`·`-correction` 은 배경 추출 전용이다.
+`-preferences_file` 로는 줄 수 있지만 Extension 은 승인된 폴더 밖에 파일을 못 쓴다.
+없는 파라미터를 스키마에 두고 조용히 무시하느니 뺐다.
+
+Provider 가 **둘**이다 — `graxpert`(gradientRemoval) · `graxpert-denoise`
+(noiseReduction). 같은 실행 파일을 `-cmd` 로 가른다. `noiseReduction` 은
+`rcastro.nxt` 도 제공하므로 **각 Tool 이 `provider` 를 못 박는다.**
+
+갈리는 기준은 여전히 **"메뉴를 거치느냐"** 다. StarXTerminator 는
+`필터 > RC-Astro` 메뉴를 거쳐서 `action.run` 으로도 돌아간다.
 
 ## 텍스트 (ROADMAP §17.33)
 
@@ -655,7 +673,7 @@ UXP 의 실기 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 
 하나가 실패해도 나머지와 서버는 계속 기동한다.
 
 **번들된 Extension 은 Core 가 아니다** (ROADMAP §18.2). `example` 은 예제이고
-`graxpert`(사용자 CEP 패널) · `rcastro`(RC-Astro CLI) · `starnet`(StarNet2) 은
+`graxpert`(GraXpert CLI) · `rcastro`(RC-Astro CLI) · `starnet`(StarNet2) 은
 특정 도구용이다. 쓰지 않는 사람에게 Tool 목록에 보이면 무엇이 이 서버의 능력인지
 흐려진다. `PHOTOSHOP_MCP_EXTENSIONS_ENABLED` 로 고르며 **디렉터리 이름이 아니라
 namespace** 다 — `extensions/example-extension` 의 namespace 는 `example` 다.
@@ -664,7 +682,7 @@ namespace** 다 — `extensions/example-extension` 의 namespace 는 `example` �
 **`extensions/` 는 배포물이 아니다.** `npm pack` 에 들어가지 않고, 서버의 cwd 는
 MCP 클라이언트가 정하므로 설치한 사용자에게 `<cwd>/extensions` 는 존재하지
 않는다. 이 디렉터리는 **개발·검증 자산**이고 위 스위치는 이 저장소에서 작업할
-때를 위한 것이다. 그래서 **`graxpert` 를 패널 저장소로 옮기는 것은 할 일이
+때를 위한 것이다. 그래서 **`graxpert` 를 GraXpert 패널 저장소로 옮기는 것은 할 일이
 아니라 조건부다** — `extension-api` 가 publish 된 뒤에나 가능하고, 근거였던
 "안 쓰는 사람에게 보인다" 는 이미 성립하지 않는다. (ROADMAP §18.3)
 

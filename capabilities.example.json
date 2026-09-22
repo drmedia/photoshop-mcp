@@ -181,6 +181,32 @@
       },
       "timeoutMs": 1800000,
       "priority": 20
+    },
+    {
+      "id": "graxpert-denoise",
+      "capability": "noiseReduction",
+      "label": "GraXpert Denoise",
+      "executable": "C:/Users/<사용자>/AppData/Local/Programs/GraXpert/GraXpert.exe",
+      "args": [
+        "-cmd",
+        "denoising",
+        "{{input}}",
+        "-cli",
+        "-gpu",
+        "{{gpu}}",
+        "-output",
+        "{{output}}"
+      ],
+      "params": {
+        "gpu": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "outputSuffix": ".fits",
+      "convert": "fitsToTiff",
+      "timeoutMs": 1800000,
+      "priority": 5
     }
   ]
 }

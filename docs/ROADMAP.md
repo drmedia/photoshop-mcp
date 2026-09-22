@@ -5171,6 +5171,78 @@ Extension Package
 Configuration UI      ← 첫 슬라이스 완료. 아래 참조
 ```
 
+# 19. GraXpert 를 CLI 로 바꿨다
+
+§17.37 에서 GraXpert Photoshop 패널을 External Automation API 로 구동했다.
+**전제가 둘이었고 둘 다 사람만 할 수 있었다** — 패널을 열어 두는 것과 패널
+설정에서 `Allow External Automation` 을 켜는 것.
+
+LLM 이 `gx.run_gradient` 를 부르면 전제가 안 갖춰졌을 때 정확한 이유를 받지만,
+**그 다음에 할 수 있는 일이 없었다.**
+
+## 여는 것을 자동화할 수 있는지 재 봤다
+
+`startNotifications(["all"])` 로 듣는 동안 손으로 패널을 열었다.
+
+```text
+command.started              40
+command.completed            40
+photoshop.unknown           120
+  modalJavaScriptScopeEnter  40
+  modalJavaScriptScopeExit   80
+```
+
+**전부 우리 Command 가 만든 것이다.** 패널이 남긴 흔적은 0 이다. descriptor 가
+없으니 액션으로 녹화할 수도 재생할 수도 없다 — §17.37 이 "패널 조작은 녹화할
+것이 없다" 고 한 것과 같은 이유다.
+
+### 측정을 결론으로 삼기 전에 패널이 정말 열렸는지 확인했다
+
+확인하지 않고 "알림이 안 온다" 로 갈 뻔했다. 게다가 상태 파일을 `%TEMP%`
+바로 아래에서 찾아 없길래 **"Allow External Automation 이 꺼져 있다" 고 잘못
+결론냈다.** 실제 경로는 `%TEMP%/GraXpert_Photoshop/` 하위였다.
+
+전날 세 번 겪은 것과 같은 실수다 — **재 보지 않은 것을 관측으로 삼는 것.**
+
+## "CLI 로 대체되지 않는다" 는 틀렸다
+
+근거는 패널이 **지상부를 합성 평면으로 덮은 뒤** 넣는다는 것이었다. 지상 풍경이
+든 사진에서 산·나무가 배경 모델을 끌어당기기 때문이다.
+
+그건 **패널이 대신 해 주던 판단**이지 CLI 가 못 하는 일이 아니었다.
+
+## 하늘 격리는 호출자가 판단한다
+
+```text
+document.statistics   격리가 필요한지 잰다
+selection.sky         하늘을 고른다
+gx.run_gradient       활성 레이어 전체를 처리한다
+mask.create           결과를 하늘에만 씌운다
+```
+
+흐름을 Tool 안에 박으면 **호출자가 그 결정을 못 바꾼다.** 어떤 사진은 격리가
+필요 없고, 어떤 사진은 하늘 선택을 손으로 다듬어야 한다. 조각은 이미 다 있다.
+
+## 잃은 것 — 노이즈 감소 강도
+
+`GraXpert.exe -h` 에 `-cmd denoising` 용 플래그가 **하나도 없다.**
+`-smoothing`·`-correction` 은 배경 추출 전용이다. `-preferences_file` 로는 줄 수
+있지만 Extension 은 승인된 작업 폴더 밖에 파일을 쓸 수 없다(§8.5).
+
+**없는 파라미터를 스키마에 두고 조용히 무시하느니 뺐다.** 강도가 필요하면
+`rcastro.nxt` 나 `camera_raw.apply` 쪽이다.
+
+## 체크리스트
+
+- [x] 패널 열기가 알림을 남기는지 실기 측정 — 남기지 않는다
+- [x] 측정 전에 패널이 실제로 열렸는지 확인
+- [x] Provider 둘 — `graxpert`(gradientRemoval) · `graxpert-denoise`(noiseReduction)
+- [x] 각 Tool 이 `provider` 를 못 박는다 — `noiseReduction` 은 `rcastro.nxt` 도 준다
+- [x] `panel.ts` 281줄 삭제 · `gx.status` 제거
+- [x] `tests/graxpert.test.ts` 18개 — 패널 IPC 를 재던 것은 대상이 사라졌다
+- [ ] 실기 검증 — 아직
+
+---
 ## 18.0 준비는 끝났고 publish 는 보류한다
 
 점검해 보니 **기술적 장애물은 하나였다** — `uxp plugin package` 가 아이콘이

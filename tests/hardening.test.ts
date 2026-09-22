@@ -32,7 +32,7 @@ afterEach(async () => {
 });
 
 interface Diagnostics {
-  bridge: { connected: boolean; state: string };
+  bridge: { connected: boolean; state: string; kind: "uxp" | "mock" | null };
   permissions: { allowed: string[] };
   registry: { tools: number; commands: number };
   capabilities: { id: string; available: boolean; reason: string | null }[];
@@ -69,6 +69,16 @@ describe("진단", () => {
     expect(report.registry.tools).toBeGreaterThan(30);
     expect(report.registry.commands).toBeGreaterThan(25);
     expect(report.events.recorded).toBeGreaterThanOrEqual(0);
+  });
+
+  it("**mock 인지 말한다** — 한 클라이언트에 둘을 붙이면 이름이 전부 겹친다", async () => {
+    /* uxp 서버와 mock 서버를 함께 붙이면 Core Tool 78개가 양쪽에 똑같이 있다.
+     * 결과만 보고는 어느 쪽이 답했는지 알 수 없는데, mock 은 가짜 문서에
+     * 성공을 돌려주므로 **했다고 말하고 아무것도 안 하는** 상태가 된다.
+     * 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져 한참 헤맸다. */
+    const report = await diagnose(setup());
+
+    expect(report.bridge.kind).toBe("mock");
   });
 
   it("Photoshop 이 없으면 고치는 방법을 알려준다", async () => {

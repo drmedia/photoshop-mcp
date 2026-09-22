@@ -25,6 +25,15 @@ export type DiagnosticsInput = z.infer<typeof DiagnosticsInputSchema>;
 export interface DiagnosticsSource {
   bridgeConnected(): boolean;
   bridgeState(): string;
+  /**
+   * 어떤 Bridge 인가. 아는 것만 담고 모르면 `null` 이다.
+   *
+   * **mock 인지 밖에서 알 방법이 없었다.** 한 클라이언트에 uxp 서버와 mock
+   * 서버를 함께 붙이면 Tool 이름이 전부 겹치는데, 결과만 보고는 어느 쪽이
+   * 답했는지 구분할 수 없다. mock 은 가짜 문서에 성공을 돌려주므로
+   * **"했다고 말하고 아무것도 안 하는" 상태**가 된다.
+   */
+  bridgeKind(): "uxp" | "mock" | null;
   allowedPermissions(): PermissionLevel[];
   toolCount(): number;
   commandCount(): number;
@@ -148,7 +157,7 @@ export function createDiagnosticsTool(
       const connected = source.bridgeConnected();
 
       return {
-        bridge: { connected, state: source.bridgeState() },
+        bridge: { connected, state: source.bridgeState(), kind: source.bridgeKind() },
         permissions: { allowed },
         registry: { tools: source.toolCount(), commands: source.commandCount() },
         capabilities: providers.map((provider) => ({

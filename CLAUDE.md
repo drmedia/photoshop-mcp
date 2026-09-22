@@ -775,6 +775,17 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 78개가
+양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
+구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
+안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져
+한참 헤맸다 — 그때는 `external` 이 막혀 오류가 나서 들켰고, `read`·`edit` Tool
+이었으면 조용히 성공했을 것이다.
+
+`diagnostics` 의 `bridge.kind` 가 어느 쪽인지 말한다(`uxp` · `mock` · `null`).
+주입된 Bridge 는 `null` 이다 — 짐작해서 `uxp` 라고 답하면 그 거짓이 가장
+필요할 때 나온다.
+
 **서버가 뜰 때도 막힌 것을 한 줄로 낸다.** 실기에서 `.mcp.json` 에 `PHOTOSHOP_MCP_ALLOW`
 가 없어 `external` Tool 이 전부 막혀 있었는데, `diagnostics` 가 이미 그 말을 하고 있었지만
 **부르지 않아 못 봤다.** 짧은 이름만 나열한다 — 기동마다 설명을 쏟으면 안 읽게 된다.

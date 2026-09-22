@@ -4,6 +4,7 @@ import {
   MockPhotoshopBridge,
   PermissionPolicy,
   ToolRegistry,
+  UXPPhotoshopBridge,
 } from "@photoshop-mcp/photoshop-bridge";
 import type { Logger } from "@photoshop-mcp/photoshop-bridge";
 import {
@@ -245,6 +246,14 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
   registerDiagnosticsTool(tools, {
     bridgeConnected: () => bridge.isConnected(),
     bridgeState: () => (bridge.isConnected() ? "connected" : "disconnected"),
+    /* 아는 둘만 이름을 붙이고 주입된 Bridge 는 `null` 이다. 짐작해서 "uxp"
+     * 라고 답하면 그 거짓이 가장 필요할 때 나온다. */
+    bridgeKind: () => {
+      if (bridge instanceof MockPhotoshopBridge) {
+        return "mock";
+      }
+      return bridge instanceof UXPPhotoshopBridge ? "uxp" : null;
+    },
     allowedPermissions: () => policy.allowed,
     toolCount: () => tools.size,
     commandCount: () => commands.size,

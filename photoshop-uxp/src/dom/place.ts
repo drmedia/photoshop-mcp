@@ -3,6 +3,7 @@ import type { Folder } from "uxp";
 import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
+import { hasSelection } from "./mask-selection.js";
 import { describeLayer } from "./layer-edit.js";
 import { runModal } from "./modal.js";
 import { fileSystem, requireWorkspace } from "./workspace.js";
@@ -17,6 +18,59 @@ import { fileSystem, requireWorkspace } from "./workspace.js";
  * `save` 와 마찬가지로 경로 문자열이 아니라 **세션 토큰**을 넘겨야 한다.
  * 경로를 그대로 주면 `invalid file token used` 가 난다. (ROADMAP §8.5)
  */
+
+/**
+ * 선택 영역을 잠시 치운다. 돌려주는 함수를 부르면 되돌아온다.
+ *
+ * **`place` 는 활성 선택 영역의 중심에 놓는다.** 실기에서 하늘을 선택한 채로
+ * 가져왔더니 결과가 770px 위로 밀렸다 — 선택의 중심이 캔버스 중심보다 위였다.
+ * 캔버스와 같은 크기인데도 아래가 비어 배경이 드러났다.
+ *
+ * 파일을 가져오는 일이 선택에 좌우되면 호출자가 결과를 예측할 수 없다.
+ * 그래서 치웠다가 되돌린다 — GraXpert 패널도 같은 방식이다.
+ *
+ * 선택이 없으면 아무것도 하지 않는다.
+ */
+async function withoutSelection(): Promise<() => Promise<void>> {
+  if (!hasSelection()) {
+    return async (): Promise<void> => undefined;
+  }
+
+  const channel = `__mcp_place_${String(Date.now())}`;
+  const play = async (descriptor: Record<string, unknown>): Promise<void> => {
+    await action.batchPlay([descriptor], {});
+  };
+
+  await play({
+    _obj: "duplicate",
+    _target: [{ _ref: "channel", _property: "selection" }],
+    name: channel,
+  });
+  await play({
+    _obj: "set",
+    _target: [{ _ref: "channel", _property: "selection" }],
+    to: { _enum: "ordinal", _value: "none" },
+  });
+
+  return async (): Promise<void> => {
+    /* **되돌리기가 실패해도 던지지 않는다.** 가져오기는 이미 끝났고, 여기서
+     * 던지면 호출자가 "아무 일도 없었다" 고 믿는다. 가장 나쁜 실패다. */
+    try {
+      await play({
+        _obj: "set",
+        _target: [{ _ref: "channel", _property: "selection" }],
+        to: { _ref: "channel", _name: channel },
+      });
+    } catch {
+      // 선택을 못 되살렸다. 채널은 아래에서 지운다.
+    }
+    try {
+      await play({ _obj: "delete", _target: [{ _ref: "channel", _name: channel }] });
+    } catch {
+      // 남은 채널은 사용자가 지울 수 있다.
+    }
+  };
+}
 
 /** 승인된 폴더에서 파일 항목을 찾는다. */
 async function findFile(folder: Folder, filename: string): Promise<unknown> {
@@ -76,19 +130,26 @@ export async function layerPlace(params: {
       entry as Parameters<ReturnType<typeof fileSystem>["createSessionToken"]>[0],
     );
 
-    const results = await action.batchPlay(
-      [
-        {
-          _obj: "placeEvent",
-          // linked: false — 파일 경로를 참조하지 않고 문서 안에 포함한다.
-          // 링크로 넣으면 파일을 옮기거나 지웠을 때 문서가 깨진다.
-          linked: false,
-          null: { _path: token, _kind: "local" },
-          freeTransformCenterState: { _enum: "quadCenterState", _value: "QCSAverage" },
-        },
-      ],
-      {},
-    );
+    // 선택이 배치 위치를 바꾼다. 위 `withoutSelection` 참조.
+    const restoreSelection = await withoutSelection();
+    let results;
+    try {
+      results = await action.batchPlay(
+        [
+          {
+            _obj: "placeEvent",
+            // linked: false — 파일 경로를 참조하지 않고 문서 안에 포함한다.
+            // 링크로 넣으면 파일을 옮기거나 지웠을 때 문서가 깨진다.
+            linked: false,
+            null: { _path: token, _kind: "local" },
+            freeTransformCenterState: { _enum: "quadCenterState", _value: "QCSAverage" },
+          },
+        ],
+        {},
+      );
+    } finally {
+      await restoreSelection();
+    }
 
     const failure = results.find((result) => result["message"] !== undefined);
     if (failure !== undefined) {

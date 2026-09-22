@@ -237,3 +237,105 @@ describe("지상 치환", () => {
     await expect(fillGroundWithSkyPlane(source, source, source)).rejects.toThrow(/별도 파일/u);
   });
 });
+
+/**
+ * 알파 채널이 있는 16비트 TIFF 를 쓴다.
+ *
+ * Photoshop 문서에 알파 채널이 있으면 TIFF 에 함께 실린다 — 실기에서
+ * `selection.export_mask` 가 만든 마스크가 **4채널**로 나와 막혔다.
+ * 우리가 만든 임시 선택 채널이 딸려 간 것이다.
+ */
+async function writeTiffWithAlpha(
+  path: string,
+  at: (x: number, y: number) => [number, number, number],
+): Promise<void> {
+  const entries = 10;
+  const ifdOffset = 8;
+  const bitsOffset = ifdOffset + 2 + entries * 12 + 4;
+  const dataOffset = bitsOffset + 8;
+  const head = Buffer.alloc(dataOffset);
+  head.write("II", 0, "ascii");
+  head.writeUInt16LE(42, 2);
+  head.writeUInt32LE(ifdOffset, 4);
+  head.writeUInt16LE(entries, ifdOffset);
+
+  let cursor = ifdOffset + 2;
+  const entry = (tag: number, type: number, count: number, value: number): void => {
+    head.writeUInt16LE(tag, cursor);
+    head.writeUInt16LE(type, cursor + 2);
+    head.writeUInt32LE(count, cursor + 4);
+    if (type === 3 && count === 1) {
+      head.writeUInt16LE(value, cursor + 8);
+      head.writeUInt16LE(0, cursor + 10);
+    } else {
+      head.writeUInt32LE(value, cursor + 8);
+    }
+    cursor += 12;
+  };
+  entry(256, 3, 1, WIDTH);
+  entry(257, 3, 1, HEIGHT);
+  entry(258, 3, 4, bitsOffset);
+  entry(259, 3, 1, 1);
+  entry(262, 3, 1, 2);
+  entry(273, 4, 1, dataOffset);
+  entry(277, 3, 1, 4); // SamplesPerPixel = 4 — 여기가 요점이다
+  entry(278, 3, 1, HEIGHT);
+  entry(279, 4, 1, WIDTH * HEIGHT * 4 * 2);
+  entry(284, 3, 1, 1);
+  head.writeUInt32LE(0, cursor);
+  for (let i = 0; i < 4; i += 1) {
+    head.writeUInt16LE(16, bitsOffset + i * 2);
+  }
+
+  const handle = await open(path, "w");
+  try {
+    await handle.write(head, 0, head.length, 0);
+    const row = Buffer.alloc(WIDTH * 8);
+    for (let y = 0; y < HEIGHT; y += 1) {
+      for (let x = 0; x < WIDTH; x += 1) {
+        const [r, g, b] = at(x, y);
+        row.writeUInt16LE(r, x * 8);
+        row.writeUInt16LE(g, x * 8 + 2);
+        row.writeUInt16LE(b, x * 8 + 4);
+        row.writeUInt16LE(12345, x * 8 + 6); // 알파. 결과에 실리면 안 된다
+      }
+      await handle.write(row, 0, row.length, head.length + y * row.length);
+    }
+  } finally {
+    await handle.close();
+  }
+}
+
+describe("알파 채널", () => {
+  it("**4채널 입력을 읽는다** — 실기에서 마스크가 그렇게 나왔다", async () => {
+    /* Photoshop 문서에 알파 채널이 있으면 TIFF 에 함께 실린다. 거절하면
+     * 알파 채널을 쓰는 사용자가 이 경로를 아예 못 쓴다. */
+    const source = join(workspace, "src.tif");
+    const mask = join(workspace, "mask.tif");
+    const target = join(workspace, "out.tif");
+    await writeTiffWithAlpha(source, sceneAt);
+    await writeTiffWithAlpha(mask, maskAt);
+
+    const result = await fillGroundWithSkyPlane(source, mask, target);
+    expect(result.fullSky).toBe(false);
+
+    // 하늘은 그대로, 지상은 평면으로 바뀐다.
+    expect(await pixel(target, 20, 10)).toEqual(sceneAt(20, 10));
+    expect((await pixel(target, 20, HEIGHT - 1))[0]).toBeGreaterThan(3000);
+  });
+
+  it("**출력에는 알파를 싣지 않는다**", async () => {
+    /* 외부 처리기가 읽는 것은 RGB 다. 알파를 넘기면 그 의미를 우리가
+     * 보증할 수 없다. 출력은 언제나 3채널이다. */
+    const source = join(workspace, "src.tif");
+    const mask = join(workspace, "mask.tif");
+    const target = join(workspace, "out.tif");
+    await writeTiffWithAlpha(source, sceneAt);
+    await writeTiffWithAlpha(mask, maskAt);
+
+    await fillGroundWithSkyPlane(source, mask, target);
+
+    // 3채널로 읽어 하늘 값이 맞으면 알파가 안 섞인 것이다.
+    expect(await pixel(target, 5, 5)).toEqual(sceneAt(5, 5));
+  });
+});

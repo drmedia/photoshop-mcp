@@ -199,6 +199,10 @@ export function planeValue(model: ChannelModel, x: number, y: number): number {
 interface TiffInfo {
   width: number;
   height: number;
+  /** 픽셀당 채널 수. 3보다 클 수 있다 — 아래 참조. */
+  samples: number;
+  /** 한 픽셀이 차지하는 바이트. */
+  pixelBytes: number;
   rowBytes: number;
   rowsPerStrip: number;
   stripOffsets: number[];
@@ -258,19 +262,25 @@ async function readTiffInfo(handle: FileHandle, label: string): Promise<TiffInfo
   if (width === undefined || height === undefined || offsets === undefined) {
     throw new Error(`${label}: TIFF 태그가 모자랍니다.`);
   }
-  if (bits !== 16 || samples !== 3) {
+  /* **채널이 3보다 많을 수 있다.** Photoshop 문서에 알파 채널이 있으면 TIFF 에
+   * 함께 실린다 — 실기에서 4채널이 왔다. 앞의 셋만 읽고 나머지는 건너뛴다.
+   * 거절하면 알파 채널을 쓰는 사용자가 이 경로를 아예 못 쓴다. */
+  if (bits !== 16 || samples === undefined || samples < 3) {
     throw new Error(
-      `${label}: 16비트 RGB 만 다룰 수 있습니다 (${String(bits)}비트 ${String(samples)}채널).`,
+      `${label}: 16비트 RGB 가 필요합니다 (${String(bits)}비트 ${String(samples)}채널).`,
     );
   }
   if (compression !== 1) {
     throw new Error(`${label}: 압축된 TIFF 는 읽을 수 없습니다.`);
   }
 
+  const pixelBytes = samples * 2;
   return {
     width,
     height,
-    rowBytes: width * 3 * 2,
+    samples,
+    pixelBytes,
+    rowBytes: width * pixelBytes,
     rowsPerStrip: scalars.get(278) ?? height,
     stripOffsets: offsets,
   };
@@ -342,8 +352,7 @@ export async function fillGroundWithSkyPlane(
         await input.read(row, 0, info.rowBytes, rowOffset(info, y));
         await maskHandle.read(maskRow, 0, maskInfo.rowBytes, rowOffset(maskInfo, y));
         for (let x = 0; x < info.width; x += dx) {
-          const at = x * 6;
-          if (maskRow.readUInt16LE(at) < SKY_THRESHOLD) {
+          if (maskRow.readUInt16LE(x * maskInfo.pixelBytes) < SKY_THRESHOLD) {
             groundCount += 1;
             continue;
           }
@@ -359,7 +368,7 @@ export async function fillGroundWithSkyPlane(
           tile.x.push(x / Math.max(1, info.width - 1));
           tile.y.push(y / Math.max(1, info.height - 1));
           for (let c = 0; c < 3; c += 1) {
-            (tile.rgb[c] as number[]).push(row.readUInt16LE(at + c * 2));
+            (tile.rgb[c] as number[]).push(row.readUInt16LE(x * info.pixelBytes + c * 2));
           }
         }
       }
@@ -396,28 +405,36 @@ export async function fillGroundWithSkyPlane(
         await output.write(header, 0, header.length, 0);
         const pixelOffset = header.length;
 
+        /* **출력은 언제나 3채널이다.** 입력에 알파가 있어도 싣지 않는다 —
+         * 외부 처리기가 읽는 것은 RGB 이고, 알파를 넘기면 그 의미를 우리가
+         * 보증할 수 없다. 그래서 행 버퍼를 따로 둔다. */
+        const outRowBytes = info.width * 3 * 2;
+        const outRow = Buffer.alloc(outRowBytes);
+
         for (let y = 0; y < info.height; y += 1) {
           await input.read(row, 0, info.rowBytes, rowOffset(info, y));
           await maskHandle.read(maskRow, 0, maskInfo.rowBytes, rowOffset(maskInfo, y));
           const ny = y / Math.max(1, info.height - 1);
           for (let x = 0; x < info.width; x += 1) {
-            const at = x * 6;
-            const weight = maskRow.readUInt16LE(at) / MAX;
-            if (weight === 1) {
-              continue;
-            }
+            const at = x * info.pixelBytes;
+            const weight = maskRow.readUInt16LE(x * maskInfo.pixelBytes) / MAX;
             const nx = x / Math.max(1, info.width - 1);
             for (let c = 0; c < 3; c += 1) {
+              const original = row.readUInt16LE(at + c * 2);
+              if (weight === 1) {
+                outRow.writeUInt16LE(original, (x * 3 + c) * 2);
+                continue;
+              }
               const fake = planeValue(model[c] as ChannelModel, nx, ny);
               /* 경계에서 갑자기 바뀌지 않게 마스크 값으로 섞는다. 페더된
                * 선택이 그대로 부드러운 이음매가 된다. */
-              row.writeUInt16LE(
-                Math.round(row.readUInt16LE(at + c * 2) * weight + fake * (1 - weight)),
-                at + c * 2,
+              outRow.writeUInt16LE(
+                Math.round(original * weight + fake * (1 - weight)),
+                (x * 3 + c) * 2,
               );
             }
           }
-          await output.write(row, 0, info.rowBytes, pixelOffset + y * info.rowBytes);
+          await output.write(outRow, 0, outRowBytes, pixelOffset + y * outRowBytes);
         }
       } finally {
         await output.close();
@@ -439,9 +456,17 @@ async function copyFile(input: FileHandle, target: string, info: TiffInfo): Prom
     const header = tiffHeader(info.width, info.height);
     await output.write(header, 0, header.length, 0);
     const row = Buffer.alloc(info.rowBytes);
+    const outRowBytes = info.width * 3 * 2;
+    const outRow = Buffer.alloc(outRowBytes);
     for (let y = 0; y < info.height; y += 1) {
       await input.read(row, 0, info.rowBytes, rowOffset(info, y));
-      await output.write(row, 0, info.rowBytes, header.length + y * info.rowBytes);
+      // 알파는 싣지 않는다. 위 write 루프와 같은 이유다.
+      for (let x = 0; x < info.width; x += 1) {
+        for (let c = 0; c < 3; c += 1) {
+          outRow.writeUInt16LE(row.readUInt16LE(x * info.pixelBytes + c * 2), (x * 3 + c) * 2);
+        }
+      }
+      await output.write(outRow, 0, outRowBytes, header.length + y * outRowBytes);
     }
   } finally {
     await output.close();

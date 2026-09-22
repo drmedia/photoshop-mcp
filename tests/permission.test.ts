@@ -523,6 +523,39 @@ describe("readOptionsFromEnv", () => {
     expect(readOptionsFromEnv({}).policy.allowed).toEqual(["read", "edit"]);
   });
 
+  it("Extension 선택 — 생략하면 전부", () => {
+    expect(readOptionsFromEnv({}).enabledExtensions).toBeUndefined();
+  });
+
+  it("**`none` 이면 하나도 적재하지 않는다**", () => {
+    /* 빈 문자열만으로는 부족하다 — 실기에서 VS Code 를 거치자 빈 문자열
+     * 환경변수가 사라져 `undefined` 가 되었고 "전부 적재" 로 떨어졌다.
+     * Extension 넷이 다 붙었다. 클라이언트가 빈 값을 어떻게 다루는지는
+     * 우리가 통제할 수 없다. */
+    expect(
+      readOptionsFromEnv({ PHOTOSHOP_MCP_EXTENSIONS_ENABLED: "none" }).enabledExtensions,
+    ).toEqual([]);
+    expect(
+      readOptionsFromEnv({ PHOTOSHOP_MCP_EXTENSIONS_ENABLED: "NONE" }).enabledExtensions,
+    ).toEqual([]);
+    expect(
+      readOptionsFromEnv({ PHOTOSHOP_MCP_EXTENSIONS_ENABLED: " none " }).enabledExtensions,
+    ).toEqual([]);
+  });
+
+  it("빈 문자열도 같은 뜻이다 — 살아서 도착하면", () => {
+    expect(readOptionsFromEnv({ PHOTOSHOP_MCP_EXTENSIONS_ENABLED: "" }).enabledExtensions).toEqual(
+      [],
+    );
+  });
+
+  it("이름을 주면 그것이 전체 목록이다", () => {
+    // `none` 이라는 namespace 를 가진 Extension 은 이제 고를 수 없다 — 그 대가는 받는다.
+    expect(
+      readOptionsFromEnv({ PHOTOSHOP_MCP_EXTENSIONS_ENABLED: "gx, rcastro" }).enabledExtensions,
+    ).toEqual(["gx", "rcastro"]);
+  });
+
   it("PHOTOSHOP_MCP_ALLOW 가 전체 목록을 결정한다", () => {
     expect(readOptionsFromEnv({ PHOTOSHOP_MCP_ALLOW: "read" }).policy.allowed).toEqual(["read"]);
     expect(readOptionsFromEnv({ PHOTOSHOP_MCP_ALLOW: "all" }).policy.allowed).toEqual([

@@ -971,7 +971,7 @@ npm run check        # format + lint + build + typecheck:tests + test
 | `PHOTOSHOP_MCP_BRIDGE` | `uxp` | `uxp` 또는 `mock` |
 | `PHOTOSHOP_MCP_PORT` | `8765` | Bridge WebSocket 포트 |
 | `PHOTOSHOP_MCP_EXTENSIONS` | `<cwd>/extensions` | Extension 디렉터리 |
-| `PHOTOSHOP_MCP_EXTENSIONS_ENABLED` | (생략=전부) | 적재할 **namespace**. 빈 문자열이면 하나도 안 함 |
+| `PHOTOSHOP_MCP_EXTENSIONS_ENABLED` | (생략=전부) | 적재할 **namespace**. `none` 이면 하나도 안 함 |
 | `PHOTOSHOP_MCP_ALLOW` | `read,edit` | 허용 권한. `all` · `none` 도 쓸 수 있다 |
 | `PHOTOSHOP_MCP_CAPABILITIES` | `<cwd>/capabilities.json` | 외부 처리기 설정 |
 | `PHOTOSHOP_MCP_WORKFLOWS` | `<cwd>/workflows.json` | 워크플로 설정 |

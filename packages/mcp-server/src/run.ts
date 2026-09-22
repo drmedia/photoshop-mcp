@@ -36,7 +36,8 @@ function log(message: string): void {
  * - `PHOTOSHOP_MCP_PORT` — Bridge WebSocket 포트 (기본 8765)
  * - `PHOTOSHOP_MCP_BRIDGE` — `uxp` (기본) 또는 `mock`
  * - `PHOTOSHOP_MCP_EXTENSIONS` — Extension 디렉터리 (기본 `<cwd>/extensions`)
- * - `PHOTOSHOP_MCP_EXTENSIONS_ENABLED` — 적재할 namespace. 생략하면 전부
+ * - `PHOTOSHOP_MCP_EXTENSIONS_ENABLED` — 적재할 namespace. 생략하면 전부,
+ *   `none` 또는 빈 문자열이면 하나도 안 함
  * - `PHOTOSHOP_MCP_ALLOW` — 허용할 Permission Level (기본 `read,edit`)
  * - `PHOTOSHOP_MCP_CAPABILITIES` — 외부 처리기 설정 (기본 `<cwd>/capabilities.json`)
  * - `PHOTOSHOP_MCP_WORKFLOWS` — 워크플로 설정 (기본 `<cwd>/workflows.json`)
@@ -66,15 +67,24 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
   /* 값을 주면 그것이 **전체 목록**이다. `PHOTOSHOP_MCP_ALLOW` 와 같은 규칙이다.
    *
    * 빈 문자열은 "하나도 적재하지 않는다" 다 — 생략(전부)과 구분한다. Core 만
-   * 있는 서버를 만들 수 있어야 한다. */
+   * 있는 서버를 만들 수 있어야 한다.
+   *
+   * **`none` 도 같은 뜻으로 받는다.** 빈 문자열만으로는 부족하다 — 실기에서
+   * VS Code 를 거치자 빈 문자열 환경변수가 사라져 `undefined` 가 되었고,
+   * "전부 적재" 로 떨어져 Extension 넷이 다 붙었다. 클라이언트가 빈 값을
+   * 어떻게 다루는지는 우리가 통제할 수 없다.
+   *
+   * `PHOTOSHOP_MCP_ALLOW` 가 `none` 을 받는 것과 같은 이유이자 같은 낱말이다. */
   const rawEnabled = env["PHOTOSHOP_MCP_EXTENSIONS_ENABLED"];
   const enabledExtensions =
     rawEnabled === undefined
       ? undefined
-      : rawEnabled
-          .split(",")
-          .map((name) => name.trim())
-          .filter((name) => name.length > 0);
+      : rawEnabled.trim().toLowerCase() === "none"
+        ? []
+        : rawEnabled
+            .split(",")
+            .map((name) => name.trim())
+            .filter((name) => name.length > 0);
 
   // 값을 주면 그것이 **전체 목록**이다. 기존 기본값에 더하지 않는다.
   // 그래야 `PHOTOSHOP_MCP_ALLOW=read` 로 읽기 전용 서버를 만들 수 있다.

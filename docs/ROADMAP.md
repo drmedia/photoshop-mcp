@@ -5453,7 +5453,7 @@ starnet.remove_stars  66초   별 없는 것 σ 0.710 · 복원 오차 −0.33
 
 ## 실기 검증
 
-`PHOTOSHOP_MCP_EXTENSIONS_ENABLED=""` 로 **번들 자동 적재를 끈 채로** 확인했다.
+`PHOTOSHOP_MCP_EXTENSIONS_ENABLED` 로 **번들 자동 적재를 끈 채로** 확인했다.
 이것을 켜 두면 `extensions/` 를 훑어 `gx` 가 이미 붙으므로 패널 등록이 namespace
 충돌로 거부되고, **무엇으로 붙었는지 구분할 수 없다.**
 
@@ -5520,12 +5520,30 @@ graxpert     특정 서드파티 패널 하나를 부린다
 
 ```text
 생략        전부 적재 (지금까지의 동작)
-"milky"     milky 만
-""          하나도 적재하지 않는다 — Core 만 있는 서버
+"gx"        gx 만
+"none"      하나도 적재하지 않는다 — Core 만 있는 서버
+""          같은 뜻. 다만 살아서 도착하지 않을 수 있다 (아래)
 ```
 
-**빈 문자열과 생략을 구분한다.** 둘을 같게 두면 Core 만 있는 서버를 만들 수
-없다.
+**빈 문자열과 생략을 구분한다.** 둘을 같게 두면 Core 만 있는 서버를 만들 수 없다.
+
+### 빈 문자열은 클라이언트를 못 넘는다
+
+처음에는 빈 문자열만 받았다. 실기에서 **VS Code 를 거치자 그 환경변수가
+사라져** `undefined` 가 되었고, "생략 = 전부" 로 떨어져 Extension 넷이 다 붙었다.
+
+```text
+[photoshop-mcp] info Extension 적재: Example Extension (example) Tool 2개
+[photoshop-mcp] info Extension 적재: GraXpert Panel Tools (gx) Tool 3개
+[photoshop-mcp] info Extension 적재: RC-Astro CLI Tools (rcastro) Tool 3개
+[photoshop-mcp] info Extension 적재: StarNet2 Tools (starnet) Tool 1개
+```
+
+같은 `.mcp.json` 을 Claude Code 는 제대로 넘겼다. **클라이언트가 빈 값을 어떻게
+다루는지는 우리가 통제할 수 없다.** `none` 을 명시 값으로 받는다 —
+`PHOTOSHOP_MCP_ALLOW` 가 `none` 을 받는 것과 같은 이유이자 같은 낱말이다.
+
+**"없음" 을 값의 부재로 표현하지 않는다.** 부재는 전달 과정에서 만들어질 수 있다.
 
 ## 디렉터리 이름이 아니라 namespace 다
 

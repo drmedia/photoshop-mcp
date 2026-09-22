@@ -9,13 +9,6 @@
         "PHOTOSHOP_MCP_ALLOW": "read,edit,external",
         "PHOTOSHOP_MCP_EXTENSIONS_ENABLED": "none"
       }
-    },
-    "photoshop-mock": {
-      "command": "node",
-      "args": ["packages/mcp-server/bin/photoshop-mcp.js"],
-      "env": {
-        "PHOTOSHOP_MCP_BRIDGE": "mock"
-      }
     }
   }
 }

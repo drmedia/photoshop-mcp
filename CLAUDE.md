@@ -807,6 +807,10 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 한참 헤맸다 — 그때는 `external` 이 막혀 오류가 나서 들켰고, `read`·`edit` Tool
 이었으면 조용히 성공했을 것이다.
 
+**`.mcp.json` 에 mock 서버를 두지 않는다.** 껐다가도 클라이언트가 그 Tool 을
+참조하면 다시 띄운다 — 실기에서 두 번 Stop 하고 두 번 되살아났다. mock 이
+필요하면 `PHOTOSHOP_MCP_BRIDGE=mock npm run dev` 로 따로 띄운다.
+
 `diagnostics` 의 `bridge.kind` 가 어느 쪽인지 말한다(`uxp` · `mock` · `null`).
 주입된 Bridge 는 `null` 이다 — 짐작해서 `uxp` 라고 답하면 그 거짓이 가장
 필요할 때 나온다.

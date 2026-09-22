@@ -1,8 +1,10 @@
-import { action, constants } from "photoshop";
+import { action, app, constants } from "photoshop";
 import type { PhotoshopDocument } from "photoshop";
 import type { SaveResult } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
+import { resolveDuplicatedDocumentId } from "./duplicated-document.js";
+import { toArray } from "./layers.js";
 import { runModal } from "./modal.js";
 import { fileSystem } from "./workspace.js";
 
@@ -62,8 +64,49 @@ export async function exportTiff(
   return runModal("Export TIFF", async () => {
     const original = requireActiveDocument();
 
-    // 복제본에서 작업한다. 평탄화와 비트 심도 변경이 원본에 남으면 안 된다.
-    const work = await original.duplicate();
+    /* 복제본에서 작업한다. 평탄화와 비트 심도 변경이 원본에 남으면 안 된다.
+     *
+     * **`duplicate()` 가 돌려준 객체를 그대로 쓰지 않는다.** 실기에서 `id` 가
+     * `undefined` 인 객체가 돌아와 `The 문서 with an id of undefined does not
+     * exist.` 로 끝났다. 목록의 차이로 복제본을 찾는다 —
+     * `duplicated-document.ts` 에 이유를 적었다. */
+    const beforeIds = toArray<{ id: number }>(app.documents).map((entry) => entry.id);
+    const returned = await original.duplicate();
+
+    const open = toArray<PhotoshopDocument>(app.documents);
+    const workId = resolveDuplicatedDocumentId(
+      beforeIds,
+      (returned as { id?: unknown } | null | undefined)?.id,
+      open.map((entry) => entry.id),
+    );
+    const work = open.find((entry) => entry.id === workId);
+    if (work === undefined) {
+      /* 어느 것이 복제본인지 모른다. **원본일 수도 있는 문서를 평탄화하지
+       * 않는다.** 복제본이 열린 채 남았을 수 있다는 것까지 말한다 — 조용히
+       * 두면 사용자가 원본으로 착각하고 편집한다.
+       *
+       * **무엇을 보고 못 찾았는지 함께 담는다.** 이 실패는 실기에서만 나고
+       * 그때 호출자가 볼 수 있는 것은 이 객체뿐이다. 값이 없으면 다음 사람이
+       * 또 짐작으로 고친다 — 이 버그를 쫓으며 이미 한 번 그랬다. */
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        "복제본을 찾지 못해 TIFF 내보내기를 중단했습니다. " +
+          "이름 없는 문서가 열려 있으면 저장하지 말고 닫으십시오.",
+        {
+          details: {
+            filename: params.filename,
+            format: "tiff",
+            before: beforeIds,
+            after: open.map((entry) => entry.id),
+            returnedId: String((returned as { id?: unknown } | null | undefined)?.id),
+            returnedType: returned === null || returned === undefined ? "없음" : typeof returned,
+            // `app.documents` 가 배열 유사가 아니면 `toArray` 가 조용히 빈 배열을 준다.
+            documentsLength: String((app.documents as unknown as { length?: unknown })?.length),
+          },
+        },
+      );
+    }
+
     try {
       await work.flatten();
 

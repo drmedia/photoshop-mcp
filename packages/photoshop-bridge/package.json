@@ -1,7 +1,6 @@
 {
   "name": "@photoshop-mcp/photoshop-bridge",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "Photoshop Bridge 추상화 · 프로토콜 타입 · 에러 모델 · Mock 구현",
   "license": "MIT",
@@ -23,5 +22,8 @@
   "dependencies": {
     "ws": "^8.21.3",
     "zod": "^3.23.8"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

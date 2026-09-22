@@ -1,6 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { startPhotoshopMcpServer, type StartedPhotoshopMcp } from "@photoshop-mcp/mcp-server";
+import { startPhotoshopMcpServer, type StartedPhotoshopMcp } from "photoshop-mcp";
 import { ErrorCode, WebSocketBridgeTransport } from "@photoshop-mcp/photoshop-bridge";
 import { afterEach, describe, expect, it } from "vitest";
 import { EXPECTED_TOOLS, FORBIDDEN_TOOLS } from "./helpers/expected-tools.js";

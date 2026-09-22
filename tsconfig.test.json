@@ -22,7 +22,7 @@
       "@photoshop-mcp/command-engine": ["packages/command-engine/src/index.ts"],
       "@photoshop-mcp/photoshop-tools": ["packages/photoshop-tools/src/index.ts"],
       "@photoshop-mcp/mcp-core": ["packages/mcp-core/src/index.ts"],
-      "@photoshop-mcp/mcp-server": ["packages/mcp-server/src/index.ts"],
+      "photoshop-mcp": ["packages/mcp-server/src/index.ts"],
       "@photoshop-mcp/extension-api": ["packages/extension-api/src/index.ts"]
     }
   },

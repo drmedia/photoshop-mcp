@@ -1,4 +1,4 @@
-# @photoshop-mcp/mcp-server
+# photoshop-mcp
 
 실행 프로그램. `mcp-core` 의 조립 결과를 stdio transport 로 기동합니다.
 

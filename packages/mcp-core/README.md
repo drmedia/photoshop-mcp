@@ -1,7 +1,7 @@
 # @photoshop-mcp/mcp-core
 
 MCP 외부 인터페이스 계층과 Core 조립. **라이브러리이며 실행 진입점을 갖지 않습니다.**
-`bin` 은 `@photoshop-mcp/mcp-server` 에만 있습니다.
+`bin` 은 `photoshop-mcp` 에만 있습니다.
 
 - `server/mcp-server.ts` — `PhotoshopMcpServer`. `tools/list` · `tools/call` 처리와 오류 응답 변환
 - `create-core.ts` — `createPhotoshopMcp()`. Bridge → Command Engine → Tool Registry → Server 조립

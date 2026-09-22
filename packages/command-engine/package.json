@@ -1,7 +1,6 @@
 {
   "name": "@photoshop-mcp/command-engine",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "Command Registry 및 Command Engine",
   "license": "MIT",
@@ -23,5 +22,8 @@
   "dependencies": {
     "@photoshop-mcp/photoshop-bridge": "0.1.0",
     "zod": "^3.23.8"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

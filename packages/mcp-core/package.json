@@ -1,7 +1,6 @@
 {
   "name": "@photoshop-mcp/mcp-core",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "MCP 서버 부트스트랩과 Tool Registry",
   "license": "MIT",
@@ -26,5 +25,8 @@
     "@photoshop-mcp/photoshop-bridge": "0.1.0",
     "@photoshop-mcp/photoshop-tools": "0.1.0",
     "zod-to-json-schema": "^3.23.5"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -5496,7 +5496,7 @@ ToolRegistry.setChangeListener      등록·해제 양쪽에서 알린다
 였다. 그런데 **배포 패키지에 `extensions/` 가 들어가지 않는다.**
 
 ```text
-npm pack @photoshop-mcp/mcp-server
+npm pack photoshop-mcp
 → bin · dist 만. extension 파일 0개
 ```
 

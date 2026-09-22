@@ -1,7 +1,6 @@
 {
-  "name": "@photoshop-mcp/mcp-server",
+  "name": "photoshop-mcp",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "Photoshop MCP 실행 패키지 (composition root)",
   "license": "MIT",

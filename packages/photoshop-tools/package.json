@@ -1,7 +1,6 @@
 {
   "name": "@photoshop-mcp/photoshop-tools",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "Photoshop Core MCP Tool 및 Command 정의",
   "license": "MIT",
@@ -24,5 +23,8 @@
     "@photoshop-mcp/command-engine": "0.1.0",
     "@photoshop-mcp/photoshop-bridge": "0.1.0",
     "zod": "^3.23.8"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

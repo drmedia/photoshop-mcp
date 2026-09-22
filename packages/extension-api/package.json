@@ -1,7 +1,6 @@
 {
   "name": "@photoshop-mcp/extension-api",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "Extension이 사용할 수 있는 Core public API 표면",
   "license": "MIT",
@@ -23,5 +22,8 @@
   "dependencies": {
     "@photoshop-mcp/photoshop-bridge": "0.1.0",
     "@photoshop-mcp/photoshop-tools": "0.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

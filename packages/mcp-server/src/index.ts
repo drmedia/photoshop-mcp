@@ -1,5 +1,5 @@
 /**
- * `@photoshop-mcp/mcp-server` public library API.
+ * `photoshop-mcp` public library API.
  *
  * CLI 로 실행하려면 `bin/photoshop-mcp.js` 를, 프로그램에 임베드하려면
  * {@link startPhotoshopMcpServer} 를 사용한다.

@@ -137,7 +137,7 @@ function registerCoreResources(input: {
  * Core 조립.
  *
  * Bridge → Command Engine → Tool Registry → MCP Server 순서로 연결한다.
- * 실행(진입점·프로세스 관리)은 `@photoshop-mcp/mcp-server` 가 담당한다.
+ * 실행(진입점·프로세스 관리)은 `photoshop-mcp` 가 담당한다.
  */
 export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): PhotoshopMcp {
   // 로거를 먼저 만든다. 아래 구성 요소들이 모두 이것을 받는다.

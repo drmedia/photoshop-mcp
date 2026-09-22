@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runDoctor, runInit } from "@photoshop-mcp/mcp-server";
+import { runDoctor, runInit } from "photoshop-mcp";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 /**

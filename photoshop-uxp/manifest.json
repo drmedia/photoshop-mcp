@@ -10,6 +10,24 @@
       "minVersion": "24.0.0"
     }
   ],
+  "icons": [
+    {
+      "width": 23,
+      "height": 23,
+      "path": "icons/icon-dark.png",
+      "scale": [1, 2],
+      "theme": ["darkest", "dark"],
+      "species": ["generic"]
+    },
+    {
+      "width": 23,
+      "height": 23,
+      "path": "icons/icon-light.png",
+      "scale": [1, 2],
+      "theme": ["lightest", "light"],
+      "species": ["generic"]
+    }
+  ],
   "entrypoints": [
     {
       "type": "panel",
@@ -28,7 +46,25 @@
       "preferredFloatingSize": {
         "width": 320,
         "height": 300
-      }
+      },
+      "icons": [
+        {
+          "width": 23,
+          "height": 23,
+          "path": "icons/icon-dark.png",
+          "scale": [1, 2],
+          "theme": ["darkest", "dark"],
+          "species": ["generic"]
+        },
+        {
+          "width": 23,
+          "height": 23,
+          "path": "icons/icon-light.png",
+          "scale": [1, 2],
+          "theme": ["lightest", "light"],
+          "species": ["generic"]
+        }
+      ]
     }
   ],
   "requiredPermissions": {

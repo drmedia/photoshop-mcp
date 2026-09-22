@@ -11,9 +11,6 @@
       "path": "../photoshop-bridge"
     },
     {
-      "path": "../command-engine"
-    },
-    {
       "path": "../photoshop-tools"
     }
   ]

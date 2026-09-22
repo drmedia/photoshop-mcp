@@ -20,7 +20,6 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@photoshop-mcp/command-engine": "0.1.0",
     "@photoshop-mcp/photoshop-bridge": "0.1.0",
     "@photoshop-mcp/photoshop-tools": "0.1.0"
   }

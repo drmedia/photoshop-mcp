@@ -207,13 +207,58 @@ export async function main(): Promise<void> {
     process.once("uncaughtException", fatal("처리되지 않은 예외"));
     process.once("unhandledRejection", fatal("처리되지 않은 Promise 거부"));
 
+    /* **클라이언트가 사라지면 프로세스도 끝난다.** (ROADMAP §18.4)
+     *
+     * 예전에는 시그널만 봤다. 그런데 **Windows 에는 `SIGTERM` 이 오지 않는다** —
+     * MCP 클라이언트가 파이프만 닫고 사라지면 자식은 stdin EOF 만 본다.
+     * 그동안 Bridge WebSocket 서버가 이벤트 루프를 붙잡고 있어 프로세스가
+     * 남고, **8765 를 쥔 채로 산다.** 실기에서 하루에 세 번 손으로 죽였고
+     * 그때마다 다음 서버가 `EADDRINUSE` 로 못 떴다.
+     *
+     * stdin 이 닫히는 것이 "클라이언트가 갔다" 의 가장 직접적인 신호다.
+     * 시그널은 오면 받고, 안 와도 이쪽으로 끝난다. */
+    let shuttingDown = false;
+    const shutdown = (reason: string): void => {
+      if (shuttingDown) {
+        return;
+      }
+      shuttingDown = true;
+      log(`${reason} 종료합니다.`);
+
+      /* **정리가 끝나지 않아도 끝낸다.** 외부 프로세스가 `SIGKILL` 을 안 받거나
+       * 소켓이 안 닫히면 여기서 영원히 기다리게 되고, 그러면 고치려던 증상이
+       * 그대로 남는다. `unref` 라 정상 종료를 늦추지는 않는다. */
+      const forced = setTimeout(() => {
+        log("정리가 끝나지 않아 강제로 종료합니다.");
+        process.exit(0);
+      }, 3000);
+      forced.unref();
+
+      void mcp
+        .stop()
+        .catch((error: unknown) => {
+          log(`정지 중 오류: ${error instanceof Error ? error.message : String(error)}`);
+        })
+        .finally(() => {
+          clearTimeout(forced);
+          process.exit(0);
+        });
+    };
+
     for (const signal of ["SIGINT", "SIGTERM"] as const) {
       process.once(signal, () => {
-        void mcp.stop().finally(() => {
-          log(`${signal} 수신, 종료합니다.`);
-        });
+        shutdown(`${signal} 수신,`);
       });
     }
+
+    /* `end` 는 stdio 전송이 stdin 을 다 읽은 뒤에 온다. `close` 는 파이프가
+     * 끊어진 경우다 — 둘 다 받는다. `shutdown` 이 한 번만 돈다. */
+    process.stdin.once("end", () => {
+      shutdown("stdin 이 닫혔습니다 —");
+    });
+    process.stdin.once("close", () => {
+      shutdown("stdin 이 끊어졌습니다 —");
+    });
   } catch (error) {
     log(`시작 실패: ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 1;

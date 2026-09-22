@@ -318,8 +318,11 @@ export async function startPhotoshopMcpServer(
         mcp.logger.info(`정지 중 Job ${cancelled}개를 취소했습니다.`);
       }
       await mcp.server.stop();
-      for (const extension of loadedExtensions) {
-        await mcp.extensions.unload(extension.manifest.namespace);
+      /* **적재된 것을 전부 해제한다.** 예전에는 기동 시 자동 적재한 것만
+       * 돌려놨는데, 패널에서 붙인 것은 남아 이벤트 구독이 살아 있었다.
+       * 목록을 먼저 뜬다 — 해제하면서 같은 맵을 순회할 수 없다. */
+      for (const namespace of mcp.extensions.list().map((entry) => entry.manifest.namespace)) {
+        await mcp.extensions.unload(namespace);
       }
       await bridgeTransport?.stop();
     },

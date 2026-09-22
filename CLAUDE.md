@@ -954,6 +954,9 @@ Core public API                (photoshop-tools + command-engine + photoshop-bri
 ## 작업 규칙
 
 - 문서와 주석은 한글로 작성한다.
+- **README 는 두 벌이다.** `README.md`(영어)가 바깥에서 보이는 첫 화면이고
+  `README_KO.md`(한글)가 자세한 쪽이다. **한쪽만 고치면 갈라진다** — 사실이
+  바뀌면 둘 다 본다. 영어본은 요약이라 세부는 한글본과 `docs/` 로 보낸다.
 - 현재 Phase 만 구현한다. 이후 Phase 기능을 선행 구현하지 않는다.
 - 작업 종료 시 순서: Build → Test → 실패 수정 → 변경 파일 검토 → ROADMAP 체크박스 → 관련 문서.
 - 테스트를 통과시키기 위해 기존 테스트를 제거하거나 완화하지 않는다.

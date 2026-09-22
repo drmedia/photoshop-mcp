@@ -109,19 +109,19 @@ export async function openActionPicker(): Promise<number> {
     `<div style="flex:1;min-height:0;display:flex;flex-direction:column;`,
     `font-family:sans-serif;font-size:12px;padding:10px;color:${TEXT}">`,
     '<div style="flex-shrink:0;display:flex;align-items:center;margin-bottom:6px">',
-    `<b style="color:${TEXT}">실행을 허용할 액션</b>`,
+    `<b style="color:${TEXT}">Actions allowed to run</b>`,
     `<span id="ap-count" style="margin-left:8px"></span>`,
     "</div>",
-    `<div style="flex-shrink:0;color:${DIM};margin-bottom:6px">세트를 눌러 펼칩니다. 고른 것만 부를 수 있습니다.</div>`,
+    `<div style="flex-shrink:0;color:${DIM};margin-bottom:6px">Click a set to expand it. Only the ones you pick can be run.</div>`,
     `<div id="ap-list" style="flex:1;min-height:0;overflow:auto;border:1px solid ${LINE};`,
     `padding:6px;color:${TEXT}"></div>`,
     // UXP 는 flex 의 `gap` 을 지원하지 않는다. 간격은 margin 으로 준다.
     '<div style="flex-shrink:0;margin-top:10px;display:flex;align-items:center">',
     // `cursor` 가 sp-action-button 에서는 먹는지 재 본다. 일반 div 에서는 안 먹었다.
-    '<sp-action-button size="s" id="ap-none" style="margin-right:6px;cursor:pointer">모두 해제</sp-action-button>',
-    '<sp-action-button size="s" id="ap-save" style="cursor:pointer">저장</sp-action-button>',
+    '<sp-action-button size="s" id="ap-none" style="margin-right:6px;cursor:pointer">Clear all</sp-action-button>',
+    '<sp-action-button size="s" id="ap-save" style="cursor:pointer">Save</sp-action-button>',
     '<span style="flex:1"></span>',
-    '<sp-action-button size="s" id="ap-close" style="cursor:pointer">닫기</sp-action-button>',
+    '<sp-action-button size="s" id="ap-close" style="cursor:pointer">Close</sp-action-button>',
     "</div>",
     "</div>",
   ].join("");
@@ -150,12 +150,12 @@ export async function openActionPicker(): Promise<number> {
     // "저장된 건지 선택한 건지 알기 힘들다" 고 했다 — 같은 숫자를 하나로만
     // 보여주면 둘을 구분할 수 없다.
     const dirty = chosen.size !== saved.size || [...chosen].some((key) => !saved.has(key));
-    count.textContent = `${chosen.size}개 선택 · ${dirty ? "저장 안 함" : "저장됨"}`;
+    count.textContent = `${chosen.size} selected · ${dirty ? "unsaved" : "saved"}`;
     // 저장 여부는 색으로도 말한다. 이 둘은 의미색이라 테마와 무관하게 둔다.
     count.style.color = dirty ? "#e8a33d" : "#5aa469";
     if (closeButton !== null) {
       // 닫기 버튼이 결과를 말한다. 저장 안 한 채로 닫는 것이 사고가 되지 않게.
-      closeButton.textContent = dirty ? "저장 안 하고 닫기" : "닫기";
+      closeButton.textContent = dirty ? "Close without saving" : "Close";
     }
     for (const node of sets) {
       const head = heads.get(node.name);
@@ -189,7 +189,7 @@ export async function openActionPicker(): Promise<number> {
       if (node.actions !== null) {
         const all = document.createElement("div");
         all.style.margin = "2px 0 2px 14px";
-        all.innerHTML = '<a href="#" style="color:#7fb3ff">이 세트 전체 선택 / 해제</a>';
+        all.innerHTML = '<a href="#" style="color:#7fb3ff">Select / clear this whole set</a>';
         all.addEventListener("click", (event) => {
           event.preventDefault();
           const names = node.actions ?? [];
@@ -274,7 +274,7 @@ export async function openActionPicker(): Promise<number> {
     .uxpShowModal;
   try {
     if (typeof show === "function") {
-      await show.call(dialog, { title: "액션 선택", resize: "both" });
+      await show.call(dialog, { title: "Choose actions", resize: "both" });
     } else {
       (dialog as unknown as { showModal: () => void }).showModal();
     }

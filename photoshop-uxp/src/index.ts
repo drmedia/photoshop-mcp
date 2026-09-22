@@ -89,11 +89,11 @@ const PLUGIN = { name: "photoshop-mcp-uxp", version: "0.1.0" };
 const DEFAULT_URL = "ws://127.0.0.1:8765";
 
 const STATE_LABEL: Record<ClientState, string> = {
-  disconnected: "연결 끊김",
-  connecting: "접속 중",
-  handshaking: "핸드셰이크 중",
-  connected: "연결됨",
-  retrying: "재시도 대기",
+  disconnected: "Disconnected",
+  connecting: "Connecting",
+  handshaking: "Handshaking",
+  connected: "Connected",
+  retrying: "Retrying",
 };
 
 /** Command 등록. Command 추가 시 이 함수만 수정한다. (ARCHITECTURE §12) */
@@ -361,9 +361,9 @@ function afterAction(run: () => Promise<unknown>, redraw: () => void): void {
 function renderState(state: ClientState): void {
   const label = STATE_LABEL[state];
   const detail =
-    state === "retrying" ? `${label} (${Math.round(client.retryDelayMs / 1000)}초 후)` : label;
+    state === "retrying" ? `${label} (in ${Math.round(client.retryDelayMs / 1000)}s)` : label;
 
-  console.log(`[photoshop-mcp] 상태: ${detail}`);
+  console.log(`[photoshop-mcp] state: ${detail}`);
 
   // 연결되면 구독 상태를 다시 보낸다. 로드 시점에는 보낼 곳이 없었다.
   if (state === "connected" && notificationStatus !== null) {
@@ -404,15 +404,15 @@ async function renderCounts(): Promise<void> {
   }
   const parts: string[] = [];
   try {
-    parts.push(`액션 ${String((await actionAllowlist()).total)}`);
+    parts.push(`Actions ${String((await actionAllowlist()).total)}`);
   } catch (error) {
-    parts.push(`액션 ?(${describeError(error)})`);
+    parts.push(`Actions ?(${describeError(error)})`);
   }
   try {
     const status = await extensionRegistry();
-    parts.push(`확장 ${String(status.total)}${status.persisted ? "" : " (세션)"}`);
+    parts.push(`Extensions ${String(status.total)}${status.persisted ? "" : " (session)"}`);
   } catch (error) {
-    parts.push(`확장 ?(${describeError(error)})`);
+    parts.push(`Extensions ?(${describeError(error)})`);
   }
   countsElement.textContent = parts.join(" · ");
 }
@@ -433,10 +433,10 @@ async function renderWorkspace(): Promise<void> {
      * 정보는 끝이다. `shortenPath` 가 앞을 줄이고, 그래도 넘치면 CSS 가
      * 한 번 더 줄인다. */
     workspaceElement.textContent = status.approved
-      ? `폴더: ${status.path === null ? "(경로 없음)" : shortenPath(status.path)}`
-      : "폴더: 승인되지 않음";
+      ? `Folder: ${status.path === null ? "(no path)" : shortenPath(status.path)}`
+      : "Folder: not approved";
   } catch (error) {
-    workspaceElement.textContent = `폴더 확인 실패: ${describeError(error)}`;
+    workspaceElement.textContent = `Folder check failed: ${describeError(error)}`;
   }
 }
 
@@ -498,7 +498,7 @@ export function mountPanel(root: HTMLElement): void {
      * 때만 낸다 — 좁은 패널에서 한 줄이 아깝다. */
     '<div style="flex:1;min-height:0;overflow-y:auto;padding:0 6px 6px">',
     '<div id="photoshop-mcp-workspace" style="',
-    `${ELLIPSIS}">폴더: 확인 중</div>`,
+    `${ELLIPSIS}">Folder: checking…</div>`,
     `<div id="photoshop-mcp-url" style="margin-top:3px;display:none;`,
     `color:var(--uxp-host-text-color-secondary, #b0b0b0);${ELLIPSIS}"></div>`,
     /* 오류는 길어질 수 있으므로 스크롤되는 쪽에 둔다.
@@ -510,9 +510,9 @@ export function mountPanel(root: HTMLElement): void {
     // footer — 줄어들지 않는다. 패널을 아무리 줄여도 버튼은 남는다.
     '<div style="flex-shrink:0;display:flex;flex-wrap:wrap;padding:5px 6px;',
     'border-top:1px solid var(--uxp-host-border-color, #6a6a6a)">',
-    `<sp-action-button size="s" id="photoshop-mcp-approve" style="${BTN}">폴더 승인</sp-action-button>`,
-    `<sp-action-button size="s" id="photoshop-mcp-actions" style="${BTN}">액션</sp-action-button>`,
-    `<sp-action-button size="s" id="photoshop-mcp-extensions" style="${BTN}">확장</sp-action-button>`,
+    `<sp-action-button size="s" id="photoshop-mcp-approve" style="${BTN}">Folder…</sp-action-button>`,
+    `<sp-action-button size="s" id="photoshop-mcp-actions" style="${BTN}">Actions</sp-action-button>`,
+    `<sp-action-button size="s" id="photoshop-mcp-extensions" style="${BTN}">Extensions</sp-action-button>`,
     "</div>",
   ].join("");
 
@@ -610,8 +610,8 @@ entrypoints.setup({
       create: onPanel,
       show: onPanel,
       menuItems: [
-        { id: MENU_APPROVE, label: "저장 폴더 승인…" },
-        { id: MENU_REVOKE, label: "저장 폴더 승인 해제" },
+        { id: MENU_APPROVE, label: "Approve output folder…" },
+        { id: MENU_REVOKE, label: "Revoke output folder" },
       ],
       invokeMenu: onMenu,
     },
@@ -645,7 +645,7 @@ try {
     event: "photoshop.notifications.unavailable",
     payload: { reason: describeError(error), phase: "startup" },
   };
-  console.error(`[photoshop-mcp] 알림 구독 실패: ${describeError(error)}`);
+  console.error(`[photoshop-mcp] notification subscription failed: ${describeError(error)}`);
 }
 
 export { client };

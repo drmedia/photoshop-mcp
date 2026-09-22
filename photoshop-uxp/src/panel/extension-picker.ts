@@ -47,7 +47,7 @@ function row(entry: RegisteredExtension, index: number): string {
     entry.path,
     when === "" ? "" : `<span style="opacity:.6"> · ${when}</span>`,
     "</div>",
-    `<sp-action-button size="s" id="ep-drop-${String(index)}" style="cursor:pointer">제거</sp-action-button>`,
+    `<sp-action-button size="s" id="ep-drop-${String(index)}" style="cursor:pointer">Remove</sp-action-button>`,
     "</div>",
   ].join("");
 }
@@ -99,7 +99,7 @@ export async function openExtensionPicker(): Promise<void> {
     const count = dialog.querySelector("#ep-count");
     if (count !== null) {
       count.textContent =
-        entries.length === 0 ? "등록된 것이 없습니다" : `${String(entries.length)}개 등록`;
+        entries.length === 0 ? "Nothing registered" : `${String(entries.length)} registered`;
     }
 
     const list = dialog.querySelector("#ep-list");
@@ -108,7 +108,7 @@ export async function openExtensionPicker(): Promise<void> {
     }
     list.innerHTML =
       entries.length === 0
-        ? '<div style="opacity:.7;padding:8px 0;font-size:11px">아래 <b>폴더 추가</b> 로 고르세요.</div>'
+        ? '<div style="opacity:.7;padding:8px 0;font-size:11px">Pick one with <b>Add folder</b> below.</div>'
         : entries.map(row).join("");
 
     // 제거는 즉시 저장한다. `innerHTML` 을 다시 쓰므로 버튼도 매번 다시 건다.
@@ -138,14 +138,14 @@ export async function openExtensionPicker(): Promise<void> {
     `<div style="flex:1;min-height:0;display:flex;flex-direction:column;`,
     `padding:10px;font-family:sans-serif;color:${TEXT}">`,
     '<div style="flex-shrink:0">',
-    '<div style="font-size:13px;margin-bottom:2px">Extension 등록</div>',
+    '<div style="font-size:13px;margin-bottom:2px">Register extensions</div>',
     `<div style="font-size:11px;color:${DIM};margin-bottom:8px">`,
-    "설치한 Extension 폴더를 고릅니다. <b>extension.json</b> 이 들어 있어야 합니다.",
+    "Pick an installed extension folder. It must contain <b>extension.json</b>.",
     "</div>",
     '<div style="display:flex;align-items:center;margin-bottom:6px">',
-    '<sp-action-button size="s" id="ep-add" style="margin-right:6px;cursor:pointer">폴더 추가…</sp-action-button>',
+    '<sp-action-button size="s" id="ep-add" style="margin-right:6px;cursor:pointer">Add folder…</sp-action-button>',
     '<div id="ep-count" style="flex:1;font-size:11px;margin-right:6px"></div>',
-    '<sp-action-button size="s" id="ep-close" style="cursor:pointer">닫기</sp-action-button>',
+    '<sp-action-button size="s" id="ep-close" style="cursor:pointer">Close</sp-action-button>',
     "</div>",
     "</div>",
     '<div id="ep-list" style="flex:1;min-height:0;overflow-y:auto"></div>',
@@ -158,8 +158,8 @@ export async function openExtensionPicker(): Promise<void> {
      * 다시 연결해야" 라고만 적었는데, 그때는 추가만 반영됐고 제거는 서버를
      * 새로 띄워야 했다. 지금은 둘 다 재연결로 반영된다. */
     `<div style="margin-top:8px;font-size:11px;color:${DIM}">`,
-    "바꾼 것은 <b>Photoshop 이 서버에 다시 연결될 때</b> 반영됩니다 — ",
-    "Photoshop 을 다시 켜거나 MCP 서버를 다시 시작하면 됩니다.",
+    "Changes apply when <b>Photoshop reconnects to the server</b> — ",
+    "restart Photoshop, or restart the MCP server.",
     "</div>",
     "</div></div>",
   ].join("");
@@ -170,7 +170,7 @@ export async function openExtensionPicker(): Promise<void> {
       .then((result) => {
         entries = result.entries;
         if (result.duplicate) {
-          fail("이미 등록된 폴더입니다.");
+          fail("That folder is already registered.");
         } else {
           clearError();
         }
@@ -190,7 +190,7 @@ export async function openExtensionPicker(): Promise<void> {
   render();
   try {
     await (dialog as unknown as { uxpShowModal: (o: unknown) => Promise<unknown> }).uxpShowModal({
-      title: "Extension 등록",
+      title: "Register extensions",
       resize: "both",
       size: { width: 520, height: 380 },
     });

@@ -1,0 +1,449 @@
+import { open, type FileHandle } from "node:fs/promises";
+import { tiffHeader } from "./fits.js";
+
+/**
+ * 지상부를 하늘의 연장선으로 덮는다. (ROADMAP §19)
+ *
+ * ## 왜 필요한가
+ *
+ * GraXpert 에 지상 풍경이 든 사진을 그냥 넣으면 **산·나무가 배경 모델을
+ * 끌어당긴다.** 실기에서 전체 이미지로 돌린 결과가 원본과 눈으로 구분되지
+ * 않았다 — 하늘에서 뺄 것을 거의 못 찾은 것이다.
+ *
+ * `-preferences_file` 로 하늘에만 샘플 포인트를 주는 길도 된다(CLI 로 재 봤고
+ * 표본 99.9%가 달라졌다). 다만 그러면 GraXpert 가 `interpolation type - RBF`
+ * 로 떨어진다 — **AI 배경 추출을 끄는 것**이라 쓰지 않는다.
+ *
+ * ## 무엇으로 덮는가
+ *
+ * **단색이 아니라 평면이다.** 하늘의 기울기를 지상까지 연장해 덮으므로 AI 가
+ * 경계를 구조로 읽지 않는다. 단색 블록을 넣으면 그 경계 자체가 신호가 된다.
+ *
+ * ```text
+ * 1. 하늘 픽셀을 16×16 타일로 표본 추출 (타일마다 중앙값)
+ * 2. 채널마다 1차 평면 a + b·x + c·y 를 적합
+ *    MAD 기반으로 이상치를 3번 걸러낸다 — 별과 옅은 구름이 평면을 끌어당긴다
+ * 3. 표본 범위 ±패딩으로 값을 가둔다 — 외삽이 화면 밖으로 튀지 않게
+ * 4. 지상 픽셀을 그 평면 값으로 바꾼다 (마스크 가중치로 섞는다)
+ * ```
+ *
+ * `D:/Dev/Codex/GraXpert_Photoshop_Panel` 의 `client/sky-fill.js` 를 옮긴
+ * 것이다. 상수와 절차를 바꾸지 않았다 — 그쪽이 실기로 다듬어진 값이다.
+ */
+
+/** 16비트 최댓값. */
+const MAX = 65535;
+
+/** 이 값 이상이면 하늘로 본다. 경계의 반투명 픽셀을 표본에서 뺀다. */
+const SKY_THRESHOLD = 65500;
+
+/** 표본을 모을 타일 격자. 화면을 고르게 덮으려는 것이다. */
+const TILES = 16;
+
+/** 타일 하나가 표본이 되려면 필요한 픽셀 수. */
+const MIN_PER_TILE = 4;
+
+/** 평면을 적합하려면 필요한 표본 수. */
+const MIN_SAMPLES = 6;
+
+/** 하늘이 이보다 적으면 평면을 믿을 수 없다. */
+const MIN_SKY_PIXELS = 64;
+
+export interface PlaneSample {
+  /** 0~1 로 정규화한 가로 위치. */
+  x: number;
+  /** 0~1 로 정규화한 세로 위치. */
+  y: number;
+  /** 채널 셋의 값 (0~65535). */
+  rgb: [number, number, number];
+}
+
+export interface ChannelModel {
+  /** `[a, b, c]` — 값 = a + b·x + c·y. */
+  coeff: [number, number, number];
+  min: number;
+  max: number;
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)] as number;
+}
+
+/**
+ * 최소제곱으로 1차 평면을 구한다.
+ *
+ * 3×4 확대 행렬을 가우스 소거한다. 대각에 `1e-9` 를 두는 것은 표본이 한 줄에
+ * 몰렸을 때 행렬이 특이해지는 것을 막기 위함이다 — 하늘이 가로로 얇게만
+ * 선택된 경우가 실제로 있다.
+ */
+export function fitPlane(
+  samples: readonly PlaneSample[],
+  channel: number,
+): [number, number, number] {
+  const m: number[][] = [
+    [1e-9, 0, 0, 0],
+    [0, 1e-9, 0, 0],
+    [0, 0, 1e-9, 0],
+  ];
+  for (const sample of samples) {
+    const v: number[] = [1, sample.x, sample.y];
+    const value = sample.rgb[channel] as number;
+    for (let i = 0; i < 3; i += 1) {
+      const rowI = m[i] as number[];
+      const vi = v[i] as number;
+      for (let j = 0; j < 3; j += 1) {
+        rowI[j] = (rowI[j] as number) + vi * (v[j] as number);
+      }
+      rowI[3] = (rowI[3] as number) + vi * value;
+    }
+  }
+
+  for (let k = 0; k < 3; k += 1) {
+    let pivot = k;
+    for (let p = k + 1; p < 3; p += 1) {
+      if (
+        Math.abs((m[p] as number[])[k] as number) > Math.abs((m[pivot] as number[])[k] as number)
+      ) {
+        pivot = p;
+      }
+    }
+    const swap = m[k] as number[];
+    m[k] = m[pivot] as number[];
+    m[pivot] = swap;
+
+    const d = (m[k] as number[])[k] as number;
+    for (let c = k; c < 4; c += 1) {
+      (m[k] as number[])[c] = ((m[k] as number[])[c] as number) / d;
+    }
+    for (let r = 0; r < 3; r += 1) {
+      if (r === k) {
+        continue;
+      }
+      const f = (m[r] as number[])[k] as number;
+      for (let c = k; c < 4; c += 1) {
+        (m[r] as number[])[c] =
+          ((m[r] as number[])[c] as number) - f * ((m[k] as number[])[c] as number);
+      }
+    }
+  }
+
+  return [
+    (m[0] as number[])[3] as number,
+    (m[1] as number[])[3] as number,
+    (m[2] as number[])[3] as number,
+  ];
+}
+
+/**
+ * 채널마다 평면과 값 범위를 구한다.
+ *
+ * **이상치를 세 번 걸러낸다.** 별·옅은 구름·비행기 궤적이 표본에 섞이면
+ * 평면이 그쪽으로 끌려간다. 중앙값과 MAD 로 판정하므로 평균보다 덜 흔들린다.
+ *
+ * 남는 표본이 {@link MIN_SAMPLES} 아래로 떨어지면 거기서 멈춘다 — 더 걸러
+ * 내다가 평면을 못 구하는 것보다 덜 정제된 평면이 낫다.
+ */
+export function fitSkyModel(
+  samples: readonly PlaneSample[],
+): [ChannelModel, ChannelModel, ChannelModel] {
+  if (samples.length < MIN_SAMPLES) {
+    throw new Error(
+      `가상 하늘을 만들 배경 표본이 부족합니다 (${String(samples.length)}개). 하늘 선택을 넓히세요.`,
+    );
+  }
+
+  const models = [0, 1, 2].map((channel): ChannelModel => {
+    let selected = [...samples];
+    for (let pass = 0; pass < 3; pass += 1) {
+      const coeff = fitPlane(selected, channel);
+      const residual = selected.map(
+        (s) => (s.rgb[channel] as number) - coeff[0] - coeff[1] * s.x - coeff[2] * s.y,
+      );
+      const center = median(residual);
+      const mad = median(residual.map((v) => Math.abs(v - center)));
+      // 1.4826 은 MAD 를 표준편차로 바꾸는 상수다. 256 은 16비트에서의 하한.
+      const limit = Math.max(256, 3 * 1.4826 * mad);
+      const retained = selected.filter(
+        (_, i) => Math.abs((residual[i] as number) - center) <= limit,
+      );
+      if (retained.length < MIN_SAMPLES) {
+        break;
+      }
+      selected = retained;
+    }
+
+    const coeff = fitPlane(selected, channel);
+    const values = selected.map((s) => s.rgb[channel] as number);
+    const lo = Math.min(...values);
+    const hi = Math.max(...values);
+    /* **외삽을 가둔다.** 평면을 지상까지 늘리면 표본 범위 밖으로 한참 나갈 수
+     * 있다. 패딩을 두는 것은 하늘이 실제로 조금 더 밝거나 어두울 수 있어서다. */
+    const pad = Math.max(512, (hi - lo) * 0.25);
+    return { coeff, min: Math.max(0, lo - pad), max: Math.min(MAX, hi + pad) };
+  });
+
+  return models as [ChannelModel, ChannelModel, ChannelModel];
+}
+
+/** 평면 값을 그 채널의 범위 안으로 가둔다. */
+export function planeValue(model: ChannelModel, x: number, y: number): number {
+  const [a, b, c] = model.coeff;
+  return Math.max(model.min, Math.min(model.max, a + b * x + c * y));
+}
+
+// ---------------------------------------------------------------------------
+// TIFF 읽기 — `fits.ts` 가 쓰는 것과 같은 모양(16비트 RGB, 무압축)만 읽는다
+// ---------------------------------------------------------------------------
+
+interface TiffInfo {
+  width: number;
+  height: number;
+  rowBytes: number;
+  rowsPerStrip: number;
+  stripOffsets: number[];
+}
+
+async function readTiffInfo(handle: FileHandle, label: string): Promise<TiffInfo> {
+  const head = Buffer.alloc(8);
+  await handle.read(head, 0, 8, 0);
+  if (head.toString("ascii", 0, 2) !== "II" || head.readUInt16LE(2) !== 42) {
+    throw new Error(`${label}: little-endian TIFF 만 읽을 수 있습니다.`);
+  }
+
+  const ifdAt = head.readUInt32LE(4);
+  const countBuffer = Buffer.alloc(2);
+  await handle.read(countBuffer, 0, 2, ifdAt);
+  const count = countBuffer.readUInt16LE(0);
+  const entries = Buffer.alloc(count * 12);
+  await handle.read(entries, 0, entries.length, ifdAt + 2);
+
+  const scalars = new Map<number, number>();
+  const arrays = new Map<number, number[]>();
+
+  for (let i = 0; i < count; i += 1) {
+    const at = i * 12;
+    const tag = entries.readUInt16LE(at);
+    const type = entries.readUInt16LE(at + 2);
+    const items = entries.readUInt32LE(at + 4);
+    const size = type === 3 ? 2 : type === 4 ? 4 : 0;
+    if (size === 0) {
+      continue;
+    }
+    const bytes = size * items;
+    let source: Buffer;
+    if (bytes <= 4) {
+      source = entries.subarray(at + 8, at + 8 + bytes);
+    } else {
+      source = Buffer.alloc(bytes);
+      await handle.read(source, 0, bytes, entries.readUInt32LE(at + 8));
+    }
+    const values: number[] = [];
+    for (let v = 0; v < items; v += 1) {
+      values.push(type === 3 ? source.readUInt16LE(v * 2) : source.readUInt32LE(v * 4));
+    }
+    if (items === 1) {
+      scalars.set(tag, values[0] as number);
+    }
+    arrays.set(tag, values);
+  }
+
+  const width = scalars.get(256);
+  const height = scalars.get(257);
+  const bits = arrays.get(258)?.[0];
+  const samples = scalars.get(277);
+  const compression = scalars.get(259) ?? 1;
+  const offsets = arrays.get(273);
+
+  if (width === undefined || height === undefined || offsets === undefined) {
+    throw new Error(`${label}: TIFF 태그가 모자랍니다.`);
+  }
+  if (bits !== 16 || samples !== 3) {
+    throw new Error(
+      `${label}: 16비트 RGB 만 다룰 수 있습니다 (${String(bits)}비트 ${String(samples)}채널).`,
+    );
+  }
+  if (compression !== 1) {
+    throw new Error(`${label}: 압축된 TIFF 는 읽을 수 없습니다.`);
+  }
+
+  return {
+    width,
+    height,
+    rowBytes: width * 3 * 2,
+    rowsPerStrip: scalars.get(278) ?? height,
+    stripOffsets: offsets,
+  };
+}
+
+/** 그 행이 파일 어디에 있는지. 스트립이 여럿일 수 있다. */
+function rowOffset(info: TiffInfo, row: number): number {
+  const strip = Math.floor(row / info.rowsPerStrip);
+  const base = info.stripOffsets[strip];
+  if (base === undefined) {
+    throw new Error("TIFF strip 정보가 모자랍니다.");
+  }
+  return base + (row - strip * info.rowsPerStrip) * info.rowBytes;
+}
+
+export interface SkyFillResult {
+  width: number;
+  height: number;
+  /** 평면을 적합하는 데 쓴 표본 수. */
+  samples: number;
+  /** 지상이 하나도 없어 원본을 그대로 복사했는지. */
+  fullSky: boolean;
+}
+
+/**
+ * 하늘 마스크 밖(지상부)을 하늘 평면으로 덮어 새 파일에 쓴다.
+ *
+ * @param source 원본 16비트 RGB TIFF
+ * @param mask   같은 크기의 16비트 RGB TIFF. 흰색이 하늘이다
+ * @param target 결과를 쓸 경로. `source`·`mask` 와 달라야 한다
+ */
+export async function fillGroundWithSkyPlane(
+  source: string,
+  mask: string,
+  target: string,
+): Promise<SkyFillResult> {
+  if (target === source || target === mask) {
+    throw new Error("가상 하늘 출력은 별도 파일이어야 합니다.");
+  }
+
+  const input = await open(source, "r");
+  try {
+    const maskHandle = await open(mask, "r");
+    try {
+      const info = await readTiffInfo(input, "원본");
+      const maskInfo = await readTiffInfo(maskHandle, "마스크");
+      if (info.width !== maskInfo.width || info.height !== maskInfo.height) {
+        throw new Error(
+          `마스크 크기가 다릅니다: ${String(info.width)}×${String(info.height)} 대 ` +
+            `${String(maskInfo.width)}×${String(maskInfo.height)}.`,
+        );
+      }
+
+      const row = Buffer.alloc(info.rowBytes);
+      const maskRow = Buffer.alloc(maskInfo.rowBytes);
+
+      /* **표본은 성기게 모은다.** 2440만 픽셀을 다 읽을 이유가 없다 —
+       * 평면 하나를 구하는 데 필요한 것은 고르게 퍼진 몇백 점이다. */
+      const dx = Math.max(1, Math.floor(info.width / 256));
+      const dy = Math.max(1, Math.floor(info.height / 256));
+      const tiles = new Map<
+        number,
+        { x: number[]; y: number[]; rgb: [number[], number[], number[]] }
+      >();
+      let skyCount = 0;
+      let groundCount = 0;
+
+      for (let y = 0; y < info.height; y += dy) {
+        await input.read(row, 0, info.rowBytes, rowOffset(info, y));
+        await maskHandle.read(maskRow, 0, maskInfo.rowBytes, rowOffset(maskInfo, y));
+        for (let x = 0; x < info.width; x += dx) {
+          const at = x * 6;
+          if (maskRow.readUInt16LE(at) < SKY_THRESHOLD) {
+            groundCount += 1;
+            continue;
+          }
+          skyCount += 1;
+          const key =
+            Math.min(TILES - 1, Math.floor((y * TILES) / info.height)) * TILES +
+            Math.min(TILES - 1, Math.floor((x * TILES) / info.width));
+          let tile = tiles.get(key);
+          if (tile === undefined) {
+            tile = { x: [], y: [], rgb: [[], [], []] };
+            tiles.set(key, tile);
+          }
+          tile.x.push(x / Math.max(1, info.width - 1));
+          tile.y.push(y / Math.max(1, info.height - 1));
+          for (let c = 0; c < 3; c += 1) {
+            (tile.rgb[c] as number[]).push(row.readUInt16LE(at + c * 2));
+          }
+        }
+      }
+
+      if (skyCount < MIN_SKY_PIXELS) {
+        throw new Error(
+          `가상 하늘을 만들 배경 표본이 부족합니다 (${String(skyCount)}점). 하늘 선택을 넓히세요.`,
+        );
+      }
+
+      /* **지상이 없으면 그대로 베낀다.** 하늘 전체를 고른 경우다 — 덮을 것이
+       * 없는데 평면을 만들어 씌우면 원본을 근사값으로 바꾸게 된다. */
+      if (groundCount === 0) {
+        await copyFile(input, target, info);
+        return { width: info.width, height: info.height, samples: 0, fullSky: true };
+      }
+
+      const samples: PlaneSample[] = [];
+      for (const tile of tiles.values()) {
+        if (tile.x.length < MIN_PER_TILE) {
+          continue;
+        }
+        samples.push({
+          x: median(tile.x),
+          y: median(tile.y),
+          rgb: [median(tile.rgb[0]), median(tile.rgb[1]), median(tile.rgb[2])],
+        });
+      }
+      const model = fitSkyModel(samples);
+
+      const output = await open(target, "w");
+      try {
+        const header = tiffHeader(info.width, info.height);
+        await output.write(header, 0, header.length, 0);
+        const pixelOffset = header.length;
+
+        for (let y = 0; y < info.height; y += 1) {
+          await input.read(row, 0, info.rowBytes, rowOffset(info, y));
+          await maskHandle.read(maskRow, 0, maskInfo.rowBytes, rowOffset(maskInfo, y));
+          const ny = y / Math.max(1, info.height - 1);
+          for (let x = 0; x < info.width; x += 1) {
+            const at = x * 6;
+            const weight = maskRow.readUInt16LE(at) / MAX;
+            if (weight === 1) {
+              continue;
+            }
+            const nx = x / Math.max(1, info.width - 1);
+            for (let c = 0; c < 3; c += 1) {
+              const fake = planeValue(model[c] as ChannelModel, nx, ny);
+              /* 경계에서 갑자기 바뀌지 않게 마스크 값으로 섞는다. 페더된
+               * 선택이 그대로 부드러운 이음매가 된다. */
+              row.writeUInt16LE(
+                Math.round(row.readUInt16LE(at + c * 2) * weight + fake * (1 - weight)),
+                at + c * 2,
+              );
+            }
+          }
+          await output.write(row, 0, info.rowBytes, pixelOffset + y * info.rowBytes);
+        }
+      } finally {
+        await output.close();
+      }
+
+      return { width: info.width, height: info.height, samples: samples.length, fullSky: false };
+    } finally {
+      await maskHandle.close();
+    }
+  } finally {
+    await input.close();
+  }
+}
+
+/** 원본을 우리 헤더로 다시 쓴다. 태그를 그대로 베끼는 것보다 단순하다. */
+async function copyFile(input: FileHandle, target: string, info: TiffInfo): Promise<void> {
+  const output = await open(target, "w");
+  try {
+    const header = tiffHeader(info.width, info.height);
+    await output.write(header, 0, header.length, 0);
+    const row = Buffer.alloc(info.rowBytes);
+    for (let y = 0; y < info.height; y += 1) {
+      await input.read(row, 0, info.rowBytes, rowOffset(info, y));
+      await output.write(row, 0, info.rowBytes, header.length + y * info.rowBytes);
+    }
+  } finally {
+    await output.close();
+  }
+}

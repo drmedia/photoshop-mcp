@@ -244,7 +244,7 @@ async function scanRange(
 }
 
 /** 16비트 무압축 RGB TIFF 헤더. 우리가 내보내는 것과 같은 모양이다. */
-function tiffHeader(width: number, height: number): Buffer {
+export function tiffHeader(width: number, height: number): Buffer {
   const entries = 10;
   // 헤더(8) + IFD 개수(2) + 항목(12×n) + 다음 IFD(4) + BitsPerSample(6) + SampleFormat(6)
   const ifdOffset = 8;

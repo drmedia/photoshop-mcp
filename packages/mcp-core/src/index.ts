@@ -20,6 +20,15 @@ export {
   type FitsMetadata,
   type Normalization,
 } from "./capabilities/fits.js";
+export {
+  fillGroundWithSkyPlane,
+  fitPlane,
+  fitSkyModel,
+  planeValue,
+  type ChannelModel,
+  type PlaneSample,
+  type SkyFillResult,
+} from "./capabilities/sky-fill.js";
 export { EventBus, type EventBusOptions } from "./events/bus.js";
 export {
   ResourceRegistry,

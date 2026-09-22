@@ -8,10 +8,12 @@ import { createPhotoshopMcp } from "@photoshop-mcp/mcp-core";
 import type { BridgeTransport, ConnectionState } from "@photoshop-mcp/photoshop-bridge";
 import {
   DEFAULT_PORT,
+  isTerminal,
   MockPhotoshopBridge,
   UXPPhotoshopBridge,
   WebSocketBridgeTransport,
 } from "@photoshop-mcp/photoshop-bridge";
+import { planPanelExtensionSync } from "./panel-extensions.js";
 
 /** Bridge 선택. */
 export type BridgeMode = "uxp" | "mock";
@@ -193,8 +195,12 @@ export async function startPhotoshopMcpServer(
    * `tools/list_changed` 가 필요했다(§18.3).
    *
    * **재연결마다 다시 적재하지 않는다.** Photoshop 이 끊겼다 붙으면 이 콜백이
-   * 다시 오는데, 이미 적재한 것을 또 넣으면 namespace 충돌로 거부된다. */
-  const loadedFromPanel = new Set<string>();
+   * 다시 오는데, 이미 적재한 것을 또 넣으면 namespace 충돌로 거부된다.
+   *
+   * **빠진 것은 해제한다.** 한동안 추가만 했더니 패널에서 제거해도 돌고 있는
+   * 서버에는 그대로 남았다 — 문서에는 "짝이 맞는다" 고 적혀 있었는데 아니었다.
+   * 무엇을 적재하고 무엇을 해제할지는 `planPanelExtensionSync` 가 정한다. */
+  const loadedFromPanel = new Map<string, string>();
   pendingConnected = () => {
     void (async () => {
       /* **지원한다고 말한 것만 묻는다.**
@@ -229,19 +235,21 @@ export async function startPhotoshopMcpServer(
         return;
       }
 
-      for (const entry of registry.extensions) {
-        if (loadedFromPanel.has(entry.path)) {
-          continue;
-        }
+      const plan = planPanelExtensionSync(
+        registry.extensions.map((entry) => entry.path),
+        loadedFromPanel,
+      );
+
+      for (const directory of plan.load) {
         try {
           const loaded = await mcp.extensions.load({
-            directory: entry.path,
-            manifestPath: join(entry.path, "extension.json"),
+            directory,
+            manifestPath: join(directory, "extension.json"),
           });
           /* **성공한 뒤에 표시한다.** 실패했으면 적재된 것이 없으므로 다음
            * 연결에서 다시 시도하는 것이 맞다. 미리 표시하면 한 번의 실패가
            * 세션 끝까지 굳는다. */
-          loadedFromPanel.add(entry.path);
+          loadedFromPanel.set(directory, loaded.manifest.namespace);
           mcp.logger.info(
             `패널에서 등록한 Extension 적재: ${loaded.manifest.name} (${loaded.manifest.namespace})`,
           );
@@ -249,7 +257,37 @@ export async function startPhotoshopMcpServer(
           /* **실패를 조용히 넘기지 않는다.** 사용자는 패널에서 등록했는데
            * Tool 이 안 붙는 이유를 알 수 없다. namespace 충돌이 가장 흔하다. */
           mcp.logger.warn(
-            `패널에서 등록한 Extension 적재 실패: ${entry.path} — ` +
+            `패널에서 등록한 Extension 적재 실패: ${directory} — ` +
+              (error instanceof Error ? error.message : String(error)),
+          );
+        }
+      }
+
+      for (const { path, namespace } of plan.unload) {
+        /* **도는 Job 이 있으면 미룬다. 취소하지 않는다.**
+         *
+         * Job 은 이미 `owner` 를 들고 있으므로 물어볼 수 있다. 패널에서 버튼
+         * 하나 눌렀다고 70초짜리 외부 처리기를 죽이는 것은 과하다 — 그 작업의
+         * 결과를 기다리는 사람이 있고, 취소하면 중간 파일만 남는다.
+         *
+         * 미뤄도 잃는 것이 없다. 다음 연결에서 다시 본다. */
+        const live = mcp.jobs.list({ owner: namespace }).filter((job) => !isTerminal(job.state));
+        if (live.length > 0) {
+          mcp.logger.warn(
+            `Extension 해제를 미룹니다: ${namespace} — Job ${String(live.length)}개가 아직 돌고 있습니다.`,
+          );
+          continue;
+        }
+
+        try {
+          await mcp.extensions.unload(namespace);
+          loadedFromPanel.delete(path);
+          mcp.logger.info(`패널에서 제거한 Extension 해제: ${namespace}`);
+        } catch (error) {
+          /* 해제에 실패하면 표시를 지우지 않는다. 지웠는데 Tool 이 남아 있으면
+           * 다음 연결에서 다시 적재하려다 namespace 충돌로 거부된다. */
+          mcp.logger.warn(
+            `Extension 해제 실패: ${namespace} — ` +
               (error instanceof Error ? error.message : String(error)),
           );
         }

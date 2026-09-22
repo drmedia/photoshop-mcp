@@ -49,12 +49,23 @@ afterEach(async () => {
 
 /** 사용자가 설치한 Extension 을 흉내낸다. 경로를 돌려준다. */
 async function installed(namespace: string): Promise<string> {
-  const directory = join(workspace, namespace);
+  return installedUnder(workspace, namespace);
+}
+
+/**
+ * 부모 디렉터리를 골라 설치한다.
+ *
+ * 자동 적재(`extensionsDir`)와 패널 등록을 한 테스트에서 함께 쓰려면 둘을
+ * 다른 폴더에 두어야 한다 — `loadAll` 이 한 단계를 훑기 때문이다.
+ */
+async function installedUnder(parent: string, namespace: string, body?: string): Promise<string> {
+  const directory = join(parent, namespace);
   await mkdir(directory, { recursive: true });
   const entry = "index.mjs";
   await writeFile(
     join(directory, entry),
-    `import { z } from "zod";
+    body ??
+      `import { z } from "zod";
      export function activate(context) {
        context.tools.register({
          name: "${namespace}.hello",
@@ -85,7 +96,7 @@ async function installed(namespace: string): Promise<string> {
  * 서버를 띄운다. **Extension 디렉터리를 주지 않는다** — 번들된 것 없이
  * 패널이 알려 준 것만으로 붙는지를 재는 것이 요점이다.
  */
-async function startServer(): Promise<string> {
+async function startServer(options: { extensionsDir?: string } = {}): Promise<string> {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const logger: Logger = {
     debug: () => undefined,
@@ -102,6 +113,7 @@ async function startServer(): Promise<string> {
     port: 0,
     transport: serverTransport,
     logger,
+    ...(options.extensionsDir === undefined ? {} : { extensionsDir: options.extensionsDir }),
   });
 
   client = new Client({ name: "from-panel-test", version: "0.0.0" });
@@ -115,12 +127,39 @@ async function startServer(): Promise<string> {
 }
 
 /** 플러그인을 붙이고 핸드셰이크가 끝날 때까지 기다린다. */
-async function attach(registered: string[]): Promise<void> {
-  const url = await startServer();
+async function attach(
+  registered: string[],
+  options: { extensionsDir?: string } = {},
+): Promise<void> {
+  const url = await startServer(options);
   plugin = new FakeUxpPlugin({
     url,
     // 핸드셰이크에 담아 보내야 서버가 묻는다. 실제 플러그인은
     // `dispatcher.list()` 를 그대로 싣는다.
+    commands: ["DOCUMENT_GET", "LAYER_LIST", "EXTENSION_REGISTRY"],
+    results: {
+      EXTENSION_REGISTRY: {
+        extensions: registered.map((path) => ({ path, addedAt: 1_700_000_000_000 })),
+        total: registered.length,
+        persisted: true,
+      },
+    },
+  });
+  await plugin.connect();
+  await expect.poll(() => started?.bridge.isConnected(), { timeout: 2000 }).toBe(true);
+}
+
+/** 플러그인을 떼었다 다시 붙인다. 등록 목록만 바꿔서 붙일 수 있다. */
+async function reattach(registered: string[]): Promise<void> {
+  await plugin!.disconnect();
+  await expect.poll(() => started?.bridge.isConnected(), { timeout: 2000 }).toBe(false);
+
+  const transport = started!.bridgeTransport;
+  if (!(transport instanceof WebSocketBridgeTransport)) {
+    throw new Error("uxp 모드인데 WebSocket 전송이 아닙니다.");
+  }
+  plugin = new FakeUxpPlugin({
+    url: `ws://127.0.0.1:${transport.port}`,
     commands: ["DOCUMENT_GET", "LAYER_LIST", "EXTENSION_REGISTRY"],
     results: {
       EXTENSION_REGISTRY: {
@@ -239,5 +278,73 @@ describe("옛 플러그인", () => {
     await expect
       .poll(() => warnings.join(" | "), { timeout: 2000 })
       .toMatch(/등록된 Extension 목록을 읽지 못했습니다/u);
+  });
+});
+
+describe("패널에서 제거", () => {
+  it("**빼면 해제된다** — 남긴 것은 그대로다", async () => {
+    /* 한동안 추가만 했다. 그래서 패널에서 빼도 돌고 있는 서버에는 그대로
+     * 남았고, ROADMAP 에는 "짝이 맞는다" 고 적혀 있었다. 실기에서
+     * `starnet` 을 빼고 다시 붙였는데 `starnet.remove_stars` 가 남아 있었다. */
+    const keep = await installed("keepext");
+    const drop = await installed("dropext");
+    await attach([keep, drop]);
+    await expect.poll(toolNames, { timeout: 3000 }).toContain("dropext.hello");
+
+    await reattach([keep]);
+
+    await expect.poll(toolNames, { timeout: 3000 }).not.toContain("dropext.hello");
+    expect(await toolNames()).toContain("keepext.hello");
+  });
+
+  it("**자동 적재된 것은 해제하지 않는다**", async () => {
+    /* `PHOTOSHOP_MCP_EXTENSIONS` 로 켠 것은 패널 목록에 없는 것이 당연하다.
+     * 그것까지 해제하면 설정으로 켠 Extension 이 **Photoshop 이 붙는 순간**
+     * 사라진다 — 붙어서 좋아질 줄 알았는데 오히려 없어진다. */
+    const bundledRoot = join(workspace, "bundled");
+    await mkdir(bundledRoot, { recursive: true });
+    await installedUnder(bundledRoot, "autoext");
+
+    await attach([], { extensionsDir: bundledRoot });
+    expect(await toolNames()).toContain("autoext.hello");
+
+    await reattach([]);
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(await toolNames()).toContain("autoext.hello");
+  });
+
+  it("**Job 이 돌고 있으면 미룬다** — 취소하지 않는다", async () => {
+    /* 패널에서 버튼 하나 눌렀다고 70초짜리 외부 처리기를 죽이는 것은 과하다.
+     * 그 결과를 기다리는 사람이 있고, 취소하면 중간 파일만 남는다.
+     * 미뤄도 잃는 것이 없다 — 다음 연결에서 다시 본다. */
+    const source = `import { z } from "zod";
+      export function activate(context) {
+        context.tools.register({
+          name: "jobext.start",
+          description: "끝나지 않는 Job",
+          permission: "read",
+          inputSchema: z.object({}).strict(),
+          handler: () => {
+            const id = context.jobs.start("forever", () => new Promise(() => undefined));
+            return Promise.resolve({ jobId: id });
+          },
+        });
+      }`;
+    const directory = await installedUnder(workspace, "jobext", source);
+    await attach([directory]);
+    await expect.poll(toolNames, { timeout: 3000 }).toContain("jobext.start");
+
+    await client!.callTool({ name: "jobext.start", arguments: {} });
+    await expect
+      .poll(() => started!.jobs.list({ owner: "jobext" }).length, { timeout: 2000 })
+      .toBe(1);
+
+    await reattach([]);
+
+    await expect
+      .poll(() => warnings.join(" | "), { timeout: 2000 })
+      .toMatch(/해제를 미룹니다: jobext/u);
+    expect(await toolNames()).toContain("jobext.start");
   });
 });

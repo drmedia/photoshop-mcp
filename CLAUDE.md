@@ -673,6 +673,11 @@ namespace** 다 — `extensions/example-extension` 의 namespace 는 `example` �
 폴더의 코드를 적재시킬 수 없다.** 서버는 Bridge 가 붙은 뒤 `EXTENSION_REGISTRY` 로
 묻고 `tools/list_changed` 로 알린다.
 
+**목록에서 빠진 것은 해제한다.** 한동안 추가만 해서 패널에서 제거해도 돌고 있는
+서버에 남아 있었다. 판단은 `planPanelExtensionSync` 가 한다 — 자동 적재된 것은
+건드리지 않고, **Job 이 돌고 있으면 취소하지 않고 미룬다.** 패널 버튼 하나로
+70초짜리 외부 처리기를 죽이지 않는다.
+
 **받을 곳을 다 채운 뒤에 수신 대기를 연다.** 전송을 만들자마자 열면 Core 를 조립하는
 동안 이미 열려 있던 패널이 붙어 `connected` 가 사라진다 — 등록한 Extension 이 안 붙고
 그 이유도 안 보인다. 걸쇠를 다는 것보다 **문을 늦게 여는 것**이 낫다.

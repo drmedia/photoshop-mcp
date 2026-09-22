@@ -5213,6 +5213,29 @@ LICENSE     MIT
 것), 이메일 0. `capabilities.json` · `*.psd` · `testimage/` 는 이미
 `.gitignore` 에 있다.
 
+### 버전은 0.1.0 그대로 둔다
+
+npm 에 안 올리므로 버전이 뜻을 갖는 곳이 없고, **semver 0.x 가 "바뀔 수 있다"
+를 말한다** — 패키지 경계를 열어 두기로 한 결정과 정확히 맞는다. `1.0.0` 은
+경계를 안 바꾸겠다는 약속인데 우리는 반대로 정했다.
+
+13개 Phase 를 지나며 `0.1.0` 인 것이 어색해 보이지만 **semver 는 성숙도가
+아니라 호환 약속**이다. 아직 아무에게도 약속한 적이 없다.
+
+**버전이 15곳에 박혀 있다.** `npm version --workspaces` 는 `package.json` 만
+고치고 나머지는 따라오지 않는다.
+
+```text
+photoshop-uxp/manifest.json          플러그인 버전
+photoshop-uxp/src/index.ts  PLUGIN   핸드셰이크로 서버에 간다
+protocol/server-info.ts  SERVER_VERSION  핸드셰이크 응답
+package.json 12개의 내부 의존 핀       어긋나면 설치가 깨진다
+```
+
+`tests/version-sync.test.ts` 가 묶는다. 네 곳을 각각 어긋내 보고 전부
+깨지는 것을 확인했다. `PROTOCOL_VERSION` 은 숫자라 섞이지 않는다 — 메시지
+규약이 바뀔 때만 오르고 제품 버전을 따라가지 않는다.
+
 ### 남은 것
 
 ```text

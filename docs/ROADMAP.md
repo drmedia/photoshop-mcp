@@ -5341,6 +5341,26 @@ GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는�
 `normalizeExtensionPath` 를 따로 떼어 두지 않았으면 Windows 경로에서만,
 그것도 사용자가 제거 버튼을 누를 때 드러났다.
 
+실기로 확인했다. MCP 클라이언트는 다시 연결하지 않았다.
+
+```text
+패널에서 starnet 제거 → 플러그인 재적재(Bridge 재연결) → diagnostics
+
+registry.tools   85 → 84
+extensions       gx · rcastro          starnet 해제됨
+jobs             completed: 1          종료된 Job 은 막지 않는다
+```
+
+마지막 줄이 가드가 옳게 동작한 증거다. 직전에 돌린 별 분리 Job 이 저장소에
+남아 있었는데 종료 상태라 해제를 막지 않았다. `isTerminal` 로 거르지 않았으면
+**한 번이라도 Job 을 돌린 Extension 은 영영 해제되지 않는다.**
+
+**순서를 틀리면 아무 일도 안 일어난다.** 패널에서 빼는 것만으로는 서버가 모른다 —
+서버로 밀어 주는 통로가 없고 `connected` 에 묻기 때문이다. 실기에서 제거하고
+바로 호출해 "아직 있다" 를 볼 뻔했다. 대화상자 안내문이 "MCP 서버를 다시
+연결해야" 라고만 말하는 것도 이제는 부정확하다 — **Photoshop 플러그인이 다시
+붙기만 해도 된다.**
+
 ## 다른 MCP 클라이언트에서 실기 검증 (VS Code Copilot Chat)
 
 Claude Code 하나로만 확인해 왔다. **클라이언트마다 달라지는 것 셋**을 다른

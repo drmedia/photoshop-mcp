@@ -153,8 +153,13 @@ export async function openExtensionPicker(): Promise<void> {
     // 오류는 눈에 띄어야 하지만 테마가 넷이다. 글자색은 변수로 둔다.
     `<div id="ep-error" style="margin-top:8px;padding:4px;background:#a33;`,
     `color:${TEXT};font-size:11px;word-break:break-all;display:none"></div>`,
+    /* **언제 반영되는지를 정확히 말한다.** 서버는 Bridge 가 붙을 때 이 목록을
+     * 묻는다 — MCP 클라이언트를 다시 연결할 필요는 없다. 예전에는 "MCP 서버를
+     * 다시 연결해야" 라고만 적었는데, 그때는 추가만 반영됐고 제거는 서버를
+     * 새로 띄워야 했다. 지금은 둘 다 재연결로 반영된다. */
     `<div style="margin-top:8px;font-size:11px;color:${DIM}">`,
-    "바꾼 뒤에는 <b>MCP 서버를 다시 연결</b>해야 Tool 목록에 반영됩니다.",
+    "바꾼 것은 <b>Photoshop 이 서버에 다시 연결될 때</b> 반영됩니다 — ",
+    "Photoshop 을 다시 켜거나 MCP 서버를 다시 시작하면 됩니다.",
     "</div>",
     "</div></div>",
   ].join("");

@@ -5240,7 +5240,14 @@ mask.create           결과를 하늘에만 씌운다
 - [x] 각 Tool 이 `provider` 를 못 박는다 — `noiseReduction` 은 `rcastro.nxt` 도 준다
 - [x] `panel.ts` 281줄 삭제 · `gx.status` 제거
 - [x] `tests/graxpert.test.ts` 18개 — 패널 IPC 를 재던 것은 대상이 사라졌다
-- [ ] 실기 검증 — 아직
+- [x] 실기 검증 — `export(tiff,16) → GraXpert CLI → FITS→TIFF → place` 가 끝까지 돌았다
+
+변환 경로가 실기에서 처음 지나갔다. 테스트는 `outputSuffix`·`convert` 를 빼고
+Extension 의 흐름만 재므로(그쪽은 `fits.test.ts` 가 따로 잰다) 이 조합은
+여기서 처음 붙었다.
+
+**"레이어가 생겼다" 를 "그래디언트가 제거됐다" 로 읽지 않는다.** 효과는
+`document.statistics` 로 따로 잰다.
 
 ---
 ## 18.0 준비는 끝났고 publish 는 보류한다

@@ -5284,7 +5284,93 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 - [x] `tests/doctor.test.ts` 14개
 - [x] MCP 클라이언트 설정 스니펫 — **고칠 것이 있을 때만** 낸다
 - [x] 번들 Extension 을 고를 수 있게 — `PHOTOSHOP_MCP_EXTENSIONS_ENABLED`
-- [ ] Installer · Extension Package — **두 번째 사용자가 생기면**
+- [ ] Installer · Extension Package — §18.3 으로 방향이 잡혔다
+
+## 18.3 Extension 은 설치된 것만 붙는다
+
+어제는 "두 번째 사용자가 생기면" 으로 미뤘는데, **그 요구가 바로 생겼다.**
+
+> 사용자가 패널을 설치 안 하고 쓰는 게 기본이야.
+> GraXpert 설치할 때 별도 툴로 추가하는 방식으로 하면 어떨까?
+
+맞는 지적이다. 저장소에 `graxpert` 가 들어 있으면 **GraXpert 를 안 쓰는 사람에게도**
+`gx.*` 세 개가 Tool 목록에 보인다. 쓸 수 없는 Tool 이고, 무엇이 이 서버의 능력인지
+흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
+
+```text
+기본            Extension 0개. Core Tool 78개만
+GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
+등록            PhotoshopMCP 패널에서 사용자가 고른다
+패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
+```
+
+## 어제 "SDK 를 먼저 공개해야 한다" 고 한 것은 과했다
+
+Extension 을 워크스페이스 밖에 두면 `@photoshop-mcp/extension-sdk` 해석이 실패한다고
+적었는데, **무엇이 실제로 필요한지 재 보지 않았다.**
+
+```text
+SDK 런타임 산출물   2.4KB. photoshop-bridge 를 재수출할 뿐
+graxpert 가 쓰는 것 문자열 상수 셋 + zod. 타입은 컴파일에 사라진다
+inputSchema.parse   덕 타이핑 — 번들한 zod 사본도 통한다
+zodToJsonSchema     zod 내부를 읽지만 같은 메이저면 호환된다
+```
+
+**번들해서 폴더째 떨어뜨리면 된다.** npm 공개가 전제가 아니었다.
+
+## 등록은 패널이 한다
+
+이 프로젝트가 이미 두 번 쓴 패턴이다.
+
+```text
+작업 폴더 승인 (§8.5)      패널 버튼 → 플러그인이 보관 → 서버가 Bridge 로 묻는다
+액션 허용 목록 (§17.36)    패널 모달 → 플러그인이 보관 → 부를 때마다 조회
+Extension 등록             ← 같은 자리
+```
+
+서버의 cwd 는 MCP 클라이언트가 정하므로 우리가 통제할 수 없다. **플러그인이
+경로를 알려 주면** 그 문제가 사라진다. 그리고 `getFolder()` 가 사용자 제스처를
+요구하는 것이 그대로 안전장치가 된다 — **LLM 이 임의 폴더의 코드를 적재시킬 수 없다.**
+
+## 순서 문제와 `tools/list_changed`
+
+서버는 기동할 때 Extension 을 적재하는데 **Bridge 는 그 뒤에 붙는다.** 물어볼
+상대가 아직 없다. 사용자가 패널에서 등록하는 시점은 더 나중이다.
+
+그래서 **Tool 목록이 나중에 바뀔 수 있어야** 한다. MCP SDK 는 `sendToolListChanged`
+를 이미 제공하는데 우리가 `tools: {}` 로 선언해 안 쓰고 있었다 — 막힌 것이 아니라
+쓰지 않던 것이다.
+
+```text
+tools: { listChanged: true }        선언
+ToolRegistry.setChangeListener      등록·해제 양쪽에서 알린다
+```
+
+**호출부마다 챙기지 않고 레지스트리 안에 건다.** 등록하는 곳이 여럿이라 언젠가
+빠진다. `ResourceRegistry.setNotifier` 와 같은 구조다.
+
+**선언만 하고 안 보내는 것이 안 하는 것보다 나쁘다.** 클라이언트가 알림을 믿고
+다시 묻지 않게 되기 때문이다. 그래서 실제 MCP 클라이언트로 확인한다 —
+알림을 끊으면 테스트가 실패하는 것까지 봤다.
+
+## 체크리스트
+
+- [x] `tools: { listChanged: true }` 선언
+- [x] `ToolRegistry` 가 등록·해제 양쪽에서 알린다
+- [x] 전송이 붙기 전 등록도 던지지 않는다 — 기동 시 적재 경로다
+- [x] `tests/tool-list-changed.test.ts` — 실제 MCP 클라이언트로 확인
+- [ ] Bridge 로 등록 목록을 묻는 Command
+- [ ] PhotoshopMCP 패널의 Extension 등록 모달
+- [ ] `graxpert` 를 패널 저장소로 이동 · 번들 빌드
+- [ ] `milkyscape` 제거 — 아키텍처 검증 역할이 끝났다
+
+## 아직 풀지 않은 것
+
+**Permission.** §22 는 기동 시 policy 를 고정한다. 나중에 붙는 Extension 의
+manifest 권한을 어떻게 검사할지 다시 봐야 한다.
+
+**namespace 충돌.** 이미 있는 이름으로 등록하면 두 번째를 거부하는데(§17 격리),
+사용자가 패널에서 고른 것이 거부되면 그 사실이 보여야 한다.
 
 ## 18.2 번들 Extension 은 Core 가 아니다
 

@@ -51,6 +51,18 @@ export class ToolRegistry {
   readonly #policy: PermissionPolicy;
 
   /**
+   * 목록이 바뀌었을 때 부른다. (ROADMAP §18.3)
+   *
+   * Extension 은 기동 뒤에도 붙고 떨어진다 — 사용자가 패널에서 등록하면
+   * 그때 Tool 이 늘어난다. **MCP 클라이언트는 `tools/list` 를 캐시하므로**
+   * 알리지 않으면 새 Tool 이 영원히 보이지 않는다.
+   *
+   * `ResourceRegistry.setNotifier` 와 같은 구조다. 레지스트리는 MCP 를 모르고
+   * 서버가 이 콜백을 채운다.
+   */
+  #onChange: (() => void) | null = null;
+
+  /**
    * @param policy Permission 정책. 생략하면 기본 정책(`read` · `edit`).
    *
    * 여기서의 검사는 **빠른 실패**다. 실제 차단은 Command Engine 이 한다.
@@ -84,6 +96,21 @@ export class ToolRegistry {
       });
     }
     this.#tools.set(name, tool as unknown as ToolDefinition<never, unknown>);
+    this.#changed();
+  }
+
+  /** 목록 변경을 알릴 곳을 건다. 서버가 기동할 때 채운다. */
+  setChangeListener(onChange: () => void): void {
+    this.#onChange = onChange;
+  }
+
+  /** 알림이 실패해도 등록·해제는 성공이다. 삼킨다. */
+  #changed(): void {
+    try {
+      this.#onChange?.();
+    } catch {
+      // 클라이언트가 이미 끊겼을 수 있다.
+    }
   }
 
   /**
@@ -94,7 +121,11 @@ export class ToolRegistry {
    * @returns 등록되어 있지 않았으면 `false`.
    */
   unregister(name: string): boolean {
-    return this.#tools.delete(name);
+    const removed = this.#tools.delete(name);
+    if (removed) {
+      this.#changed();
+    }
+    return removed;
   }
 
   get(name: string): ToolDefinition<never, unknown> | undefined {

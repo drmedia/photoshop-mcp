@@ -20,3 +20,6 @@ testimage/
 
 # 확인용 캡처. 커밋하지 않는다.
 .captures/
+
+# 테스트가 만드는 Extension fixture. 저장소 안이어야 zod 해석이 된다
+.tmp-tests/

@@ -75,7 +75,15 @@ export class PhotoshopMcpServer {
       },
       {
         capabilities: {
-          tools: {},
+          /* **`listChanged` 를 선언한다.** (ROADMAP §18.3)
+           *
+           * Extension 은 기동 뒤에도 붙는다 — 사용자가 패널에서 등록하면
+           * 그때 Tool 이 늘어난다. 클라이언트는 `tools/list` 를 캐시하므로
+           * 알리지 않으면 새 Tool 이 보이지 않는다.
+           *
+           * 선언했으면 **반드시 보내야 한다.** 등록·해제 양쪽에서 나가도록
+           * `ToolRegistry` 안에 걸어 둔다 — 호출부마다 챙기면 언젠가 빠진다. */
+          tools: { listChanged: true },
           // 구독까지 지원한다고 선언한다. Command 가 문서를 바꾸면 알린다.
           ...(options.resources === undefined
             ? {}
@@ -84,6 +92,14 @@ export class PhotoshopMcpServer {
       },
     );
     this.#registerHandlers();
+
+    // 목록이 바뀌면 MCP 알림으로 내보낸다. 전송이 붙기 전에 부르면 SDK 가
+    // 던지므로 삼킨다 — 알림 때문에 Extension 적재가 실패하면 안 된다.
+    this.#registry.setChangeListener(() => {
+      void this.#server.sendToolListChanged().catch(() => {
+        // 아직 붙지 않았거나 이미 끊겼다.
+      });
+    });
   }
 
   /** 하위 MCP SDK 서버. 테스트에서 in-memory transport 를 붙일 때 사용한다. */

@@ -1,4 +1,5 @@
 import { createServer } from "node:net";
+import { findPortHolder } from "./port-holder.js";
 import { fileURLToPath } from "node:url";
 import { access, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
@@ -102,12 +103,17 @@ export async function runDoctor(
 
   // ── 포트 ───────────────────────────────────────────────────────────
   const free = await portFree(options.port);
+  /* **누가 쓰는지까지 말한다.** "이미 쓰고 있습니다" 만으로는 사용자가 다음에
+   * 할 일이 없다. 끝내려면 PID 가 있어야 한다. 못 찾으면 담지 않는다 —
+   * 짐작한 PID 를 내놓으면 엉뚱한 프로세스를 죽인다. */
+  const holder = free ? null : await findPortHolder(options.port);
   add(
     "Bridge 포트",
     free ? "ok" : "warn",
     free
       ? `${options.port} 비어 있음`
-      : `${options.port} 을 이미 쓰고 있습니다. 서버가 이미 떠 있다면 정상이고, ` +
+      : `${options.port} 을 ${holder === null ? "다른 프로세스" : `PID ${holder}`} 가 ` +
+          "이미 쓰고 있습니다. PhotoshopMCP 서버가 이미 떠 있다면 정상이고, " +
           "아니라면 새 서버가 EADDRINUSE 로 기동에 실패합니다",
   );
 

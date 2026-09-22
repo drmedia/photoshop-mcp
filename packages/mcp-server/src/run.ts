@@ -17,6 +17,7 @@ import {
   parsePermissionLevels,
 } from "@photoshop-mcp/photoshop-bridge";
 import { listBlockers } from "@photoshop-mcp/photoshop-tools";
+import { findPortHolder, isPortInUse, portConflictMessage } from "./port-holder.js";
 import { startPhotoshopMcpServer, type BridgeMode, type StartOptions } from "./start.js";
 
 const STATE_LABEL: Record<string, string> = {
@@ -137,7 +138,10 @@ export async function main(): Promise<void> {
       .join(", ");
     const bridgeLabel =
       mode === "mock" ? "Mock Bridge" : `UXP Bridge (ws://127.0.0.1:${port} 대기 중)`;
-    log(`stdio 서버 시작. ${bridgeLabel}`);
+    /* **부모 PID 를 남긴다.** 프로세스가 남은 것을 나중에 발견했을 때
+     * "부모가 살아 있는가" 를 바로 볼 수 있어야 고아인지 아닌지 갈린다.
+     * 실기에서 셋이 남았는데 그때 이 값이 없어 원인을 못 좁혔다. */
+    log(`stdio 서버 시작. ${bridgeLabel} · pid ${process.pid} ← ${process.ppid}`);
     log(`Tool ${mcp.tools.size}개: ${names}`);
     log(`허용 권한: ${policy.allowed.join(", ") || "(없음)"}`);
     if (mcp.loadedProviders > 0) {
@@ -260,7 +264,15 @@ export async function main(): Promise<void> {
       shutdown("stdin 이 끊어졌습니다 —");
     });
   } catch (error) {
-    log(`시작 실패: ${error instanceof Error ? error.message : String(error)}`);
+    /* **포트 충돌은 따로 말한다.** `EADDRINUSE` 한 줄만 나오면 사용자에게
+     * 보이는 증상은 "Photoshop 이 안 붙는다" 이고, 둘을 잇는 데 매번 시간이
+     * 든다. 무엇보다 **PID 를 알아야 끝낼 수 있다.** */
+    if (isPortInUse(error)) {
+      const conflicted = options.port ?? DEFAULT_PORT;
+      log(portConflictMessage(conflicted, await findPortHolder(conflicted)));
+    } else {
+      log(`시작 실패: ${error instanceof Error ? error.message : String(error)}`);
+    }
     process.exitCode = 1;
   }
 }

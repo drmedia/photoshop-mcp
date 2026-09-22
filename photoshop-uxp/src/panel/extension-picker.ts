@@ -58,7 +58,25 @@ function row(entry: RegisteredExtension, index: number): string {
  */
 export async function openExtensionPicker(): Promise<void> {
   const dialog = document.createElement("dialog");
-  dialog.style.cssText = `width:520px;color:${TEXT};background:${BACK}`;
+
+  /* **높이를 명시하고 자신이 flex 컨테이너가 된다.**
+   *
+   * 이 조합이 실기 캡처로 확인된 것이다 — 내용이 대화상자를 채우고 푸터가
+   * 바닥에 붙는다. 셋 다 필요하다.
+   *
+   * - `height` 가 없으면 안쪽이 나눠 가질 높이가 없다
+   * - `display:flex` 가 없으면 안쪽의 `flex:1` 이 뜻을 갖지 못한다
+   * - `margin:0` 이 없으면 `<dialog>` 기본 여백이 내용을 아래로 민다
+   *
+   * 픽셀로 박지 않는 이유는 `resize: "both"` 로 사용자가 바꿀 수 있어서다.
+   * `size` 로 요청한 값 그대로 열리지도 않는다.
+   *
+   * `vh` 가 모달 창 높이인지 패널 뷰포트 높이인지는 **재 보지 않았다.**
+   * 어느 쪽이든 이 레이아웃은 성립한다. */
+  dialog.style.cssText =
+    `width:520px;height:100vh;margin:0;padding:0;box-sizing:border-box;` +
+    `display:flex;flex-direction:column;` +
+    `color:${TEXT};background:${BACK}`;
 
   let entries = readRegistered();
 
@@ -110,8 +128,14 @@ export async function openExtensionPicker(): Promise<void> {
      *
      * 예전에는 `max-height:240px` 을 걸어 8개쯤부터 스크롤이 생겼는데,
      * 대화상자 아래는 크게 비어 있었다 — 실기 캡처에서 확인했다.
-     * 패널과 같은 골격이다: 위아래는 고정, 가운데만 늘어나고 스크롤된다. */
-    `<div style="height:100%;min-height:0;display:flex;flex-direction:column;`,
+     * 패널과 같은 골격이다: 위아래는 고정, 가운데만 늘어나고 스크롤된다.
+     *
+     * **`height:100%` 를 쓰지 않는다.** 패널 루트에서 해석되지 않는 것이
+     * 확인되어 있다(README 참조). 여기서도 되는지는 재 보지 않았고,
+     * 굳이 재 볼 이유가 없다 — `flex:1` 은 부모의 높이를 나눠 갖는 것이라
+     * 퍼센트 해석이 필요 없고, 이 파일의 목록과 패널 골격에서 이미
+     * 동작이 확인된 방식이다. */
+    `<div style="flex:1;min-height:0;display:flex;flex-direction:column;`,
     `padding:10px;font-family:sans-serif;color:${TEXT}">`,
     '<div style="flex-shrink:0">',
     '<div style="font-size:13px;margin-bottom:2px">Extension 등록</div>',

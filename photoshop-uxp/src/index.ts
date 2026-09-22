@@ -373,7 +373,7 @@ function renderState(state: ClientState): void {
   if (statusElement !== null) {
     /* **상태와 주소를 나눈다.** 한 줄에 합쳤더니 좁은 패널에서 줄 하나를 다
      * 먹었다. 상태는 짧고 자주 보고, 주소는 길고 가끔 본다. */
-    statusElement.textContent = `${state === "connected" ? "●" : "○"} Bridge ${detail}`;
+    statusElement.textContent = `${state === "connected" ? "●" : "○"} ${detail}`;
     statusElement.style.color =
       state === "connected" ? "#5aa469" : state === "retrying" ? "#e8a33d" : "";
   }
@@ -485,7 +485,10 @@ export function mountPanel(root: HTMLElement): void {
     '<div style="flex-shrink:0;padding:6px 6px 0">',
     '<span id="photoshop-mcp-state">-</span>',
     // UXP 에 `gap` 이 없다. 간격은 margin 으로 준다.
-    '<span id="photoshop-mcp-counts" style="margin-left:6px;',
+    /* **`nowrap` 을 준다.** 영어로 바꾸니 헤더가 길어져 `Actions 1 ·` 에서
+     * 끊겼다 — 한 문장이 두 줄로 쪼개지면 읽는 사람이 한 번 멈춘다. 이걸로
+     * 넓으면 상태 옆에 붙고 좁으면 통째로 다음 줄로 내려간다. */
+    '<span id="photoshop-mcp-counts" style="margin-left:6px;white-space:nowrap;',
     'color:var(--uxp-host-text-color-secondary, #b0b0b0)"></span>',
     "</div>",
     /* 내용 — 늘어나고 스크롤된다.

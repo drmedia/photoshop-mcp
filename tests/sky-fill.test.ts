@@ -3,6 +3,7 @@ import {
   fitPlane,
   fitSkyModel,
   planeValue,
+  restoreOutsideMask,
   type PlaneSample,
 } from "@photoshop-mcp/mcp-core";
 import { tiffHeader } from "../packages/mcp-core/src/capabilities/fits.js";
@@ -337,5 +338,111 @@ describe("알파 채널", () => {
 
     // 3채널로 읽어 하늘 값이 맞으면 알파가 안 섞인 것이다.
     expect(await pixel(target, 5, 5)).toEqual(sceneAt(5, 5));
+  });
+});
+
+describe("마스크 밖 되돌리기", () => {
+  /**
+   * `fillGroundWithSkyPlane` 의 짝이다. 들어갈 때 덮은 가짜 지상을 나올 때
+   * 원본으로 되돌려 **통짜 한 장**으로 만든다. (ROADMAP §19)
+   *
+   * Photoshop 마스크로 가려도 화면은 같지만 그 레이어 하나는 지상이 투명해진다.
+   * 투명은 뒤따르는 Tool 마다 걸린다 — `document.statistics` 는 알파를 안 보고
+   * RGB 만 읽어 투명한 곳이 0 으로 섞인다.
+   */
+  const processedAt = (x: number, y: number): [number, number, number] => {
+    const [r, g, b] = sceneAt(x, y);
+    // "처리했다" 를 값으로 확인할 수 있어야 어느 쪽이 들어갔는지 가려진다.
+    return [r - 500, g - 500, b - 500];
+  };
+
+  it("**하늘은 처리본, 지상은 원본**", async () => {
+    const processed = join(workspace, "gx.tif");
+    const original = join(workspace, "src.tif");
+    const mask = join(workspace, "mask.tif");
+    const target = join(workspace, "merged.tif");
+    await writeTiff(processed, processedAt);
+    await writeTiff(original, sceneAt);
+    await writeTiff(mask, maskAt);
+
+    const result = await restoreOutsideMask(processed, original, mask, target);
+
+    expect(await pixel(target, 20, 10)).toEqual(processedAt(20, 10));
+    expect(await pixel(target, 20, HEIGHT - 1)).toEqual(sceneAt(20, HEIGHT - 1));
+    expect(result.inside).toBe(WIDTH * HORIZON);
+    expect(result.outside).toBe(WIDTH * (HEIGHT - HORIZON));
+  });
+
+  it("**마스크가 중간값이면 섞는다**", async () => {
+    /* 페더된 선택이 그대로 부드러운 이음매가 된다. 여기서 딱 잘라 버리면
+     * 경계에 선이 남는다. */
+    const processed = join(workspace, "gx.tif");
+    const original = join(workspace, "src.tif");
+    const mask = join(workspace, "mask.tif");
+    const target = join(workspace, "merged.tif");
+    await writeTiff(processed, () => [1000, 1000, 1000]);
+    await writeTiff(original, () => [2000, 2000, 2000]);
+    await writeTiff(mask, () => [32768, 32768, 32768]);
+
+    await restoreOutsideMask(processed, original, mask, target);
+
+    // 절반씩이므로 1500 근처다. 65535 의 절반이 32767.5 라 정확히 반은 아니다.
+    const [r] = await pixel(target, 10, 10);
+    expect(r).toBeGreaterThan(1495);
+    expect(r).toBeLessThan(1505);
+  });
+
+  it("**크기가 다르면 거절한다**", async () => {
+    /* 어긋난 채로 섞으면 오류 없이 틀린 그림이 나온다. 그것이 가장 나쁘다. */
+    const processed = join(workspace, "gx.tif");
+    const original = join(workspace, "src.tif");
+    const mask = join(workspace, "small.tif");
+    const target = join(workspace, "merged.tif");
+    await writeTiff(processed, processedAt);
+    await writeTiff(original, sceneAt);
+
+    const handle = await open(mask, "w");
+    try {
+      const header = tiffHeader(WIDTH, HEIGHT - 1);
+      await handle.write(header, 0, header.length, 0);
+      const row = Buffer.alloc(WIDTH * 6, 0xff);
+      for (let y = 0; y < HEIGHT - 1; y += 1) {
+        await handle.write(row, 0, row.length, header.length + y * row.length);
+      }
+    } finally {
+      await handle.close();
+    }
+
+    await expect(restoreOutsideMask(processed, original, mask, target)).rejects.toThrow(
+      /크기가 처리 결과와 다릅니다/u,
+    );
+  });
+
+  it("**결과를 입력 위에 바로 쓰지 않는다**", async () => {
+    // 읽으면서 같은 파일에 쓰면 조용히 깨진다.
+    const processed = join(workspace, "gx.tif");
+    const original = join(workspace, "src.tif");
+    const mask = join(workspace, "mask.tif");
+    await writeTiff(processed, processedAt);
+    await writeTiff(original, sceneAt);
+    await writeTiff(mask, maskAt);
+
+    await expect(restoreOutsideMask(processed, original, mask, processed)).rejects.toThrow(
+      /별도 파일/u,
+    );
+  });
+
+  it("**출력에는 알파를 싣지 않는다**", async () => {
+    const processed = join(workspace, "gx.tif");
+    const original = join(workspace, "src.tif");
+    const mask = join(workspace, "mask.tif");
+    const target = join(workspace, "merged.tif");
+    await writeTiffWithAlpha(processed, processedAt);
+    await writeTiffWithAlpha(original, sceneAt);
+    await writeTiffWithAlpha(mask, maskAt);
+
+    await restoreOutsideMask(processed, original, mask, target);
+
+    expect(await pixel(target, 5, 5)).toEqual(processedAt(5, 5));
   });
 });

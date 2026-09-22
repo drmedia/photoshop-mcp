@@ -52,12 +52,24 @@ CLI 는 같은 실행 파일이고 왕복이 이미 실기에서 검증되어 �
 ```text
 photoshop.selection.sky   호출자가 하늘을 고른다 (또는 손으로 다듬는다)
 gx.run_gradient
-   ├ selection.export_mask   하늘 마스크를 16비트 TIFF 로
+   ├ selection.export_mask    하늘 마스크를 16비트 TIFF 로
    ├ prepare: extendSkyPlane  지상부를 하늘의 연장 평면으로 덮는다
    ├ GraXpert (AI)
-   ├ layer.place
-   └ mask.create fromSelection  결과를 하늘에만 씌운다
+   ├ finish: restoreOutsideMask  지상부를 원본으로 되돌린다
+   └ layer.place              통짜 픽셀 레이어 한 장
 ```
+
+**결과는 언제나 마스크 없는 통짜 한 장이다.** 하늘은 처리본, 지상은 원본이며
+합성은 파일에서 끝난다 — 투명한 곳이 없다.
+
+처음에는 결과를 그대로 놓고 Photoshop 마스크를 씌웠다. 합성 화면은 같지만 **그
+레이어 하나는 지상이 투명하다.** 투명은 뒤따르는 작업마다 걸린다 —
+`photoshop.document.statistics` 는 알파를 안 보고 RGB 만 읽어 투명한 곳이 0 으로
+섞인다. 실기에서 첫 측정이 바로 그것에 걸렸다.
+
+**LLM 이 다음 작업을 하려면 레이어가 통짜여야 한다.** 마스크를 굽게 해서
+(`photoshop.mask.apply`) 풀 수도 있지만, 그러면 지상이 투명해질 뿐이고 한 걸음이
+더 든다.
 
 실기에서 **전체 이미지로 돌리면 결과가 원본과 눈으로 구분되지 않았다.** 지상이
 프레임에 있으면 산·나무가 배경 모델을 끌어당긴다.

@@ -4,7 +4,6 @@ import {
   LAYER_LIST,
   LAYER_PLACE,
   LAYER_SELECT,
-  MASK_CREATE,
   SELECTION_EXPORT_MASK,
   SELECTION_GET,
   type DocumentInfo,
@@ -93,6 +92,9 @@ export function activate(context: ExtensionContext): void {
       "하늘을 고르려면 먼저 photoshop.selection.sky 를 부른다. " +
       "선택이 없으면 활성 레이어 전체를 처리한다 — 어느 쪽으로 갔는지는 결과의 " +
       "selectionAtStart 와 skyApplied 에 담긴다. " +
+      "**결과는 언제나 마스크 없는 통짜 픽셀 레이어 한 장이다.** 하늘 경로에서도 " +
+      "합성을 파일에서 끝내므로 투명한 곳이 없다 — 바로 이어서 재거나 " +
+      "필터를 걸 수 있다. " +
       "**즉시 jobId 를 반환한다.** photoshop.job.status 로 확인한다.",
     permission: "external",
     inputSchema: RunGradientInput,
@@ -266,9 +268,14 @@ export function activate(context: ExtensionContext): void {
         output,
         provider: spec.provider,
         params: spec.params,
+        /* 들어갈 때는 지상을 하늘의 연장 평면으로 덮고, 나올 때는 그 가짜를
+         * **원본 지상으로 되돌린다.** 둘이 짝이라 언제나 함께 간다. */
         ...(maskFile === null
           ? {}
-          : { prepare: { kind: "extendSkyPlane" as const, mask: maskFile } }),
+          : {
+              prepare: { kind: "extendSkyPlane" as const, mask: maskFile },
+              finish: { kind: "restoreOutsideMask" as const, mask: maskFile },
+            }),
       },
       // 취소하면 프로세스를 실제로 죽인다.
       { signal: job.signal },
@@ -289,21 +296,22 @@ export function activate(context: ExtensionContext): void {
       requestId,
     );
 
-    /* **결과를 하늘에만 씌운다.** 지상부는 우리가 덮어 넣은 가짜라 그대로
-     * 두면 안 된다. 선택이 아직 살아 있으므로 `fromSelection` 이 그대로 쓴다. */
-    let masked = false;
-    if (maskFile !== null) {
-      job.report(95, "하늘에만 합성");
-      await exec(MASK_CREATE, { layerId: placed.id, from: "fromSelection" }, requestId);
-      masked = true;
-    }
+    /* **Photoshop 마스크를 씌우지 않는다.** 합성은 이미 파일에서 끝났다.
+     *
+     * 처음에는 결과를 그대로 놓고 `mask.create fromSelection` 을 걸었다.
+     * 합성 화면은 같지만 **그 레이어 하나는 지상이 투명하다.** 투명은 뒤따르는
+     * 작업마다 걸린다 — `document.statistics` 가 알파를 안 보고 RGB 만 읽어
+     * 투명한 곳이 0 으로 섞였고, 실기에서 첫 측정이 바로 그것에 걸렸다.
+     * 통짜 한 장이면 뒤따르는 Tool 이 아무것도 몰라도 된다. (ROADMAP §19) */
+    const masked = run.finished === "restoreOutsideMask";
 
     logger.info(`${spec.label} 완료: ${placed.name}${masked ? " (하늘만)" : ""}`);
     job.report(100, "완료");
     return {
       layer: placed,
       /* **어느 경로로 갔는지 담는다.** 선택이 있었는지와 실제로 하늘에만
-       * 씌웠는지는 다른 사실이다 — 설정값이 아니라 한 일을 말한다. */
+       * 걸었는지는 다른 사실이다 — 설정값이 아니라 Capability 가 보고한
+       * `finished` 로 판정한다. */
       selectionAtStart: selection.hasSelection,
       skyApplied: masked,
       /* 중간 파일을 알려 준다. 한 번 돌 때마다 140MB 가 여럿 생긴다 —

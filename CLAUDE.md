@@ -14,7 +14,7 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **78개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **79개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
@@ -28,6 +28,7 @@ Tool 까지 더한 수다(지금 85). 한동안 이 값을 Core 개수로 옮겨
 - 그룹: create / move_layer · History: undo
 - 조정 레이어: curves / levels / brightness_contrast
 - 마스크: create / enable / disable · 선택: clear / invert
+- 마스크 굽기: `mask.apply` — **destructive 다.** 가려 둔 픽셀이 실제로 없어진다
 - 필터: gaussian_blur · high_pass · minimum_maximum (기본은 픽셀 직접 적용)
 - §8.6 공백 보완: selection.set · layer.set_blend_mode · adjustment.hue_saturation · vibrance
 
@@ -239,17 +240,26 @@ LLM 은 정확한 거절 이유를 받지만 그 다음에 할 수 있는 일이
 지상부를 합성 평면으로 덮는다는 것이었는데, 그건 **패널이 대신 해 주던 판단**이지
 CLI 가 못 하는 일이 아니었다.
 
-**하늘 격리는 Tool 이 하지 않는다. 호출자가 판단한다.**
+**무엇이 하늘인지는 Tool 이 정하지 않는다. 호출자가 선택으로 준다.**
 
 ```text
 document.statistics   격리가 필요한지 잰다
-selection.sky         하늘을 고른다
-gx.run_gradient       활성 레이어 전체를 처리한다
-mask.create           결과를 하늘에만 씌운다
+selection.sky         하늘을 고른다 (손으로 다듬어도 된다)
+gx.run_gradient       선택이 있으면 그 경로를 탄다
 ```
 
-흐름을 Tool 안에 박으면 호출자가 그 결정을 못 바꾼다. 어떤 사진은 격리가 필요 없고,
-어떤 사진은 하늘 선택을 손으로 다듬어야 한다.
+어떤 사진은 격리가 필요 없고, 어떤 사진은 하늘 선택을 손으로 다듬어야 한다. 그래서
+**선택이 있으면 하늘 워크플로, 없으면 활성 레이어 전체다** — 둘 다 정상이라 막지 않고
+어느 쪽인지를 결과(`selectionAtStart` · `skyApplied`)에 담는다.
+
+**결과는 언제나 마스크 없는 통짜 픽셀 레이어 한 장이다.** 합성을 Photoshop 마스크가
+아니라 **파일에서** 끝낸다 — `prepare: extendSkyPlane` 으로 덮어 넣은 가짜 지상을
+`finish: restoreOutsideMask` 로 원본으로 되돌린다. 둘이 짝이라 함께 간다.
+
+**마스크로 씌웠다가 되물렸다.** 합성 화면은 같지만 그 레이어 하나는 지상이 투명하고,
+투명은 뒤따르는 작업마다 걸린다 — `document.statistics` 는 알파를 안 보고 RGB 만 읽어
+투명한 곳이 0 으로 섞인다. 실기에서 첫 측정이 바로 그것에 걸렸다. **"화면이 맞다" 를
+"다음 작업이 된다" 로 읽지 않는다.**
 
 **노이즈 감소는 강도를 지정할 수 없다.** `GraXpert.exe -h` 에 `-cmd denoising` 용
 플래그가 하나도 없다 — `-smoothing`·`-correction` 은 배경 추출 전용이다.
@@ -800,7 +810,7 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 78개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 79개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져

@@ -212,6 +212,17 @@ export interface CapabilityRequest {
    *   끌어당겨 하늘에서 뺄 것을 거의 못 찾는다. (ROADMAP §19)
    */
   prepare?: { kind: "extendSkyPlane"; mask: string };
+  /**
+   * 처리기가 낸 결과를 호출자에게 주기 **전에** 마무리하는 방법.
+   * 생략하면 그대로 준다. `prepare` 의 짝이다.
+   *
+   * - `restoreOutsideMask` — 마스크 밖을 **원본 입력으로 되돌린다.**
+   *   `extendSkyPlane` 으로 덮어 넣은 가짜 지상이 결과에 그대로 남아 있으므로
+   *   되돌려야 한다. Photoshop 마스크로 가리는 것과 화면은 같지만, 가리면
+   *   그 레이어 하나는 지상이 투명해진다 — 투명은 뒤따르는 Tool 마다 걸린다.
+   *   (ROADMAP §19)
+   */
+  finish?: { kind: "restoreOutsideMask"; mask: string };
 }
 
 /** Capability 실행 결과. */
@@ -237,6 +248,13 @@ export interface CapabilityResult {
    * **알려 주지 않으면 조용히 쌓인다** — 4032×6048 16비트면 140MB 다.
    */
   preparedPath?: string;
+  /**
+   * `finish` 를 **실제로 적용했으면** 그 종류. 안 했으면 없다.
+   *
+   * 요청에 적었다는 것만으로는 한 일을 알 수 없다. 호출자가 결과를 "하늘에만
+   * 걸었다" 고 보고하려면 근거가 여기 있어야 한다.
+   */
+  finished?: "restoreOutsideMask";
 }
 
 /**

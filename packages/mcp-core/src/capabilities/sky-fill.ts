@@ -472,3 +472,130 @@ async function copyFile(input: FileHandle, target: string, info: TiffInfo): Prom
     await output.close();
   }
 }
+
+export interface MaskMergeResult {
+  width: number;
+  height: number;
+  /** 마스크 안(처리본을 쓴 쪽) 픽셀 수. */
+  inside: number;
+  /** 마스크 밖(원본을 되돌린 쪽) 픽셀 수. */
+  outside: number;
+}
+
+/**
+ * 마스크 밖을 원본으로 되돌려 한 장으로 합친다.
+ *
+ * `fillGroundWithSkyPlane` 의 짝이다. 들어갈 때는 지상을 가짜 평면으로 덮고,
+ * 나올 때는 그 가짜를 **원본 지상으로 되돌린다.**
+ *
+ * ## 왜 마스크 레이어로 두지 않는가
+ *
+ * 처음에는 결과를 그대로 배치하고 Photoshop 마스크를 씌웠다. 합성 화면은
+ * 같지만 **그 레이어 하나는 지상이 투명하다.** 그리고 투명은 다음 작업마다
+ * 걸린다 — `document.statistics` 는 알파를 안 보고 RGB 만 읽으므로 투명한 곳이
+ * 0 으로 섞여 평균이 내려간다. 실기에서 첫 측정이 바로 그것에 걸렸다.
+ *
+ * **통짜 레이어 한 장이면 뒤따르는 Tool 이 아무것도 몰라도 된다.**
+ *
+ * @param processed 처리기가 낸 16비트 RGB TIFF. 이 파일은 읽기만 한다
+ * @param original  원본 16비트 TIFF. 마스크 밖에 쓸 픽셀
+ * @param mask      같은 크기의 마스크 TIFF. 흰색이 처리본을 쓸 쪽이다
+ * @param target    결과를 쓸 경로. 위 셋과 달라야 한다
+ */
+export async function restoreOutsideMask(
+  processed: string,
+  original: string,
+  mask: string,
+  target: string,
+): Promise<MaskMergeResult> {
+  if (target === processed || target === original || target === mask) {
+    throw new Error("합성 출력은 별도 파일이어야 합니다.");
+  }
+
+  const processedHandle = await open(processed, "r");
+  try {
+    const originalHandle = await open(original, "r");
+    try {
+      const maskHandle = await open(mask, "r");
+      try {
+        const info = await readTiffInfo(processedHandle, "처리 결과");
+        const originalInfo = await readTiffInfo(originalHandle, "원본");
+        const maskInfo = await readTiffInfo(maskHandle, "마스크");
+
+        /* 셋의 크기가 같아야 한다. 하나라도 다르면 픽셀이 어긋난 채로 섞여
+         * **오류 없이 틀린 그림**이 나온다. */
+        for (const [label, other] of [
+          ["원본", originalInfo],
+          ["마스크", maskInfo],
+        ] as const) {
+          if (other.width !== info.width || other.height !== info.height) {
+            throw new Error(
+              `${label} 크기가 처리 결과와 다릅니다: ` +
+                `${String(other.width)}×${String(other.height)} 대 ` +
+                `${String(info.width)}×${String(info.height)}.`,
+            );
+          }
+        }
+
+        const row = Buffer.alloc(info.rowBytes);
+        const originalRow = Buffer.alloc(originalInfo.rowBytes);
+        const maskRow = Buffer.alloc(maskInfo.rowBytes);
+        const outRowBytes = info.width * 3 * 2;
+        const outRow = Buffer.alloc(outRowBytes);
+        let inside = 0;
+        let outside = 0;
+
+        const output = await open(target, "w");
+        try {
+          const header = tiffHeader(info.width, info.height);
+          await output.write(header, 0, header.length, 0);
+
+          for (let y = 0; y < info.height; y += 1) {
+            await processedHandle.read(row, 0, info.rowBytes, rowOffset(info, y));
+            await originalHandle.read(
+              originalRow,
+              0,
+              originalInfo.rowBytes,
+              rowOffset(originalInfo, y),
+            );
+            await maskHandle.read(maskRow, 0, maskInfo.rowBytes, rowOffset(maskInfo, y));
+
+            for (let x = 0; x < info.width; x += 1) {
+              const weight = maskRow.readUInt16LE(x * maskInfo.pixelBytes) / MAX;
+              if (weight >= 1) {
+                inside += 1;
+              } else if (weight <= 0) {
+                outside += 1;
+              }
+              for (let c = 0; c < 3; c += 1) {
+                const processedValue = row.readUInt16LE(x * info.pixelBytes + c * 2);
+                if (weight >= 1) {
+                  outRow.writeUInt16LE(processedValue, (x * 3 + c) * 2);
+                  continue;
+                }
+                const originalValue = originalRow.readUInt16LE(x * originalInfo.pixelBytes + c * 2);
+                /* 페더된 선택이 그대로 부드러운 이음매가 된다.
+                 * `fillGroundWithSkyPlane` 의 섞는 방식과 같다. */
+                outRow.writeUInt16LE(
+                  Math.round(processedValue * weight + originalValue * (1 - weight)),
+                  (x * 3 + c) * 2,
+                );
+              }
+            }
+            await output.write(outRow, 0, outRowBytes, header.length + y * outRowBytes);
+          }
+        } finally {
+          await output.close();
+        }
+
+        return { width: info.width, height: info.height, inside, outside };
+      } finally {
+        await maskHandle.close();
+      }
+    } finally {
+      await originalHandle.close();
+    }
+  } finally {
+    await processedHandle.close();
+  }
+}

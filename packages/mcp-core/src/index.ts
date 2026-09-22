@@ -25,7 +25,9 @@ export {
   fitPlane,
   fitSkyModel,
   planeValue,
+  restoreOutsideMask,
   type ChannelModel,
+  type MaskMergeResult,
   type PlaneSample,
   type SkyFillResult,
 } from "./capabilities/sky-fill.js";

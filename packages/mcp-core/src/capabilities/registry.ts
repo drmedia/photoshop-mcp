@@ -20,7 +20,7 @@ import {
 } from "@photoshop-mcp/photoshop-bridge";
 
 import { convertFitsToTiff } from "./fits.js";
-import { fillGroundWithSkyPlane } from "./sky-fill.js";
+import { fillGroundWithSkyPlane, restoreOutsideMask } from "./sky-fill.js";
 
 /**
  * Capability Registry. (ARCHITECTURE §19, ROADMAP §12)
@@ -426,12 +426,41 @@ export class CapabilityRegistry implements ExtensionCapabilityRegistry {
       );
     }
 
+    /* **결과를 마무리한다.** `prepare` 로 지상을 가짜 평면으로 덮어 넣었으면
+     * 그 가짜가 결과에도 그대로 남아 있다. 마스크 밖을 원본으로 되돌려
+     * **통짜 한 장**으로 만든다.
+     *
+     * Photoshop 마스크로 가려도 화면은 같지만 그 레이어 하나는 지상이
+     * 투명해진다. 투명은 뒤따르는 Tool 마다 걸린다 — `document.statistics` 는
+     * 알파를 안 보고 RGB 만 읽어 투명한 곳이 0 으로 섞인다. (ROADMAP §19)
+     *
+     * **변환 뒤에 한다.** GraXpert 는 FITS 를 내므로 그 전에는 읽을 수 없다.
+     * 주 출력에만 건다 — 추가 출력(별 이미지 등)은 의미가 다르다. */
+    let finished: "restoreOutsideMask" | null = null;
+    if (request.finish !== undefined) {
+      const maskPath = resolveInside(folder, request.finish.mask, "finish.mask");
+      await assertReadable(maskPath, request.finish.mask);
+      const target = outputPaths["output"] as string;
+      const merged = `${target}.merged.tif`;
+      const result = await restoreOutsideMask(target, inputPath, maskPath, merged);
+      /* 합친 것으로 **덮어쓴다.** 중간 파일을 남기면 호출자가 어느 쪽이
+       * 결과인지 알아야 한다. 요청한 이름에 결과가 있는 것이 계약이다. */
+      await rm(target, { force: true });
+      await rename(merged, target);
+      finished = "restoreOutsideMask";
+      this.#logger.info(
+        `결과 마무리: restoreOutsideMask — 마스크 안 ${String(result.inside)}px · ` +
+          `되돌림 ${String(result.outside)}px`,
+      );
+    }
+
     return {
       capability,
       provider: config.id,
       ...(preparedName === null
         ? {}
         : { preparedPath: resolveInside(folder, preparedName, "prepare.output") }),
+      ...(finished === null ? {} : { finished }),
       outputPath: outputPaths["output"] as string,
       outputPaths,
       durationMs,

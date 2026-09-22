@@ -61,10 +61,28 @@ async function fakeGraXpert(): Promise<string> {
     "const fs = require('node:fs');",
     "const a = process.argv.slice(2);",
     "fs.writeFileSync(process.env.GRAXPERT_ARGV_LOG, JSON.stringify(a));",
-    "fs.writeFileSync(a[a.indexOf('-output') + 1], 'processed');",
+    // `-cmd <모드> <입력>` 이라 입력은 `-cmd` 에서 두 칸 뒤다.
+    "const buf = fs.readFileSync(a[a.indexOf('-cmd') + 2]);",
+    `for (let i = ${String(HEAD)}; i + 1 < buf.length; i += 2) {`,
+    "  buf.writeUInt16LE(Math.max(0, buf.readUInt16LE(i) - 500), i);",
+    "}",
+    "fs.writeFileSync(a[a.indexOf('-output') + 1], buf);",
   ];
   await writeFile(script, lines.join("\n"), "utf8");
   return script;
+}
+
+/**
+ * `tiffHeader` 의 길이는 이미지 크기와 무관하게 일정하다. 픽셀은 그 뒤부터다.
+ *
+ * 가짜 CLI 는 입력을 그대로 베끼면서 샘플을 500 낮춘다 — **"처리했다" 를 값으로
+ * 확인할 수 있어야** 합성이 어느 쪽 픽셀을 골랐는지 가려진다.
+ */
+const HEAD = tiffHeader(1, 1).length;
+
+/** 우리가 쓴 TIFF 에서 한 픽셀의 적색 값을 읽는다. */
+function redAt(path: string, x: number, y: number): number {
+  return readFileSync(path).readUInt16LE(HEAD + (y * W + x) * 6);
 }
 
 /** 가짜 CLI 가 받은 argv. */
@@ -340,7 +358,7 @@ describe("하늘 격리", () => {
     expect(result.files).toHaveLength(2);
   });
 
-  it("**선택이 있으면 마스크를 내보내고 하늘에만 씌운다**", async () => {
+  it("**선택이 있으면 마스크를 내보내고 하늘에만 건다**", async () => {
     /* 지상부를 하늘의 연장 평면으로 덮어서 넣는다. 그러지 않으면 산·나무가
      * 배경 모델을 끌어당겨 하늘에서 뺄 것을 거의 못 찾는다(ROADMAP §19). */
     const s = await setup();
@@ -361,12 +379,38 @@ describe("하늘 격리", () => {
     // 내보내기 · 출력 · 마스크 · 준비 파일 넷이다.
     expect(result.files).toHaveLength(4);
     expect(result.files.some((name) => name.includes("_mask"))).toBe(true);
+  });
 
+  it("**결과는 통짜 한 장이다 — 하늘은 처리본, 지상은 원본**", async () => {
+    /* 예전에는 결과를 그대로 놓고 Photoshop 마스크를 씌웠다. 화면은 같지만
+     * **그 레이어 하나는 지상이 투명하다.** 투명은 뒤따르는 작업마다 걸린다 —
+     * `document.statistics` 는 알파를 안 보고 RGB 만 읽어 투명한 곳이 0 으로
+     * 섞인다. 실기에서 첫 측정이 바로 그것에 걸렸다. (ROADMAP §19)
+     *
+     * 그래서 재는 것은 **파일의 픽셀**이다. 마스크가 있는지 없는지가 아니라
+     * 어느 쪽 픽셀이 들어갔는지가 이 설계의 내용이다. */
+    const s = await setup();
+    await s.mcp.engine.execute(
+      { type: "SELECTION_SET", params: { shape: "canvas" } },
+      { requestId: "sel" },
+    );
+
+    const result = await run<{ files: string[]; layer: { id: number } }>(s, "gx.run_gradient");
+    const output = join(workspace, result.files[1] as string);
+
+    /* 하늘(y < HORIZON)은 처리본이다. 가짜 CLI 가 500 을 뺐다. */
+    expect(redAt(output, 5, 5)).toBe(4000 + 5 * 100 + 5 * 10 - 500);
+
+    /* 지상(y >= HORIZON)은 **원본 그대로**다. 덮어 넣은 가짜 평면도 아니고
+     * 거기서 500 을 뺀 값도 아니다 — 원본 800 이어야 한다. */
+    expect(redAt(output, 5, HORIZON + 5)).toBe(800);
+
+    // 그리고 마스크를 남기지 않는다. 투명한 곳이 없어야 하기 때문이다.
     const layers = await s.mcp.engine.execute<{ id: number; hasMask?: boolean }[]>(
       { type: "LAYER_LIST", params: {} },
       { requestId: "r" },
     );
-    expect(layers.find((layer) => layer.id === result.layer.id)?.hasMask).toBe(true);
+    expect(layers.find((layer) => layer.id === result.layer.id)?.hasMask).not.toBe(true);
   });
 
   it("**노이즈 감소는 선택을 보지 않는다**", async () => {

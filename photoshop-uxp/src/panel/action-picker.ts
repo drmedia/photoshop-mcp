@@ -87,23 +87,31 @@ export async function openActionPicker(): Promise<number> {
 
   const dialog = document.createElement("dialog");
   dialog.style.width = "460px";
-  // **색을 직접 정한다.** 실기에서 글자가 배경에 묻혀 거의 안 보였다 —
-  // UXP 대화상자는 패널과 달리 텍스트 색을 물려주지 않는다.
-  const TEXT = "#e8e8e8";
+  /* **색을 직접 정한다.** 실기에서 글자가 배경에 묻혀 거의 안 보였다 —
+   * UXP 대화상자는 패널과 달리 텍스트 색을 물려주지 않는다.
+   *
+   * 다만 **하드코딩하지 않는다.** Photoshop 은 테마가 넷(Darkest·Dark·Light·
+   * Lightest)이라 `#e8e8e8` 은 어두운 둘에서만 맞는다. 호스트가 주는 변수를
+   * 쓰면 네 테마를 다 따라간다. */
+  const TEXT = "var(--uxp-host-text-color, #e8e8e8)";
+  const DIM = "var(--uxp-host-text-color-secondary, #b0b0b0)";
+  const LINE = "var(--uxp-host-border-color, #6a6a6a)";
   dialog.innerHTML = [
     `<div style="font-family:sans-serif;font-size:12px;padding:10px;color:${TEXT}">`,
     '<div style="display:flex;align-items:center;margin-bottom:6px">',
     `<b style="color:${TEXT}">실행을 허용할 액션</b>`,
-    `<span id="ap-count" style="margin-left:8px;color:#a8c8ff"></span>`,
+    `<span id="ap-count" style="margin-left:8px"></span>`,
     "</div>",
-    '<div style="color:#b0b0b0;margin-bottom:6px">세트를 눌러 펼칩니다. 고른 것만 부를 수 있습니다.</div>',
-    '<div id="ap-list" style="height:340px;overflow:auto;border:1px solid #6a6a6a;',
+    `<div style="color:${DIM};margin-bottom:6px">세트를 눌러 펼칩니다. 고른 것만 부를 수 있습니다.</div>`,
+    `<div id="ap-list" style="height:340px;overflow:auto;border:1px solid ${LINE};`,
     `padding:6px;color:${TEXT}"></div>`,
-    '<div style="margin-top:10px;display:flex;align-items:center;gap:6px">',
-    '<button id="ap-none">모두 해제</button>',
-    '<button id="ap-save">저장</button>',
+    // UXP 는 flex 의 `gap` 을 지원하지 않는다. 간격은 margin 으로 준다.
+    '<div style="margin-top:10px;display:flex;align-items:center">',
+    // `cursor` 가 sp-action-button 에서는 먹는지 재 본다. 일반 div 에서는 안 먹었다.
+    '<sp-action-button size="s" id="ap-none" style="margin-right:6px;cursor:pointer">모두 해제</sp-action-button>',
+    '<sp-action-button size="s" id="ap-save" style="cursor:pointer">저장</sp-action-button>',
     '<span style="flex:1"></span>',
-    '<button id="ap-close">닫기</button>',
+    '<sp-action-button size="s" id="ap-close" style="cursor:pointer">닫기</sp-action-button>',
     "</div>",
     "</div>",
   ].join("");
@@ -133,7 +141,8 @@ export async function openActionPicker(): Promise<number> {
     // 보여주면 둘을 구분할 수 없다.
     const dirty = chosen.size !== saved.size || [...chosen].some((key) => !saved.has(key));
     count.textContent = `${chosen.size}개 선택 · ${dirty ? "저장 안 함" : "저장됨"}`;
-    count.style.color = dirty ? "#ffc46b" : "#8fd39a";
+    // 저장 여부는 색으로도 말한다. 이 둘은 의미색이라 테마와 무관하게 둔다.
+    count.style.color = dirty ? "#e8a33d" : "#5aa469";
     if (closeButton !== null) {
       // 닫기 버튼이 결과를 말한다. 저장 안 한 채로 닫는 것이 사고가 되지 않게.
       closeButton.textContent = dirty ? "저장 안 하고 닫기" : "닫기";
@@ -156,7 +165,7 @@ export async function openActionPicker(): Promise<number> {
       const head = document.createElement("div");
       head.style.cursor = "pointer";
       head.style.padding = "3px 2px";
-      head.style.color = "#e8e8e8";
+      head.style.color = TEXT;
       head.innerHTML = `<b>${node.actions === null ? "▶" : "▼"} ${escape(node.name)}</b>${badgeFor(node)}`;
       heads.set(node.name, head);
       head.addEventListener("click", () => {
@@ -206,7 +215,7 @@ export async function openActionPicker(): Promise<number> {
             renderCount();
           });
           const label = document.createElement("span");
-          label.style.color = "#e8e8e8";
+          label.style.color = TEXT;
           label.style.marginLeft = "6px";
           label.textContent = name;
           line.appendChild(box);
@@ -230,7 +239,7 @@ export async function openActionPicker(): Promise<number> {
     event.preventDefault();
     writeAllowed(
       [...chosen].map((key) => {
-        const [set, action] = key.split(" ");
+        const [set, action] = key.split("\u0000");
         return { set: set ?? "", action: action ?? "" };
       }),
     );

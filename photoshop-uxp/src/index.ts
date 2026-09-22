@@ -58,6 +58,7 @@ import { actionPlay } from "./dom/action-play.js";
 import { actionAllowlist } from "./dom/action-allowlist.js";
 import { extensionRegistry } from "./dom/extension-registry.js";
 import { openActionPicker } from "./panel/action-picker.js";
+import { shortenPath } from "./panel/path-label.js";
 import { openExtensionPicker } from "./panel/extension-picker.js";
 import { documentOpen } from "./dom/document-open.js";
 import { layerReorder } from "./dom/layer-reorder.js";
@@ -319,8 +320,43 @@ function describeError(error: unknown): string {
 let statusElement: HTMLElement | null = null;
 let errorElement: HTMLElement | null = null;
 let workspaceElement: HTMLElement | null = null;
-let actionCountElement: HTMLElement | null = null;
-let extensionCountElement: HTMLElement | null = null;
+/** 액션 수 · Extension 수를 한 요소에 적는다. UXP 가 flex `gap` 을 무시한다. */
+let countsElement: HTMLElement | null = null;
+let urlElement: HTMLElement | null = null;
+
+/**
+ * 패널 조작이 낸 오류. Bridge 오류와 **같은 박스**에 낸다.
+ *
+ * 예전에는 상태 줄에 써 넣었는데, 바로 뒤따르는 `render*()` 가 같은 틱에
+ * 덮어써서 **사용자가 볼 수 없었다.** 오류를 낸다고 적어 두고 안 내는 것이
+ * 안 내는 것보다 나쁘다 — 그 자리를 다시 보지 않게 된다.
+ */
+let panelError: string | null = null;
+
+/** 오류 박스를 다시 그린다. 패널 조작 오류가 Bridge 오류보다 앞선다. */
+function renderError(): void {
+  if (errorElement === null) {
+    return;
+  }
+  const message = panelError ?? client.lastError;
+  errorElement.textContent = message ?? "";
+  errorElement.style.display = message === null ? "none" : "block";
+}
+
+/** 패널 조작을 감싼다. 성공하면 앞선 오류를 지운다. */
+function afterAction(run: () => Promise<unknown>, redraw: () => void): void {
+  void run()
+    .then(() => {
+      panelError = null;
+    })
+    .catch((error: unknown) => {
+      panelError = describeError(error);
+    })
+    .then(() => {
+      redraw();
+      renderError();
+    });
+}
 
 function renderState(state: ClientState): void {
   const label = STATE_LABEL[state];
@@ -335,56 +371,50 @@ function renderState(state: ClientState): void {
   }
 
   if (statusElement !== null) {
-    // URL 을 같은 줄에 합친다. 도킹된 패널은 줄 하나가 아깝다.
-    statusElement.textContent = `Bridge: ${detail} · ${client.url}`;
+    /* **상태와 주소를 나눈다.** 한 줄에 합쳤더니 좁은 패널에서 줄 하나를 다
+     * 먹었다. 상태는 짧고 자주 보고, 주소는 길고 가끔 본다. */
+    statusElement.textContent = `${state === "connected" ? "●" : "○"} Bridge ${detail}`;
+    statusElement.style.color =
+      state === "connected" ? "#5aa469" : state === "retrying" ? "#e8a33d" : "";
+  }
+  if (urlElement !== null) {
+    /* 연결되면 주소는 알 필요가 없다. 막혔을 때만 진단에 쓰인다 —
+     * 좁은 패널에서 한 줄이 아깝다. */
+    urlElement.textContent = client.url;
+    urlElement.style.display = state === "connected" ? "none" : "block";
   }
   // 접속 실패 사유를 패널에 그대로 노출한다.
   // UXP Developer Tool 콘솔을 열지 않고도 원인을 확인할 수 있어야 한다.
-  if (errorElement !== null) {
-    const message = client.lastError;
-    errorElement.textContent = message ?? "";
-    errorElement.style.display = message === null ? "none" : "block";
-  }
+  renderError();
 }
 
 const client = createClient();
 
 /**
- * 허용된 액션 수를 패널에 그린다. (ROADMAP §17.36)
+ * 액션 수와 등록된 Extension 수를 한 줄에 그린다.
  *
- * 0 이면 `action.run` 이 아무것도 못 한다 — 그것이 기본이라는 것을 보여준다.
+ * 액션 0 이면 `action.run` 이 아무것도 못 한다 — 그것이 기본이라는 것을 보여준다.
+ *
+ * **Extension 수는 등록 수지 적재 수가 아니다.** 서버가 namespace 충돌 등으로
+ * 거부해도 여기는 줄지 않는다. 적재 결과는 `photoshop.diagnostics` 가 안다.
  */
-async function renderActionCount(): Promise<void> {
-  if (actionCountElement === null) {
+async function renderCounts(): Promise<void> {
+  if (countsElement === null) {
     return;
   }
+  const parts: string[] = [];
   try {
-    const status = await actionAllowlist();
-    actionCountElement.textContent =
-      status.total === 0 ? "액션: 고른 것 없음" : `액션: ${String(status.total)}개 허용`;
+    parts.push(`액션 ${String((await actionAllowlist()).total)}`);
   } catch (error) {
-    actionCountElement.textContent = `확인 실패: ${describeError(error)}`;
-  }
-}
-
-/**
- * 등록된 Extension 수를 패널에 그린다. (ROADMAP §18.3)
- *
- * 0 이 기본이다 — 아무 패널도 깔려 있지 않다는 것을 보여준다.
- */
-async function renderExtensionCount(): Promise<void> {
-  if (extensionCountElement === null) {
-    return;
+    parts.push(`액션 ?(${describeError(error)})`);
   }
   try {
     const status = await extensionRegistry();
-    extensionCountElement.textContent =
-      status.total === 0
-        ? "Extension: 등록 없음"
-        : `Extension: ${String(status.total)}개${status.persisted ? "" : " (이번 세션만)"}`;
+    parts.push(`확장 ${String(status.total)}${status.persisted ? "" : " (세션)"}`);
   } catch (error) {
-    extensionCountElement.textContent = `확인 실패: ${describeError(error)}`;
+    parts.push(`확장 ?(${describeError(error)})`);
   }
+  countsElement.textContent = parts.join(" · ");
 }
 
 /**
@@ -399,8 +429,11 @@ async function renderWorkspace(): Promise<void> {
   }
   try {
     const status = await workspaceStatus();
+    /* **앞을 자른다.** CSS `ellipsis` 는 뒤를 자르는데 경로에서 구분되는
+     * 정보는 끝이다. `shortenPath` 가 앞을 줄이고, 그래도 넘치면 CSS 가
+     * 한 번 더 줄인다. */
     workspaceElement.textContent = status.approved
-      ? `폴더: ${status.path ?? "(경로 없음)"}`
+      ? `폴더: ${status.path === null ? "(경로 없음)" : shortenPath(status.path)}`
       : "폴더: 승인되지 않음";
   } catch (error) {
     workspaceElement.textContent = `폴더 확인 실패: ${describeError(error)}`;
@@ -415,83 +448,91 @@ async function renderWorkspace(): Promise<void> {
  * 패널 탭에 이미 이름이 있으므로 제목 줄을 두지 않는다.
  */
 export function mountPanel(root: HTMLElement): void {
-  root.style.height = "100%";
-  root.style.overflow = "auto";
+  /* **flex 골격에 고정 footer.**
+   *
+   * 내용이 늘어도 버튼이 밀려나지 않는다. 패널을 줄이면 가운데만 스크롤된다.
+   * `absolute` 를 쓰지 않는 이유는 그러면 스크롤 영역과 겹치기 때문이다.
+   *
+   * `min-height:0` 이 핵심이다 — 없으면 flex 자식이 내용만큼 커져서
+   * 부모를 넘고 footer 가 화면 밖으로 밀린다.
+   *
+   * `100vh` 대신 `100%` 를 쓴다. 패널은 문서 전체가 아니라 호스트가 준
+   * 요소 안이고, `%` 는 동작이 확인된 쪽이다. */
+  root.style.cssText =
+    "height:100vh;min-height:0;display:flex;flex-direction:column;" +
+    "font-family:sans-serif;font-size:11px";
 
-  // **버튼이 기본 스타일로는 크다.** 도킹된 패널은 사용자가 높이를 늘리지 못하는
-  // 경우가 있어, 버튼 하나가 한 줄을 다 먹으면 아래 것에 닿을 수 없다.
-  // 실기에서 '액션 선택' 버튼이 잘려 보이지 않았다 — 높이와 여백을 직접 못 박는다.
-  const BTN = "font-size:11px;padding:1px 6px;height:20px;min-height:0;margin:0;white-space:nowrap";
+  /* **`<sp-action-button>` 을 쓴다.** plain `<button>` 은 "스타일링 부담을
+   * 직접 진다" 고 UXP 문서가 명시하는데 실기에서 그 대가를 치렀다 —
+   * `min-width:0` 으로 줄지 않아 2글자짜리가 90px 을 먹었고, 폭을 명시하니
+   * 이번에는 글자가 잘렸다(`폴더 승인` → `폴더...`).
+   *
+   * **`gap` 은 쓸 수 없다.** UXP CSS 지원 목록에 `gap`·`row-gap`·`column-gap`
+   * 이 셋 다 없다. 간격은 margin 으로 준다. */
+  /* `cursor` 는 UXP CSS 지원 목록에 **없다.** 다만 알려진 문제에 "커서를
+   * 바꾸면 원래대로 돌아오지 않을 수 있다(UWP)" 가 있어 바꿀 수는 있는
+   * 모양이다. 실기로 재 본다 — 눌어붙으면 빼는 것이 낫다. */
+  const BTN = "margin:0 6px 0 0;font-size:11px;cursor:pointer";
+
+  /** 한 줄에 다 안 들어가면 꼬리를 자른다. 줄바꿈으로 높이가 늘지 않게. */
+  const ELLIPSIS = "overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
 
   root.innerHTML = [
-    '<div style="padding:6px;font-family:sans-serif;font-size:11px">',
-    // 1행 — 버튼. 한 줄에 몰아 넣고 좁으면 접히게 둔다.
-    '<div style="display:flex;flex-wrap:wrap;gap:4px">',
-    `<button id="photoshop-mcp-approve" style="${BTN}">폴더 승인</button>`,
-    `<button id="photoshop-mcp-revoke" style="${BTN}">해제</button>`,
-    `<button id="photoshop-mcp-actions" style="${BTN}">액션 선택</button>`,
-    `<button id="photoshop-mcp-extensions" style="${BTN}">Extension</button>`,
+    /* header — 줄어들지 않는다.
+     *
+     * Bridge 상태는 가장 자주 보는 것인데, 스크롤되는 쪽에 두었더니 패널을
+     * 줄였을 때 위로 밀려 안 보였다. 실기 캡처에서 확인했다. */
+    '<div style="flex-shrink:0;padding:6px 6px 0">',
+    '<span id="photoshop-mcp-state">-</span>',
+    // UXP 에 `gap` 이 없다. 간격은 margin 으로 준다.
+    '<span id="photoshop-mcp-counts" style="margin-left:6px;',
+    'color:var(--uxp-host-text-color-secondary, #b0b0b0)"></span>',
     "</div>",
-    // 2행 — 승인된 경로
-    '<div id="photoshop-mcp-workspace" style="margin-top:5px;opacity:.85;',
-    'word-break:break-all">폴더: 확인 중</div>',
-    // 3행 — 허용된 액션 수. (ROADMAP §17.36)
-    '<div id="photoshop-mcp-action-count" style="margin-top:3px;opacity:.85"></div>',
-    // 4행 — 등록된 Extension 수. (ROADMAP §18.3)
-    '<div id="photoshop-mcp-extension-count" style="margin-top:3px;opacity:.85"></div>',
-    // 5행 — Bridge 상태
-    '<div id="photoshop-mcp-state" style="margin-top:3px;opacity:.85">-</div>',
-    // 6행 — 오류. 길어질 수 있으므로 맨 아래에 둔다.
+    /* 내용 — 늘어나고 스크롤된다.
+     *
+     * **짧고 늘 필요한 것은 header 에 있다.** Bridge 상태와 액션·확장 수는
+     * 한 줄에 들어가고 길이가 변하지 않는다. 여기 남는 것은 길이를 알 수 없는
+     * 폴더 경로와 오류다 — 그래서 이쪽이 스크롤된다.
+     *
+     * 주소는 거의 늘 `ws://127.0.0.1:8765` 라 볼 일이 없다. 연결이 안 됐을
+     * 때만 낸다 — 좁은 패널에서 한 줄이 아깝다. */
+    '<div style="flex:1;min-height:0;overflow-y:auto;padding:0 6px 6px">',
+    '<div id="photoshop-mcp-workspace" style="',
+    `${ELLIPSIS}">폴더: 확인 중</div>`,
+    `<div id="photoshop-mcp-url" style="margin-top:3px;display:none;`,
+    `color:var(--uxp-host-text-color-secondary, #b0b0b0);${ELLIPSIS}"></div>`,
+    /* 오류는 길어질 수 있으므로 스크롤되는 쪽에 둔다.
+     * 색으로 눈에 띄어야 하지만 테마가 넷이라 글자색은 변수로 둔다. */
     '<div id="photoshop-mcp-error" style="margin-top:5px;padding:4px;',
-    'background:#4a1f1f;color:#ffb4b4;word-break:break-all;display:none"></div>',
+    "background:#a33;color:var(--uxp-host-text-color, #e8e8e8);",
+    'word-break:break-all;display:none"></div>',
+    "</div>",
+    // footer — 줄어들지 않는다. 패널을 아무리 줄여도 버튼은 남는다.
+    '<div style="flex-shrink:0;display:flex;flex-wrap:wrap;padding:5px 6px;',
+    'border-top:1px solid var(--uxp-host-border-color, #6a6a6a)">',
+    `<sp-action-button size="s" id="photoshop-mcp-approve" style="${BTN}">폴더 승인</sp-action-button>`,
+    `<sp-action-button size="s" id="photoshop-mcp-actions" style="${BTN}">액션</sp-action-button>`,
+    `<sp-action-button size="s" id="photoshop-mcp-extensions" style="${BTN}">확장</sp-action-button>`,
     "</div>",
   ].join("");
 
   statusElement = root.querySelector("#photoshop-mcp-state");
-  actionCountElement = root.querySelector("#photoshop-mcp-action-count");
-  extensionCountElement = root.querySelector("#photoshop-mcp-extension-count");
+  urlElement = root.querySelector("#photoshop-mcp-url");
+  countsElement = root.querySelector("#photoshop-mcp-counts");
   errorElement = root.querySelector("#photoshop-mcp-error");
   workspaceElement = root.querySelector("#photoshop-mcp-workspace");
 
   root.querySelector("#photoshop-mcp-approve")?.addEventListener("click", () => {
-    void approveFolder()
-      .catch((error: unknown) => {
-        if (workspaceElement !== null) {
-          workspaceElement.textContent = `승인 실패: ${describeError(error)}`;
-        }
-        return null;
-      })
-      .then(() => renderWorkspace());
-  });
-  root.querySelector("#photoshop-mcp-revoke")?.addEventListener("click", () => {
-    revokeFolder();
-    void renderWorkspace();
+    afterAction(approveFolder, () => void renderWorkspace());
   });
   root.querySelector("#photoshop-mcp-actions")?.addEventListener("click", () => {
-    void openActionPicker()
-      .catch((error: unknown) => {
-        if (actionCountElement !== null) {
-          actionCountElement.textContent = `선택 실패: ${describeError(error)}`;
-        }
-        return null;
-      })
-      .then(() => renderActionCount());
+    afterAction(openActionPicker, () => void renderCounts());
   });
   root.querySelector("#photoshop-mcp-extensions")?.addEventListener("click", () => {
-    void openExtensionPicker()
-      .catch((error: unknown) => {
-        if (extensionCountElement !== null) {
-          extensionCountElement.textContent = `등록 실패: ${describeError(error)}`;
-        }
-        return null;
-      })
-      .then(() => renderExtensionCount());
+    afterAction(openExtensionPicker, () => void renderCounts());
   });
 
-  renderState(client.state);
-  void renderWorkspace();
-  void renderActionCount();
-  void renderExtensionCount();
+  refreshPanel();
 }
 
 /**
@@ -509,11 +550,37 @@ function resolveRoot(arg: unknown): HTMLElement | null {
   return null;
 }
 
+/**
+ * 이미 꾸며 둔 루트.
+ *
+ * **`show` 에서 다시 만들지 않는다.** `entrypoints` 는 `create` 와 `show` 양쪽에
+ * 같은 함수를 걸 수 있는데, `show` 마다 `innerHTML` 을 다시 쓰면 **클릭이 시작된
+ * 요소가 사라져 첫 클릭이 먹지 않는다.** 실기에서 "처음 버튼이 한 번에 안 된다"
+ * 로 드러났다.
+ *
+ * 다시 만드는 대신 값만 새로 고친다.
+ */
+let mountedRoot: HTMLElement | null = null;
+
 function onPanel(arg: unknown): void {
   const root = resolveRoot(arg);
-  if (root !== null) {
-    mountPanel(root);
+  if (root === null) {
+    return;
   }
+  if (root === mountedRoot) {
+    // 이미 꾸며져 있다. 값만 새로 고친다 — 그 사이 폴더나 액션이 바뀌었을 수 있다.
+    refreshPanel();
+    return;
+  }
+  mountPanel(root);
+  mountedRoot = root;
+}
+
+/** 패널의 값만 다시 읽는다. DOM 은 건드리지 않는다. */
+function refreshPanel(): void {
+  renderState(client.state);
+  void renderWorkspace();
+  void renderCounts();
 }
 
 /**
@@ -528,19 +595,7 @@ const MENU_REVOKE = "revokeWorkspaceFolder";
 
 function onMenu(id: string): void {
   if (id === MENU_APPROVE) {
-    void approveFolder()
-      .then((status) => {
-        console.log(
-          `[photoshop-mcp] ${status === null ? "폴더 승인 취소됨" : `폴더 승인: ${status.path ?? ""}`}`,
-        );
-      })
-      .catch((error: unknown) => {
-        console.error(`[photoshop-mcp] 폴더 승인 실패: ${describeError(error)}`);
-        if (workspaceElement !== null) {
-          workspaceElement.textContent = `승인 실패: ${describeError(error)}`;
-        }
-      })
-      .then(() => renderWorkspace());
+    afterAction(approveFolder, () => void renderWorkspace());
     return;
   }
   if (id === MENU_REVOKE) {

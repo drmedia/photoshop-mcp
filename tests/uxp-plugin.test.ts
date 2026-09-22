@@ -4,6 +4,7 @@ import { CommandDispatcher, DispatchError } from "../photoshop-uxp/src/dispatche
 import { orderActiveLayers } from "../photoshop-uxp/src/dom/active-order.js";
 import { toBitDepth, toColorMode, toLayerType } from "../photoshop-uxp/src/dom/mappings.js";
 import { opacityApplied, resolveMutatedLayer } from "../photoshop-uxp/src/dom/mutation-result.js";
+import { shortenPath } from "../photoshop-uxp/src/panel/path-label.js";
 
 /**
  * UXP Plugin 중 Photoshop 런타임에 의존하지 않는 부분만 검증한다.
@@ -273,5 +274,62 @@ describe("opacityApplied", () => {
 
   it("2 이상 차이는 적용되지 않은 것으로 본다", () => {
     expect(opacityApplied(50, 53)).toBe(false);
+  });
+});
+
+describe("shortenPath", () => {
+  /** 역슬래시. 소스에 직접 쓰면 이스케이프가 헷갈린다. */
+  const SEP = String.fromCharCode(92);
+
+  it("짧으면 그대로 둔다", () => {
+    expect(shortenPath(`E:${SEP}test01`)).toBe(`E:${SEP}test01`);
+  });
+
+  it("**앞을 자르고 뒤를 남긴다**", () => {
+    /* CSS `ellipsis` 는 뒤를 자르는데 경로에서 구분되는 정보는 끝이다.
+     * `C:\Users\drmedia\Documents\Adobe\Photo…` 는 어느 폴더인지 말해주지 않는다. */
+    const long = [
+      "C:",
+      "Users",
+      "drmedia",
+      "Documents",
+      "Adobe",
+      "Photoshop",
+      "astro",
+      "exports",
+    ].join(SEP);
+    const short = shortenPath(long);
+
+    expect(short.startsWith("…")).toBe(true);
+    expect(short.endsWith("exports")).toBe(true);
+    expect(short.length).toBeLessThanOrEqual(34);
+  });
+
+  it("**구분자에서 끊는다** — 세그먼트 중간에서 자르지 않는다", () => {
+    // 중간에서 자르면 `ents(구분자)Adobe` 처럼 없는 폴더 이름으로 읽힌다.
+    const short = shortenPath(
+      "C:" + SEP + "Users" + SEP + "drmedia" + SEP + "Documents" + SEP + "Adobe" + SEP + "exports",
+      24,
+    );
+
+    expect(short[0]).toBe("…");
+    expect(short[1]).toBe(SEP);
+    expect(short.endsWith("exports")).toBe(true);
+    expect(short.length).toBeLessThanOrEqual(24);
+  });
+
+  it("POSIX 구분자도 받는다", () => {
+    const short = shortenPath("/home/drmedia/pictures/astro/2026-09-22/exports", 24);
+
+    expect(short.startsWith("…/")).toBe(true);
+    expect(short.endsWith("exports")).toBe(true);
+  });
+
+  it("세그먼트 하나가 한도보다 길면 구분자 없이 자른다", () => {
+    // 구분자를 못 찾았다고 원본을 그대로 돌려주면 줄이는 의미가 없다.
+    const short = shortenPath(`C:${SEP}` + "a".repeat(60), 20);
+
+    expect(short.length).toBeLessThanOrEqual(20);
+    expect(short.startsWith("…")).toBe(true);
   });
 });

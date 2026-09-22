@@ -19,15 +19,15 @@
       },
       "minimumSize": {
         "width": 200,
-        "height": 80
+        "height": 110
       },
       "preferredDockedSize": {
-        "width": 260,
-        "height": 200
+        "width": 280,
+        "height": 220
       },
       "preferredFloatingSize": {
         "width": 320,
-        "height": 240
+        "height": 300
       }
     }
   ],

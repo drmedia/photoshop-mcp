@@ -3,6 +3,7 @@ import type { LayerInfo, ToolDefinition } from "@photoshop-mcp/photoshop-bridge"
 import {
   MASK_CREATE,
   MASK_DISABLE,
+  MASK_APPLY,
   MASK_ENABLE,
   MaskCreateParamsSchema,
   MaskToggleParamsSchema,
@@ -31,6 +32,27 @@ export function createMaskCreateTool(
     handler: async (input, context) =>
       engine.execute<LayerInfo>(
         { type: MASK_CREATE, params: input },
+        { requestId: context.requestId },
+      ),
+  };
+}
+
+export function createMaskApplyTool(
+  engine: CommandEngine,
+): ToolDefinition<MaskToggleParams, LayerInfo> {
+  return {
+    name: "photoshop.mask.apply",
+    description:
+      "레이어 마스크를 픽셀에 굽고 없앤다. layerId 를 생략하면 활성 레이어. " +
+      "**가려 둔 것이 실제로 사라진다** — 마스크는 픽셀을 가릴 뿐이라 끄거나 " +
+      "지우면 다시 드러난다. 가려진 곳이 투명해지고 마스크 없는 픽셀 레이어가 " +
+      "된다. 마스크가 없는 레이어에는 쓸 수 없다 — layer.list 의 hasMask 로 " +
+      "먼저 확인한다. History 로 되돌릴 수 있다.",
+    permission: "destructive",
+    inputSchema: MaskToggleParamsSchema,
+    handler: async (input, context) =>
+      engine.execute<LayerInfo>(
+        { type: MASK_APPLY, params: input },
         { requestId: context.requestId },
       ),
   };

@@ -12,6 +12,7 @@ import { z } from "zod";
  */
 
 export const MASK_CREATE = "MASK_CREATE";
+export const MASK_APPLY = "MASK_APPLY";
 export const MASK_ENABLE = "MASK_ENABLE";
 export const MASK_DISABLE = "MASK_DISABLE";
 export const SELECTION_CLEAR = "SELECTION_CLEAR";
@@ -81,6 +82,7 @@ function forwardSelection<TParams>(): CommandHandler<TParams, SelectionResult> {
 }
 
 export const maskCreateCommand = forwardLayer<MaskCreateParams>();
+export const maskApplyCommand = forwardLayer<MaskToggleParams>();
 export const maskEnableCommand = forwardLayer<MaskToggleParams>();
 export const maskDisableCommand = forwardLayer<MaskToggleParams>();
 export const selectionClearCommand = forwardSelection<SelectionParams>();

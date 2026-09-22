@@ -149,6 +149,54 @@ async function setMaskEnabled(
   });
 }
 
+/**
+ * 마스크를 픽셀에 굽고 없앤다.
+ *
+ * **가려 둔 것은 사라지지 않는다.** 마스크는 픽셀을 가릴 뿐이라, 끄거나
+ * 지우면 다시 드러난다. `gx.run_gradient` 의 하늘 경로는 지상부에 **우리가
+ * 만든 가짜 평면**을 담고 있어 그대로 두면 안 된다.
+ *
+ * 적용하면 가려진 곳이 실제로 투명해지고 레이어는 마스크 없는 픽셀 레이어가
+ * 된다. History 로 되돌릴 수 있으므로 `edit` 이다.
+ */
+export async function maskApply(params: { layerId?: number }): Promise<LayerInfo> {
+  return runModal("Apply mask", async () => {
+    const document = requireActiveDocument();
+    const targetId = activate(document, params.layerId);
+    const before = flattenLayers(document.layers).map((entry) => entry.id);
+
+    try {
+      await play("Apply mask", [
+        {
+          _obj: "delete",
+          _target: [{ _ref: "channel", _enum: "channel", _value: "mask" }],
+          // `apply: false` 면 마스크를 그냥 버린다. 가려 둔 것이 되살아난다.
+          apply: true,
+        },
+      ]);
+    } catch (error) {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        `마스크를 적용하지 못했습니다. 이 레이어에 마스크가 없을 수 있습니다 — ` +
+          `layer.list 의 hasMask 로 확인하세요. (Photoshop: ${String(
+            (error as { message?: unknown })?.message ?? error,
+          )})`,
+        { recoverable: true, details: { layerId: targetId } },
+      );
+    }
+
+    const resolved = resolveMutatedLayer(before, flattenLayers(document.layers), targetId);
+    if (resolved === null) {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        "마스크는 적용되었지만 결과 레이어를 확인하지 못했습니다. layer.list 로 확인하세요.",
+        { recoverable: true, details: { layerId: targetId } },
+      );
+    }
+    return (await withMaskStateAsync([resolved]))[0] as LayerInfo;
+  });
+}
+
 export async function maskEnable(params: { layerId?: number }): Promise<LayerInfo> {
   return setMaskEnabled("Enable mask", params.layerId, true);
 }

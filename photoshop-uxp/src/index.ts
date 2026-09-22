@@ -29,6 +29,7 @@ import {
 import {
   maskCreate,
   maskDisable,
+  maskApply,
   maskEnable,
   selectionClear,
   selectionInvert,
@@ -243,6 +244,9 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("MASK_CREATE", async (p) =>
     maskCreate(p as Parameters<typeof maskCreate>[0]),
   );
+  /* 마스크를 픽셀에 굽는다. 가려 둔 것이 되살아나면 안 되는 경우가 있다 —
+   * GraXpert 하늘 경로는 지상부에 우리가 만든 가짜 평면을 담고 있다. */
+  dispatcher.register("MASK_APPLY", async (p) => maskApply(p as { layerId?: number }));
   dispatcher.register("MASK_ENABLE", async (p) => maskEnable(p as { layerId?: number }));
   dispatcher.register("MASK_DISABLE", async (p) => maskDisable(p as { layerId?: number }));
   dispatcher.register("SELECTION_CLEAR", async () => selectionClear());

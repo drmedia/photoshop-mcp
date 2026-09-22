@@ -250,6 +250,7 @@ describe("Core Tool 분류", () => {
       "DOCUMENT_FLATTEN",
       "DOCUMENT_CLOSE",
       "ACTION_PLAY",
+      "MASK_APPLY",
       "DOCUMENT_SAVE",
       "WORKSPACE_DELETE",
     ]);
@@ -289,6 +290,9 @@ describe("Core Tool 분류", () => {
           /* 선택 영역을 파일로 내보낸다. 파일을 만드는 규칙이 `DOCUMENT_EXPORT`
            * 와 같아 같은 등급이다 — 승인된 폴더 안, 덮어쓰지 않는다. */
           type === "SELECTION_EXPORT_MASK" ||
+          /* 마스크를 픽셀에 굽는다. 마스크는 끄면 되살아나지만 구우면
+           * 가려진 픽셀이 없어진다 — CORE_API §9 가 처음부터 이렇게 분류했다. */
+          type === "MASK_APPLY" ||
           type === "ACTION_PLAY",
       ),
     ).toBe(true);

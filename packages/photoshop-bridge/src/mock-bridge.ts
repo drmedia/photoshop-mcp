@@ -344,6 +344,23 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       case "MASK_ENABLE":
         this.#snapshot("Enable mask");
         return this.#setMask(command.params as { layerId?: number }, true) as TResult;
+      /* 마스크를 픽셀에 굽는다. **마스크가 사라지는 것**이 요점이라 Mock 도
+       * `hasMask` 를 내린다 — 그러지 않으면 "적용했는데 마스크가 남아 있다" 는
+       * 잘못된 상태가 테스트에서 정상으로 보인다. */
+      case "MASK_APPLY": {
+        this.#snapshot("Apply mask");
+        /* 있는 마스크만 구울 수 있다. `#setMask` 가 없을 때의 거절을 이미
+         * 갖고 있으므로 그것으로 먼저 거른다. */
+        this.#setMask(command.params as { layerId?: number }, true);
+        const at = this.#requireLayerIndex((command.params as { layerId?: number }).layerId);
+        const layer = this.#layers[at] as LayerInfo;
+        /* **마스크가 사라지는 것**이 요점이라 Mock 도 `hasMask` 를 내린다 —
+         * 그러지 않으면 "구웠는데 마스크가 남아 있다" 는 있을 수 없는 상태가
+         * 테스트에서 정상으로 보인다. */
+        const baked: LayerInfo = { ...layer, hasMask: false, maskEnabled: false };
+        this.#layers[at] = baked;
+        return { ...baked } as TResult;
+      }
       case "MASK_DISABLE":
         this.#snapshot("Disable mask");
         return this.#setMask(command.params as { layerId?: number }, false) as TResult;

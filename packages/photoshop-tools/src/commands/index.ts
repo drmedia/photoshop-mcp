@@ -29,6 +29,7 @@ import {
 import {
   MASK_CREATE,
   MASK_DISABLE,
+  MASK_APPLY,
   MASK_ENABLE,
   MaskCreateParamsSchema,
   MaskToggleParamsSchema,
@@ -37,6 +38,7 @@ import {
   SelectionParamsSchema,
   maskCreateCommand,
   maskDisableCommand,
+  maskApplyCommand,
   maskEnableCommand,
   selectionClearCommand,
   selectionInvertCommand,
@@ -517,6 +519,13 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   });
   registry.register(MASK_DISABLE, maskDisableCommand, {
     permission: edit,
+    schema: MaskToggleParamsSchema,
+  });
+  /* **`destructive` 다.** CORE_API §9 가 처음부터 그렇게 못 박아 두었다.
+   * 마스크는 가리기만 하므로 끄면 되살아나지만, 구우면 가려진 픽셀이
+   * 실제로 없어진다 — `document.flatten` 과 같은 종류의 손실이다. */
+  registry.register(MASK_APPLY, maskApplyCommand, {
+    permission: "destructive",
     schema: MaskToggleParamsSchema,
   });
 

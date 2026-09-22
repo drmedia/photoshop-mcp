@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (78개)
+## 4. 구현된 Core API (79개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -311,6 +311,7 @@ Photoshop UI 는 그룹 끝에서 한 번 더 누르면 밖으로 나간다. 그
 | `photoshop.mask.dab` | EDIT | 마스크에 얼룩을 **더한다**. 조정 레이어에도 쓴다 |
 | `photoshop.mask.disable` | EDIT | 마스크를 지우지 않고 해제만 한다 |
 | `photoshop.mask.gradient` | EDIT | 마스크에 그라디언트. **linear · radial**. 마스크가 있어야 한다 |
+| `photoshop.mask.apply` | DESTRUCTIVE | 마스크를 픽셀에 굽고 없앤다. **가려 둔 것이 사라진다** |
 | `photoshop.selection.set` | EDIT | `shape`: rectangle · ellipse · **canvas** · layerTransparency |
 | `photoshop.selection.sky` | EDIT | Photoshop 의 `선택 > 하늘` |
 | `photoshop.selection.subject` | EDIT | Photoshop 의 `선택 > 피사체`. **형태**로 잡는다 |
@@ -457,7 +458,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 | `photoshop.mask.select` | P1 | EDIT | 마스크를 편집 대상으로 |
 | `photoshop.mask.link` | P2 | EDIT | |
 | `photoshop.mask.unlink` | P2 | EDIT | |
-| `photoshop.mask.apply` | P2 | DESTRUCTIVE | 픽셀에 굽는다 |
 | `photoshop.mask.delete` | P2 | DESTRUCTIVE | |
 
 ### 5.4 Selection
@@ -732,8 +732,9 @@ workspace.delete
 elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화형 승인은 MCP 클라이언트의
 역할이다.
 
-지금 구현된 DESTRUCTIVE 는 `document.save` · `workspace.delete` · `layer.delete` 셋이다. 나머지는
-분류 체계만 서 있고 구현이 없다. 분류가 있다고 있는 척하지 않는다.
+위 목록 중 구현된 것은 `document.save` · `document.close` · `document.flatten` · `layer.delete` ·
+`mask.apply` · `workspace.delete` 다. 나머지는 분류 체계만 서 있고 구현이 없다.
+분류가 있다고 있는 척하지 않는다.
 
 ---
 
@@ -741,7 +742,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **41** |
+| 구현됨 | **79** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

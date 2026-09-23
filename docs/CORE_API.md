@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (79개)
+## 4. 구현된 Core API (81개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -318,7 +318,8 @@ Photoshop UI 는 그룹 끝에서 한 번 더 누르면 밖으로 나간다. 그
 | `photoshop.selection.clear` | EDIT | |
 | `photoshop.selection.invert` | EDIT | 선택이 없으면 실패한다 |
 | `photoshop.selection.modify` | EDIT | feather · expand · contract · smooth |
-| `photoshop.selection.color_range` | EDIT | 광도 구간 선택 (광도 마스크) |
+| `photoshop.selection.color_range` | EDIT | 광도 **구간** 선택. 임계 기반이라 거의 이진이다 |
+| `photoshop.selection.luminosity` | EDIT | 합성 휘도를 선택으로. **이것이 광도 마스크다.** `invert` 로 Darks |
 | `photoshop.selection.save_channel` | EDIT | 선택을 알파 채널로 저장 |
 | `photoshop.selection.load_channel` | EDIT | 채널에서 불러오기. `invert` 로 반전 |
 
@@ -742,7 +743,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **79** |
+| 구현됨 | **81** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

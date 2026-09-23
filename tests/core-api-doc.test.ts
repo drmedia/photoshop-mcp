@@ -64,6 +64,19 @@ describe("docs/CORE_API.md", () => {
     expect([...documented.keys()].sort()).toEqual([...actual.keys()].sort());
   });
 
+  it("**절 제목의 개수가 표의 행 수와 같다**", async () => {
+    /* 이 검사가 없는 동안 헤더가 두 번 어긋났다. 표에 한 줄을 더하면서
+     * 헤더는 원래 값에 1 을 더했는데, 그 원래 값이 이미 하나 틀려 있었다.
+     * 실기에서 `photoshop.diagnostics` 의 `registry.tools` 와 안 맞아 들켰다.
+     *
+     * 이름·Permission 은 아래 검사가 잡지만 **개수는 아무도 안 봤다.** */
+    const text = await readFile(DOC, "utf8");
+    const documented = parse(section(text, IMPLEMENTED_HEADING, CANDIDATE_HEADING));
+    const heading = /## 4\. 구현된 Core API \((\d+)개\)/u.exec(text);
+    expect(heading, "§4 제목에서 개수를 읽지 못했습니다").not.toBeNull();
+    expect(Number((heading as RegExpExecArray)[1])).toBe(documented.size);
+  });
+
   it("구현 목록의 Permission 이 실제 선언과 같다", async () => {
     const text = await readFile(DOC, "utf8");
     const documented = parse(section(text, IMPLEMENTED_HEADING, CANDIDATE_HEADING));

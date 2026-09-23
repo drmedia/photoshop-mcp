@@ -88,6 +88,7 @@ export const SELECTION_SAVE_CHANNEL = "SELECTION_SAVE_CHANNEL";
 export const SELECTION_LOAD_CHANNEL = "SELECTION_LOAD_CHANNEL";
 export const SELECTION_MODIFY = "SELECTION_MODIFY";
 export const SELECTION_COLOR_RANGE = "SELECTION_COLOR_RANGE";
+export const SELECTION_LUMINOSITY = "SELECTION_LUMINOSITY";
 export const LAYER_STAMP_VISIBLE = "LAYER_STAMP_VISIBLE";
 
 /** 알파 채널 이름. 경로 구분자를 막을 이유는 없지만 길이는 제한한다. */
@@ -99,8 +100,41 @@ export const LoadChannelParams = z
     name: ChannelName,
     /** 불러오면서 반전한다. 하늘 채널 하나로 전경까지 얻을 수 있다. */
     invert: z.boolean().optional(),
+    /**
+     * 기존 선택과 어떻게 합칠지. 생략하면 덮어쓴다(`new`).
+     *
+     * `intersect` 는 **더 좁은 마스크**를 만든다. 광도 마스크 관례의
+     * `Darks 2` 가 이것이다 — 반전한 휘도를 채널에 저장해 두고 자기 자신과
+     * 교차한다. 교집합할 선택이 없으면 실패한다.
+     */
+    mode: z.enum(["new", "intersect"]).optional(),
   })
   .strict();
+
+/**
+ * 합성 휘도를 선택으로 가져온다.
+ *
+ * `invert` 는 어두운 쪽을 고른다 — 광도 마스크의 Darks 다. 채널을 둘 만들지
+ * 않아도 되는 것은 `load_channel` 과 같다.
+ */
+export const SelectionLuminosityParams = z
+  .object({
+    invert: z.boolean().optional(),
+    /**
+     * 기존 선택과 어떻게 합칠지. 생략하면 덮어쓴다(`new`).
+     *
+     * `intersect` 는 **더 좁은 광도 마스크**를 만든다 — 휘도를 자기 자신과
+     * 교차하면 가장 밝은 쪽만 남는다. 광도 마스크 관례의 `Lights 2` 가 이것이다.
+     * 교집합할 선택이 없으면 실패한다.
+     */
+    mode: z.enum(["new", "intersect"]).optional(),
+  })
+  .strict();
+
+export const selectionLuminosityCommand = forwardAny<
+  z.infer<typeof SelectionLuminosityParams>,
+  SelectionState
+>();
 
 export const SelectionModifyParams = z
   .object({

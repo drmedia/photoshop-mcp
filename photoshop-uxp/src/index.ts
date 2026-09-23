@@ -73,6 +73,7 @@ import {
   layerStampVisible,
   selectionColorRange,
   selectionLoadChannel,
+  selectionLuminosity,
   selectionModify,
   selectionSaveChannel,
 } from "./dom/selection-ops.js";
@@ -174,7 +175,11 @@ export function createDispatcher(): CommandDispatcher {
     selectionSaveChannel(p as { name: string }),
   );
   dispatcher.register("SELECTION_LOAD_CHANNEL", async (p) =>
-    selectionLoadChannel(p as { name: string; invert?: boolean }),
+    selectionLoadChannel(p as { name: string; invert?: boolean; mode?: "new" | "intersect" }),
+  );
+  /* 합성 휘도를 선택으로. color_range 와 달리 연속 계조라 구조를 따라간다. */
+  dispatcher.register("SELECTION_LUMINOSITY", async (p) =>
+    selectionLuminosity(p as { invert?: boolean }),
   );
   dispatcher.register("SELECTION_MODIFY", async (p) =>
     selectionModify(p as Parameters<typeof selectionModify>[0]),

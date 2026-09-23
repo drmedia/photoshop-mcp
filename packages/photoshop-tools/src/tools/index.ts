@@ -70,6 +70,7 @@ import { createSelectionSkyTool, createSelectionSubjectTool } from "./selection-
 import {
   createColorBalanceTool,
   createColorRangeTool,
+  createLuminosityTool,
   createHighPassTool,
   createLayerFromBackgroundTool,
   createLoadChannelTool,
@@ -168,6 +169,7 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createLoadChannelTool(engine));
   registry.register(createSelectionModifyTool(engine));
   registry.register(createColorRangeTool(engine));
+  registry.register(createLuminosityTool(engine));
   registry.register(createStampVisibleTool(engine));
   registry.register(createMaskGradientTool(engine));
 

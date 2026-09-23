@@ -50,6 +50,7 @@ export const EXPECTED_TOOLS = [
   "photoshop.selection.load_channel",
   "photoshop.selection.modify",
   "photoshop.selection.color_range",
+  "photoshop.selection.luminosity",
   "photoshop.layer.stamp_visible",
   "photoshop.mask.gradient",
   // Phase 3 — 레이어 편집 (비파괴)
@@ -156,6 +157,7 @@ export const EXPECTED_COMMANDS = [
   "SELECTION_LOAD_CHANNEL",
   "SELECTION_MODIFY",
   "SELECTION_COLOR_RANGE",
+  "SELECTION_LUMINOSITY",
   "LAYER_STAMP_VISIBLE",
   "MASK_GRADIENT",
   "LAYER_CREATE",

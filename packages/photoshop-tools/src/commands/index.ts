@@ -185,11 +185,13 @@ import {
   LayerFromBackgroundParams,
   MinimumMaximumParams,
   ColorRangeParams,
+  SelectionLuminosityParams,
   LAYER_STAMP_VISIBLE,
   MASK_GRADIENT,
   MaskGradientParams,
   LoadChannelParams,
   SELECTION_COLOR_RANGE,
+  SELECTION_LUMINOSITY,
   SELECTION_LOAD_CHANNEL,
   SELECTION_MODIFY,
   SELECTION_SAVE_CHANNEL,
@@ -203,6 +205,7 @@ import {
   layerStampVisibleCommand,
   maskGradientCommand,
   selectionColorRangeCommand,
+  selectionLuminosityCommand,
   selectionLoadChannelCommand,
   selectionModifyCommand,
   selectionSaveChannelCommand,
@@ -438,6 +441,12 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(SELECTION_COLOR_RANGE, selectionColorRangeCommand, {
     permission: "edit",
     schema: ColorRangeParams,
+  });
+
+  /* 합성 휘도를 선택으로. descriptor 는 짐작이 아니라 실기에서 잡았다(§17.17). */
+  registry.register(SELECTION_LUMINOSITY, selectionLuminosityCommand, {
+    permission: "edit",
+    schema: SelectionLuminosityParams,
   });
   registry.register(LAYER_STAMP_VISIBLE, layerStampVisibleCommand, {
     permission: "edit",

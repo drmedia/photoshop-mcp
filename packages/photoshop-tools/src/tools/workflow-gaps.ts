@@ -5,11 +5,13 @@ import type { SelectionState } from "../commands/state-read.js";
 import {
   ADJUSTMENT_COLOR_BALANCE,
   ColorRangeParams,
+  SelectionLuminosityParams,
   MASK_GRADIENT,
   MaskGradientParams,
   LAYER_STAMP_VISIBLE,
   LoadChannelParams,
   SELECTION_COLOR_RANGE,
+  SELECTION_LUMINOSITY,
   SELECTION_LOAD_CHANNEL,
   SELECTION_MODIFY,
   SELECTION_SAVE_CHANNEL,
@@ -148,7 +150,12 @@ export function createLoadChannelTool(
     "photoshop.selection.load_channel",
     SELECTION_LOAD_CHANNEL,
     "저장해 둔 알파 채널에서 선택 영역을 불러온다. invert: true 를 주면 불러오면서 " +
-      "반전하므로 하늘 채널 하나로 전경 선택까지 얻을 수 있다 — 채널을 둘 만들지 않아도 된다.",
+      "반전하므로 하늘 채널 하나로 전경 선택까지 얻을 수 있다 — 채널을 둘 만들지 않아도 된다. " +
+      "mode: 'intersect' 는 **기존 선택과 교차해 더 좁은 마스크**를 만든다. 광도 마스크 " +
+      "관례의 Darks 2 가 이것이다 — selection.luminosity{invert} 로 어두운 쪽을 골라 " +
+      "채널에 저장해 두고, 그 채널을 자기 자신과 교차한다. " +
+      "밝은 쪽(Lights 2)은 selection.luminosity 의 mode 로 바로 된다. " +
+      "교집합할 선택이 없으면 실패한다.",
     LoadChannelParams,
   );
 }
@@ -168,6 +175,28 @@ export function createSelectionModifyTool(
   );
 }
 
+export function createLuminosityTool(
+  engine: CommandEngine,
+): ToolDefinition<z.infer<typeof SelectionLuminosityParams>, SelectionState> {
+  return selectionTool(
+    engine,
+    "photoshop.selection.luminosity",
+    SELECTION_LUMINOSITY,
+    "합성 휘도를 선택으로 가져온다 — 이것이 광도 마스크다. 채널 패널에서 RGB 를 " +
+      "Ctrl+클릭하는 그것과 같다. **픽셀의 밝기가 그대로 선택 강도가 된다.** " +
+      "연속 계조라 성운·먼지대처럼 계조가 이어지는 구조를 그대로 따라간다. " +
+      "invert: true 면 어두운 쪽을 고른다 — 광도 마스크의 Darks 이고, 채널을 둘 " +
+      "만들지 않아도 된다. **selection.color_range 와 혼동하지 않는다** — 그쪽은 " +
+      "임계 기반 구간 선택이라 결과가 거의 이진이고 구조를 못 따라간다. " +
+      "만든 선택은 mask.create 의 fromSelection 이나 조정 레이어의 자동 마스크로 " +
+      "이어 쓴다. 완전히 검은 영역은 선택되지 않으므로 bounds 가 캔버스보다 작을 수 있다. " +
+      "mode: 'intersect' 는 **기존 선택과 교차해 더 좁은 마스크**를 만든다 — 휘도를 " +
+      "자기 자신과 교차하면 가장 밝은 쪽만 남고, 이것이 광도 마스크 관례의 Lights 2 다. " +
+      "한 번 더 교차하면 Lights 3 이다. 교집합할 선택이 없으면 실패한다.",
+    SelectionLuminosityParams,
+  );
+}
+
 export function createColorRangeTool(
   engine: CommandEngine,
 ): ToolDefinition<z.infer<typeof ColorRangeParams>, SelectionState> {
@@ -176,11 +205,17 @@ export function createColorRangeTool(
     "photoshop.selection.color_range",
     SELECTION_COLOR_RANGE,
     "광도 구간으로 선택한다 — highlights(밝은 부분) · midtones · shadows. " +
-      "이것이 광도 마스크다. 밝은 부분만 골라 은하수 중심부를 살리거나 어두운 " +
-      "부분만 골라 노이즈를 다루는 데 쓴다. fuzziness(0–200, 기본 40)가 크면 더 " +
-      "넓게 잡힌다. 만든 선택은 mask.create 의 fromSelection 이나 조정 레이어의 " +
-      "자동 마스크로 이어 쓴다. **해당하는 픽셀이 없으면 hasSelection 이 false 다** — " +
-      "오류가 아니다. 어두운 야경에서 highlights 를 고르면 실제로 비어 있다.",
+      "밝은 부분만 골라 은하수 중심부를 살리거나 어두운 부분만 골라 노이즈를 " +
+      "다루는 데 쓴다. fuzziness(0–200, 기본 40)가 크면 더 넓게 잡힌다. 만든 선택은 " +
+      "mask.create 의 fromSelection 이나 조정 레이어의 자동 마스크로 이어 쓴다. " +
+      "**이것은 광도 마스크가 아니다.** 임계 기반 구간 선택이라 결과가 거의 이진에 " +
+      "가깝다 — 실기에서 highlights 마스크가 거의 새까맣고 shadows 마스크가 거의 " +
+      "새하얗게 나왔다. 이미지 휘도를 그대로 쓰는 연속 계조 마스크(채널 패널에서 " +
+      "RGB 를 Ctrl+클릭하는 그것)와는 다른 물건이고, 성운처럼 계조가 이어지는 " +
+      "구조를 따라가지 못한다. **해당하는 픽셀이 없으면 hasSelection 이 false 다** — " +
+      "오류가 아니다. 어두운 야경에서 highlights 를 고르면 실제로 비어 있고, " +
+      "반대로 화면의 30%가 순수한 검정인 사진에서 shadows 를 fuzziness 40 으로 " +
+      "골랐더니 빈 선택이 나왔다. 비면 fuzziness 를 올려 다시 본다.",
     ColorRangeParams,
   );
 }
@@ -194,7 +229,9 @@ export function createStampVisibleTool(
     LAYER_STAMP_VISIBLE,
     "보이는 레이어를 모두 합친 **복제본**을 새 레이어로 만든다. 원본 레이어들은 " +
       "그대로 남는다. 샤프닝처럼 '지금까지의 결과 전체'를 대상으로 삼아야 하는 " +
-      "단계에서 쓴다. 숨긴 레이어는 포함되지 않으며, **보이는 레이어가 2장 이상**이어야 한다.",
+      "단계에서 쓴다. 숨긴 레이어는 포함되지 않으며, **보이는 레이어가 2장 이상**이어야 한다. " +
+      "**활성 레이어가 숨겨져 있으면 실패한다** — Photoshop 이 '명령은 현재 사용할 수 " +
+      "없습니다' 라고만 답해 이유를 알 수 없다. 보이는 레이어를 먼저 layer.select 한다.",
     StampVisibleParams,
   );
 }

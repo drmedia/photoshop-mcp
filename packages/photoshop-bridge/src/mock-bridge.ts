@@ -447,7 +447,16 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         return { name } as TResult;
       }
       case "SELECTION_LOAD_CHANNEL": {
-        const { name } = command.params as { name: string };
+        const { name, mode } = command.params as { name: string; mode?: string };
+        /* 교집합은 기존 선택을 요구한다. Mock 이 안 막으면 그 거절 경로가
+         * 테스트에 영원히 안 나온다. */
+        if (mode === "intersect" && !this.#hasSelection) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "교집합을 낼 선택 영역이 없습니다. mode 를 빼거나 선택을 먼저 만드세요.",
+            { recoverable: true },
+          );
+        }
         if (!this.#channels.has(name)) {
           throw new PhotoshopMcpError(
             ErrorCode.COMMAND_FAILED,
@@ -471,6 +480,24 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         this.#snapshot("Color range");
         this.#hasSelection = this.#document !== null;
         return this.#selectionState() as TResult;
+      /* 픽셀을 모르므로 "선택이 생겼다" 까지만 흉내낸다. 휘도 마스크의 값은
+       * 실기에서만 확인할 수 있다 — Mock 이 그럴듯한 계조를 지어내면 그것을
+       * 근거로 판단한 워크플로가 실기에서 다르게 돈다. */
+      case "SELECTION_LUMINOSITY": {
+        this.#snapshot("Load luminosity");
+        /* **교집합은 기존 선택을 요구한다.** Mock 이 이것을 안 막으면 그 거절
+         * 경로가 테스트에 영원히 안 나온다. */
+        const mode = (command.params as { mode?: string }).mode;
+        if (mode === "intersect" && !this.#hasSelection) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "교집합을 낼 선택 영역이 없습니다. mode 를 빼거나 선택을 먼저 만드세요.",
+            { recoverable: true },
+          );
+        }
+        this.#hasSelection = this.#document !== null;
+        return this.#selectionState() as TResult;
+      }
       case "LAYER_STAMP_VISIBLE": {
         this.#snapshot("Stamp visible");
         const name = (command.params as { name?: string }).name;
@@ -924,7 +951,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       }
       case "DOCUMENT_STATISTICS": {
         const document = this.#requireDocument();
-        const params = command.params as { region?: string; layerId?: number };
+        const params = command.params as { region?: string; layerId?: number; target?: string };
         let source = "document";
         let pixels = document.width * document.height;
 
@@ -937,15 +964,29 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
               { recoverable: true },
             );
           }
-          if (layer.type === "adjustment" || layer.type === "group") {
-            throw new PhotoshopMcpError(
-              ErrorCode.INVALID_PARAMETER,
-              `${layer.type === "group" ? "그룹" : "조정 레이어"}에는 잴 픽셀이 없습니다. ` +
-                "layerId 를 빼면 조정이 반영된 합성 결과를 잽니다.",
-              { recoverable: true },
-            );
+          /* **마스크를 잴 때는 조정 레이어를 막지 않는다.** 픽셀이 없어 막아
+           * 둔 것인데 마스크는 있다. Mock 이 실기와 다르면 그 경로가 테스트에
+           * 영원히 안 나온다. */
+          if (params.target === "mask") {
+            if (layer.hasMask !== true) {
+              throw new PhotoshopMcpError(
+                ErrorCode.INVALID_PARAMETER,
+                `레이어 ${layer.id} 에 마스크가 없습니다.`,
+                { recoverable: true },
+              );
+            }
+            source = `mask:${layer.id}`;
+          } else {
+            if (layer.type === "adjustment" || layer.type === "group") {
+              throw new PhotoshopMcpError(
+                ErrorCode.INVALID_PARAMETER,
+                `${layer.type === "group" ? "그룹" : "조정 레이어"}에는 잴 픽셀이 없습니다. ` +
+                  "layerId 를 빼면 조정이 반영된 합성 결과를 잽니다.",
+                { recoverable: true },
+              );
+            }
+            source = `layer:${layer.id}`;
           }
-          source = `layer:${layer.id}`;
         }
 
         if (params.region === "selection") {

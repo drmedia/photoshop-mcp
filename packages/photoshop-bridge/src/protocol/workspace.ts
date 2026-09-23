@@ -109,6 +109,15 @@ export const SaveResultSchema = z.object({
    * 8비트로 떨어지지 않았는지 확인할 수 있어야 한다.
    */
   bitDepth: z.number().int().nullable().optional(),
+  /**
+   * 내보내면서 지운 알파 채널 수. 하나도 없었으면 담기지 않는다.
+   *
+   * **평탄화는 알파 채널을 지우지 않는다.** 실기에서 문서에 알파가 여섯 개
+   * 쌓인 채로 내보냈더니 TIFF 가 9채널이 되어 StarXTerminator 가 거절했다 —
+   * `only grayscale or RGB images are supported`. 지웠다는 사실이 보여야
+   * 외부 처리기가 거절할 때까지 모르는 일이 없다.
+   */
+  alphaRemoved: z.number().int().nonnegative().optional(),
 });
 
 export type SaveResult = z.infer<typeof SaveResultSchema>;

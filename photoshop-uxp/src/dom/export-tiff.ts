@@ -109,6 +109,7 @@ export async function exportTiff(
 
     try {
       await work.flatten();
+      const alphaRemoved = await removeAlphaChannels(work);
 
       if (params.bitDepth !== undefined) {
         // UXP 는 문자열 상수를 쓴다. 숫자를 그대로 대입하면 조용히 무시된다.
@@ -131,7 +132,16 @@ export async function exportTiff(
         });
       }
 
-      return { path, filename: params.filename, format: "tiff", bitDepth };
+      /* **지운 알파 채널 수를 담는다.** 0 이어야 정상이 아니라, 문서에 알파가
+       * 있었으면 지워졌다는 사실이 보여야 한다 — 안 지워졌는데 성공으로
+       * 보고하면 외부 처리기가 거절할 때까지 모른다. */
+      return {
+        path,
+        filename: params.filename,
+        format: "tiff",
+        bitDepth,
+        ...(alphaRemoved === 0 ? {} : { alphaRemoved }),
+      };
     } finally {
       // 복제본은 반드시 저장하지 않고 닫는다. 남기면 사용자 문서 목록이 더러워지고
       // 다음 Command 의 activeDocument 가 복제본이 된다.
@@ -142,4 +152,44 @@ export async function exportTiff(
       }
     }
   });
+}
+
+/**
+ * 알파 채널을 지운다.
+ *
+ * **평탄화는 알파 채널을 지우지 않는다.** 실기에서 문서에 알파 채널이 여섯 개
+ * 쌓인 상태로 내보냈더니 TIFF 가 9채널이 되었고 StarXTerminator 가 거절했다.
+ *
+ * ```text
+ * unsupported number of channels (9); only grayscale or RGB images are supported
+ * ```
+ *
+ * 하늘 마스크가 4채널로 나왔던 것과 같은 유형인데, 그때는 **읽는 쪽만** 고쳤다.
+ * 내보내는 쪽이 남아 있었다.
+ *
+ * 채널 배열은 구성 채널이 앞, 알파가 뒤다. RGB 는 앞의 셋이므로 그 뒤를 지운다.
+ * **이름으로 고르지 않는다** — 구성 채널 이름이 언어에 따라 다르다.
+ *
+ * 복제본에서만 하므로 원본 문서의 채널은 그대로다.
+ */
+async function removeAlphaChannels(work: PhotoshopDocument): Promise<number> {
+  const channels = (work as unknown as { channels?: unknown }).channels;
+  if (!Array.isArray(channels) || channels.length <= 3) {
+    return 0;
+  }
+  let removed = 0;
+  // 뒤에서부터 지운다. 앞에서 지우면 인덱스가 밀린다.
+  for (let i = channels.length - 1; i >= 3; i -= 1) {
+    const channel = channels[i] as { remove?: () => void } | undefined;
+    if (channel === undefined || typeof channel.remove !== "function") {
+      continue;
+    }
+    try {
+      channel.remove();
+      removed += 1;
+    } catch {
+      // 지우지 못해도 내보내기는 계속한다. 결과의 개수로 드러난다.
+    }
+  }
+  return removed;
 }

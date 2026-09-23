@@ -20,37 +20,60 @@ import { fileSystem, requireWorkspace } from "./workspace.js";
  */
 
 /**
- * 선택 영역을 잠시 치운다. 돌려주는 함수를 부르면 되돌아온다.
+ * 배치하는 동안 선택을 **캔버스 전체**로 둔다. 돌려주는 함수가 되돌린다.
  *
- * **`place` 는 활성 선택 영역의 중심에 놓는다.** 실기에서 하늘을 선택한 채로
- * 가져왔더니 결과가 770px 위로 밀렸다 — 선택의 중심이 캔버스 중심보다 위였다.
- * 캔버스와 같은 크기인데도 아래가 비어 배경이 드러났다.
+ * ## 두 번 밀렸다
  *
- * 파일을 가져오는 일이 선택에 좌우되면 호출자가 결과를 예측할 수 없다.
- * 그래서 치웠다가 되돌린다 — GraXpert 패널도 같은 방식이다.
+ * **① 선택의 중심에 놓는다.** 하늘을 선택한 채로 가져왔더니 770px 위로
+ * 밀렸다 — 선택의 중심이 캔버스 중심보다 위였다. 그때는 선택을 **비우는**
+ * 것으로 고쳤다.
  *
- * 선택이 없으면 아무것도 하지 않는다.
+ * **② 선택이 없으면 활성 레이어의 경계를 쓴다.** 그것이 남아 있었다. 맨 위
+ * 레이어가 마스크 달린 조정 레이어 그룹이면 그 경계가 캔버스보다 작다 —
+ * 실기에서 광도 마스크 경계가 `0,0,4032,5772` 라 세로 중심이 2886 이었고
+ * 캔버스 중심 3024 과의 차이 **138px 만큼 그대로 밀렸다.**
+ *
+ * 그래서 비우지 않고 **캔버스 전체로 채운다.** 선택이 있으면 그것이
+ * 기준이므로, 캔버스와 같은 선택을 주면 활성 레이어가 무엇이든 결과가 같다.
+ * 비우는 것보다 이쪽이 근거가 하나라 예측 가능하다.
+ *
+ * 원래 선택이 있었으면 채널에 넣어 두었다가 되돌린다.
  */
-async function withoutSelection(): Promise<() => Promise<void>> {
-  if (!hasSelection()) {
-    return async (): Promise<void> => undefined;
-  }
-
-  const channel = `__mcp_place_${String(Date.now())}`;
+async function withCanvasSelection(): Promise<() => Promise<void>> {
   const play = async (descriptor: Record<string, unknown>): Promise<void> => {
     await action.batchPlay([descriptor], {});
   };
+  const selectAll = async (): Promise<void> => {
+    await play({
+      _obj: "set",
+      _target: [{ _ref: "channel", _property: "selection" }],
+      to: { _enum: "ordinal", _value: "allEnum" },
+    });
+  };
+
+  if (!hasSelection()) {
+    await selectAll();
+    return async (): Promise<void> => {
+      try {
+        await play({
+          _obj: "set",
+          _target: [{ _ref: "channel", _property: "selection" }],
+          to: { _enum: "ordinal", _value: "none" },
+        });
+      } catch {
+        // 되돌리기 실패는 삼킨다. 아래 주석 참조.
+      }
+    };
+  }
+
+  const channel = `__mcp_place_${String(Date.now())}`;
 
   await play({
     _obj: "duplicate",
     _target: [{ _ref: "channel", _property: "selection" }],
     name: channel,
   });
-  await play({
-    _obj: "set",
-    _target: [{ _ref: "channel", _property: "selection" }],
-    to: { _enum: "ordinal", _value: "none" },
-  });
+  await selectAll();
 
   return async (): Promise<void> => {
     /* **되돌리기가 실패해도 던지지 않는다.** 가져오기는 이미 끝났고, 여기서
@@ -130,8 +153,8 @@ export async function layerPlace(params: {
       entry as Parameters<ReturnType<typeof fileSystem>["createSessionToken"]>[0],
     );
 
-    // 선택이 배치 위치를 바꾼다. 위 `withoutSelection` 참조.
-    const restoreSelection = await withoutSelection();
+    // 배치 위치가 선택과 활성 레이어에 딸려간다. 위 함수 참조.
+    const restoreSelection = await withCanvasSelection();
     let results;
     try {
       results = await action.batchPlay(

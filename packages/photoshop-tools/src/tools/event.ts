@@ -38,8 +38,12 @@ export function createEventRecentTool(
       "Command 수명(`command.started` · `command.completed` · `command.failed`)이 담긴다. " +
       "반환된 lastSeq 를 다음 호출의 after 로 넘기면 새로 생긴 것만 받는다. " +
       "해석하지 못한 Photoshop 알림은 photoshop.unknown 으로 원본과 함께 기록된다. " +
-      "**주의: Photoshop 27.8 에서는 photoshop.* 이벤트가 전달되지 않는다.** " +
-      "command.* 만 신뢰할 수 있다.",
+      '**Photoshop 알림은 동작한다** — 플러그인이 `["all"]` 로 등록한다. 한동안 이 ' +
+      "설명에 '27.8 에서는 전달되지 않는다' 고 적혀 있었는데 틀렸다. 이름 있는 " +
+      "이벤트로만 시험했을 때의 결론이었다. 이것으로 Camera Raw 와 autoCutout 의 " +
+      "descriptor 를 잡아냈다 — 막혀 있는 batchPlay 이름은 문서에서 가져오지 말고 " +
+      "이 방법으로 확인한다. 다만 **버퍼는 MCP 서버 프로세스에 있다**. 서버를 띄워 " +
+      "둔 채로 사람이 Photoshop 에서 해당 조작을 해야 잡힌다.",
     permission: "read",
     inputSchema: EventRecentInputSchema,
     handler: (input) => {

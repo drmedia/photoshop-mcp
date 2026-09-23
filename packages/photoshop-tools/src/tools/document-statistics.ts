@@ -24,7 +24,11 @@ export function createDocumentStatisticsTool(
       "정하는 근거다. **평탄한 영역에서 재야 한다** — 나뭇잎처럼 촘촘한 질감은 노이즈와 " +
       "구분되지 않으므로 region 을 selection 으로 좁혀 하늘 같은 곳을 지정한다. " +
       "region 을 selection 으로 주면 선택 영역만, layerId 를 주면 그 레이어만 잰다 " +
-      "(생략하면 보이는 그대로의 합성 결과). 문서를 바꾸지 않는다.",
+      "(생략하면 보이는 그대로의 합성 결과). " +
+      "**target: 'mask' 면 레이어 마스크를 잰다.** 광도 마스크가 의도한 구조를 " +
+      "담았는지 확인하는 길이고, 이때는 조정 레이어도 받는다 — 픽셀은 없어도 " +
+      "마스크는 있다. 마스크는 눈으로 구분되지 않는 경우가 많아 숫자가 필요하다. " +
+      "문서를 바꾸지 않는다.",
     permission: "read",
     inputSchema: DocumentStatisticsParamsSchema,
     handler: async (input, context) =>

@@ -123,6 +123,7 @@ function describe(
 export async function documentStatistics(params: {
   region?: "document" | "selection";
   layerId?: number;
+  target?: "layer" | "mask";
 }): Promise<unknown> {
   return runModal("Document statistics", async () => {
     const api = imaging;
@@ -147,23 +148,38 @@ export async function documentStatistics(params: {
           { recoverable: true, details: { layerId: params.layerId } },
         );
       }
-      // **조정 레이어와 그룹은 막는다.**
-      //
-      // 실기에서 조정 레이어를 재 보니 모든 채널 평균이 255 로 나왔다. 픽셀이
-      // 아니라 마스크 영역을 잰 것이다. 숫자 자체는 돌아오므로 호출자는 "이
-      // 레이어는 순백" 이라고 읽는다 — 아무 값도 안 주는 것보다 나쁘다.
-      const kind = toLayerType(layer.kind).type;
-      if (kind === "adjustment" || kind === "group") {
-        throw new DispatchError(
-          "INVALID_PARAMETER",
-          `${kind === "group" ? "그룹" : "조정 레이어"}에는 잴 픽셀이 없습니다. ` +
-            "layerId 를 빼면 조정이 반영된 합성 결과를 잽니다.",
-          { recoverable: true, details: { layerId: layer.id, type: kind } },
-        );
-      }
+      /* **마스크를 잴 때는 조정 레이어를 막지 않는다.** 조정 레이어는 자기
+       * 픽셀이 없어 막아 둔 것인데, 마스크는 있다. 광도 마스크가 의도한
+       * 구조를 담았는지 확인하는 유일한 길이다. */
+      if (params.target === "mask") {
+        if (typeof api.getLayerMask !== "function") {
+          throw new DispatchError(
+            "COMMAND_NOT_SUPPORTED",
+            "이 Photoshop 의 Imaging API 에 getLayerMask 가 없어 마스크를 읽을 수 없습니다.",
+            { recoverable: false },
+          );
+        }
+        request["layerID"] = layer.id;
+        source = `mask:${String(layer.id)}`;
+      } else {
+        // **조정 레이어와 그룹은 막는다.**
+        //
+        // 실기에서 조정 레이어를 재 보니 모든 채널 평균이 255 로 나왔다. 픽셀이
+        // 아니라 마스크 영역을 잰 것이다. 숫자 자체는 돌아오므로 호출자는 "이
+        // 레이어는 순백" 이라고 읽는다 — 아무 값도 안 주는 것보다 나쁘다.
+        const kind = toLayerType(layer.kind).type;
+        if (kind === "adjustment" || kind === "group") {
+          throw new DispatchError(
+            "INVALID_PARAMETER",
+            `${kind === "group" ? "그룹" : "조정 레이어"}에는 잴 픽셀이 없습니다. ` +
+              "layerId 를 빼면 조정이 반영된 합성 결과를 잽니다.",
+            { recoverable: true, details: { layerId: layer.id, type: kind } },
+          );
+        }
 
-      request["layerID"] = layer.id;
-      source = `layer:${layer.id}`;
+        request["layerID"] = layer.id;
+        source = `layer:${layer.id}`;
+      }
     }
 
     if (params.region === "selection") {
@@ -187,7 +203,10 @@ export async function documentStatistics(params: {
     // **targetSize 를 주지 않는다.** 축소하면 클리핑이 사라진다.
     let pixelData;
     try {
-      pixelData = await api.getPixels(request);
+      pixelData =
+        params.target === "mask"
+          ? await (api.getLayerMask as NonNullable<typeof api.getLayerMask>)(request)
+          : await api.getPixels(request);
     } catch (error) {
       throw new DispatchError(
         "COMMAND_FAILED",

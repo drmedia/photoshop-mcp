@@ -19,6 +19,10 @@ declare module "photoshop" {
         getPixels(options: Record<string, unknown>): Promise<{
           imageData?: { dispose?: () => void };
         }>;
+        /** 레이어 마스크의 픽셀. **버전에 따라 없을 수 있어** 쓰는 쪽에서 확인한다. */
+        getLayerMask?(options: Record<string, unknown>): Promise<{
+          imageData?: { dispose?: () => void };
+        }>;
         encodeImageData(options: Record<string, unknown>): Promise<unknown>;
         createImageDataFromBuffer?(
           buffer: ArrayBufferView,

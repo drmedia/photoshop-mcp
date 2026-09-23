@@ -78,6 +78,8 @@ interface CaptureOptions {
   /** jpeg 는 작고 빠르다. png 는 정확하지만 크다. */
   format?: "jpeg" | "png";
   quality?: number;
+  /** `mask` 면 레이어의 픽셀이 아니라 **레이어 마스크**를 읽는다. */
+  target?: "layer" | "mask";
 }
 
 async function encode(
@@ -88,9 +90,26 @@ async function encode(
 ): Promise<CapturedImage> {
   const api = requireImaging();
 
+  /* **마스크는 `getPixels` 가 주지 않는다.** 전용 함수가 따로 있고 UXP 버전에
+   * 따라 없을 수 있다. 없으면 무엇이 없는지 말한다 — 짐작한 API 를 부르고
+   * 원문 오류만 올리면 다음 사람이 같은 자리를 다시 판다. */
+  const wantsMask = options.target === "mask";
+  if (wantsMask && typeof api.getLayerMask !== "function") {
+    throw new DispatchError(
+      "COMMAND_NOT_SUPPORTED",
+      "이 Photoshop 의 Imaging API 에 getLayerMask 가 없어 마스크를 읽을 수 없습니다.",
+      { recoverable: false, details: { source } },
+    );
+  }
+
   let imageData;
   try {
-    imageData = await api.getPixels({ ...request, targetSize });
+    imageData = wantsMask
+      ? await (api.getLayerMask as NonNullable<typeof api.getLayerMask>)({
+          ...request,
+          targetSize,
+        })
+      : await api.getPixels({ ...request, targetSize });
   } catch (error) {
     throw new DispatchError(
       "COMMAND_FAILED",
@@ -196,7 +215,7 @@ export async function captureDocument(options: CaptureOptions = {}): Promise<Cap
 
 /** 레이어 하나만 캡처한다. 다른 레이어는 반영되지 않는다. */
 export async function captureLayer(
-  params: { layerId?: number } & CaptureOptions,
+  params: { layerId?: number; target?: "layer" | "mask" } & CaptureOptions,
 ): Promise<CapturedImage> {
   return runModal("Capture layer", async () => {
     const document = requireActiveDocument();
@@ -220,7 +239,7 @@ export async function captureLayer(
     );
     return encode(
       params,
-      `layer:${layer.id}`,
+      params.target === "mask" ? `mask:${layer.id}` : `layer:${layer.id}`,
       { documentID: document.id, layerID: layer.id },
       target,
     );

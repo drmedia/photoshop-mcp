@@ -48,6 +48,17 @@ export const DocumentStatisticsParamsSchema = z
      * 자기 픽셀이 없어 혼자서는 잴 것이 없다.
      */
     layerId: z.number().int().positive().optional(),
+    /**
+     * `mask` 면 레이어의 픽셀이 아니라 **레이어 마스크**를 잰다.
+     *
+     * 광도 마스크가 의도한 구조를 담았는지 확인하는 길이다. 마스크가 비어
+     * 있어도 결과 그림은 그럴듯할 수 있어 눈으로는 안 잡힌다 — 실기에서
+     * `color_range` 마스크가 거의 새까만 것을 한참 뒤에야 알았다.
+     *
+     * 조정 레이어는 자기 픽셀이 없어 `layerId` 를 거절하지만, **마스크는
+     * 있으므로 이때는 받는다.**
+     */
+    target: z.enum(["layer", "mask"]).optional(),
   })
   .strict();
 

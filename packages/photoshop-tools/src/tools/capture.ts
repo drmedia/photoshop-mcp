@@ -59,7 +59,11 @@ export function createCaptureLayerTool(
     "photoshop.layer.capture",
     CAPTURE_LAYER,
     "레이어 하나만 그림으로 돌려준다. 다른 레이어는 반영되지 않으므로 그 레이어가 " +
-      "실제로 무엇을 담고 있는지 볼 수 있다. layerId 를 생략하면 활성 레이어." +
+      "실제로 무엇을 담고 있는지 볼 수 있다. layerId 를 생략하면 활성 레이어. " +
+      "**target: 'mask' 면 레이어 마스크를 본다.** 광도 마스크가 의도한 구조를 " +
+      "따라가는지 확인할 때 쓴다 — 마스크가 비어 있어도 결과 그림은 그럴듯할 수 " +
+      "있어서 눈으로는 안 잡힌다. 조정 레이어는 자기 픽셀이 없으므로 그냥 찍으면 " +
+      "순백만 나온다. 마스크가 없는 레이어에 주면 실패한다." +
       COMMON,
     CaptureLayerParams,
   );

@@ -31,7 +31,19 @@ const CaptureBase = {
 
 export const CaptureDocumentParams = z.object({ ...CaptureBase }).strict();
 export const CaptureLayerParams = z
-  .object({ layerId: z.number().int().optional(), ...CaptureBase })
+  .object({
+    layerId: z.number().int().optional(),
+    /**
+     * `mask` 면 레이어의 픽셀이 아니라 **레이어 마스크**를 읽는다.
+     *
+     * 마스크를 볼 수단이 없어서 실기에서 두 번 막혔다 — 광도 마스크가 비어
+     * 있는데도 결과 그림이 그럴듯해 못 알아챘고, 남의 마스크가 무엇인지
+     * 확인할 수 없었다. 조정 레이어는 자기 픽셀이 없어 `layer` 로 찍으면
+     * 순백만 돌아온다.
+     */
+    target: z.enum(["layer", "mask"]).optional(),
+    ...CaptureBase,
+  })
   .strict();
 export const CaptureSelectionParams = z.object({ ...CaptureBase }).strict();
 

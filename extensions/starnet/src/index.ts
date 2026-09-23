@@ -51,7 +51,19 @@ import { nextLayerName, runStem } from "./naming.js";
 const RemoveStarsInput = z
   .object({
     /**
-     * 타일 보폭. 작을수록 느리고 이음매가 줄어든다.
+     * 타일 보폭. **생략하면 256 이고 그것이 대부분 맞다.**
+     *
+     * 작을수록 이음매가 줄지만 **연산량이 제곱으로 는다.** 실기에서 같은
+     * 4032×6048 문서가 이렇게 갈렸다.
+     *
+     * ```text
+     * 256 (기본)   67초
+     * 64           15분을 넘겨 취소했다   — 타일이 축마다 4배, 연산 약 16배
+     * ```
+     *
+     * 실기에서 호출자가 이 값을 두 번 연속 64 로 넣어 두 번 다 취소했다.
+     * "작을수록 이음매가 준다" 만 적어 두었고 **그 대가를 안 적었기**
+     * 때문이다. 고르는 쪽이 대가를 모르면 언제나 작은 값을 고른다.
      *
      * **짝수여야 한다** — CLI 가 "Stride should be even!" 으로 거절한다.
      * 여기서 먼저 막아 내보내기까지 간 뒤에 실패하지 않게 한다.
@@ -74,7 +86,10 @@ export function activate(context: ExtensionContext): void {
       "별 레이어에는 Screen 이 걸려 있어 둘을 함께 켜면 원본이 된다. " +
       "성운·은하를 별과 따로 보정할 때 쓴다. 기존 레이어를 바꾸지 않는다. " +
       "**즉시 jobId 를 반환한다.** 실기에서 4032×6048 이 67초였다 — " +
-      "MCP 요청 안에서 끝낼 수 없다. photoshop.job.status 로 상태를 확인한다.",
+      "MCP 요청 안에서 끝낼 수 없다. photoshop.job.status 로 상태를 확인한다. " +
+      "**stride 는 주지 않는 것이 기본이다**(256). 낮추면 이음매가 줄지만 " +
+      "연산량이 제곱으로 늘어 64 는 같은 문서에서 15분을 넘긴다. " +
+      "결과에 이음매가 실제로 보일 때만 낮춘다.",
     permission: "external",
     inputSchema: RemoveStarsInput,
     handler: (input, toolContext) => {

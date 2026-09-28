@@ -60,7 +60,8 @@ export async function documentRotate(params: { angle: number }): Promise<{
     // 없는 환경이 있으면 짐작해서 우회하지 않고 그 사실을 말하며 실패한다.
     if (typeof document.rotate !== "function") {
       throw new DispatchError(
-        "COMMAND_FAILED",
+        // 능력이 없는 것이지 실행이 실패한 것이 아니다. (ROADMAP §30)
+        "COMMAND_NOT_SUPPORTED",
         "이 Photoshop 에는 Document.rotate 가 없습니다. " +
           "Photoshop 27.8 에서는 확인했습니다 — 버전을 알려주시면 다른 경로를 찾겠습니다.",
         { recoverable: false, details: { angle } },

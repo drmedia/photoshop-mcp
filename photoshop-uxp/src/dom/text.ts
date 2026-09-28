@@ -84,7 +84,7 @@ function solidColor(color: { red: number; green: number; blue: number }): unknow
     (new () => Record<string, unknown>) | undefined;
   if (typeof Ctor !== "function") {
     throw new DispatchError(
-      "COMMAND_FAILED",
+      "COMMAND_NOT_SUPPORTED",
       "이 Photoshop 에는 app.SolidColor 가 없어 색을 지정할 수 없습니다.",
     );
   }
@@ -150,7 +150,7 @@ export async function textCreate(params: {
       ((options: unknown) => Promise<unknown>) | undefined;
     if (typeof make !== "function") {
       throw new DispatchError(
-        "COMMAND_FAILED",
+        "COMMAND_NOT_SUPPORTED",
         "이 Photoshop 에는 document.createTextLayer 가 없습니다.",
       );
     }
@@ -244,7 +244,10 @@ export async function fontList(): Promise<{
       }
     | undefined;
   if (raw === undefined || typeof raw.length !== "number") {
-    throw new DispatchError("COMMAND_FAILED", "이 Photoshop 에서 폰트 목록을 얻지 못했습니다.");
+    throw new DispatchError(
+      "COMMAND_NOT_SUPPORTED",
+      "이 Photoshop 에서 폰트 목록을 얻지 못했습니다(app.fonts 없음).",
+    );
   }
 
   const fonts: { name: string; family: string; style: string; postScriptName: string }[] = [];

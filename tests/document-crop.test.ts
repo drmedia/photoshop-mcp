@@ -74,6 +74,49 @@ describe("문서 자르기", () => {
     );
   });
 
+  /**
+   * **배경은 캔버스 밖에 픽셀을 가질 수 없어 승격된다.** 실기에서 id 1 이
+   * id 3(`레이어 0`)이 되었다(ROADMAP §36). 한동안 이 사실을 결과에 담지
+   * 않아 호출자가 들고 있던 id 가 조용히 사라졌다.
+   */
+  it("**배경이 승격되면 사라진 id 와 새 레이어를 함께 준다**", async () => {
+    const mcp = setup();
+    const before = (await mcp.tools.invoke("photoshop.layer.list", {}, { requestId: "r" })) as {
+      layers: { id: number; isBackground?: boolean }[];
+    };
+    const background = before.layers.find((layer) => layer.isBackground === true);
+    expect(background).toBeDefined();
+
+    const result = (await crop(mcp, { left: 0, top: 0, right: 300, bottom: 200 })) as unknown as {
+      promoted: { previousId: number; layer: { id: number; isBackground?: boolean } } | null;
+    };
+
+    expect(result.promoted).not.toBeNull();
+    expect(result.promoted?.previousId).toBe(background?.id);
+    expect(result.promoted?.layer.id).not.toBe(background?.id);
+    // 승격된 것은 더 이상 배경이 아니다.
+    expect(result.promoted?.layer.isBackground).toBeUndefined();
+
+    // 옛 id 는 실제로 사라져 있어야 한다.
+    const after = (await mcp.tools.invoke("photoshop.layer.list", {}, { requestId: "r" })) as {
+      layers: { id: number }[];
+    };
+    expect(after.layers.some((layer) => layer.id === background?.id)).toBe(false);
+    expect(after.layers.some((layer) => layer.id === result.promoted?.layer.id)).toBe(true);
+  });
+
+  it("**배경이 없으면 promoted 는 null 이다**", async () => {
+    /* 짝지을 수 없으면 짐작하지 않는다 — 짐작한 id 를 주면 호출자가 엉뚱한
+     * 레이어를 편집한다. */
+    const mcp = setup();
+    await crop(mcp, { left: 0, top: 0, right: 300, bottom: 200 });
+    const second = (await crop(mcp, { left: 0, top: 0, right: 200, bottom: 100 })) as unknown as {
+      promoted: unknown;
+    };
+
+    expect(second.promoted).toBeNull();
+  });
+
   it("되돌릴 수 있다", async () => {
     // 픽셀을 버리지 않는다는 주장이 실제로 성립하는지 본다.
     const mcp = setup();

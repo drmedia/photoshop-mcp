@@ -1,8 +1,9 @@
-import { action, app, constants } from "photoshop";
+import { action, app } from "photoshop";
 import type { PhotoshopDocument } from "photoshop";
 import type { SaveResult } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
+import { closeWorkDocument } from "./close-work-document.js";
 import { resolveDuplicatedDocumentId } from "./duplicated-document.js";
 import { toArray } from "./layers.js";
 import { runModal } from "./modal.js";
@@ -143,12 +144,18 @@ export async function exportTiff(
         ...(alphaRemoved === 0 ? {} : { alphaRemoved }),
       };
     } finally {
-      // 복제본은 반드시 저장하지 않고 닫는다. 남기면 사용자 문서 목록이 더러워지고
-      // 다음 Command 의 activeDocument 가 복제본이 된다.
-      try {
-        await work.close(constants.SaveOptions?.DONOTSAVECHANGES ?? "no");
-      } catch {
-        // 닫기에 실패해도 내보내기 결과는 유효하다. 사용자가 직접 닫으면 된다.
+      /* 복제본은 반드시 저장하지 않고 닫는다. 남기면 사용자 문서 목록이
+       * 더러워지고 다음 Command 의 activeDocument 가 복제본이 된다.
+       *
+       * **짐작해서 닫지 않는다.** `?? "no"` 로 두면 상수가 없는 호스트에서
+       * 저장 여부를 묻는 창이 뜨고 플러그인이 멈춘다 — `try/catch` 는 도움이
+       * 안 된다. 닫지 못하면 남겨 두고 알린다. (ROADMAP §30) */
+      const closeFailure = await closeWorkDocument(work);
+      if (closeFailure !== null) {
+        /* 내보내기 결과는 이미 유효하므로 실패로 만들지 않는다. 다만
+         * **조용히 넘기지도 않는다** — 남은 복제본은 다음 Command 의
+         * `activeDocument` 가 되어 사용자가 원본으로 착각한다. */
+        console.error(`[photoshop-mcp] ${closeFailure}`);
       }
     }
   });

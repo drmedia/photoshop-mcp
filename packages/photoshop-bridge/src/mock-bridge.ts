@@ -1538,11 +1538,33 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
           width: bounds.right - bounds.left,
           height: bounds.bottom - bounds.top,
         };
+
+        /* **배경은 캔버스 밖에 픽셀을 가질 수 없어 승격된다.** 실기에서 id 1 이
+         * id 3 이 되었다(ROADMAP §36). Mock 이 흉내내지 않으면 "id 가 바뀐다"
+         * 는 계약이 테스트에 영영 나오지 않는다 — 배경 `set_opacity` 승격을
+         * 흉내내는 것과 같은 이유다. */
+        const bgIndex = this.#layers.findIndex((layer) => layer.isBackground === true);
+        let promoted: { previousId: number; layer: LayerInfo } | null = null;
+        if (bgIndex >= 0) {
+          const background = this.#layers[bgIndex] as LayerInfo;
+          const { isBackground: _dropped, ...rest } = background;
+          const replacement: LayerInfo = {
+            ...rest,
+            id: this.#nextLayerId++,
+            name: "레이어 0",
+          };
+          this.#layers[bgIndex] = replacement;
+          if (this.#activeLayerId === background.id) {
+            this.#activeLayerId = replacement.id;
+          }
+          promoted = { previousId: background.id, layer: { ...replacement } };
+        }
         return {
           width: this.#document.width,
           height: this.#document.height,
           previousWidth,
           previousHeight,
+          promoted,
           pixelsRetained: true,
         } as TResult;
       }

@@ -1,5 +1,5 @@
 import type { CommandHandler } from "@photoshop-mcp/command-engine";
-import { ErrorCode, PhotoshopMcpError } from "@photoshop-mcp/photoshop-bridge";
+import { ErrorCode, LayerInfoSchema, PhotoshopMcpError } from "@photoshop-mcp/photoshop-bridge";
 import { z } from "zod";
 
 /**
@@ -77,6 +77,16 @@ export const DocumentCropResultSchema = z.object({
    * 사실을 둘 다 여기서 읽을 수 있어야 한다.
    */
   pixelsRetained: z.boolean(),
+  /**
+   * 배경 레이어가 일반 레이어로 승격됐으면 그 사실. 아니면 `null`.
+   *
+   * **배경은 캔버스 밖에 픽셀을 가질 수 없다.** 그래서 바깥을 남기려면
+   * Photoshop 이 일반 레이어로 바꾸고 **id 가 달라진다** — 호출자가 들고 있던
+   * id 는 사라진다. (ROADMAP §36)
+   *
+   * 짝지을 수 없으면 `null` 이다. 짐작한 id 를 주면 엉뚱한 레이어를 편집한다.
+   */
+  promoted: z.object({ previousId: z.number(), layer: LayerInfoSchema }).nullable(),
 });
 
 export type DocumentCropResult = z.infer<typeof DocumentCropResultSchema>;

@@ -146,7 +146,23 @@ async function encode(
     // 미리보기에 알파는 의미가 없으므로 RGB 세 채널만 남긴다.
     const dropAlpha = components > 3;
 
-    if ((wideBits > 8 || dropAlpha) && typeof raw.getData === "function") {
+    /* **변환이 필요한데 읽을 수 없으면 실패한다.** 조용히 건너뛰면 16비트
+     * 데이터가 그대로 인코더로 가고, 그때 나오는 것은 오류가 아니라 **절반
+     * 밝기의 그림**이다 — 호출자는 그것을 보고 노출을 판단한다.
+     *
+     * `document.statistics` · `measure.tilt` 는 같은 자리에서 이미 실패한다.
+     * 셋이 달랐던 것을 맞췄다. (ROADMAP §30) */
+    const needsNarrowing = wideBits > 8 || dropAlpha;
+    if (needsNarrowing && typeof raw.getData !== "function") {
+      throw new DispatchError(
+        "COMMAND_NOT_SUPPORTED",
+        `이 Photoshop 의 Imaging API 에 getData 가 없어 ${String(wideBits)}비트 픽셀을 ` +
+          "미리보기로 변환할 수 없습니다. 변환 없이 인코딩하면 밝기가 어긋난 그림이 나옵니다.",
+        { recoverable: false, details: { componentSize: wideBits, components } },
+      );
+    }
+
+    if (needsNarrowing && typeof raw.getData === "function") {
       const data = await raw.getData({ chunky: true });
       const wide = data as unknown as { length: number; [index: number]: number };
       const pixels = Math.floor(wide.length / components);

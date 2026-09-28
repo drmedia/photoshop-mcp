@@ -83,7 +83,10 @@ export async function actionPlay(params: { set: string; action: string }): Promi
     const tree = (app as unknown as Record<string, unknown>)["actionTree"] as
       { length: number; [index: number]: Record<string, unknown> } | undefined;
     if (tree === undefined || typeof tree.length !== "number") {
-      throw new DispatchError("COMMAND_FAILED", "액션 목록을 얻지 못했습니다.");
+      throw new DispatchError(
+        "COMMAND_NOT_SUPPORTED",
+        "이 Photoshop 에서 액션 목록을 얻지 못했습니다(app.actionTree 없음).",
+      );
     }
 
     // **이름으로 찾는다.** 순번은 사용자가 액션을 옮기면 바뀐다(§17.34).

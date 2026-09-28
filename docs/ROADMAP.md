@@ -6633,9 +6633,9 @@ export-mask.ts:148         같음
 
 ## 체크리스트
 
-- [ ] `export-tiff.ts` · `export-mask.ts` 의 `?? "no"` 를 없앤다
-- [ ] 능력 가드 일곱 곳을 `COMMAND_NOT_SUPPORTED` 로 바꾼다 (계약 변경)
-- [ ] `capture` 의 `getData` 누락 정책을 정한다 (실패 · 근사치 중 하나)
+- [x] `export-tiff.ts` · `export-mask.ts` 의 `?? "no"` 를 없앴다
+- [x] 능력 가드를 `COMMAND_NOT_SUPPORTED` 로 바꿨다 — **일곱이 아니라 여섯이다**
+- [x] `capture` 의 `getData` 누락은 **실패**로 정했다
 - [ ] ~~`host-features.ts` 로 판정식 통합~~ — 훑어 보니 고치는 것이 없다
 
 # 31. 마스크를 편집 대상으로 (`photoshop.mask.select`)
@@ -6949,7 +6949,7 @@ canvas.resize     44.245% → 2.584%    142.18 → 248.41 픽셀 소멸
 유형이다(`set_opacity` 승격 · `smart_object.convert` · `layer.from_background`).
 당장은 Tool 설명에 "`layer.list` 로 다시 읽으라" 고 적었다.
 
-- [ ] `document.crop` 이 승격된 레이어 id 를 결과에 담는다
+- [x] `document.crop` 이 승격된 레이어 id 를 결과에 담는다 (`promoted`)
 
 ## 체크리스트
 
@@ -7247,3 +7247,68 @@ intoSelection: true              →  hasMask true, 180×120 으로 잘려 가�
 - [x] `EXTERNAL` 로 분류하고 근거를 적었다
 - [x] 실기: 빈 클립보드에서 거짓말하던 것을 고쳤다
 - [x] 실기: 붙여넣기 · `intoSelection`(마스크 생성) · 선택 없는 거절
+
+# 42. §30 과 §36 의 남은 것을 정리했다
+
+## `document.crop` 이 승격된 id 를 알린다 (§36)
+
+배경은 캔버스 밖에 픽셀을 가질 수 없어 자르기가 **일반 레이어로 승격시키고
+id 를 바꾼다.** 그 사실이 결과에 없어 호출자가 들고 있던 id 가 조용히 사라졌다.
+
+```text
+promoted { previousId 1, layer { id 2, "레이어 0", isBackground false } }
+배경 없는 문서에서 다시 자르기  →  promoted null
+```
+
+**짝지을 수 있을 때만 말한다** — 배경이 있었고, 그 id 가 사라졌고, 새 id 가
+정확히 하나 생겼을 때다. 하나로 좁혀지지 않으면 `null` 이다. 짐작한 id 를
+주면 호출자가 엉뚱한 레이어를 편집한다(`duplicated-document.ts` 와 같은 규칙).
+
+Mock 도 승격을 흉내낸다. 안 하면 "id 가 바뀐다" 는 계약이 테스트에 안 나온다.
+
+## `SaveOptions` 짐작을 없앴다 (§30-1)
+
+`export-tiff.ts` · `export-mask.ts` 가 복제본을 닫을 때 `?? "no"` 로 짐작하고
+있었다. `document.close` 는 같은 자리에서 **부르지 않고 실패**하는데, 그 규칙을
+주석으로 적어 둔 채 두 곳이 어기고 있었다.
+
+**`try/catch` 는 도움이 안 된다 — 대화상자는 던지지 않고 멈춘다.**
+
+`closeWorkDocument()` 한 곳으로 모았다. 상수가 없으면 닫지 않고 **남겨 둔 채로
+알린다** — 내보내기 결과는 이미 유효하므로 실패로 만들지 않지만, 남은 복제본은
+다음 Command 의 `activeDocument` 가 되므로 조용히 넘기지도 않는다.
+
+`duplicated-document.ts` 에 두려다 **의존성 없이 단위 테스트되던 파일**이라는
+것이 `typecheck:tests` 에서 드러나 `close-work-document.ts` 로 뺐다.
+
+## 능력 가드 오류 코드 — 일곱이 아니라 여섯 (§30-2)
+
+`COMMAND_FAILED` 로 나가던 능력 가드를 `COMMAND_NOT_SUPPORTED` 로 바꿨다.
+
+```text
+document.rotate · app.SolidColor · document.createTextLayer
+app.fonts · app.actionTree (두 곳)
+```
+
+**일곱째는 바꾸지 않았다.** `action-play.ts` 의 `이 액션에 play() 가 없습니다`
+는 "이 Photoshop 에 API 가 없다" 가 아니라 **그 액션 하나가 이상한 것**이다 —
+다른 액션은 된다. 호스트 능력 부족으로 분류하면 호출자가 잘못 판단한다.
+훑어서 나온 목록을 그대로 적용하지 않았다.
+
+## `capture` 의 `getData` — 실패로 정했다 (§30-3)
+
+변환이 필요한데(`16비트` 또는 알파 포함) `getData` 가 없으면 조용히 건너뛰고
+있었다. 그러면 16비트 데이터가 그대로 인코더로 가고, 나오는 것은 오류가 아니라
+**절반 밝기의 그림**이다 — 호출자는 그것을 보고 노출을 판단한다.
+
+`document.statistics` · `measure.tilt` 는 같은 자리에서 이미 실패한다. 셋이
+달랐던 것을 맞췄다. 변환이 필요 없을 때는 `getData` 가 없어도 상관없다.
+
+실기에서 8비트·16비트 문서 양쪽으로 캡처가 정상인 것을 확인했다.
+
+## 체크리스트
+
+- [x] `document.crop` 의 `promoted` — 실기 확인
+- [x] `closeWorkDocument()` 로 `?? "no"` 제거
+- [x] 능력 가드 여섯 곳 `COMMAND_NOT_SUPPORTED`
+- [x] `capture` 가 변환 불가 시 실패

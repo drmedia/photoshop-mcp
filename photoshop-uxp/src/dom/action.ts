@@ -64,7 +64,7 @@ function requireTree(): { length: number; [index: number]: Record<string, unknow
     { length: number; [index: number]: Record<string, unknown> } | undefined;
   if (tree === undefined || typeof tree.length !== "number") {
     throw new DispatchError(
-      "COMMAND_FAILED",
+      "COMMAND_NOT_SUPPORTED",
       "이 Photoshop 에서 액션 목록을 얻지 못했습니다(app.actionTree 없음).",
     );
   }

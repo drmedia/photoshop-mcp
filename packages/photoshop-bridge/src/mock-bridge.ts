@@ -1324,6 +1324,74 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        * 하지 않는 것**까지 흉내낸다. 계조가 어떻게 버려지는지는 픽셀이 없어
        * 흉내내지 않는다.
        */
+      /**
+       * 보이는 레이어 병합. (CORE_API §5)
+       *
+       * **숨긴 레이어가 남는 것**이 요점이라 Mock 도 그것을 지킨다 —
+       * `DOCUMENT_FLATTEN` 이 숨긴 것을 버리는 것과 갈리는 자리이고, Mock 이
+       * 둘을 같게 만들면 그 차이가 테스트에 안 나온다.
+       */
+      case "DOCUMENT_MERGE_VISIBLE": {
+        this.#requireDocument();
+        /* **활성 레이어가 숨겨져 있으면 실제 Photoshop 은 조용히 아무 일도
+         * 안 한다**(ROADMAP §40). Mock 이 그냥 합치면 그 함정이 테스트에
+         * 영영 나오지 않는다. */
+        const activeNow = this.#layers.find((layer) => layer.id === this.#activeLayerId);
+        if (activeNow !== undefined && !activeNow.visible) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `활성 레이어 "${activeNow.name}" 가 숨겨져 있어 병합이 일어나지 않습니다. ` +
+              "photoshop.layer.select 로 보이는 레이어를 먼저 고르세요.",
+            { recoverable: true, details: { activeLayerId: activeNow.id } },
+          );
+        }
+        const visible = this.#layers.filter((layer) => layer.visible);
+        const before = {
+          total: this.#layers.length,
+          visible: visible.length,
+          hidden: this.#layers.length - visible.length,
+        };
+        if (before.visible < 2) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `보이는 레이어가 ${before.visible}장이라 합칠 것이 없습니다. ` +
+              "photoshop.layer.list 로 무엇이 보이는지 확인하세요.",
+            { recoverable: true, details: { before } },
+          );
+        }
+        this.#snapshot("Merge visible");
+        /* **남는 것은 선택한 레이어다.** 실기에서 확인했고(ROADMAP §40) Adobe
+         * 레퍼런스도 "the top of the selected layers or the top layer" 라고
+         * 적는다. 다만 **배경이 있으면 배경이 남는다** — 레퍼런스의 "will not
+         * convert the remaining layer to Background if no Background already
+         * exists" 가 뒤집어 말하는 것이다.
+         *
+         * 처음에 "가장 아래 보이는 레이어" 로 짐작해 두었는데 틀렸다. 배경이
+         * 있는 문서에서 우연히 맞아떨어져 드러나지 않았다. */
+        const background = visible.find((layer) => layer.isBackground === true);
+        const merged: LayerInfo = {
+          ...((background ??
+            visible.find((layer) => layer.id === this.#activeLayerId) ??
+            visible[0]) as LayerInfo),
+        };
+        const kept = this.#layers.filter((layer) => !layer.visible);
+        const mergedIndex = this.#layers.findIndex((layer) => layer.id === merged.id);
+        const above = kept.filter((layer) => this.#layers.indexOf(layer) < mergedIndex);
+        const below = kept.filter((layer) => this.#layers.indexOf(layer) > mergedIndex);
+        this.#layers = [...above, merged, ...below];
+        this.#activeLayerId = merged.id;
+        const after = {
+          total: this.#layers.length,
+          visible: 1,
+          hidden: this.#layers.length - 1,
+        };
+        return {
+          activeLayer: { ...merged },
+          before,
+          after,
+          removed: before.total - after.total,
+        } as TResult;
+      }
       case "DOCUMENT_BIT_DEPTH_CONVERT": {
         const document = this.#requireDocument();
         const depth = (command.params as { depth: number }).depth;

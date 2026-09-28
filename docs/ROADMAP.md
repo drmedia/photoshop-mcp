@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 96개만
+기본            Extension 0개. Core Tool 97개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -7130,3 +7130,61 @@ Photoshop 의 새 문서 기본값이 마침 16이었기 때문이다. `applied`
 - [x] 실기: 8·16·32 왕복, `"bitDepth32"` 확인, 32→16 대화상자 없음
 - [x] `document.create` 의 `bitDepth` 를 만든 뒤 다시 걸도록 고쳤다
 - [x] 실기: 고친 `document.create` 가 요청한 심도를 준다 (16 · 32 확인)
+
+# 40. 보이는 레이어 병합 (`photoshop.document.merge_visible`)
+
+## 셋이 비슷하고 셋 다 다르다
+
+```text
+layer.stamp_visible      합친 **복제본**을 만든다. 원본은 남는다      edit
+document.merge_visible   보이는 것을 합친다. **숨긴 것은 남는다**    destructive
+document.flatten         전부 합친다. **숨긴 것은 버려진다**          destructive
+```
+
+Adobe 레퍼런스가 넷째 차이를 알려준다 — **`flatten` 은 남는 레이어를 언제나
+배경으로 만들지만 `mergeVisibleLayers` 는 배경이 없으면 만들지 않는다.**
+
+## 조용한 실패를 잡았다
+
+**활성 레이어가 숨겨져 있으면 아무 일도 일어나지 않는다.** 오류도 없고 레이어
+수도 그대로다.
+
+```text
+활성 = HIDDEN(숨김)   before 4/3/1  →  after 4/3/1   removed 0
+활성 = V2(보임)       before 4/3/1  →  after 2/1/1   removed 2
+```
+
+**결과에 전후 개수를 담아 둔 덕에 드러났다.** 담지 않았으면 성공으로 보고했을
+것이다. 이 프로젝트가 반복해서 겪은 유형이다(배경 `set_opacity` · Camera Raw
+정수 · 파라메트릭 곡선 · `documents.add` 의 `bitsPerChannel`).
+
+Photoshop UI 에서도 숨긴 레이어가 선택돼 있으면 `보이는 레이어 병합` 이 회색
+처리된다. **레퍼런스에는 이 전제가 적혀 있지 않다** — 실기에서만 나온다.
+미리 막고 "보이는 레이어를 먼저 고르라" 고 말한다.
+
+## 숨긴 레이어는 내용까지 남는다
+
+병합 뒤 `HIDDEN` 의 `bounds` 가 100,50–200,150 로 그대로였다. `flatten` 과
+갈리는 자리를 측정으로 확인했다.
+
+## 남는 레이어를 짐작했다가 틀렸다
+
+Mock 을 "가장 아래 보이는 레이어" 로 짜 두었는데 **배경이 있는 문서에서 우연히
+맞아떨어져** 드러나지 않았다. 배경 없는 문서로 두 번 재서 갈랐다.
+
+```text
+배경 있음, V2 선택        →  배경(id 1) 이 남는다. isBackground 유지
+배경 없음, 아래쪽 선택    →  아래쪽이 남는다
+배경 없음, 위쪽 선택      →  위쪽이 남는다
+```
+
+**배경이 있으면 배경, 없으면 선택한 레이어다.** 레퍼런스의 "the name of the
+merged layer will be either that of the top of the selected layers or the top
+layer" 와 맞는다. Mock 도 그렇게 고쳤다.
+
+## 체크리스트
+
+- [x] `photoshop.document.merge_visible` — `before` · `after` · `removed`
+- [x] 실기: 숨긴 레이어가 내용까지 남는 것
+- [x] 실기: 활성 레이어가 숨겨져 있으면 조용히 실패하는 것 → 미리 막는다
+- [x] 실기: 배경 유무에 따라 남는 레이어가 다른 것

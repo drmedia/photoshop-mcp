@@ -60,6 +60,7 @@ import { canvasResize } from "./dom/canvas-resize.js";
 import { documentTrim } from "./dom/document-trim.js";
 import { documentModeConvert } from "./dom/document-mode.js";
 import { documentBitDepthConvert } from "./dom/document-bit-depth.js";
+import { documentMergeVisible } from "./dom/document-merge.js";
 import { documentRotate } from "./dom/document-rotate.js";
 import { documentTilt } from "./dom/document-tilt.js";
 import { documentClose, documentFlatten } from "./dom/document-lifecycle.js";
@@ -148,6 +149,7 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("DOCUMENT_BIT_DEPTH_CONVERT", async (p) =>
     documentBitDepthConvert(p as Parameters<typeof documentBitDepthConvert>[0]),
   );
+  dispatcher.register("DOCUMENT_MERGE_VISIBLE", async () => documentMergeVisible());
   dispatcher.register("IMAGE_RESIZE", async (p) =>
     imageResize(p as Parameters<typeof imageResize>[0]),
   );

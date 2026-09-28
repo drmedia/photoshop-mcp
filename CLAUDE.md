@@ -14,11 +14,11 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **96개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **97개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 102). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 103). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -63,6 +63,9 @@ Tool 까지 더한 수다(지금 102). 한동안 이 값을 Core 개수로 옮�
   속성이고 문자열 상수(`"bitDepth16"`)를 받는다** — 숫자는 조용히 무시된다.
   `documents.add` 는 이 키를 아예 무시해서 `document.create` 가 만든 뒤 다시 건다
   (ROADMAP §39)
+- 병합: `document.merge_visible` — **`stamp_visible`(복제본) · `flatten`(숨긴 것
+  버림) 과 셋이 다르다.** 숨긴 레이어는 내용까지 남는다. **활성 레이어가 숨겨져
+  있으면 조용히 아무 일도 안 해서** 미리 막는다 (ROADMAP §40)
 - 수평: `document.rotate` — 기울기를 세운다. 빈 모서리를 뺀 `safeBounds` 를 함께 준다
 - 측정: `measure.tilt` — 경계선 기울기. **각도와 잔차를 함께 준다**
 - 측정: `document.statistics` — **전체 해상도 원본**에서 히스토그램·채널 통계
@@ -843,7 +846,7 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 96개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 97개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져

@@ -125,6 +125,11 @@ import { IMAGE_RESIZE, ImageResizeParamsSchema, imageResizeCommand } from "./ima
 import { CANVAS_RESIZE, CanvasResizeParamsSchema, canvasResizeCommand } from "./canvas-resize.js";
 import { DOCUMENT_TRIM, DocumentTrimParamsSchema, documentTrimCommand } from "./document-trim.js";
 import {
+  DOCUMENT_MERGE_VISIBLE,
+  DocumentMergeVisibleParamsSchema,
+  documentMergeVisibleCommand,
+} from "./document-merge.js";
+import {
   DOCUMENT_BIT_DEPTH_CONVERT,
   DocumentBitDepthParamsSchema,
   documentBitDepthConvertCommand,
@@ -302,6 +307,7 @@ export * from "./canvas-resize.js";
 export * from "./document-trim.js";
 export * from "./document-mode.js";
 export * from "./document-bit-depth.js";
+export * from "./document-merge.js";
 export * from "./document-rotate.js";
 export * from "./measure-tilt.js";
 export * from "./layer-reorder.js";
@@ -416,6 +422,12 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(DOCUMENT_BIT_DEPTH_CONVERT, documentBitDepthConvertCommand, {
     permission: "destructive",
     schema: DocumentBitDepthParamsSchema,
+  });
+  /* **`stamp_visible` 과 갈린다.** 그쪽은 복제본을 만들고 이쪽은 원본을
+   * 없앤다. `flatten` 과는 숨긴 레이어에서 갈린다. (ROADMAP §40) */
+  registry.register(DOCUMENT_MERGE_VISIBLE, documentMergeVisibleCommand, {
+    permission: "destructive",
+    schema: DocumentMergeVisibleParamsSchema,
   });
   registry.register(IMAGE_RESIZE, imageResizeCommand, {
     /* **`crop` 과 갈리는 자리다.** 축소는 픽셀을 다시 표본화하고 버려진

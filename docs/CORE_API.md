@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (96개)
+## 4. 구현된 Core API (97개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -134,6 +134,7 @@ P3  확장 기능
 | `photoshop.document.trim` | DESTRUCTIVE | 여백 재단. **얼마나 잘릴지 미리 알 수 없다** |
 | `photoshop.document.mode_convert` | DESTRUCTIVE | RGB · Grayscale · CMYK · Lab. **색을 버린다** |
 | `photoshop.document.bit_depth_convert` | DESTRUCTIVE | 8 · 16 · 32. **내리면 계조를 버린다** |
+| `photoshop.document.merge_visible` | DESTRUCTIVE | 보이는 것만 합친다. **숨긴 것은 남는다** |
 | `photoshop.image.resize` | DESTRUCTIVE | 이미지를 다시 표본화한다. **축소는 되돌릴 수 없다** |
 | `photoshop.document.rotate` | EDIT | 문서 전체를 돌린다. **수평 교정용** |
 | `photoshop.document.open` | EXTERNAL | 승인된 폴더의 파일을 연다. **RAW 는 거절한다** |
@@ -724,7 +725,7 @@ document.save · document.close · document.flatten
 layer.delete · layer.merge · group.ungroup
 mask.apply · mask.delete
 image.resize · canvas.resize · document.trim
-document.mode_convert · document.bit_depth_convert
+document.mode_convert · document.bit_depth_convert · document.merge_visible
 smart_object.rasterize
 channel.delete · path.delete · guide.delete
 workspace.delete
@@ -737,7 +738,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 역할이다.
 
 위 목록 중 구현된 것은 `document.save` · `document.close` · `document.flatten` · `layer.delete` ·
-`mask.apply` · `image.resize` · `canvas.resize` · `document.trim` · `document.mode_convert` · `document.bit_depth_convert` · `workspace.delete` 다. 나머지는 분류 체계만 서 있고 구현이 없다.
+`mask.apply` · `image.resize` · `canvas.resize` · `document.trim` · `document.mode_convert` · `document.bit_depth_convert` · `document.merge_visible` · `workspace.delete` 다. 나머지는 분류 체계만 서 있고 구현이 없다.
 분류가 있다고 있는 척하지 않는다.
 
 `image.resize` 는 §5 에 `EDIT` 로 적혀 있던 것을 구현하면서 바꿨다. 근거는 같은 문서가
@@ -750,7 +751,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **96** |
+| 구현됨 | **97** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

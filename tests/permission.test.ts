@@ -254,6 +254,7 @@ describe("Core Tool 분류", () => {
       "DOCUMENT_TRIM",
       "DOCUMENT_MODE_CONVERT",
       "DOCUMENT_BIT_DEPTH_CONVERT",
+      "DOCUMENT_MERGE_VISIBLE",
       "IMAGE_RESIZE",
       "DOCUMENT_FLATTEN",
       "DOCUMENT_CLOSE",

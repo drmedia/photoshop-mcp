@@ -239,6 +239,9 @@ describe("Core Tool 분류", () => {
       mcp.commands.list().filter((type) => mcp.commands.permissionOf(type) === level);
 
     expect(byLevel("external")).toEqual([
+      /* 사용자의 클립보드를 문서로 끌어들인다. `layer.place` 와 같은
+       * 논리이고 폴더 승인조차 없다. (ROADMAP §41) */
+      "DOCUMENT_PASTE",
       "DOCUMENT_OPEN",
       "DOCUMENT_SAVE_AS",
       "DOCUMENT_EXPORT",

@@ -1331,6 +1331,21 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        * `DOCUMENT_FLATTEN` 이 숨긴 것을 버리는 것과 갈리는 자리이고, Mock 이
        * 둘을 같게 만들면 그 차이가 테스트에 안 나온다.
        */
+      /**
+       * 붙여 넣기. (CORE_API §5)
+       *
+       * **Mock 은 실패한다.** 클립보드가 없다. 그럴듯한 레이어를 만들어 주면
+       * Mock 으로 돌린 워크플로가 **오지 않은 내용이 들어왔다고 믿는다** —
+       * `DOCUMENT_OPEN` · `DOCUMENT_DUPLICATE` 와 같은 규칙이다.
+       */
+      case "DOCUMENT_PASTE":
+        this.#requireDocument();
+        throw new PhotoshopMcpError(
+          ErrorCode.COMMAND_FAILED,
+          "Mock Bridge 에는 클립보드가 없어 붙여 넣을 수 없습니다. " +
+            "실제 Photoshop 연결이 필요합니다.",
+          { recoverable: false },
+        );
       case "DOCUMENT_MERGE_VISIBLE": {
         this.#requireDocument();
         /* **활성 레이어가 숨겨져 있으면 실제 Photoshop 은 조용히 아무 일도

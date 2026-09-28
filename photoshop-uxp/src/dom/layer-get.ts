@@ -63,7 +63,7 @@ function flag(value: unknown): boolean | null {
  * `Bounds` 의 모양이 레퍼런스에 없다. **네 값을 모두 읽을 수 있을 때만** 답하고
  * 하나라도 못 읽으면 `null` 이다 — 일부만 맞는 경계는 없느니만 못하다.
  */
-function toBounds(value: unknown): LayerBounds | null {
+export function toBounds(value: unknown): LayerBounds | null {
   if (value === null || typeof value !== "object") {
     return null;
   }

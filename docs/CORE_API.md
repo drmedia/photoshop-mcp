@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (97개)
+## 4. 구현된 Core API (98개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -135,6 +135,7 @@ P3  확장 기능
 | `photoshop.document.mode_convert` | DESTRUCTIVE | RGB · Grayscale · CMYK · Lab. **색을 버린다** |
 | `photoshop.document.bit_depth_convert` | DESTRUCTIVE | 8 · 16 · 32. **내리면 계조를 버린다** |
 | `photoshop.document.merge_visible` | DESTRUCTIVE | 보이는 것만 합친다. **숨긴 것은 남는다** |
+| `photoshop.document.paste` | EXTERNAL | 클립보드를 문서로. **무엇이 올지 알 수 없다** |
 | `photoshop.image.resize` | DESTRUCTIVE | 이미지를 다시 표본화한다. **축소는 되돌릴 수 없다** |
 | `photoshop.document.rotate` | EDIT | 문서 전체를 돌린다. **수평 교정용** |
 | `photoshop.document.open` | EXTERNAL | 승인된 폴더의 파일을 연다. **RAW 는 거절한다** |
@@ -751,7 +752,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **97** |
+| 구현됨 | **98** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

@@ -61,6 +61,7 @@ import { documentTrim } from "./dom/document-trim.js";
 import { documentModeConvert } from "./dom/document-mode.js";
 import { documentBitDepthConvert } from "./dom/document-bit-depth.js";
 import { documentMergeVisible } from "./dom/document-merge.js";
+import { documentPaste } from "./dom/document-paste.js";
 import { documentRotate } from "./dom/document-rotate.js";
 import { documentTilt } from "./dom/document-tilt.js";
 import { documentClose, documentFlatten } from "./dom/document-lifecycle.js";
@@ -150,6 +151,9 @@ export function createDispatcher(): CommandDispatcher {
     documentBitDepthConvert(p as Parameters<typeof documentBitDepthConvert>[0]),
   );
   dispatcher.register("DOCUMENT_MERGE_VISIBLE", async () => documentMergeVisible());
+  dispatcher.register("DOCUMENT_PASTE", async (p) =>
+    documentPaste(p as Parameters<typeof documentPaste>[0]),
+  );
   dispatcher.register("IMAGE_RESIZE", async (p) =>
     imageResize(p as Parameters<typeof imageResize>[0]),
   );

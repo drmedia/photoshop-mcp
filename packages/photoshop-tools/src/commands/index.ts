@@ -125,6 +125,11 @@ import { IMAGE_RESIZE, ImageResizeParamsSchema, imageResizeCommand } from "./ima
 import { CANVAS_RESIZE, CanvasResizeParamsSchema, canvasResizeCommand } from "./canvas-resize.js";
 import { DOCUMENT_TRIM, DocumentTrimParamsSchema, documentTrimCommand } from "./document-trim.js";
 import {
+  DOCUMENT_PASTE,
+  DocumentPasteParamsSchema,
+  documentPasteCommand,
+} from "./document-paste.js";
+import {
   DOCUMENT_MERGE_VISIBLE,
   DocumentMergeVisibleParamsSchema,
   documentMergeVisibleCommand,
@@ -308,6 +313,7 @@ export * from "./document-trim.js";
 export * from "./document-mode.js";
 export * from "./document-bit-depth.js";
 export * from "./document-merge.js";
+export * from "./document-paste.js";
 export * from "./document-rotate.js";
 export * from "./measure-tilt.js";
 export * from "./layer-reorder.js";
@@ -428,6 +434,12 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(DOCUMENT_MERGE_VISIBLE, documentMergeVisibleCommand, {
     permission: "destructive",
     schema: DocumentMergeVisibleParamsSchema,
+  });
+  /* **`external` 이다.** 사용자의 클립보드를 문서로 끌어들인다 —
+   * `layer.place` 와 같은 논리이고 폴더 승인조차 없다. (ROADMAP §41) */
+  registry.register(DOCUMENT_PASTE, documentPasteCommand, {
+    permission: "external",
+    schema: DocumentPasteParamsSchema,
   });
   registry.register(IMAGE_RESIZE, imageResizeCommand, {
     /* **`crop` 과 갈리는 자리다.** 축소는 픽셀을 다시 표본화하고 버려진

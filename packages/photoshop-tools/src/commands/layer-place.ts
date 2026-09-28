@@ -46,13 +46,28 @@ export const LayerPlaceParamsSchema = z
      * 그 처리기가 다시 돌지 않고 구워진 파일이 열릴 뿐이다. 마스크·블렌딩에는
      * 픽셀이 편하고 파일도 작다.
      *
-     * 나중에 굽는 길은 없다. Core 에 rasterize Command 가 없고, `stamp_visible`
-     * 로 우회하면 중간 스마트 오브젝트가 남는 데다 보이는 레이어가 1장이면
-     * 거절당한다. **안 만드는 것이 지우는 것보다 낫다.**
+     * 나중에 굽는 길은 `photoshop.layer.rasterize` 가 생겨 열렸다(ROADMAP §45).
+     * 그래도 처음부터 픽셀로 가져오는 편이 낫다 — 중간 스마트 오브젝트가
+     * 남지 않는다.
      */
     rasterize: z.boolean().optional(),
+    /**
+     * 파일을 **연결**로 가져온다. 기본은 포함(embedded)이다.
+     *
+     * 연결이면 원본 파일이 바뀔 때 문서도 따라 바뀌고,
+     * `smart_object.relink` · `smart_object.update` 를 쓸 수 있다.
+     *
+     * **대신 파일을 옮기거나 지우면 문서가 깨진다.** 이 저장소에서는 그 위험이
+     * 더 크다 — 외부 처리기가 쏟는 TIFF 가 승인된 작업 폴더에 쌓이고
+     * `workspace.delete` 가 그것을 치운다. (ROADMAP §55)
+     */
+    linked: z.boolean().optional(),
   })
-  .strict();
+  .strict()
+  /* **구우면 연결이 사라진다.** 둘 다 주면 호출자가 한쪽을 잃는다. */
+  .refine((value) => !(value.linked === true && value.rasterize === true), {
+    message: "linked 와 rasterize 를 함께 줄 수 없습니다. 구우면 연결이 사라집니다.",
+  });
 
 export type LayerPlaceParams = z.infer<typeof LayerPlaceParamsSchema>;
 

@@ -14,11 +14,11 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **123개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **126개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 129). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 132). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -54,8 +54,9 @@ Tool 까지 더한 수다(지금 129). 한동안 이 값을 Core 개수로 옮�
 - 스마트 오브젝트 정보: `smart_object.get_info` — **DOM 에 스마트 오브젝트가 통째로
   없다**(`SmartObject` 페이지가 404). 다만 **batchPlay `get` 은 읽기라 알림 캡처 없이**
   키를 직접 물어 알아냈다. **포함이어도 `fileReference` 에 값이 온다**(내부 `.psb` 이름).
-  `contentId` 가 같으면 내용을 공유한다 — 복제본이 그렇다. `linked: true` 는
-  연결 SO 를 만들 길이 없어 미확인이다 (ROADMAP §54)
+  **`contentId` 는 "어디서 온 내용인가" 이지 "지금 공유하는가" 가 아니다** — §54 에서
+  그렇게 읽었다가 §55 에서 틀린 것이 드러났다. 연결이면 `linkMissing` 으로
+  `workspace.delete` 에 깨진 것을 잡는다 (ROADMAP §54 · §55)
 - 그룹: create / move_layer · History: undo / redo — **새 편집을 하면 redo 가 사라진다**
 - 조정 레이어: curves / levels / brightness_contrast
 - 조정 레이어 넷: `exposure`(스톱·**`gammaCorrection`**) · `black_white`(여섯 색·
@@ -898,7 +899,7 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 123개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 126개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져

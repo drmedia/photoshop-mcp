@@ -47,7 +47,13 @@ import { createDocumentPasteTool } from "./document-paste.js";
 import { createDocumentRotateTool } from "./document-rotate.js";
 import { createDocumentCloseTool, createDocumentFlattenTool } from "./document-lifecycle.js";
 import { createDocumentOpenTool } from "./document-open.js";
-import { createSmartObjectConvertTool, createSmartObjectGetInfoTool } from "./smart-object.js";
+import {
+  createSmartObjectConvertTool,
+  createSmartObjectGetInfoTool,
+  createSmartObjectNewViaCopyTool,
+  createSmartObjectRelinkTool,
+  createSmartObjectUpdateTool,
+} from "./smart-object.js";
 import { createDodgeBurnDabTool } from "./dodge-burn.js";
 import { createMaskDabTool, createPaintDabTool } from "./paint.js";
 import { createFontListTool, createTextCreateTool, createTextSetTool } from "./text.js";
@@ -232,6 +238,9 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createLayerReorderTool(engine));
   registry.register(createSmartObjectConvertTool(engine));
   registry.register(createSmartObjectGetInfoTool(engine));
+  registry.register(createSmartObjectNewViaCopyTool(engine));
+  registry.register(createSmartObjectRelinkTool(engine));
+  registry.register(createSmartObjectUpdateTool(engine));
   registry.register(createDodgeBurnDabTool(engine));
   registry.register(createActionListTool(engine));
   registry.register(createActionDeclaredTool(engine));

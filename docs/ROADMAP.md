@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 123개만
+기본            Extension 0개. Core Tool 126개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -8146,15 +8146,24 @@ contentId   xmp.did:...        내용의 XMP 문서 id
 **`raw` 를 먼저 두고 실기에서 채운 것이 맞았다.** 짐작으로 스키마를 다 채웠으면
 `placed` 와 `contentId` 를 놓쳤을 것이다.
 
-## `contentId` 가 내용 공유를 가른다 — 재서 확인했다
-
-설명에 적기 전에 양쪽을 다 쟀다.
+## `contentId` — 관측은 맞았고 해석이 틀렸다
 
 ```text
 원본 (id 3)            xmp.did:19e77c48-…
-layer.duplicate (id 4) xmp.did:19e77c48-…   ← 같다. 내용을 공유한다
+layer.duplicate (id 4) xmp.did:19e77c48-…   ← 같다
 별개로 변환 (id 6)     xmp.did:e19bccd7-…   ← 다르다
 ```
+
+여기까지는 맞다. 그런데 **"내용을 공유한다" 로 읽은 것이 틀렸다.** §55 에서
+같은 파일로 만든 두 레이어를 `new_via_copy` 로 갈라 놓았는데 **둘의 값이
+같았다.**
+
+`contentId` 는 **"어디서 온 내용인가"** 다. 복제가 같은 것은 id 를 물려받아서이고,
+따로 변환한 것이 다른 것은 각자 새 XMP id 를 만들어서다. 둘 다 "출처" 로
+설명되고, "지금 공유하는가" 로는 설명되지 않는다.
+
+**관측을 적을 때와 해석을 적을 때를 가른다.** 값 세 개로 두 가지 해석이
+모두 성립했고, 가르는 실험을 하지 않은 채 한쪽을 골라 Tool 설명에 넣었다.
 
 ## 만들지 않은 셋
 
@@ -8186,3 +8195,114 @@ layer.duplicate (id 4) xmp.did:19e77c48-…   ← 같다. 내용을 공유한다
 - [x] 실기: 비-SO 는 오류가 아니라 `false` · 포함에도 `fileReference` 가 온다
 - [x] 실기: `contentId` 가 복제본과 같고 별개와 다르다
 - [ ] `linked: true` 는 연결 SO 를 만들 길이 없어 미확인
+
+# 55. 스마트 오브젝트 셋 + 연결 배치
+
+`smart_object.new_via_copy` · `relink` · `update`, 그리고 그 전제인
+`layer.place` 의 `linked` 옵션이다. §5.8 의 P2/P3 가 이것으로 비었다.
+
+## 전제를 먼저 열었다
+
+`relink` 와 `update` 는 **연결 스마트 오브젝트가 있어야 의미가 없다** —
+포함(embedded)에는 다시 연결할 파일도, 새로 읽을 원본도 없다.
+
+`place.ts` 에 `linked: false` 가 **이미 있었다.** 검증된 코드 안의 키라
+캡처가 필요 없었다. 다만 그 값은 실수가 아니라 **의도된 선택**이었고
+주석이 이유를 적고 있었다 — "링크로 넣으면 파일을 옮기거나 지웠을 때 문서가
+깨진다".
+
+**이 저장소에서는 그 위험이 더 크다.** 외부 처리기가 TIFF 를 쏟는 곳이 승인된
+작업 폴더이고 `workspace.delete` 가 그것을 치운다. 실기 폴더에 9.3GB 66개가
+쌓여 있었다. 그래서 기본은 포함으로 두고 호출자가 고르게 했다.
+
+`linked` 와 `rasterize` 는 함께 줄 수 없다 — 구우면 연결이 사라진다.
+
+## descriptor 셋을 한 라운드에 잡았다
+
+```json
+placedLayerMakeCopy            { }                       인자가 없다
+placedLayerRelinkToFile        { null: {_path, _kind}, layerID }
+placedLayerUpdateAllModified   { documentID, layerIDs: [] }
+```
+
+**`relink` 이 경로를 인자로 받는 것이 이 Tool 을 만들 수 있느냐를 갈랐다.**
+사람이 메뉴로 실행하면 "열기" 대화상자가 뜬다(`modalStateChanged` 로 잡혔다).
+경로를 주면 그 창이 뜨지 않는다.
+
+**`update` 는 문서 전체다.** 메뉴 이름은 "수정된 내용 업데이트" 인데 History
+이름이 `Update All Modified Smart Objects` 이고 descriptor 도 문서 단위였다.
+`layerIDs` 는 빈 배열만 잡혔고 **값을 넣으면 그것만 도는지 모른다** — 짐작해서
+파라미터로 열지 않았다.
+
+## 실기에서 잰 것
+
+```text
+place(linked: true)     linked: true · link._path E:\test01\so-red.tif
+                        ← §54 의 열린 항목이 닫혔다
+
+relink → so-blue.tif    R 251.25 → 198.75 · B 198.75 → 251.25   내용이 바뀐다
+                        히스토그램의 블러 퍼짐은 그대로         필터가 남는다
+                        raw.filterFX 에 gaussianBlur radius 8
+
+update (바뀐 것 없음)   조용히 끝난다
+
+workspace.delete        linkMissing: false → true
+```
+
+**`relink` 뒤에도 스마트 필터가 남는 것**이 이 Tool 의 존재 이유다 —
+`layer.place` 로 새 레이어를 놓으면 걸어 둔 것을 다시 걸어야 한다.
+
+## `raw` 가 연결일 때만 나오는 셋을 더 줬다
+
+```text
+link         { _path, _kind }   전체 경로
+linkMissing  연결된 파일이 사라졌는지
+linkChanged  파일이 바뀌었는지 (update 가 할 일이 있는지)
+```
+
+**`linkMissing` 이 위에 적은 위험의 탐지 수단이다.** 연결된 파일을
+`workspace.delete` 로 지우고 `true` 가 되는 것을 확인했다. 경고만 적고 재는
+방법을 안 주면 호출자는 깨진 줄 모른다.
+
+## `new_via_copy` 는 연결에 걸리지 않는다
+
+실기에서 Photoshop 이 **"'복사를 통해 새 스마트 오브젝트 만들기' 명령은 현재
+사용할 수 없습니다"** 라고만 답했다. 이유를 알 수 없는 문장이다 — 연결은
+내용이 파일에 있어 복사해 낼 것이 없다. 미리 막고 이유를 말한다.
+
+## `contentId` 해석이 틀렸다 — §54 를 정정했다
+
+§54 에서 "복제본과 같고 별개와 다르다" 를 보고 **"내용을 공유한다"** 로 읽었다.
+여기서 갈라 보니 틀렸다.
+
+```text
+so-red.tif 를 place → 사본(new_via_copy)
+원본  adobe:docid:photoshop:7856477a-…
+사본  adobe:docid:photoshop:7856477a-…   ← 같다. 갈라 놓았는데도
+```
+
+`contentId` 는 **"어디서 온 내용인가"** 다. §54 의 값 세 개로 두 해석이 모두
+성립했는데 **가르는 실험을 하지 않은 채 한쪽을 골라 Tool 설명에 넣었다.**
+`new_via_copy` 의 설명에서도 "contentId 로 확인할 수 있다" 를 뺐다.
+
+**관측을 적을 때와 해석을 적을 때를 가른다.**
+
+## 테스트 하나가 이름만 보고 걸렀다
+
+`tests/document-paste.test.ts` 가 "이름에 `copy` 가 들어간 Tool 은 없다" 로
+클립보드 Tool 부재를 검사하고 있었다. `smart_object.new_via_copy` 가 걸렸다 —
+Photoshop 메뉴 이름 그대로이고 클립보드와 상관이 없다.
+
+**의도대로 클립보드에 맞춰 좁혔다** — `clipboard` 포함 · `.copy` 로 끝나는 것 ·
+`cut` 포함. 넓은 문자열 검사는 무관한 것을 잡는다.
+
+## 체크리스트
+
+- [x] `photoshop.smart_object.new_via_copy` (EDIT) · `relink` (EXTERNAL) · `update` (EDIT)
+- [x] `photoshop.layer.place` 의 `linked` — `place_linked` 가 이것으로 채워졌다
+- [x] descriptor 셋을 `["all"]` 알림으로 한 라운드에 잡았다
+- [x] 실기: `linked: true` 확인 (§54 의 열린 항목)
+- [x] 실기: relink 가 내용을 바꾸고 스마트 필터를 남긴다
+- [x] 실기: `linkMissing` 이 `workspace.delete` 로 깨진 연결을 잡는다
+- [x] 실기: `new_via_copy` 가 연결에 안 걸린다 — 미리 막는다
+- [x] §54 의 `contentId` 해석 정정

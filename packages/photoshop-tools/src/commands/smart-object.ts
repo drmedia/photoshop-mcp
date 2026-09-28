@@ -110,8 +110,20 @@ export const SmartObjectInfoSchema = z.object({
   fileReference: z.string().nullable(),
   /** `placed` 의 안쪽 값. 실기에서 `rasterizeContent` 가 왔다. */
   placed: z.string().nullable(),
-  /** 내용의 XMP 문서 id. 같은 내용을 가리키는 레이어끼리 같다. */
+  /**
+   * 내용의 XMP 문서 id.
+   *
+   * **"지금 내용을 공유하는가" 가 아니라 "어디서 온 내용인가" 다.** 같은 파일에서
+   * 온 두 레이어는 `new_via_copy` 로 갈라 놓아도 같은 값이다 — 실기에서
+   * 확인했다. (ROADMAP §55)
+   */
   contentId: z.string().nullable(),
+  /** 연결된 파일의 전체 경로. 포함이거나 모르면 `null`. */
+  linkPath: z.string().nullable(),
+  /** **연결된 파일이 사라졌는지.** `true` 면 문서가 깨진 상태다. */
+  linkMissing: z.boolean().nullable(),
+  /** 연결된 파일이 바뀌었는지. `true` 면 `smart_object.update` 가 할 일이 있다. */
+  linkChanged: z.boolean().nullable(),
   /**
    * 해석하지 못한 원본.
    *
@@ -137,3 +149,89 @@ export const smartObjectGetInfoCommand: CommandHandler<
   }
   return parsed.data;
 };
+
+/* ROADMAP §55 — 사본 · 다시 연결 · 업데이트. descriptor 는 ["all"] 알림으로 잡았다. */
+
+export const SMART_OBJECT_NEW_VIA_COPY = "SMART_OBJECT_NEW_VIA_COPY";
+export const SMART_OBJECT_RELINK = "SMART_OBJECT_RELINK";
+export const SMART_OBJECT_UPDATE = "SMART_OBJECT_UPDATE";
+
+export const SmartObjectNewViaCopyParamsSchema = z
+  .object({
+    layerId: z.number().int().positive().optional(),
+  })
+  .strict();
+
+export const SmartObjectRelinkParamsSchema = z
+  .object({
+    layerId: z.number().int().positive().optional(),
+    /**
+     * 승인된 작업 폴더 안의 파일 이름. 경로를 쓸 수 없다.
+     *
+     * batchPlay 가 경로 문자열이 아니라 **세션 토큰**을 받으므로 폴더 제한이
+     * 그대로 유지된다. (`layer.place` 와 같은 규칙, ROADMAP §8.5)
+     */
+    filename: z
+      .string()
+      .trim()
+      .min(1)
+      .max(255)
+      .refine((value) => !value.includes("/") && !value.includes("\\") && !value.includes(".."), {
+        message: "파일 이름만 줍니다. 경로 구분자와 .. 는 쓸 수 없습니다.",
+      }),
+  })
+  .strict();
+
+/** **문서 전체다.** 레이어를 고르는 파라미터가 없다. */
+export const SmartObjectUpdateParamsSchema = z.object({}).strict();
+
+export type SmartObjectNewViaCopyParams = z.infer<typeof SmartObjectNewViaCopyParamsSchema>;
+export type SmartObjectRelinkParams = z.infer<typeof SmartObjectRelinkParamsSchema>;
+export type SmartObjectUpdateParams = z.infer<typeof SmartObjectUpdateParamsSchema>;
+
+export const SmartObjectNewViaCopyResultSchema = z.object({
+  /** 새로 생긴 레이어. **원본은 그대로 남는다.** */
+  layer: LayerInfoSchema,
+  /** 사본을 뜬 원본의 id. */
+  sourceId: z.number().int(),
+});
+
+export type SmartObjectNewViaCopyResult = z.infer<typeof SmartObjectNewViaCopyResultSchema>;
+
+export const SmartObjectUpdateResultSchema = z.object({
+  documentId: z.number().int(),
+});
+
+export type SmartObjectUpdateResult = z.infer<typeof SmartObjectUpdateResultSchema>;
+
+function forward<TParams, TResult>(
+  schema: z.ZodType<TResult>,
+  label: string,
+): CommandHandler<TParams, TResult> {
+  return async (command, context) => {
+    const raw = await context.bridge.executeCommand<unknown>(command);
+    const parsed = schema.safeParse(raw);
+    if (!parsed.success) {
+      throw new PhotoshopMcpError(ErrorCode.PROTOCOL_ERROR, `${label} 결과가 예상과 다릅니다.`, {
+        details: { issues: parsed.error.issues, received: raw },
+        cause: parsed.error,
+      });
+    }
+    return parsed.data;
+  };
+}
+
+export const smartObjectNewViaCopyCommand = forward<
+  SmartObjectNewViaCopyParams,
+  SmartObjectNewViaCopyResult
+>(SmartObjectNewViaCopyResultSchema, "사본 만들기");
+
+export const smartObjectRelinkCommand = forward<SmartObjectRelinkParams, SmartObjectInfo>(
+  SmartObjectInfoSchema,
+  "다시 연결",
+);
+
+export const smartObjectUpdateCommand = forward<SmartObjectUpdateParams, SmartObjectUpdateResult>(
+  SmartObjectUpdateResultSchema,
+  "업데이트",
+);

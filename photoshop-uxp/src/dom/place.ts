@@ -96,7 +96,7 @@ async function withCanvasSelection(): Promise<() => Promise<void>> {
 }
 
 /** 승인된 폴더에서 파일 항목을 찾는다. */
-async function findFile(folder: Folder, filename: string): Promise<unknown> {
+export async function findFile(folder: Folder, filename: string): Promise<unknown> {
   const entries = await folder.getEntries();
   const target = filename.toLowerCase();
   const found = entries.find((entry) => entry.name.toLowerCase() === target);
@@ -143,6 +143,7 @@ export async function layerPlace(params: {
   filename: string;
   name?: string;
   rasterize?: boolean;
+  linked?: boolean;
 }): Promise<LayerInfo> {
   return runModal("Place file", async () => {
     const document = requireActiveDocument();
@@ -161,9 +162,16 @@ export async function layerPlace(params: {
         [
           {
             _obj: "placeEvent",
-            // linked: false — 파일 경로를 참조하지 않고 문서 안에 포함한다.
-            // 링크로 넣으면 파일을 옮기거나 지웠을 때 문서가 깨진다.
-            linked: false,
+            /* **기본은 포함(embedded)이다.** 링크로 넣으면 파일을 옮기거나
+             * 지웠을 때 문서가 깨진다 — 이 저장소에서는 그 위험이 더 크다.
+             * 외부 처리기가 TIFF 를 쏟는 곳이 승인된 작업 폴더이고
+             * `workspace.delete` 가 그것을 치운다. 거기를 가리키는 연결
+             * 스마트 오브젝트는 정리하는 순간 깨진다. (ROADMAP §55)
+             *
+             * 그래도 열어 둔 것은 `smart_object.relink` · `update` 가 연결
+             * 스마트 오브젝트 없이는 의미가 없기 때문이다. 고르는 것은
+             * 호출자이고 기본은 안전한 쪽이다. */
+            linked: params.linked === true,
             null: { _path: token, _kind: "local" },
             freeTransformCenterState: { _enum: "quadCenterState", _value: "QCSAverage" },
           },

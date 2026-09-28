@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (123개)
+## 4. 구현된 Core API (126개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -283,6 +283,9 @@ RAW 의 현상 설정은 슬라이더를 보며 정하는 일이라 사람이 �
 | `photoshop.layer.stamp_visible` | EDIT | 보이는 레이어를 합친 복제본 |
 | `photoshop.smart_object.convert` | EDIT | 스마트 필터를 걸 수 있게 만든다. **id 가 바뀐다** |
 | `photoshop.smart_object.get_info` | READ | 연결/포함과 원본 경로. **모르면 `null`** |
+| `photoshop.smart_object.new_via_copy` | EDIT | **내용을 공유하지 않는 사본.** duplicate 와 다르다 |
+| `photoshop.smart_object.relink` | EXTERNAL | 내용을 다른 파일로. **필터·마스크는 남는다** |
+| `photoshop.smart_object.update` | EDIT | 수정된 연결 내용을 새로 읽는다. **문서 전체다** |
 | `photoshop.layer.delete` | DESTRUCTIVE | **id 를 명시한다.** 패턴을 받지 않는다 |
 
 `layerId` 를 생략하면 활성 레이어를 대상으로 한다. 그것이 무엇인지는
@@ -478,7 +481,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
-| `photoshop.layer.place_linked` | P3 | EXTERNAL | 연결된 스마트 오브젝트 |
 | `photoshop.layer.delete` | P2 | DESTRUCTIVE | |
 | `photoshop.group.ungroup` | P2 | DESTRUCTIVE | 그룹이 사라진다 |
 
@@ -524,11 +526,7 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
-| `photoshop.smart_object.replace_contents` | P2 | EXTERNAL | 파일을 읽는다 |
-| `photoshop.smart_object.open_contents` | P2 | EDIT | |
-| `photoshop.smart_object.relink` | P3 | EXTERNAL | |
-| `photoshop.smart_object.update` | P3 | EDIT | |
-| `photoshop.smart_object.new_via_copy` | P3 | EDIT | |
+| `photoshop.smart_object.open_contents` | P2 | EDIT | **만들지 않는다** — 활성 문서가 바뀐다 (ROADMAP §54) |
 
 `smart_object.rasterize` 가 `DESTRUCTIVE` 인 이유는 **되돌릴 수 없기 때문**이다 —
 스마트 오브젝트 안의 원본이 사라진다. 그래서 **만들지 않는 쪽이 지우는 것보다 낫다.**
@@ -760,7 +758,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **123** |
+| 구현됨 | **126** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

@@ -21,7 +21,13 @@ export function createLayerPlaceTool(
       "활성 레이어의 불투명도를 물려받는다. " +
       "위치와 불투명도가 중요하면 먼저 layer.select 로 기준 레이어를 고른다. " +
       "rasterize 를 켜면 스마트 오브젝트 대신 픽셀 레이어로 가져온다 — " +
-      "외부 처리기가 구워 돌려준 결과처럼 다시 편집할 원본이 없을 때 쓴다.",
+      "외부 처리기가 구워 돌려준 결과처럼 다시 편집할 원본이 없을 때 쓴다. " +
+      "linked 를 켜면 **파일을 연결로 가져온다** — 원본이 바뀌면 문서도 따라 바뀌고 " +
+      "photoshop.smart_object.relink · update 를 쓸 수 있다. " +
+      "**대신 파일을 옮기거나 지우면 문서가 깨진다.** 외부 처리기가 쏟는 TIFF 가 " +
+      "쌓이는 곳이 바로 이 폴더이고 photoshop.workspace.delete 가 그것을 치우므로, " +
+      "정리 대상인 파일에는 연결을 걸지 않는다. 기본은 포함(embedded)이다. " +
+      "linked 와 rasterize 는 함께 줄 수 없다 — 구우면 연결이 사라진다.",
     permission: "external",
     inputSchema: LayerPlaceParamsSchema,
     handler: async (input, context) =>

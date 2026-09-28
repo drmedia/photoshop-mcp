@@ -66,12 +66,18 @@ describe("document.paste", () => {
     expect(DocumentPasteParamsSchema.safeParse({ asSmartObject: true }).success).toBe(false);
   });
 
-  it("**복사하는 Tool 은 없다**", () => {
+  it("**클립보드에 쓰는 Tool 은 없다**", () => {
     /* UXP 에 클립보드 쓰기 API 가 없다. 클립보드를 채우는 것은 언제나
-     * 사용자이고, 그래서 이 Tool 은 사용자가 준 것만 가져온다. */
+     * 사용자이고, 그래서 이 Tool 은 사용자가 준 것만 가져온다.
+     *
+     * **처음에는 이름에 "copy" 가 들어가면 전부 걸렀는데 너무 넓었다.**
+     * `smart_object.new_via_copy` 는 Photoshop 메뉴 이름 그대로이고 클립보드와
+     * 상관이 없다 — 레이어 내용을 복사해 연결을 끊는다. 검사는 의도대로
+     * **클립보드**에 맞춘다. (ROADMAP §55) */
     const mcp = setup();
     const names = mcp.tools.list().map((tool) => tool.name);
-    expect(names.filter((name) => name.includes("copy"))).toEqual([]);
     expect(names.filter((name) => name.includes("clipboard"))).toEqual([]);
+    expect(names.filter((name) => /\.copy(_|$)/u.test(name))).toEqual([]);
+    expect(names.filter((name) => name.includes("cut"))).toEqual([]);
   });
 });

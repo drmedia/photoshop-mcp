@@ -991,6 +991,9 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
           fileReference: null,
           placed: null,
           contentId: null,
+          linkPath: null,
+          linkMissing: null,
+          linkChanged: null,
           raw: null,
         } as TResult;
       }
@@ -2092,6 +2095,77 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         return this.#usage(command.params as { limit?: number }) as TResult;
       case "WORKSPACE_DELETE":
         return this.#deleteFiles(command.params as { filenames: string[] }) as TResult;
+      /**
+       * 스마트 오브젝트 사본 · 다시 연결 · 업데이트. (ROADMAP §55)
+       *
+       * **흉내낼 수 있는 계약만 흉내낸다.** 폴더 승인 · 파일 존재 · "스마트
+       * 오브젝트여야 한다" 는 Mock 이 정확히 흉내낼 수 있고, 파일에서 오는 값
+       * (`linked` · `fileReference` · `contentId`)은 모르므로 `null` 이다.
+       */
+      case "SMART_OBJECT_NEW_VIA_COPY": {
+        this.#snapshot("New smart object via copy");
+        const at = this.#requireLayerIndex((command.params as { layerId?: number }).layerId);
+        const source = this.#layers[at] as LayerInfo;
+        if (source.type !== "smartObject") {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `레이어 ${String(source.id)} 는 스마트 오브젝트가 아닙니다. ` +
+              "smart_object.convert 를 먼저 부르세요.",
+            { recoverable: true, details: { layerId: source.id, type: source.type } },
+          );
+        }
+        /* **원본은 그대로 남는다.** 새 레이어가 하나 는다. */
+        const copy: LayerInfo = { ...source, id: this.#nextLayerId++ };
+        this.#layers.splice(at, 0, copy);
+        this.#activeLayerId = copy.id;
+        return { layer: { ...copy }, sourceId: source.id } as TResult;
+      }
+      case "SMART_OBJECT_RELINK": {
+        this.#snapshot("Relink smart object");
+        const params = command.params as { layerId?: number; filename: string };
+        const at = this.#requireLayerIndex(params.layerId);
+        const layer = this.#layers[at] as LayerInfo;
+        if (layer.type !== "smartObject") {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `레이어 ${String(layer.id)} 는 스마트 오브젝트가 아닙니다.`,
+            { recoverable: true, details: { layerId: layer.id, type: layer.type } },
+          );
+        }
+        if (this.#workspacePath === null) {
+          throw new PhotoshopMcpError(
+            ErrorCode.WORKSPACE_NOT_APPROVED,
+            "연결할 파일이 있는 작업 폴더가 승인되지 않았습니다.",
+            { recoverable: true },
+          );
+        }
+        if (!this.#hasFile(params.filename)) {
+          throw new PhotoshopMcpError(
+            ErrorCode.FILE_NOT_FOUND,
+            `승인된 작업 폴더에 파일이 없습니다: ${params.filename}`,
+            { recoverable: true, details: { filename: params.filename } },
+          );
+        }
+        return {
+          layer: { ...layer },
+          isSmartObject: true,
+          linked: null,
+          fileReference: null,
+          placed: null,
+          contentId: null,
+          linkPath: null,
+          linkMissing: null,
+          linkChanged: null,
+          raw: null,
+        } as TResult;
+      }
+      case "SMART_OBJECT_UPDATE": {
+        /* **바뀐 것이 없으면 아무 일도 안 한다** — 실제도 그렇다.
+         * Mock 은 연결 스마트 오브젝트를 가질 수 없으므로 언제나 그 경우다. */
+        const document = this.#requireDocument();
+        return { documentId: document.id } as TResult;
+      }
+
       case "LAYER_PLACE":
         this.#snapshot("Place file");
         return this.#place(

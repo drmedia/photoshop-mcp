@@ -225,10 +225,19 @@ import {
 import {
   SMART_OBJECT_CONVERT,
   SMART_OBJECT_GET_INFO,
+  SMART_OBJECT_NEW_VIA_COPY,
+  SMART_OBJECT_RELINK,
+  SMART_OBJECT_UPDATE,
   SmartObjectConvertParamsSchema,
   SmartObjectGetInfoParamsSchema,
+  SmartObjectNewViaCopyParamsSchema,
+  SmartObjectRelinkParamsSchema,
+  SmartObjectUpdateParamsSchema,
   smartObjectConvertCommand,
   smartObjectGetInfoCommand,
+  smartObjectNewViaCopyCommand,
+  smartObjectRelinkCommand,
+  smartObjectUpdateCommand,
 } from "./smart-object.js";
 import { LAYER_REORDER, LayerReorderParamsSchema, layerReorderCommand } from "./layer-reorder.js";
 import { MEASURE_TILT, MeasureTiltParamsSchema, measureTiltCommand } from "./measure-tilt.js";
@@ -603,6 +612,19 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(SMART_OBJECT_GET_INFO, smartObjectGetInfoCommand, {
     permission: "read",
     schema: SmartObjectGetInfoParamsSchema,
+  });
+  registry.register(SMART_OBJECT_NEW_VIA_COPY, smartObjectNewViaCopyCommand, {
+    permission: "edit",
+    schema: SmartObjectNewViaCopyParamsSchema,
+  });
+  /* **`external` 이다.** 승인된 폴더의 파일을 읽어 들인다 — `layer.place` 와 같다. */
+  registry.register(SMART_OBJECT_RELINK, smartObjectRelinkCommand, {
+    permission: "external",
+    schema: SmartObjectRelinkParamsSchema,
+  });
+  registry.register(SMART_OBJECT_UPDATE, smartObjectUpdateCommand, {
+    permission: "edit",
+    schema: SmartObjectUpdateParamsSchema,
   });
   registry.register(DODGE_BURN_DAB, dodgeBurnDabCommand, {
     // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.

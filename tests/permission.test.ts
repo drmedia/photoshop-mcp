@@ -243,6 +243,7 @@ describe("Core Tool 분류", () => {
        * 논리이고 폴더 승인조차 없다. (ROADMAP §41) */
       "DOCUMENT_PASTE",
       "DOCUMENT_OPEN",
+      "SMART_OBJECT_RELINK",
       "DOCUMENT_SAVE_AS",
       "DOCUMENT_EXPORT",
       "SELECTION_EXPORT_MASK",
@@ -301,6 +302,9 @@ describe("Core Tool 분류", () => {
         (type) =>
           type.startsWith("DOCUMENT_") ||
           type === "LAYER_PLACE" ||
+          /* 승인된 폴더의 파일을 읽어 스마트 오브젝트 내용으로 넣는다 —
+           * `LAYER_PLACE` 와 같은 규칙이다. (ROADMAP §55) */
+          type === "SMART_OBJECT_RELINK" ||
           type === "LAYER_DELETE" ||
           /* 스마트 오브젝트의 원본과 텍스트의 글자가 사라진다. CORE_API §9 가
            * `smart_object.rasterize` 로 처음부터 이렇게 분류했다. (ROADMAP §45) */

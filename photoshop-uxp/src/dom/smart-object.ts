@@ -7,6 +7,8 @@ import { flattenLayers } from "./layers.js";
 import { withMaskStateAsync } from "./mask-state.js";
 import { resolveMutatedLayer } from "./mutation-result.js";
 import { runModal } from "./modal.js";
+import { findFile } from "./place.js";
+import { fileSystem, requireWorkspace } from "./workspace.js";
 
 /**
  * 스마트 오브젝트 변환. (ROADMAP §17.27)
@@ -116,8 +118,20 @@ export interface SmartObjectInfo {
   fileReference: string | null;
   /** `placed` 의 안쪽 값. 실기에서 `rasterizeContent` 가 왔다. */
   placed: string | null;
-  /** 내용의 XMP 문서 id. 복제해도 같은 내용이면 같다. */
+  /**
+   * 내용의 XMP 문서 id.
+   *
+   * **"지금 내용을 공유하는가" 가 아니라 "어디서 온 내용인가" 다.** 같은 파일에서
+   * 온 두 레이어는 `new_via_copy` 로 갈라 놓아도 같은 값이다 — 실기에서
+   * 원본과 사본이 같았다. §54 에 "내용을 공유한다" 고 적었던 해석이 틀렸다.
+   */
   contentId: string | null;
+  /** 연결된 파일의 전체 경로. 포함이거나 모르면 `null`. */
+  linkPath: string | null;
+  /** **연결된 파일이 사라졌는지.** `true` 면 문서가 깨진 상태다. */
+  linkMissing: boolean | null;
+  /** 연결된 파일이 바뀌었는지. `true` 면 `smart_object.update` 가 할 일이 있다. */
+  linkChanged: boolean | null;
   /** 해석하지 못한 원본. 아는 것만 위로 올리고 나머지는 그대로 둔다. */
   raw: Record<string, unknown> | null;
 }
@@ -182,6 +196,9 @@ export async function smartObjectGetInfo(params: { layerId?: number }): Promise<
         fileReference: null,
         placed: null,
         contentId: null,
+        linkPath: null,
+        linkMissing: null,
+        linkChanged: null,
         raw: null,
       };
     }
@@ -212,13 +229,25 @@ export async function smartObjectGetInfo(params: { layerId?: number }): Promise<
         fileReference: null,
         placed: null,
         contentId: null,
+        linkPath: null,
+        linkMissing: null,
+        linkChanged: null,
         raw: null,
       };
     }
 
     /* `_obj` 는 descriptor 자신의 클래스 이름("smartObject")이라 담지 않는다.
      * 나머지 넷은 실기에서 실제로 온 것이다. */
-    const known = new Set(["_obj", "linked", "fileReference", "placed", "documentID"]);
+    const known = new Set([
+      "_obj",
+      "linked",
+      "fileReference",
+      "placed",
+      "documentID",
+      "link",
+      "linkMissing",
+      "linkChanged",
+    ]);
     const linkedValue = bag["linked"];
     const fileValue = bag["fileReference"];
     const documentIdValue = bag["documentID"];
@@ -230,6 +259,17 @@ export async function smartObjectGetInfo(params: { layerId?: number }): Promise<
       placedRaw !== null && typeof placedRaw === "object"
         ? (placedRaw as Record<string, unknown>)["_value"]
         : undefined;
+
+    /* 연결일 때만 오는 셋. `link` 는 `{_path, _kind}` 이고 경로만 꺼낸다.
+     * **`linkMissing` 이 `workspace.delete` 로 깨진 연결을 잡아낸다** — 실기에서
+     * 연결된 파일을 지우고 `true` 가 되는 것을 확인했다. (ROADMAP §55) */
+    const linkRaw = bag["link"];
+    const linkPathValue =
+      linkRaw !== null && typeof linkRaw === "object"
+        ? (linkRaw as Record<string, unknown>)["_path"]
+        : undefined;
+    const missingValue = bag["linkMissing"];
+    const changedValue = bag["linkChanged"];
 
     const rest: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(bag)) {
@@ -248,7 +288,207 @@ export async function smartObjectGetInfo(params: { layerId?: number }): Promise<
       fileReference: typeof fileValue === "string" ? fileValue : null,
       placed: typeof placedValue === "string" ? placedValue : null,
       contentId: typeof documentIdValue === "string" ? documentIdValue : null,
+      linkPath: typeof linkPathValue === "string" ? linkPathValue : null,
+      linkMissing: typeof missingValue === "boolean" ? missingValue : null,
+      linkChanged: typeof changedValue === "boolean" ? changedValue : null,
       raw: Object.keys(rest).length === 0 ? null : rest,
     };
+  });
+}
+
+/**
+ * 내용을 공유하지 않는 사본을 만든다. (ROADMAP §55)
+ *
+ * **`layer.duplicate` 와 다르다.** 복제본은 내용을 공유해서 한쪽을 고치면
+ * 다른 쪽도 바뀐다 — `smart_object.get_info` 의 `contentId` 가 같은 것으로
+ * 실기에서 확인했다(§54). 이것은 내용을 복사해 **연결을 끊는다.**
+ *
+ * descriptor 는 `["all"]` 알림으로 잡았다. **인자가 하나도 없다** —
+ * `{_obj:"placedLayerMakeCopy"}` 가 전부이고 활성 레이어에 걸린다.
+ * History 이름은 `New Smart Object via Copy` 다.
+ */
+export async function smartObjectNewViaCopy(params: { layerId?: number }): Promise<{
+  layer: LayerInfo;
+  sourceId: number;
+}> {
+  return runModal("New smart object via copy", async () => {
+    const document = requireActiveDocument();
+    const target =
+      params.layerId === undefined
+        ? document.activeLayers[0]
+        : findLayerById(document.layers, params.layerId);
+    if (target === undefined || target === null) {
+      throw new DispatchError(
+        "LAYER_NOT_FOUND",
+        params.layerId === undefined
+          ? "활성 레이어가 없습니다."
+          : `레이어 ${params.layerId} 를 찾을 수 없습니다.`,
+        { recoverable: true, details: { layerId: params.layerId } },
+      );
+    }
+
+    const sourceId = target.id;
+    const described = flattenLayers(document.layers).find((entry) => entry.id === sourceId);
+    /* **스마트 오브젝트가 아니면 미리 막는다.** Photoshop 은 "명령을 사용할 수
+     * 없습니다" 라고만 답해 이유를 알 수 없다. */
+    if (described === undefined || described.type !== "smartObject") {
+      throw new DispatchError(
+        "INVALID_PARAMETER",
+        `레이어 ${sourceId} 는 스마트 오브젝트가 아닙니다. smart_object.convert 를 먼저 부르세요.`,
+        { recoverable: true, details: { layerId: sourceId, type: described?.type ?? null } },
+      );
+    }
+
+    /* **연결 스마트 오브젝트에는 걸리지 않는다.**
+     *
+     * 실기에서 Photoshop 이 "'복사를 통해 새 스마트 오브젝트 만들기' 명령은 현재
+     * 사용할 수 없습니다" 라고만 답했다 — 이유를 알 수 없는 문장이다. 연결은
+     * 내용이 파일에 있어 복사해 낼 것이 없다. 미리 막고 이유를 말한다.
+     * (ROADMAP §55) */
+    const info = await smartObjectGetInfo({ layerId: sourceId });
+    if (info.linked === true) {
+      throw new DispatchError(
+        "INVALID_PARAMETER",
+        `레이어 ${sourceId} 는 연결(linked) 스마트 오브젝트라 사본을 만들 수 없습니다. ` +
+          "내용이 파일에 있어 복사해 낼 것이 없습니다 — layer.place 로 다시 가져오세요.",
+        { recoverable: true, details: { layerId: sourceId, linked: true } },
+      );
+    }
+
+    document.activeLayers = [target];
+    const before = flattenLayers(document.layers).map((entry) => entry.id);
+
+    const results = await action.batchPlay([{ _obj: "placedLayerMakeCopy" }], {});
+    const failure = results.find((result) => result["message"] !== undefined);
+    if (failure !== undefined) {
+      throw new DispatchError("COMMAND_FAILED", String(failure["message"]), {
+        details: { layerId: sourceId },
+      });
+    }
+
+    /* **새 레이어가 생긴다.** 원본은 그대로 남으므로 `resolveMutatedLayer` 가
+     * 아니라 "없던 id" 를 직접 찾는다. */
+    const after = flattenLayers(requireActiveDocument().layers);
+    const known = new Set(before);
+    const created = after.find((entry) => !known.has(entry.id));
+    if (created === undefined) {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        "사본은 만들어졌지만 결과 레이어를 확인하지 못했습니다. layer.list 로 확인하세요.",
+        { recoverable: true, details: { layerId: sourceId } },
+      );
+    }
+    return { layer: (await withMaskStateAsync([created]))[0] as LayerInfo, sourceId };
+  });
+}
+
+/**
+ * 연결된 내용을 다른 파일로 바꾼다. (ROADMAP §55)
+ *
+ * 잡은 descriptor 에 **경로가 인자로 들어 있다** — 그래서 대화상자 없이 부를 수
+ * 있다. 그게 이 Tool 을 만들 수 있느냐를 갈랐다.
+ *
+ * ```json
+ * { "_obj": "placedLayerRelinkToFile",
+ *   "null": { "_path": "...", "_kind": "local" }, "layerID": 4 }
+ * ```
+ *
+ * 경로는 **세션 토큰**이어야 한다 — 문자열을 그대로 주면
+ * `invalid file token used` 가 난다(§8.5). `layer.place` 와 같은 규칙이고,
+ * 그래서 **승인된 작업 폴더 안의 파일만** 받는다.
+ */
+export async function smartObjectRelink(params: {
+  layerId?: number;
+  filename: string;
+}): Promise<SmartObjectInfo> {
+  return runModal("Relink smart object", async () => {
+    const document = requireActiveDocument();
+    const target =
+      params.layerId === undefined
+        ? document.activeLayers[0]
+        : findLayerById(document.layers, params.layerId);
+    if (target === undefined || target === null) {
+      throw new DispatchError(
+        "LAYER_NOT_FOUND",
+        params.layerId === undefined
+          ? "활성 레이어가 없습니다."
+          : `레이어 ${params.layerId} 를 찾을 수 없습니다.`,
+        { recoverable: true, details: { layerId: params.layerId } },
+      );
+    }
+
+    const layerId = target.id;
+    const described = flattenLayers(document.layers).find((entry) => entry.id === layerId);
+    if (described === undefined || described.type !== "smartObject") {
+      throw new DispatchError(
+        "INVALID_PARAMETER",
+        `레이어 ${layerId} 는 스마트 오브젝트가 아닙니다.`,
+        { recoverable: true, details: { layerId, type: described?.type ?? null } },
+      );
+    }
+
+    const folder = await requireWorkspace();
+    const entry = await findFile(folder, params.filename);
+    const token = fileSystem().createSessionToken(
+      entry as Parameters<ReturnType<typeof fileSystem>["createSessionToken"]>[0],
+    );
+
+    const results = await action.batchPlay(
+      [
+        {
+          _obj: "placedLayerRelinkToFile",
+          null: { _path: token, _kind: "local" },
+          layerID: layerId,
+        },
+      ],
+      {},
+    );
+    const failure = results.find((result) => result["message"] !== undefined);
+    if (failure !== undefined) {
+      throw new DispatchError("COMMAND_FAILED", String(failure["message"]), {
+        details: { layerId, filename: params.filename },
+      });
+    }
+
+    /* **바뀐 것을 그대로 읽어 돌려준다.** 성공만 말하면 호출자는 어느 파일에
+     * 연결됐는지 다시 물어야 한다. */
+    return smartObjectGetInfo({ layerId });
+  });
+}
+
+/**
+ * 수정된 연결 스마트 오브젝트를 전부 새로 읽는다. (ROADMAP §55)
+ *
+ * **레이어 하나가 아니라 문서 전체다.** 메뉴 이름은 "수정된 내용 업데이트"
+ * 인데 History 이름이 `Update All Modified Smart Objects` 이고 잡은
+ * descriptor 도 문서 단위였다.
+ *
+ * ```json
+ * { "_obj": "placedLayerUpdateAllModified", "documentID": 854, "layerIDs": [] }
+ * ```
+ *
+ * **`layerIDs` 에 값을 넣어 보지 않았다.** 빈 배열만 잡혔고, 넣으면 그것만
+ * 도는지 알 수 없다 — 짐작해서 파라미터로 열지 않는다.
+ */
+export async function smartObjectUpdate(): Promise<{ documentId: number }> {
+  return runModal("Update modified smart objects", async () => {
+    const document = requireActiveDocument();
+    const results = await action.batchPlay(
+      [
+        {
+          _obj: "placedLayerUpdateAllModified",
+          documentID: document.id,
+          layerIDs: [],
+        },
+      ],
+      {},
+    );
+    const failure = results.find((result) => result["message"] !== undefined);
+    if (failure !== undefined) {
+      throw new DispatchError("COMMAND_FAILED", String(failure["message"]), {
+        details: { documentId: document.id },
+      });
+    }
+    return { documentId: document.id };
   });
 }

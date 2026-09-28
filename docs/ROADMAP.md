@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 91개만
+기본            Extension 0개. Core Tool 92개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -6861,3 +6861,49 @@ Mock 의 `#undo` 는 이력을 **pop** 하기만 해서 redo 가 불가능했다
 - [x] 실기: undo → redo 왕복, id 까지 복원
 - [x] 실기: 새 편집이 앞쪽 이력을 버리는 것
 - [x] Mock 이 redo 스택과 "새 편집이 비운다" 를 갖는다
+
+# 35. 문서 복제 (`photoshop.document.duplicate`)
+
+**되돌릴 수 없는 작업 앞의 안전망이다.** `image.resize`(§33) · `document.flatten` ·
+`mask.apply` 를 복제본에서 하면 원본이 남는다. 파일을 만들지 않고 메모리 안에
+새 문서를 열므로 `external` 이 아니라 `edit` 이다.
+
+## 함정은 이미 풀려 있었다
+
+`Document.duplicate()` 가 돌려준 객체의 `id` 가 `undefined` 일 때가 있다는 것을
+`export_tiff` 를 고치며 잡아 두었다(`duplicated-document.ts`). **여기서 새로 짜지
+않고 그 헬퍼를 그대로 썼다** — 새로 짰으면 같은 실수를 다시 했을 것이다.
+
+어느 것이 복제본인지 좁혀지지 않으면 **추측하지 않고 실패한다.** 이 Command 를
+만든 이유가 되돌릴 수 없는 작업을 원본에 거는 것을 막는 것인데, 틀린 추측은
+정확히 그 사고를 일으킨다.
+
+## 실기에서 확인한 것
+
+```text
+레이어 3장 문서 복제        →  id 130, layers 3, activeDocumentId 130
+mergeLayersOnly: true       →  id 133, layers 1
+그 뒤 원본                  →  레이어 3장 그대로 (id 1·2·3)
+이름 생략                   →  "DUP-TEST 복사"
+```
+
+**복제본이 활성이 된다.** 다만 그렇게 적어 두지 않고 `activeDocumentId` 에 읽은
+값을 담는다 — 그렇지 않은 날 호출자가 원본을 편집하게 된다. `document.create` 와
+같은 자리다.
+
+**`mergeLayersOnly` 는 이름이 말하는 것과 다르다.** 원본의 레이어를 합치는 것이
+아니라 합친 결과 한 장만 복제본에 넣는다. 원본이 3장 그대로인 것을 확인했다.
+요청값을 되풀이하지 않고 `layers` 로 드러낸다.
+
+## Mock 은 실패한다
+
+Mock 은 문서를 하나만 들고 있어 진짜 복제본을 만들 수 없다. 그럴듯한 값을
+돌려주면 **이 Command 가 막으려는 바로 그 사고**가 난다 — 호출자가 원본을
+복제본으로 알고 되돌릴 수 없는 작업을 건다. `DOCUMENT_OPEN` 과 같은 규칙이다.
+
+## 체크리스트
+
+- [x] `photoshop.document.duplicate` — `activeDocumentId` · `layers` 로 사실을 알린다
+- [x] `duplicated-document.ts` 헬퍼 재사용
+- [x] 실기: 기본 복제 · `mergeLayersOnly` · 원본 보존 · 이름 생략
+- [x] Mock 은 한 척하지 않고 실패한다

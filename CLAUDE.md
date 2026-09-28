@@ -14,17 +14,19 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **91개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **92개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 97). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 98). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
 - 조회: `ping`, `document.get`, `document.list`, `layer.list`
 - 문서 만들기: `document.create` — **`applied` 로 요청값이 들어갔는지 확인한다.**
   새 문서가 활성이 되므로 이후 편집 대상이 바뀐다
+- 문서 복제: `document.duplicate` — 되돌릴 수 없는 작업 앞의 안전망.
+  **`mergeLayersOnly` 는 원본을 합치지 않는다** — 복제본에 한 장만 넣는다 (ROADMAP §35)
 - 호스트: `host.get` — 버전 + **이 서버가 쓰는 API 의 유무.** 같은 질문을 실기에서
   네 번 확인했다(§17.13 · §17.19 · §17.25 · §28). 문서가 없으면 `document.*` 는
   `false` 가 아니라 `null` 이다
@@ -829,7 +831,7 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 91개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 92개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져

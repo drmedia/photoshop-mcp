@@ -17,6 +17,11 @@ import {
   documentCreateCommand,
 } from "./document-create.js";
 import { DOCUMENT_LIST, DocumentListParamsSchema, documentListCommand } from "./document-list.js";
+import {
+  DOCUMENT_DUPLICATE,
+  DocumentDuplicateParamsSchema,
+  documentDuplicateCommand,
+} from "./document-duplicate.js";
 import { LAYER_GET, LayerGetParamsSchema, layerGetCommand } from "./layer-get.js";
 import {
   LAYER_SELECT_MULTIPLE,
@@ -279,6 +284,7 @@ export {
 export { LAYER_LIST, layerListCommand } from "./layer-list.js";
 export * from "./capture.js";
 export * from "./document-crop.js";
+export * from "./document-duplicate.js";
 export * from "./image-resize.js";
 export * from "./document-rotate.js";
 export * from "./measure-tilt.js";
@@ -330,6 +336,11 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(DOCUMENT_CREATE, documentCreateCommand, {
     permission: "edit",
     schema: DocumentCreateParamsSchema,
+  });
+  /* 파일을 만들지 않는다 — 메모리 안의 새 문서다. 그래서 `external` 이 아니다. */
+  registry.register(DOCUMENT_DUPLICATE, documentDuplicateCommand, {
+    permission: "edit",
+    schema: DocumentDuplicateParamsSchema,
   });
   registry.register(LAYER_LIST, layerListCommand, { permission: "read" });
   registry.register(LAYER_GET, layerGetCommand, {

@@ -17,6 +17,7 @@ import {
   adjustmentLevels,
 } from "./dom/adjustment.js";
 import { documentCreate } from "./dom/document-create.js";
+import { documentDuplicate } from "./dom/document-duplicate.js";
 import { layerGet } from "./dom/layer-get.js";
 import { layerSelectMultiple } from "./dom/layer-select-multiple.js";
 import { documentGet, documentList } from "./dom/document.js";
@@ -194,6 +195,9 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("DOCUMENT_CREATE", async (p) =>
     documentCreate(p as unknown as Parameters<typeof documentCreate>[0]),
+  );
+  dispatcher.register("DOCUMENT_DUPLICATE", async (p) =>
+    documentDuplicate(p as Parameters<typeof documentDuplicate>[0]),
   );
   dispatcher.register("SELECTION_LOAD_CHANNEL", async (p) =>
     selectionLoadChannel(p as { name: string; invert?: boolean; mode?: "new" | "intersect" }),

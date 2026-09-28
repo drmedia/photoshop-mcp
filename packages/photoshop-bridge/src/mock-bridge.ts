@@ -428,6 +428,24 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        *
        * 형식 검사는 Command 스키마가 하므로 여기까지 온 것은 이미 통과한 것이다.
        */
+      /**
+       * 복제. (CORE_API §5 P2)
+       *
+       * **Mock 은 실패한다.** 문서를 하나만 들고 있어 진짜 복제본을 만들 수
+       * 없는데, 그럴듯한 값을 돌려주면 **이 Command 가 막으려는 바로 그 사고**가
+       * 난다 — 호출자가 원본을 복제본으로 알고 image.resize · flatten 처럼
+       * 되돌릴 수 없는 작업을 건다.
+       *
+       * `DOCUMENT_OPEN` 과 같은 규칙이다. 할 수 없는 것을 한 척하지 않는다.
+       */
+      case "DOCUMENT_DUPLICATE":
+        this.#requireDocument();
+        throw new PhotoshopMcpError(
+          ErrorCode.COMMAND_FAILED,
+          "Mock Bridge 는 문서를 하나만 들고 있어 복제할 수 없습니다. " +
+            "실제 Photoshop 연결이 필요합니다.",
+          { recoverable: false },
+        );
       case "DOCUMENT_OPEN": {
         const { filename } = command.params as { filename: string };
         throw new PhotoshopMcpError(

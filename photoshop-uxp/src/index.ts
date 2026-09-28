@@ -40,6 +40,7 @@ import {
   maskCreate,
   maskDisable,
   maskApply,
+  maskDelete,
   maskInvert,
   maskSelect,
   maskEnable,
@@ -350,6 +351,7 @@ export function createDispatcher(): CommandDispatcher {
   /* 마스크를 픽셀에 굽는다. 가려 둔 것이 되살아나면 안 되는 경우가 있다 —
    * GraXpert 하늘 경로는 지상부에 우리가 만든 가짜 평면을 담고 있다. */
   dispatcher.register("MASK_APPLY", async (p) => maskApply(p as { layerId?: number }));
+  dispatcher.register("MASK_DELETE", async (p) => maskDelete(p as { layerId?: number }));
   dispatcher.register("MASK_INVERT", async (p) => maskInvert(p as { layerId?: number }));
   dispatcher.register("MASK_SELECT", async (p) =>
     maskSelect(p as { layerId?: number; target?: "mask" | "pixels" }),

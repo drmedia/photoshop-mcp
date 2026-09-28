@@ -7,12 +7,14 @@ import { z } from "zod";
  * Phase 4 마스크와 선택 영역. (ROADMAP §8.1, §8.2)
  *
  * 마스크는 비파괴다. 픽셀을 지우는 대신 가린다.
- * 마스크 삭제는 넣지 않는다 — 가려둔 작업을 잃으므로 destructive 에 가깝고
- * Permission System 과 함께 검토한다. (ROADMAP §7.4)
+ * **마스크 삭제(`MASK_DELETE`)는 나중에 들어왔다.** 처음에 "가려둔 작업을 잃으므로
+ * destructive 에 가깝고 Permission System 과 함께 검토한다" 며 미뤄 두었는데
+ * (ROADMAP §7.4), Permission System 이 선 뒤 `destructive` 로 열었다. (ROADMAP §50)
  */
 
 export const MASK_CREATE = "MASK_CREATE";
 export const MASK_APPLY = "MASK_APPLY";
+export const MASK_DELETE = "MASK_DELETE";
 export const MASK_SELECT = "MASK_SELECT";
 export const MASK_INVERT = "MASK_INVERT";
 export const MASK_ENABLE = "MASK_ENABLE";
@@ -117,6 +119,7 @@ function forwardSelection<TParams>(): CommandHandler<TParams, SelectionResult> {
 
 export const maskCreateCommand = forwardLayer<MaskCreateParams>();
 export const maskApplyCommand = forwardLayer<MaskToggleParams>();
+export const maskDeleteCommand = forwardLayer<MaskToggleParams>();
 export const maskEnableCommand = forwardLayer<MaskToggleParams>();
 export const maskDisableCommand = forwardLayer<MaskToggleParams>();
 export const selectionClearCommand = forwardSelection<SelectionParams>();

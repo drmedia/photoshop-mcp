@@ -102,6 +102,7 @@ export const EXPECTED_TOOLS = [
   "photoshop.mask.enable",
   "photoshop.mask.disable",
   "photoshop.mask.apply",
+  "photoshop.mask.delete",
   "photoshop.mask.select",
   "photoshop.mask.invert",
   "photoshop.selection.clear",
@@ -234,6 +235,7 @@ export const EXPECTED_COMMANDS = [
   "MASK_ENABLE",
   "MASK_DISABLE",
   "MASK_APPLY",
+  "MASK_DELETE",
   "MASK_SELECT",
   "MASK_INVERT",
   "SELECTION_CLEAR",
@@ -267,7 +269,7 @@ export const FORBIDDEN_TOOLS = [
   // `layer.delete`(§17.18) · `document.flatten` · `document.close`(§17.25) 는
   // 구현해서 여기서 뺐다. CORE_API §5.1 이 분류해 둔 셋이 이것으로 다 찼다.
   "photoshop.group.ungroup",
+  // `mask.delete` 는 ROADMAP §50 에서 destructive 로 구현해 여기서 뺐다.
   // 아직 구현하지 않음
-  "photoshop.mask.delete",
   "photoshop.document.flatten_all",
 ] as const;

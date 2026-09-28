@@ -4,6 +4,7 @@ import {
   MASK_CREATE,
   MASK_DISABLE,
   MASK_APPLY,
+  MASK_DELETE,
   MASK_INVERT,
   MASK_SELECT,
   MASK_ENABLE,
@@ -59,6 +60,35 @@ export function createMaskApplyTool(
     handler: async (input, context) =>
       engine.execute<LayerInfo>(
         { type: MASK_APPLY, params: input },
+        { requestId: context.requestId },
+      ),
+  };
+}
+
+/**
+ * `photoshop.mask.delete` — 마스크를 버린다. (ROADMAP §50)
+ *
+ * `apply` 와 짝이고 **descriptor 에서 `apply` 플래그 하나만 다르다.**
+ */
+export function createMaskDeleteTool(
+  engine: CommandEngine,
+): ToolDefinition<MaskToggleParams, LayerInfo> {
+  return {
+    name: "photoshop.mask.delete",
+    description:
+      "레이어 마스크를 버린다. layerId 를 생략하면 활성 레이어. " +
+      "**가려 둔 픽셀이 전부 되살아난다** — 굽는 photoshop.mask.apply 와 반대다. " +
+      "셋을 가른다: apply 는 가린 픽셀이 사라지고, delete 는 가린 픽셀이 " +
+      "되살아나며 마스크만 사라지고, photoshop.mask.disable 은 아무것도 " +
+      "사라지지 않고 다시 켤 수 있다. " +
+      "**destructive 인 이유는 픽셀이 아니라 마스크다** — mask.dab · mask.gradient 로 " +
+      "다듬어 쌓은 것이 한 번에 사라진다. 잠깐 꺼 보려는 것이면 mask.disable 이다. " +
+      "마스크가 없는 레이어는 거절한다 — layer.list 의 hasMask 로 먼저 확인한다.",
+    permission: "destructive",
+    inputSchema: MaskToggleParamsSchema,
+    handler: async (input, context) =>
+      engine.execute<LayerInfo>(
+        { type: MASK_DELETE, params: input },
         { requestId: context.requestId },
       ),
   };

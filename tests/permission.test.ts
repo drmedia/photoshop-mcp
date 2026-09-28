@@ -266,6 +266,7 @@ describe("Core Tool 분류", () => {
       "DOCUMENT_CLOSE",
       "ACTION_PLAY",
       "MASK_APPLY",
+      "MASK_DELETE",
       "DOCUMENT_SAVE",
       "WORKSPACE_DELETE",
     ]);
@@ -316,6 +317,10 @@ describe("Core Tool 분류", () => {
           /* 마스크를 픽셀에 굽는다. 마스크는 끄면 되살아나지만 구우면
            * 가려진 픽셀이 없어진다 — CORE_API §9 가 처음부터 이렇게 분류했다. */
           type === "MASK_APPLY" ||
+          /* 마스크를 버린다. **사라지는 것이 픽셀이 아니라 마스크다** —
+           * `mask.dab` · `mask.gradient` 로 쌓아 둔 것이 한 번에 없어지고,
+           * 되살리는 쪽이 목적이면 `MASK_DISABLE` 이 있다. (ROADMAP §50) */
+          type === "MASK_DELETE" ||
           /* 이미지를 다시 표본화한다. 축소하면 버려진 해상도가 문서 어디에도
            * 남지 않는다 — `DOCUMENT_CROP` 이 `edit` 인 근거가 "픽셀은 버리지
            * 않는다" 이므로 이쪽은 갈린다. (ROADMAP §33) */

@@ -245,12 +245,15 @@ describe("Phase 4 마스크 · 선택 Tool", () => {
     }
   });
 
-  it("마스크 삭제 Tool 은 등록하지 않는다", () => {
-    // 가려둔 작업을 잃으므로 Permission System 과 함께 검토한다.
-    const names = setup()
-      .tools.list()
-      .map((tool) => tool.name);
-    expect(names).not.toContain("photoshop.mask.delete");
+  it("마스크 삭제는 destructive 로만 연다", () => {
+    /* 한동안 **등록하지 않는 것**이 이 자리의 검사였다 — "가려둔 작업을 잃으므로
+     * Permission System 과 함께 검토한다" 였다(ROADMAP §7.4). Permission System 이
+     * 선 뒤 `destructive` 로 열었으므로(ROADMAP §50) 검사도 그 결정을 따라간다.
+     * 조건이 무엇이었는지 남겨 두지 않으면 다음에 같은 자리를 다시 논의하게 된다. */
+    const mcp = setup();
+    const names = mcp.tools.list().map((tool) => tool.name);
+    expect(names).toContain("photoshop.mask.delete");
+    expect(mcp.commands.permissionOf("MASK_DELETE")).toBe("destructive");
   });
 
   describe("mask.create", () => {

@@ -157,7 +157,10 @@ async function setMaskEnabled(
  * 만든 가짜 평면**을 담고 있어 그대로 두면 안 된다.
  *
  * 적용하면 가려진 곳이 실제로 투명해지고 레이어는 마스크 없는 픽셀 레이어가
- * 된다. History 로 되돌릴 수 있으므로 `edit` 이다.
+ * 된다. **`destructive` 다** — 가려 둔 픽셀이 실제로 없어진다. History 로
+ * 되돌릴 수 있다는 것은 근거가 되지 않는다. `document.flatten` 도 같다.
+ *
+ * **버리는 쪽은 `maskDelete` 다.** 같은 descriptor 에서 `apply` 만 다르다.
  */
 export async function maskApply(params: { layerId?: number }): Promise<LayerInfo> {
   return runModal("Apply mask", async () => {
@@ -194,6 +197,94 @@ export async function maskApply(params: { layerId?: number }): Promise<LayerInfo
       );
     }
     return (await withMaskStateAsync([resolved]))[0] as LayerInfo;
+  });
+}
+
+/**
+ * 마스크를 **버린다.** 굽지 않는다.
+ *
+ * `maskApply` 와 **같은 descriptor 에서 `apply` 만 다르다.** 그래서 새로 잡을
+ * 것이 없었다 — `apply: true` 는 가린 것을 실제로 지우고, `false` 는 마스크만
+ * 버려 **가려 둔 픽셀이 전부 되살아난다.**
+ *
+ * ```text
+ * mask.apply    가린 픽셀이 사라진다 · 마스크도 사라진다
+ * mask.delete   가린 픽셀이 되살아난다 · 마스크만 사라진다
+ * mask.disable  아무것도 안 사라진다 · 다시 켤 수 있다
+ * ```
+ *
+ * **`destructive` 다.** 픽셀은 되살아나지만 **마스크 자체가 없어진다** —
+ * `mask.dab` 과 `mask.gradient` 로 다듬어 쌓은 것이 한 번에 사라지고 되돌릴
+ * 길은 History 뿐이다. 되살리는 쪽이 목적이면 `mask.disable` 이다.
+ *
+ * ## 마스크가 없으면 미리 막는다
+ *
+ * Photoshop 이 무엇을 지울지 알 수 없다. 다만 **상태를 못 읽으면 막지 않는다** —
+ * 없는 것을 참으로 읽어 멀쩡한 호출을 막는 것이 더 나쁘다(`retouch.remove_spots`
+ * 의 `isBackgroundLayer` 와 같은 원칙).
+ *
+ * ## 정말 없어졌는지 확인한다
+ *
+ * 지운 뒤 다시 읽어 `hasMask` 가 `false` 인지 본다. Photoshop 이 오류 없이
+ * 아무 일도 안 하는 경로가 이 프로젝트에 이미 여럿 있다.
+ */
+export async function maskDelete(params: { layerId?: number }): Promise<LayerInfo> {
+  return runModal("Delete mask", async () => {
+    const document = requireActiveDocument();
+    const targetId = activate(document, params.layerId);
+
+    const stateBefore = (await readMaskState([targetId])).get(targetId);
+    if (stateBefore !== undefined && !stateBefore.hasMask) {
+      throw new DispatchError("INVALID_PARAMETER", `레이어 ${targetId} 에 마스크가 없습니다.`, {
+        recoverable: true,
+        details: { layerId: targetId },
+      });
+    }
+
+    const before = flattenLayers(document.layers).map((entry) => entry.id);
+
+    try {
+      await play("Delete mask", [
+        {
+          _obj: "delete",
+          _target: [{ _ref: "channel", _enum: "channel", _value: "mask" }],
+          /* `true` 면 굽는다 — 그쪽이 `maskApply` 다. */
+          apply: false,
+        },
+      ]);
+    } catch (error) {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        `마스크를 지우지 못했습니다. (Photoshop: ${String(
+          (error as { message?: unknown })?.message ?? error,
+        )})`,
+        { recoverable: true, details: { layerId: targetId } },
+      );
+    }
+
+    const resolved = resolveMutatedLayer(before, flattenLayers(document.layers), targetId);
+    if (resolved === null) {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        "마스크는 지워졌지만 결과 레이어를 확인하지 못했습니다. layer.list 로 확인하세요.",
+        { recoverable: true, details: { layerId: targetId } },
+      );
+    }
+
+    const info = (await withMaskStateAsync([resolved]))[0] as LayerInfo;
+    /* 읽을 수 있었는데 아직 마스크가 있으면 아무 일도 안 일어난 것이다.
+     *
+     * **원인을 짐작해 적지 않는다.** 처음에 "레이어가 잠겨 있는지 확인하세요"
+     * 라고 써 두었는데 실기에서 **`lock: all` 인 레이어도 그대로 지워졌다**.
+     * 짐작한 원인을 적으면 호출자가 그 쪽을 확인하느라 진짜 원인을 못 본다. */
+    if (info.hasMask === true) {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        "마스크를 지웠지만 아직 남아 있습니다. layer.list 의 hasMask 로 확인하세요.",
+        { recoverable: true, details: { layerId: targetId } },
+      );
+    }
+    return info;
   });
 }
 

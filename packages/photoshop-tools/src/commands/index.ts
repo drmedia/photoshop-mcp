@@ -74,6 +74,7 @@ import {
   MASK_CREATE,
   MASK_DISABLE,
   MASK_APPLY,
+  MASK_DELETE,
   MASK_INVERT,
   MASK_SELECT,
   MASK_ENABLE,
@@ -86,6 +87,7 @@ import {
   maskCreateCommand,
   maskDisableCommand,
   maskApplyCommand,
+  maskDeleteCommand,
   maskInvertCommand,
   maskSelectCommand,
   maskEnableCommand,
@@ -787,6 +789,12 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
    * 마스크는 가리기만 하므로 끄면 되살아나지만, 구우면 가려진 픽셀이
    * 실제로 없어진다 — `document.flatten` 과 같은 종류의 손실이다. */
   registry.register(MASK_APPLY, maskApplyCommand, {
+    permission: "destructive",
+    schema: MaskToggleParamsSchema,
+  });
+  /* **`destructive` 는 픽셀이 아니라 마스크 때문이다.** 가린 픽셀은 되살아나지만
+   * `mask.dab` · `mask.gradient` 로 쌓아 둔 마스크가 한 번에 사라진다. */
+  registry.register(MASK_DELETE, maskDeleteCommand, {
     permission: "destructive",
     schema: MaskToggleParamsSchema,
   });

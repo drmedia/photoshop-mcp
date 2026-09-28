@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (111개)
+## 4. 구현된 Core API (112개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -337,6 +337,7 @@ Photoshop UI 는 그룹 끝에서 한 번 더 누르면 밖으로 나간다. 그
 | `photoshop.mask.select` | EDIT | 편집 대상을 마스크로. **`target: pixels` 로 되돌린다** |
 | `photoshop.mask.invert` | EDIT | 마스크 반전. `selection.invert` 와 다른 물건이다 |
 | `photoshop.mask.apply` | DESTRUCTIVE | 마스크를 픽셀에 굽고 없앤다. **가려 둔 것이 사라진다** |
+| `photoshop.mask.delete` | DESTRUCTIVE | 마스크를 버린다. **가린 픽셀은 되살아나고 마스크만 사라진다** |
 | `photoshop.selection.set` | EDIT | `shape`: rectangle · ellipse · **canvas** · layerTransparency |
 | `photoshop.selection.sky` | EDIT | Photoshop 의 `선택 > 하늘` |
 | `photoshop.selection.subject` | EDIT | Photoshop 의 `선택 > 피사체`. **형태**로 잡는다 |
@@ -476,7 +477,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 |---|---|---|---|
 | `photoshop.mask.link` | P2 | EDIT | |
 | `photoshop.mask.unlink` | P2 | EDIT | |
-| `photoshop.mask.delete` | P2 | DESTRUCTIVE | |
 
 ### 5.4 Selection
 
@@ -746,7 +746,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 역할이다.
 
 위 목록 중 구현된 것은 `document.save` · `document.close` · `document.flatten` · `layer.delete` ·
-`mask.apply` · `image.resize` · `canvas.resize` · `document.trim` · `document.mode_convert` · `document.bit_depth_convert` · `document.merge_visible` · `workspace.delete` 다. 나머지는 분류 체계만 서 있고 구현이 없다.
+`mask.apply` · `mask.delete` · `image.resize` · `canvas.resize` · `document.trim` · `document.mode_convert` · `document.bit_depth_convert` · `document.merge_visible` · `workspace.delete` 다. 나머지는 분류 체계만 서 있고 구현이 없다.
 분류가 있다고 있는 척하지 않는다.
 
 `image.resize` 는 §5 에 `EDIT` 로 적혀 있던 것을 구현하면서 바꿨다. 근거는 같은 문서가
@@ -759,7 +759,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **111** |
+| 구현됨 | **112** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

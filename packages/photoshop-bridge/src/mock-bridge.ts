@@ -807,6 +807,24 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       /* 마스크를 픽셀에 굽는다. **마스크가 사라지는 것**이 요점이라 Mock 도
        * `hasMask` 를 내린다 — 그러지 않으면 "적용했는데 마스크가 남아 있다" 는
        * 잘못된 상태가 테스트에서 정상으로 보인다. */
+      /**
+       * 마스크를 버린다. (ROADMAP §50)
+       *
+       * **Mock 이 `apply` 와 구분해 흉내낼 수 있는 것은 한 가지뿐이다** —
+       * 둘 다 `hasMask` 를 내린다. 다른 점(가린 픽셀이 되살아나느냐)은 픽셀이라
+       * Mock 이 모른다. 그럴듯하게 지어내지 않고 **계약만** 흉내낸다.
+       *
+       * 마스크가 없으면 거절하는 것은 `#setMask` 가 이미 갖고 있다.
+       */
+      case "MASK_DELETE": {
+        this.#snapshot("Delete mask");
+        this.#setMask(command.params as { layerId?: number }, true);
+        const at = this.#requireLayerIndex((command.params as { layerId?: number }).layerId);
+        const layer = this.#layers[at] as LayerInfo;
+        const stripped: LayerInfo = { ...layer, hasMask: false, maskEnabled: false };
+        this.#layers[at] = stripped;
+        return { ...stripped } as TResult;
+      }
       case "MASK_APPLY": {
         this.#snapshot("Apply mask");
         /* 있는 마스크만 구울 수 있다. `#setMask` 가 없을 때의 거절을 이미

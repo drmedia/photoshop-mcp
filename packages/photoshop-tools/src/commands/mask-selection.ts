@@ -14,6 +14,7 @@ import { z } from "zod";
 export const MASK_CREATE = "MASK_CREATE";
 export const MASK_APPLY = "MASK_APPLY";
 export const MASK_SELECT = "MASK_SELECT";
+export const MASK_INVERT = "MASK_INVERT";
 export const MASK_ENABLE = "MASK_ENABLE";
 export const MASK_DISABLE = "MASK_DISABLE";
 export const SELECTION_CLEAR = "SELECTION_CLEAR";
@@ -120,6 +121,37 @@ export const maskEnableCommand = forwardLayer<MaskToggleParams>();
 export const maskDisableCommand = forwardLayer<MaskToggleParams>();
 export const selectionClearCommand = forwardSelection<SelectionParams>();
 export const selectionInvertCommand = forwardSelection<SelectionParams>();
+
+/**
+ * `MASK_INVERT` — 마스크를 반전한다.
+ *
+ * `{_obj:"invert"}` 에 타깃이 없어 **편집 대상을 잠깐 옮겼다 되돌린다.**
+ * 어디에 남겼는지를 `editTarget` 이 말한다 — 말하지 않으면 호출자가 뒤따르는
+ * 편집이 어디에 걸리는지 알 수 없다.
+ */
+export const MaskInvertResultSchema = z.object({
+  layer: LayerInfoSchema,
+  /** 반전 뒤 편집 대상. **부르기 전 상태로 되돌린 값**이다. */
+  editTarget: z.enum(["mask", "pixels"]),
+});
+
+export type MaskInvertResult = z.infer<typeof MaskInvertResultSchema>;
+
+export const maskInvertCommand: CommandHandler<MaskToggleParams, MaskInvertResult> = async (
+  command,
+  context,
+) => {
+  const raw = await context.bridge.executeCommand<unknown>(command);
+  const parsed = MaskInvertResultSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new PhotoshopMcpError(
+      ErrorCode.PROTOCOL_ERROR,
+      `Plugin 응답이 예상과 다릅니다: ${command.type}`,
+      { details: { command: command.type, issues: parsed.error.issues, received: raw } },
+    );
+  }
+  return parsed.data;
+};
 
 export const maskSelectCommand: CommandHandler<MaskSelectParams, MaskSelectResult> = async (
   command,

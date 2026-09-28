@@ -4,6 +4,7 @@ import {
   MASK_CREATE,
   MASK_DISABLE,
   MASK_APPLY,
+  MASK_INVERT,
   MASK_SELECT,
   MASK_ENABLE,
   MaskCreateParamsSchema,
@@ -14,6 +15,7 @@ import {
   SelectionParamsSchema,
   type MaskCreateParams,
   type MaskSelectParams,
+  type MaskInvertResult,
   type MaskSelectResult,
   type MaskToggleParams,
   type SelectionParams,
@@ -158,6 +160,37 @@ export function createMaskSelectTool(
     handler: async (input, context) =>
       engine.execute<MaskSelectResult>(
         { type: MASK_SELECT, params: input },
+        { requestId: context.requestId },
+      ),
+  };
+}
+
+/**
+ * `photoshop.mask.invert` — 마스크를 반전한다.
+ *
+ * `{_obj:"invert"}` 에 타깃이 없어 편집 대상을 잠깐 옮겼다 되돌린다.
+ * 어디에 남겼는지를 `editTarget` 으로 드러낸다.
+ */
+export function createMaskInvertTool(
+  engine: CommandEngine,
+): ToolDefinition<MaskToggleParams, MaskInvertResult> {
+  return {
+    name: "photoshop.mask.invert",
+    description:
+      "레이어 마스크를 반전한다. 가려지던 곳이 드러나고 드러나던 곳이 가려진다. " +
+      "layerId 를 생략하면 활성 레이어. 마스크가 없으면 거절한다. " +
+      "**광도 마스크를 만든 뒤 반대쪽이 필요할 때 쓴다** — selection.luminosity 를 " +
+      "다시 불러 마스크를 새로 만드는 것보다 짧고, 이미 손으로 다듬어 둔 마스크를 " +
+      "잃지 않는다. 선택 영역을 뒤집는 selection.invert 와 다른 물건이다. " +
+      "되돌리려면 한 번 더 부른다 — History 로도 되돌아간다. " +
+      "**결과의 editTarget 은 반전 뒤 편집 대상이다.** 이 Tool 은 대상을 잠깐 " +
+      "마스크로 옮겼다 부르기 전 상태로 되돌리는데, 어디에 남겼는지를 알아야 " +
+      "뒤따르는 필터·조정이 어디에 걸리는지 알 수 있다.",
+    permission: "edit",
+    inputSchema: MaskToggleParamsSchema,
+    handler: async (input, context) =>
+      engine.execute<MaskInvertResult>(
+        { type: MASK_INVERT, params: input },
         { requestId: context.requestId },
       ),
   };

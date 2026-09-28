@@ -127,6 +127,15 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
    * 실기에 없는 사실을 말하게 된다.
    */
   readonly #fillOpacity = new Map<number, number>();
+
+  /**
+   * 지금 편집 대상이 무엇인가. (`MASK_SELECT` · `MASK_INVERT`)
+   *
+   * **픽셀을 흉내내는 것이 아니라 계약을 흉내낸다.** `mask.invert` 는 대상을
+   * 잠깐 옮겼다 **부르기 전 상태로 되돌리는데**, Mock 이 이것을 들고 있지
+   * 않으면 그 계약이 테스트에 영영 나오지 않는다.
+   */
+  #editTarget: "mask" | "pixels" = "pixels";
   /** 저장된 알파 채널 이름. Mock 은 픽셀을 모르므로 이름만 기억한다. */
   readonly #channels = new Set<string>();
   #nextLayerId: number;
@@ -546,7 +555,27 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         }
         /* **`verified: false` 다.** Mock 에는 물어볼 Photoshop 이 없다.
          * `true` 로 두면 "확인했다" 는 거짓이 테스트에 사실로 굳는다. */
+        this.#editTarget = target;
         return { layer: { ...layer }, target, activeChannels: null, verified: false } as TResult;
+      }
+      /**
+       * 마스크를 반전한다. (CORE_API §5 P1)
+       *
+       * 픽셀은 흉내내지 않는다. **편집 대상을 부르기 전 상태로 되돌린다는
+       * 계약만** 흉내낸다 — 그것이 이 Command 의 숨은 부작용이다.
+       */
+      case "MASK_INVERT": {
+        this.#snapshot("Invert mask");
+        const index = this.#requireLayerIndex((command.params as { layerId?: number }).layerId);
+        const layer = this.#layers[index] as LayerInfo;
+        if (layer.hasMask !== true) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `레이어 ${layer.id} 에 마스크가 없습니다. photoshop.mask.create 로 먼저 만드세요.`,
+            { recoverable: true, details: { layerId: layer.id } },
+          );
+        }
+        return { layer: { ...layer }, editTarget: this.#editTarget } as TResult;
       }
       case "MASK_DISABLE":
         this.#snapshot("Disable mask");

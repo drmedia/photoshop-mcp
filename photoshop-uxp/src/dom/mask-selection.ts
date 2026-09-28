@@ -343,16 +343,7 @@ export async function maskSelect(params: {
       }
     }
 
-    await play("Select channel", [
-      {
-        _obj: "select",
-        _target: [
-          { _ref: "channel", _enum: "channel", _value: target === "mask" ? "mask" : "RGB" },
-        ],
-        // 편집 대상만 바꾼다. 마스크를 빨간 오버레이로 띄우지 않는다.
-        makeVisible: false,
-      },
-    ]);
+    await play("Select channel", [selectChannel(target)]);
 
     const layer = flattenLayers(document.layers).find((entry) => entry.id === targetId);
     if (layer === undefined) {
@@ -373,6 +364,92 @@ export async function maskSelect(params: {
         target === "pixels"
           ? probe.kind === "names" && probe.names.length > 0
           : probe.kind === "blocked",
+    };
+  });
+}
+
+/**
+ * 편집 대상을 고르는 descriptor. `mask.select` 와 `mask.invert` 가 함께 쓴다.
+ *
+ * `["all"]` 알림으로 잡은 것이다(ROADMAP §31). 짐작한 값이 없다.
+ */
+function selectChannel(target: "mask" | "pixels"): Record<string, unknown> {
+  return {
+    _obj: "select",
+    _target: [{ _ref: "channel", _enum: "channel", _value: target === "mask" ? "mask" : "RGB" }],
+    // 편집 대상만 바꾼다. 마스크를 빨간 오버레이로 띄우지 않는다.
+    makeVisible: false,
+  };
+}
+
+/**
+ * `MASK_INVERT` — 레이어 마스크를 반전한다. (CORE_API §5 P1)
+ *
+ * ## `{_obj:"invert"}` 에는 타깃이 없다
+ *
+ * `["all"]` 알림으로 잡았더니 descriptor 가 통째로 비어 있었다 —
+ * **지금 선택된 대상에 걸린다.** 그래서 마스크를 고르고, 반전하고, 원래
+ * 대상으로 되돌린다. 세 걸음 모두 실기에서 잡은 descriptor 다.
+ *
+ * ## 어디로 되돌리는지 말한다
+ *
+ * 이 Command 는 **숨은 상태를 잠깐 바꾼다.** 부르기 전 상태를 읽어 두고 그리로
+ * 되돌리되, 어디에 남겼는지를 `editTarget` 으로 드러낸다 — 말하지 않으면
+ * 호출자가 뒤따르는 편집이 어디에 걸리는지 알 수 없다.
+ *
+ * 읽지 못했으면 **픽셀로 되돌린다.** 나머지 API 가 전제하는 상태이고, 마스크에
+ * 남겨 두면 뒤따르는 편집이 조용히 마스크에 걸린다.
+ *
+ * ## 되돌리기는 `finally` 다
+ *
+ * 반전이 실패해도 편집 대상은 제자리로 온다. 남기면 다음 Command 가 조용히
+ * 마스크에 걸린다 — `retouch.remove_spots` 가 선택을 `finally` 에서 푸는 것과
+ * 같은 이유다.
+ */
+export interface MaskInvertResult {
+  layer: LayerInfo;
+  /** 반전 뒤 편집 대상. **부르기 전 상태로 되돌린 값**이다. */
+  editTarget: "mask" | "pixels";
+}
+
+export async function maskInvert(params: { layerId?: number }): Promise<MaskInvertResult> {
+  return runModal("Invert mask", async () => {
+    const document = requireActiveDocument();
+    const targetId = activate(document, params.layerId);
+
+    const state = (await readMaskState([targetId])).get(targetId);
+    if (state !== undefined && !state.hasMask) {
+      throw new DispatchError(
+        "INVALID_PARAMETER",
+        `레이어 ${targetId} 에 마스크가 없습니다. photoshop.mask.create 로 먼저 만드세요.`,
+        { recoverable: true, details: { layerId: targetId } },
+      );
+    }
+
+    /* 부르기 전 상태. `blocked` 면 이미 마스크가 대상이었다는 뜻이다. */
+    const wasOnMask = probeActiveChannels(document).kind === "blocked";
+
+    await play("Select mask", [selectChannel("mask")]);
+    try {
+      await play("Invert mask", [{ _obj: "invert" }]);
+    } finally {
+      if (!wasOnMask) {
+        await play("Select pixels", [selectChannel("pixels")]);
+      }
+    }
+
+    const layer = flattenLayers(document.layers).find((entry) => entry.id === targetId);
+    if (layer === undefined) {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        "마스크는 반전되었지만 결과 레이어를 확인하지 못했습니다. layer.list 로 확인하세요.",
+        { recoverable: true, details: { layerId: targetId } },
+      );
+    }
+
+    return {
+      layer: (await withMaskStateAsync([layer]))[0] as LayerInfo,
+      editTarget: wasOnMask ? "mask" : "pixels",
     };
   });
 }

@@ -42,6 +42,7 @@ import {
   MASK_CREATE,
   MASK_DISABLE,
   MASK_APPLY,
+  MASK_INVERT,
   MASK_SELECT,
   MASK_ENABLE,
   MaskCreateParamsSchema,
@@ -53,6 +54,7 @@ import {
   maskCreateCommand,
   maskDisableCommand,
   maskApplyCommand,
+  maskInvertCommand,
   maskSelectCommand,
   maskEnableCommand,
   selectionClearCommand,
@@ -588,6 +590,10 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(MASK_SELECT, maskSelectCommand, {
     permission: edit,
     schema: MaskSelectParamsSchema,
+  });
+  registry.register(MASK_INVERT, maskInvertCommand, {
+    permission: edit,
+    schema: MaskToggleParamsSchema,
   });
 
   // Phase 4 — 선택 영역

@@ -18,7 +18,7 @@ Photoshop UXP plugin that acts as the bridge, and an extension system.
 Tried with Claude Code and VS Code Copilot Chat as MCP clients.
 
 > **Status: Phase 13 (Production Hardening) complete. Phase 14 (Distribution) is prepared but not executed.**
-> 149 core tools and 6 resources, plus 4 extensions (`example` 2 · `graxpert` 2 ·
+> 157 core tools and 6 resources, plus 4 extensions (`example` 2 · `graxpert` 2 ·
 > `rcastro` 3 · `starnet` 1), all verified against Photoshop 27.8.
 > Every tool and command declares a permission level; only `read` and `edit` are allowed by default.
 > **Not published to npm yet** — clone it.

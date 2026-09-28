@@ -269,6 +269,7 @@ describe("Core Tool 분류", () => {
       "LAYER_COMP_RECAPTURE",
       "LAYER_COMP_DELETE",
       "PATH_DELETE",
+      "TEXT_CONVERT_TO_SHAPE",
       "ACTION_PLAY",
       "MASK_APPLY",
       "MASK_DELETE",
@@ -338,6 +339,9 @@ describe("Core Tool 분류", () => {
           type === "LAYER_COMP_DELETE" ||
           /* 저장해 둔 윤곽을 버린다. 칠한 픽셀은 남는다. (ROADMAP §58) */
           type === "PATH_DELETE" ||
+          /* 글자가 벡터가 되어 더는 텍스트가 아니다 — 내용도 폰트도
+           * 고칠 수 없다. layer.rasterize 와 같은 자리다. (ROADMAP §60) */
+          type === "TEXT_CONVERT_TO_SHAPE" ||
           /* 이미지를 다시 표본화한다. 축소하면 버려진 해상도가 문서 어디에도
            * 남지 않는다 — `DOCUMENT_CROP` 이 `edit` 인 근거가 "픽셀은 버리지
            * 않는다" 이므로 이쪽은 갈린다. (ROADMAP §33) */

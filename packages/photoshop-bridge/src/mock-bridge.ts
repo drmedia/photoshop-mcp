@@ -56,6 +56,32 @@ interface MockLayerComp {
  * 방향과 좌표뿐이라 **전부 흉내낼 수 있다** — 이 저장소에서 드문 경우다.
  * 다만 `id` 는 Photoshop 이 주는 값이라 Mock 이 자기 번호를 쓴다.
  */
+/**
+ * Mock 이 흉내내는 텍스트 상태.
+ *
+ * **값이 들어가고 읽히는 것까지는 흉내낸다** — 그것이 계약이다. 글자가 실제로
+ * 어떻게 배치되는지는 렌더링이라 Mock 이 모르므로 좌표는 담지 않는다.
+ */
+interface MockTextState {
+  contents: string;
+  isPointText: boolean;
+  tracking: number | null;
+  leading: number | null;
+  useAutoLeading: boolean;
+  justification: string | null;
+  firstLineIndent: number | null;
+  leftIndent: number | null;
+  rightIndent: number | null;
+  spaceBefore: number | null;
+  spaceAfter: number | null;
+  hyphenation: boolean | null;
+  warpStyle: string;
+  bend: number | null;
+  horizontalDistortion: number | null;
+  verticalDistortion: number | null;
+  warpDirection: string | null;
+}
+
 interface MockGuide {
   id: number;
   direction: "horizontal" | "vertical";
@@ -223,6 +249,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   readonly #layerComps: MockLayerComp[] = [];
   readonly #paths: MockPath[] = [];
   readonly #guides: MockGuide[] = [];
+  readonly #textStates = new Map<number, MockTextState>();
   #nextGuideId = 1;
   #nextPathId = 1;
   #nextLayerCompId = 1;
@@ -1470,6 +1497,27 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         };
         this.#layers.unshift(created);
         this.#activeLayerId = created.id;
+        /* 텍스트 세부(ROADMAP 60)가 읽을 상태를 함께 만든다. 없으면 text.get 이
+         * 방금 만든 레이어에서 실패한다. */
+        this.#textStates.set(created.id, {
+          contents: params.contents,
+          isPointText: true,
+          tracking: null,
+          leading: null,
+          useAutoLeading: true,
+          justification: params.alignment ?? null,
+          firstLineIndent: null,
+          leftIndent: null,
+          rightIndent: null,
+          spaceBefore: null,
+          spaceAfter: null,
+          hyphenation: null,
+          warpStyle: "none",
+          bend: null,
+          horizontalDistortion: null,
+          verticalDistortion: null,
+          warpDirection: null,
+        });
         const applied = (["font", "size", "color", "alignment", "opacity"] as const).filter(
           (key) => params[key] !== undefined,
         );
@@ -2268,6 +2316,115 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        *
        * **방향과 좌표뿐이라 전부 흉내낸다.** 지어낼 것이 없다.
        */
+      /**
+       * 텍스트 세부. (ROADMAP 60)
+       *
+       * **값이 들어가고 읽히는 계약까지 흉내낸다.** 글자 배치와 렌더링은
+       * Mock 이 모르므로 clickPoint / font / size 는 null 이다.
+       */
+      case "TEXT_GET":
+        this.#requireDocument();
+        return this.#textDetail(
+          this.#requireTextLayer((command.params as { layerId?: number }).layerId),
+        ) as TResult;
+      case "TEXT_SET_TRACKING": {
+        this.#requireDocument();
+        this.#snapshot("Set tracking");
+        const params = command.params as { layerId?: number; tracking: number };
+        const id = this.#requireTextLayer(params.layerId);
+        (this.#textStates.get(id) as MockTextState).tracking = params.tracking;
+        return this.#textDetail(id) as TResult;
+      }
+      case "TEXT_SET_LEADING": {
+        this.#requireDocument();
+        this.#snapshot("Set leading");
+        const params = command.params as { layerId?: number; leading?: number; auto?: boolean };
+        const id = this.#requireTextLayer(params.layerId);
+        const state = this.#textStates.get(id) as MockTextState;
+        /* **leading 만 주면 자동 행간을 먼저 끈다** — 켜져 있으면 값이
+         * 들어가도 화면이 안 바뀐다. 실기 계약을 그대로 흉내낸다. */
+        if (params.leading !== undefined && params.auto !== true) {
+          state.useAutoLeading = false;
+        }
+        if (params.leading !== undefined) {
+          state.leading = params.leading;
+        }
+        if (params.auto !== undefined) {
+          state.useAutoLeading = params.auto;
+        }
+        return this.#textDetail(id) as TResult;
+      }
+      case "TEXT_SET_PARAGRAPH": {
+        this.#requireDocument();
+        this.#snapshot("Set paragraph");
+        const params = command.params as Record<string, unknown> & { layerId?: number };
+        const id = this.#requireTextLayer(params.layerId);
+        const state = this.#textStates.get(id) as unknown as Record<string, unknown>;
+        for (const key of [
+          "justification",
+          "firstLineIndent",
+          "leftIndent",
+          "rightIndent",
+          "spaceBefore",
+          "spaceAfter",
+          "hyphenation",
+        ]) {
+          if (params[key] !== undefined) {
+            state[key] = params[key];
+          }
+        }
+        return this.#textDetail(id) as TResult;
+      }
+      case "TEXT_WARP": {
+        this.#requireDocument();
+        this.#snapshot("Warp text");
+        const params = command.params as {
+          layerId?: number;
+          style: string;
+          bend?: number;
+          horizontalDistortion?: number;
+          verticalDistortion?: number;
+          direction?: string;
+        };
+        const id = this.#requireTextLayer(params.layerId);
+        const state = this.#textStates.get(id) as MockTextState;
+        state.warpStyle = params.style;
+        if (params.bend !== undefined) {
+          state.bend = params.bend;
+        }
+        if (params.horizontalDistortion !== undefined) {
+          state.horizontalDistortion = params.horizontalDistortion;
+        }
+        if (params.verticalDistortion !== undefined) {
+          state.verticalDistortion = params.verticalDistortion;
+        }
+        if (params.direction !== undefined) {
+          state.warpDirection = params.direction;
+        }
+        return this.#textDetail(id) as TResult;
+      }
+      case "TEXT_CONVERT_TO_POINT":
+      case "TEXT_CONVERT_TO_PARAGRAPH": {
+        this.#requireDocument();
+        this.#snapshot("Convert text");
+        const id = this.#requireTextLayer((command.params as { layerId?: number }).layerId);
+        (this.#textStates.get(id) as MockTextState).isPointText =
+          command.type === "TEXT_CONVERT_TO_POINT";
+        return this.#textDetail(id) as TResult;
+      }
+      case "TEXT_CONVERT_TO_SHAPE": {
+        this.#requireDocument();
+        this.#snapshot("Convert text to shape");
+        const id = this.#requireTextLayer((command.params as { layerId?: number }).layerId);
+        const at = this.#layers.findIndex((entry) => entry.id === id);
+        const shaped: LayerInfo = { ...(this.#layers[at] as LayerInfo), type: "shape" };
+        this.#layers[at] = shaped;
+        /* **더는 텍스트가 아니다.** 상태를 지워 text.get 이 거절하게 한다 —
+         * 그것이 실기 계약이다. */
+        this.#textStates.delete(id);
+        return { layer: { ...shaped }, previousType: "text" } as TResult;
+      }
+
       case "GUIDE_LIST":
         this.#requireDocument();
         return {
@@ -2941,6 +3098,63 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
    * `asSmartFilter: true` 일 때 대상이 스마트 오브젝트로 바뀌는 것만 반영한다.
    * 호출자가 결과의 `type` 으로 비파괴 여부를 확인할 수 있어야 하기 때문이다.
    */
+  /** 텍스트 레이어를 확인하고 id 를 돌려준다. 아니면 거절한다. */
+  #requireTextLayer(layerId: number | undefined): number {
+    const at = this.#requireLayerIndex(layerId);
+    const layer = this.#layers[at] as LayerInfo;
+    if (layer.type !== "text" || !this.#textStates.has(layer.id)) {
+      throw new PhotoshopMcpError(
+        ErrorCode.INVALID_PARAMETER,
+        `${layer.type} 레이어는 텍스트가 아닙니다. photoshop.layer.list 의 type 으로 확인하세요.`,
+        { recoverable: true, details: { layerId: layer.id, type: layer.type } },
+      );
+    }
+    return layer.id;
+  }
+
+  #textDetail(layerId: number): unknown {
+    const at = this.#layers.findIndex((entry) => entry.id === layerId);
+    const layer = this.#layers[at] as LayerInfo;
+    const state = this.#textStates.get(layerId) as MockTextState;
+    return {
+      layer: { ...layer },
+      contents: state.contents,
+      isPointText: state.isPointText,
+      isParagraphText: !state.isPointText,
+      orientation: null,
+      /* 배치는 렌더링이라 Mock 이 모른다. */
+      clickPoint: null,
+      character: {
+        font: null,
+        size: null,
+        leading: state.leading,
+        useAutoLeading: state.useAutoLeading,
+        tracking: state.tracking,
+        baselineShift: null,
+        horizontalScale: null,
+        verticalScale: null,
+        fauxBold: null,
+        fauxItalic: null,
+      },
+      paragraph: {
+        justification: state.justification,
+        firstLineIndent: state.firstLineIndent,
+        leftIndent: state.leftIndent,
+        rightIndent: state.rightIndent,
+        spaceBefore: state.spaceBefore,
+        spaceAfter: state.spaceAfter,
+        hyphenation: state.hyphenation,
+      },
+      warp: {
+        style: state.warpStyle,
+        bend: state.bend,
+        horizontalDistortion: state.horizontalDistortion,
+        verticalDistortion: state.verticalDistortion,
+        direction: state.warpDirection,
+      },
+    };
+  }
+
   #pathInfo(path: MockPath, index: number): MockPathInfo {
     /* `kind` 와 하위 패스 개수는 실기 값을 모른다 — 지어내지 않는다. */
     return { index, id: path.id, name: path.name, kind: null, subPathCount: null };

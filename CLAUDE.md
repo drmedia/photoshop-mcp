@@ -14,11 +14,11 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **149개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **157개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 155). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 163). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -146,7 +146,14 @@ Tool 까지 더한 수다(지금 155). 한동안 이 값을 Core 개수로 옮�
   없어 좌표 통로를 안 열었다). 이름을 주면 `normalPath`, 없으면 `workPathIndex` 다.
   **`stroke` 는 굵기·색을 정할 수 없다** — 실기에서 eraser 가 200×150 타원을 통째로
   지웠다. 예측 가능한 결과는 `path.fill` 이다 (ROADMAP §58)
-- 텍스트: `text.create` · `text.set` · `font.list` — **워터마크·서명 범위**
+- 텍스트: `text.create` · `text.set` · `font.list` — **워터마크·서명 범위**.
+  **줄바꿈은 개행 문자로 준다** — Photoshop 은 CR 이고 경계에서 바꾼다. 한동안
+  그대로 넘겨 **네모(□)가 그려졌다** (ROADMAP §60)
+- 텍스트 세부: `text.get` · `set_tracking`(**1/1000 em**) · `set_leading`(72ppi 픽셀) ·
+  `set_paragraph` · `warp` · `convert_to_point/paragraph/shape` — 전부 DOM.
+  **자동 행간을 켜면 `leading` 이 지워진다.** `set_paragraph` 뒤에는 안 건드린 항목이
+  `null` 로 읽힌다 — **0 이 아니다**. 워프 값은 `warpArcLower` 로 읽히지만 경계에서
+  되돌린다. `convert_to_shape` 만 **destructive** (ROADMAP §60)
 - 액션: `action.list` (조회) · `action.declared` · `action.run` — **선언한 것만**
 - Camera Raw: `camera_raw.apply` — **Tool 은 이 하나뿐이다**
 
@@ -920,7 +927,7 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 149개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 157개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져

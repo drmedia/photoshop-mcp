@@ -161,6 +161,16 @@ import {
   pathToSelection,
 } from "./dom/path.js";
 import { guideCreate, guideDelete, guideList } from "./dom/guide.js";
+import {
+  textConvertToParagraph,
+  textConvertToPoint,
+  textConvertToShape,
+  textGet,
+  textSetLeading,
+  textSetParagraph,
+  textSetTracking,
+  textWarp,
+} from "./dom/text-style.js";
 
 const PLUGIN = { name: "photoshop-mcp-uxp", version: "0.1.0" };
 
@@ -315,6 +325,26 @@ export function createDispatcher(): CommandDispatcher {
     guideCreate(p as Parameters<typeof guideCreate>[0]),
   );
   dispatcher.register("GUIDE_DELETE", async (p) => guideDelete(p as { index: number }));
+  dispatcher.register("TEXT_GET", async (p) => textGet(p as { layerId?: number }));
+  dispatcher.register("TEXT_SET_TRACKING", async (p) =>
+    textSetTracking(p as Parameters<typeof textSetTracking>[0]),
+  );
+  dispatcher.register("TEXT_SET_LEADING", async (p) =>
+    textSetLeading(p as Parameters<typeof textSetLeading>[0]),
+  );
+  dispatcher.register("TEXT_SET_PARAGRAPH", async (p) =>
+    textSetParagraph(p as Parameters<typeof textSetParagraph>[0]),
+  );
+  dispatcher.register("TEXT_WARP", async (p) => textWarp(p as Parameters<typeof textWarp>[0]));
+  dispatcher.register("TEXT_CONVERT_TO_POINT", async (p) =>
+    textConvertToPoint(p as { layerId?: number }),
+  );
+  dispatcher.register("TEXT_CONVERT_TO_PARAGRAPH", async (p) =>
+    textConvertToParagraph(p as { layerId?: number }),
+  );
+  dispatcher.register("TEXT_CONVERT_TO_SHAPE", async (p) =>
+    textConvertToShape(p as { layerId?: number }),
+  );
   dispatcher.register("DOCUMENT_FLATTEN", async () => documentFlatten());
   dispatcher.register("DOCUMENT_CLOSE", async (p) =>
     documentClose(p as Parameters<typeof documentClose>[0]),

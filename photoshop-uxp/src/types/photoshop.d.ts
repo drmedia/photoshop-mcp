@@ -303,6 +303,10 @@ declare module "photoshop" {
     readonly ToolType?: Readonly<Record<string, unknown>>;
     /** 가이드 방향. HORIZONTAL · VERTICAL. (ROADMAP §59) */
     readonly Direction?: Readonly<Record<string, unknown>>;
+    /** 단락 정렬. LEFT · CENTER · RIGHT · *JUSTIFIED. (ROADMAP §60) */
+    readonly Justification?: Readonly<Record<string, unknown>>;
+    /** 텍스트 워프. NONE · ARC · FLAG 등 열여섯. (ROADMAP §60) */
+    readonly WarpStyle?: Readonly<Record<string, unknown>>;
   };
 }
 

@@ -355,6 +355,7 @@ export * from "./channel.js";
 export * from "./layer-comp.js";
 export * from "./path.js";
 export * from "./guide.js";
+export * from "./text-style.js";
 export * from "./filter.js";
 export * from "./filter-dom.js";
 export * from "./gap-tools.js";
@@ -512,6 +513,29 @@ import {
   guideDeleteCommand,
   guideListCommand,
 } from "./guide.js";
+import {
+  TEXT_CONVERT_TO_PARAGRAPH,
+  TEXT_CONVERT_TO_POINT,
+  TEXT_CONVERT_TO_SHAPE,
+  TEXT_GET,
+  TEXT_SET_LEADING,
+  TEXT_SET_PARAGRAPH,
+  TEXT_SET_TRACKING,
+  TEXT_WARP,
+  TextSetLeadingParamsSchema,
+  TextSetParagraphParamsSchema,
+  TextSetTrackingParamsSchema,
+  TextTargetParamsSchema,
+  TextWarpParamsSchema,
+  textConvertToParagraphCommand,
+  textConvertToPointCommand,
+  textConvertToShapeCommand,
+  textGetCommand,
+  textSetLeadingCommand,
+  textSetParagraphCommand,
+  textSetTrackingCommand,
+  textWarpCommand,
+} from "./text-style.js";
 export { PING, pingCommand, type PingResult } from "./ping.js";
 
 /**
@@ -812,6 +836,42 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(GUIDE_DELETE, guideDeleteCommand, {
     permission: "edit",
     schema: GuideDeleteParamsSchema,
+  });
+
+  // ROADMAP §60 — 텍스트 세부. 전부 DOM 이다.
+  registry.register(TEXT_GET, textGetCommand, {
+    permission: "read",
+    schema: TextTargetParamsSchema,
+  });
+  registry.register(TEXT_SET_TRACKING, textSetTrackingCommand, {
+    permission: "edit",
+    schema: TextSetTrackingParamsSchema,
+  });
+  registry.register(TEXT_SET_LEADING, textSetLeadingCommand, {
+    permission: "edit",
+    schema: TextSetLeadingParamsSchema,
+  });
+  registry.register(TEXT_SET_PARAGRAPH, textSetParagraphCommand, {
+    permission: "edit",
+    schema: TextSetParagraphParamsSchema,
+  });
+  registry.register(TEXT_WARP, textWarpCommand, {
+    permission: "edit",
+    schema: TextWarpParamsSchema,
+  });
+  registry.register(TEXT_CONVERT_TO_POINT, textConvertToPointCommand, {
+    permission: "edit",
+    schema: TextTargetParamsSchema,
+  });
+  registry.register(TEXT_CONVERT_TO_PARAGRAPH, textConvertToParagraphCommand, {
+    permission: "edit",
+    schema: TextTargetParamsSchema,
+  });
+  /* **글자가 벡터가 되어 더는 텍스트가 아니다.** 내용도 폰트도 고칠 수 없고
+   * 되돌릴 길은 History 뿐이다 — `layer.rasterize` 와 같은 자리다. */
+  registry.register(TEXT_CONVERT_TO_SHAPE, textConvertToShapeCommand, {
+    permission: "destructive",
+    schema: TextTargetParamsSchema,
   });
   registry.register(DODGE_BURN_DAB, dodgeBurnDabCommand, {
     // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.

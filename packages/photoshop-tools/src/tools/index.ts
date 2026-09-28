@@ -175,12 +175,23 @@ import {
   createPathToSelectionTool,
 } from "./path.js";
 import { createGuideCreateTool, createGuideDeleteTool, createGuideListTool } from "./guide.js";
+import {
+  createTextConvertToParagraphTool,
+  createTextConvertToPointTool,
+  createTextConvertToShapeTool,
+  createTextGetTool,
+  createTextSetLeadingTool,
+  createTextSetParagraphTool,
+  createTextSetTrackingTool,
+  createTextWarpTool,
+} from "./text-style.js";
 export * from "./adjustment.js";
 export * from "./adjustment-extra.js";
 export * from "./channel.js";
 export * from "./layer-comp.js";
 export * from "./path.js";
 export * from "./guide.js";
+export * from "./text-style.js";
 export * from "./filter.js";
 export * from "./filter-dom.js";
 export * from "./capability.js";
@@ -295,6 +306,14 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createGuideListTool(engine));
   registry.register(createGuideCreateTool(engine));
   registry.register(createGuideDeleteTool(engine));
+  registry.register(createTextGetTool(engine));
+  registry.register(createTextSetTrackingTool(engine));
+  registry.register(createTextSetLeadingTool(engine));
+  registry.register(createTextSetParagraphTool(engine));
+  registry.register(createTextWarpTool(engine));
+  registry.register(createTextConvertToPointTool(engine));
+  registry.register(createTextConvertToParagraphTool(engine));
+  registry.register(createTextConvertToShapeTool(engine));
   registry.register(createDodgeBurnDabTool(engine));
   registry.register(createActionListTool(engine));
   registry.register(createActionDeclaredTool(engine));

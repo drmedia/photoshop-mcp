@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (149개)
+## 4. 구현된 Core API (157개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -309,6 +309,14 @@ RAW 의 현상 설정은 슬라이더를 보며 정하는 일이라 사람이 �
 | `photoshop.guide.list` | READ | 눈금자 원점 기준 좌표 |
 | `photoshop.guide.create` | EDIT | horizontal · vertical |
 | `photoshop.guide.delete` | EDIT | **색인으로만.** 지우는 것이 좌표 하나뿐이다 |
+| `photoshop.text.get` | READ | 문자·단락·워프까지 전부 읽는다 |
+| `photoshop.text.set_tracking` | EDIT | **1/1000 em** |
+| `photoshop.text.set_leading` | EDIT | 72ppi 픽셀. **auto 가 켜져 있으면 안 먹는다** |
+| `photoshop.text.set_paragraph` | EDIT | 정렬·들여쓰기·문단 간격 |
+| `photoshop.text.warp` | EDIT | 열여섯 가지. **텍스트로 남는다** |
+| `photoshop.text.convert_to_point` | EDIT | 상자를 없앤다 |
+| `photoshop.text.convert_to_paragraph` | EDIT | 상자를 씌운다 |
+| `photoshop.text.convert_to_shape` | DESTRUCTIVE | **더는 텍스트가 아니다** |
 | `photoshop.layer.delete` | DESTRUCTIVE | **id 를 명시한다.** 패턴을 받지 않는다 |
 
 `layerId` 를 생략하면 활성 레이어를 대상으로 한다. 그것이 무엇인지는
@@ -583,7 +591,7 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 전부 P3 다. 실제 요구가 확인된 뒤에 연다. 지금은 이름만 잡아 둔다.
 
 ```text
-photoshop.text.get · set_tracking · set_leading · set_paragraph · warp
+   (text.* 여덟은 §4 에서 열었다 — convert_to_* 셋이 더해졌다. ROADMAP §60)
    (create · set · font.list 은 §4.2.1 에서 열었다 — 워터마크·서명 범위)
 
 photoshop.shape.rectangle · ellipse · line · set_fill · set_stroke
@@ -775,7 +783,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **149** |
+| 구현됨 | **157** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

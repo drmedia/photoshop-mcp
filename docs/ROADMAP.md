@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 149개만
+기본            Extension 0개. Core Tool 157개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -8643,3 +8643,104 @@ index 0 삭제 후  [0] id 785   [1] id 789
 - [x] 실기: `constants.Direction` 존재 · 방향 문자열 · 소수 좌표 · 화면 확인
 - [x] 실기: 색인이 밀리는 것을 보고 `id` 선택자를 더했다
 - [x] `delete` 를 예정값 DESTRUCTIVE 에서 EDIT 로 바꿨다 (근거를 적음)
+
+# 60. 텍스트 세부 (`text.*` 여덟)
+
+`text.create` · `text.set` · `font.list` 은 **워터마크·서명 범위**로 열어
+두었고(§17.33) 나머지는 `CORE_API.md` §5.12 에 "실제 요구가 확인된 뒤에
+연다" 로 남아 있었다. 요구가 확인되어 열었다.
+
+`convert_to_point` · `convert_to_paragraph` · `convert_to_shape` 셋은 §5.12
+목록에도 없던 것이다.
+
+## 전부 DOM 이다
+
+`TextItem`(24.1+) 에 `characterStyle` · `paragraphStyle` · `warpStyle` 과
+변환 메서드 셋이 있다. batchPlay 를 쓰지 않았다.
+
+## 단위가 레퍼런스에 적혀 있다 — 짐작할 뻔한 자리다
+
+```text
+tracking            1/1000 em      픽셀도 포인트도 아니다
+leading             72ppi 픽셀
+들여쓰기·문단 간격   72ppi 픽셀
+```
+
+`size` 를 포인트로 받는 기존 `text.create` 와 헷갈리기 쉽다. 300ppi 문서에서는
+Photoshop 화면에서 보는 값과 다르다.
+
+## 실기에서 나온 것
+
+```text
+text.get              font "Gulim" · size 48 · tracking 0 · justification "left"
+                      clickPoint {60,120} 로 만든 위치가 그대로 읽힌다
+tracking 400          그대로 들어간다
+leading 120           119.99999999999999 · useAutoLeading 자동으로 false
+auto: true            **leading 이 null 이 된다** — 값이 지워진다
+warp arc bend 60      style "warpArc"
+warp arcLower         style "warpArcLower"
+convert_to_paragraph  isParagraphText true · clickPoint 가 상자 원점으로 바뀐다
+convert_to_point      clickPoint 가 {60,120} 로 복귀
+convert_to_shape      type "shape" · 이후 text.get 이 거절한다
+```
+
+## 자동 행간이 값을 지운다 — 우회가 맞았다
+
+레퍼런스만 보고 "`useAutoLeading` 이 켜져 있으면 `leading` 이 안 먹을 것" 이라
+짐작해 **`leading` 만 주면 먼저 끄도록** 만들었다. 재 보니 그보다 셌다 —
+`auto: true` 를 켜면 **`leading` 이 `null` 이 된다.** 값이 무시되는 게 아니라
+지워진다.
+
+화면으로도 확인했다. 자동 행간 쪽이 눈에 띄게 좁았다.
+
+## `\n` 이 줄바꿈이 아니다 — 기존 Tool 의 실제 결함이었다
+
+행간을 시험하려고 두 줄짜리 텍스트를 만들었는데 **한 줄로 나오고 가운데에
+네모(□)** 가 찍혔다. Photoshop 텍스트 레이어는 `\r` 을 줄바꿈으로 읽는다.
+**오류는 나지 않는다** — 글꼴에 없는 글자로 조용히 그려진다.
+
+`text.create` · `text.set` 은 §17.33 부터 있던 Tool 이고 **이 결함을 여태
+몰랐다.** 여러 줄 워터마크를 넣은 적이 없었기 때문이다.
+
+호출자가 Photoshop 의 버릇을 알 이유가 없으므로 **경계에서 바꾼다** —
+`normalizeNewlines` 가 `\r\n` · `\n` 을 `\r` 로 만든다. 고친 뒤 두 줄로 나왔다.
+
+## 워프 이름을 되돌린다
+
+읽히는 값에 **`warp` 접두사가 붙는다** — `none` → `warpNone`,
+`arcLower` → `warpArcLower`. 상수 멤버 이름(`NONE` · `ARCLOWER`)과도 다르다.
+
+그대로 돌려주면 **호출자가 넣는 어휘와 읽는 어휘가 달라진다.** 규칙이 분명하니
+경계에서 되돌린다. 모르는 값은 그대로 둔다 — 억지로 깎으면 없는 이름을 만든다.
+
+§58 의 `path.kind` 는 `workPathIndex` 로 규칙을 못 찾아 원본을 그대로 두었다.
+**규칙이 있으면 감추고 없으면 드러낸다.**
+
+## `set_paragraph` 뒤에는 안 건드린 항목이 `null` 이 된다
+
+```text
+처음         firstLineIndent 0 · leftIndent 0 · spaceAfter 0 · hyphenation false
+justification 와 spaceBefore 만 바꾼 뒤
+             firstLineIndent null · leftIndent null · spaceAfter null · hyphenation null
+```
+
+Photoshop 이 **명시적으로 설정한 것만** 보고한다. 다시 읽어도 `null` 이다.
+**`null` 을 0 으로 읽으면 안 된다** — 설명에 적었다.
+
+## `convert_to_shape` 만 destructive 다
+
+글자가 벡터가 되어 **더는 텍스트가 아니다** — 내용도 폰트도 고칠 수 없다.
+`layer.rasterize` 와 같은 자리다. 실기에서 변환 뒤 `text.get` 이 거절하는
+것까지 확인했고 Mock 도 그 계약을 흉내낸다.
+
+`warp` 는 `edit` 이다 — 휘어도 텍스트로 남는다.
+
+## 체크리스트
+
+- [x] `photoshop.text.get` · `set_tracking` · `set_leading` · `set_paragraph` · `warp`
+- [x] `photoshop.text.convert_to_point` · `convert_to_paragraph` · `convert_to_shape`
+- [x] 전부 DOM — descriptor 를 한 번도 잡지 않았다
+- [x] 실기: 여덟 개 전부 · 단위 · 열거값 읽기
+- [x] 실기: 자동 행간이 `leading` 을 지운다 (짐작보다 셌다)
+- [x] **기존 결함 수정**: `\n` 이 네모로 그려지던 것을 `\r` 로 바꾼다
+- [x] 워프 이름을 경계에서 되돌린다 (넣는 어휘 = 읽는 어휘)

@@ -129,6 +129,54 @@ function applyStyle(layer: Record<string, unknown>, style: TextStyle): string[] 
   return applied;
 }
 
+/**
+ * 텍스트 레이어를 찾아 돌려준다.
+ *
+ * **텍스트가 아니면 막는다.** 픽셀 레이어에는 `textItem` 이 없고, 그대로
+ * 진행하면 원인을 알 수 없는 오류가 난다.
+ */
+/**
+ * 줄바꿈을 Photoshop 이 쓰는 문자로 바꾼다.
+ *
+ * **`\n` 은 줄바꿈이 되지 않는다.** 실기에서 그대로 넣었더니 글꼴에 없는
+ * 글자로 그려져 **네모(□)** 가 나왔다 — 오류는 나지 않는다. Photoshop 의
+ * 텍스트 레이어는 `\r` 을 줄바꿈으로 읽는다.
+ *
+ * 호출자가 이것을 알 이유가 없으므로 **경계에서 바꾼다.** (ROADMAP §60)
+ */
+function normalizeNewlines(contents: string): string {
+  return contents.replace(/\r\n|\n/gu, "\r");
+}
+
+export function requireTextLayer(
+  document: ReturnType<typeof requireActiveDocument>,
+  layerId: number | undefined,
+): PhotoshopLayerLike {
+  const layer =
+    layerId === undefined ? document.activeLayers[0] : findLayerById(document.layers, layerId);
+  if (layer === undefined || layer === null) {
+    throw new DispatchError(
+      "LAYER_NOT_FOUND",
+      layerId === undefined ? "활성 레이어가 없습니다." : `레이어 ${layerId} 를 찾을 수 없습니다.`,
+      { recoverable: true, details: { layerId } },
+    );
+  }
+  const kind = toLayerType(layer.kind).type;
+  if (kind !== "text") {
+    throw new DispatchError(
+      "INVALID_PARAMETER",
+      `${kind} 레이어는 텍스트가 아닙니다. photoshop.layer.list 의 type 으로 확인하세요.`,
+      { recoverable: true, details: { layerId: layer.id, type: kind } },
+    );
+  }
+  return layer;
+}
+
+/** `requireTextLayer` 가 돌려주는 레이어. DOM 타입을 그대로 쓴다. */
+type PhotoshopLayerLike = NonNullable<
+  ReturnType<typeof requireActiveDocument>["activeLayers"][number]
+>;
+
 export async function textCreate(params: {
   contents: string;
   x: number;
@@ -158,7 +206,7 @@ export async function textCreate(params: {
     // `createTextLayer` 가 받는 것만 여기서 준다. 나머지는 만든 뒤 스타일로 건다 —
     // 어느 옵션을 받는지 확실한 것만 넣는 편이 조용히 무시되는 것보다 낫다.
     const created = (await make.call(document, {
-      contents: params.contents,
+      contents: normalizeNewlines(params.contents),
       position: { x: params.x, y: params.y },
       ...(params.name === undefined ? {} : { name: params.name }),
     })) as Record<string, unknown> | null;
@@ -187,31 +235,7 @@ export async function textSet(params: {
       requireFont(params.font);
     }
 
-    const layer =
-      params.layerId === undefined
-        ? document.activeLayers[0]
-        : findLayerById(document.layers, params.layerId);
-    if (layer === undefined || layer === null) {
-      throw new DispatchError(
-        "LAYER_NOT_FOUND",
-        params.layerId === undefined
-          ? "활성 레이어가 없습니다."
-          : `레이어 ${params.layerId} 를 찾을 수 없습니다.`,
-        { recoverable: true, details: { layerId: params.layerId } },
-      );
-    }
-
-    // **텍스트 레이어가 아니면 막는다.** 픽셀 레이어의 `textItem` 은 없고,
-    // 그대로 진행하면 원인을 알 수 없는 오류가 난다.
-    const kind = toLayerType(layer.kind).type;
-    if (kind !== "text") {
-      throw new DispatchError(
-        "INVALID_PARAMETER",
-        `${kind} 레이어는 텍스트가 아닙니다. photoshop.layer.list 의 type 으로 확인하세요.`,
-        { recoverable: true, details: { layerId: layer.id, type: kind } },
-      );
-    }
-
+    const layer = requireTextLayer(document, params.layerId);
     const raw = layer as unknown as Record<string, unknown>;
     const applied: string[] = [];
     if (params.contents !== undefined) {
@@ -219,7 +243,7 @@ export async function textSet(params: {
       if (textItem === undefined) {
         throw new DispatchError("COMMAND_FAILED", "텍스트 레이어에 textItem 이 없습니다.");
       }
-      textItem["contents"] = params.contents;
+      textItem["contents"] = normalizeNewlines(params.contents);
       applied.push("contents");
     }
     applied.push(...applyStyle(raw, params));

@@ -20,6 +20,8 @@ export function createTextCreateTool(
     name: "photoshop.text.create",
     description:
       "텍스트 레이어를 만든다. 내용·위치·폰트·크기·색·불투명도·정렬을 한 번에 준다. " +
+      "**줄바꿈은 그냥 개행 문자로 준다** — Photoshop 은 CR 을 쓰지만 경계에서 바꿔 준다. " +
+      "한동안 그대로 넘겨 **네모(□)가 그려졌다**(ROADMAP §60). " +
       "**워터마크와 서명을 위한 범위다** — 자간·행간·단락·변형은 없다. " +
       "x·y 는 문서 좌상단이 원점이고 **글자의 기준선(baseline)** 이다. " +
       "font 는 **PostScript 이름**이며 photoshop.font.list 가 주는 postScriptName 을 그대로 쓴다 — " +

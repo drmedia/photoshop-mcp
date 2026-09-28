@@ -13,6 +13,7 @@ import {
   createMaskCreateTool,
   createMaskDisableTool,
   createMaskApplyTool,
+  createMaskSelectTool,
   createMaskEnableTool,
   createSelectionClearTool,
   createSelectionInvertTool,
@@ -211,6 +212,7 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createMaskDisableTool(engine));
   // 마스크 중 이것 하나만 파괴적이다 — 굽고 나면 가려 둔 것이 없어진다.
   registry.register(createMaskApplyTool(engine));
+  registry.register(createMaskSelectTool(engine));
 
   // Phase 4 — 선택 영역
   registry.register(createSelectionClearTool(engine));

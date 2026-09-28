@@ -80,6 +80,7 @@ export const EXPECTED_TOOLS = [
   "photoshop.mask.enable",
   "photoshop.mask.disable",
   "photoshop.mask.apply",
+  "photoshop.mask.select",
   "photoshop.selection.clear",
   "photoshop.selection.invert",
   // Phase 4 — 필터
@@ -188,6 +189,7 @@ export const EXPECTED_COMMANDS = [
   "MASK_ENABLE",
   "MASK_DISABLE",
   "MASK_APPLY",
+  "MASK_SELECT",
   "SELECTION_CLEAR",
   "SELECTION_INVERT",
   "FILTER_GAUSSIAN_BLUR",

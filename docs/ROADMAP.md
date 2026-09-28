@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 87개만
+기본            Extension 0개. Core Tool 88개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -6590,3 +6590,116 @@ p99 − p50         61.0                 49.8
 - [x] `photoshop.layer.set_fill_opacity` — `{ layer, fillOpacity }`
 - [x] 실기: 일반 레이어 적용 · 배경 두 경우 · 승격 후 재시도
 - [x] Mock 이 승격-만-하고-실패를 흉내낸다
+
+# 30. 능력 가드를 훑었다 — 나중에 고칠 것 (미착수)
+
+`host.get`(§28) 을 만들며 "버전 가드가 여섯 파일에 흩어져 `host.get` 과 어긋난다"
+고 적었는데, 훑어 보니 **그 진단이 틀렸다.** `host.get` 과 소비처의 판정은 표현만
+다르고 결과가 같다(`document.rotate` · `document.selection` ·
+`addNotificationListener` 셋). 판정식을 한 모듈로 모으는 것은 **아무것도 고치지
+않는다** — 실제 문제는 판정식이 아니라 **소비처끼리 정책이 다른 것**이다.
+
+## 1. `SaveOptions` 정책이 정반대다
+
+```text
+document-lifecycle.ts:81   상수 없으면 COMMAND_NOT_SUPPORTED — 짐작하지 않는다
+export-tiff.ts:149         ?? "no" 로 짐작하고 try/catch 로 삼킨다
+export-mask.ts:148         같음
+```
+
+`document-lifecycle` 의 주석이 "인자 없이 닫으면 창이 떠 플러그인이 멈추므로
+실행하지 않았다" 고 못 박는데 나머지 둘이 그 규칙을 어긴다. **`try/catch` 는
+도움이 안 된다 — 대화상자는 던지지 않고 멈춘다.** 대화상자는 이 프로젝트에서
+네 번 반복된 실패 유형이다(§17.11 · §17.25 · §17.26 · §17.34).
+
+## 2. `COMMAND_NOT_SUPPORTED` 를 일곱 곳이 안 쓴다
+
+`document.rotate` · `createTextLayer` · `app.SolidColor` · `app.fonts` ·
+`app.actionTree`(2) · `ActionItem.play` 가 전부 "이 Photoshop 에 API 가 없다"
+인데 `COMMAND_FAILED` 로 나간다. 호출자가 코드로 능력 부족을 걸러낼 수 없다.
+
+## 3. `getData` 가 한쪽에서만 치명적이다
+
+`document-statistics` · `document-tilt` 은 없으면 실패하는데 `capture` 는 조용히
+건너뛴다. 16비트 문서에서 변환을 건너뛰면 인코딩이 틀어진다. 다만 캡처의 의도가
+"미리보기는 실패보다 근사치가 낫다" 일 수 있어 **의도를 먼저 정해야 한다.**
+
+## 왜 지금 안 고치는가
+
+**셋 다 이 호스트(27.8)에서 실행되지 않는 경로다.** 해당 API 가 전부 있다는 것을
+이미 쟀다. 지금 잘못 도는 것은 없고, 값은 "다른 Photoshop 버전에서 그 경로가
+처음 실행되는 날" 에 생긴다. §17.19 가 "한 번도 실행되지 않은 경로는 지웠다" 고
+한 것과 같은 자리다 — 짐작으로 남겨 둔 경로는 처음 도는 날 맞는지 아무도 모른다.
+
+## 체크리스트
+
+- [ ] `export-tiff.ts` · `export-mask.ts` 의 `?? "no"` 를 없앤다
+- [ ] 능력 가드 일곱 곳을 `COMMAND_NOT_SUPPORTED` 로 바꾼다 (계약 변경)
+- [ ] `capture` 의 `getData` 누락 정책을 정한다 (실패 · 근사치 중 하나)
+- [ ] ~~`host-features.ts` 로 판정식 통합~~ — 훑어 보니 고치는 것이 없다
+
+# 31. 마스크를 편집 대상으로 (`photoshop.mask.select`)
+
+필터·조정은 **지금 선택된 채널**에 걸린다. 지금까지는 `mask.dab` · `mask.gradient`
+처럼 **대상을 스스로 정하는 Command** 로만 마스크를 건드릴 수 있었다. 마스크를
+편집 대상으로 두면 `filter.gaussian_blur` 가 마스크 경계를 다듬고
+`adjustment.curves` 가 마스크의 세기를 조절한다.
+
+## descriptor 는 잡은 것이다
+
+DOM 에 레이어 마스크를 채널로 얻는 길이 **문서화되어 있지 않다** —
+`document.activeChannels` 는 문서 채널용이고 `Channel` 에 마스크를 가리키는 값이
+없다(Adobe 레퍼런스 확인). 그래서 batchPlay 이고, 이름은 `["all"]` 알림으로
+사람이 썸네일을 클릭하는 것을 잡았다(§17.28).
+
+```json
+마스크: {"_obj":"select","_target":[{"_ref":"channel","_enum":"channel","_value":"mask"}],"makeVisible":false}
+픽셀:   {"_obj":"select","_target":[{"_ref":"channel","_enum":"channel","_value":"RGB"}],"makeVisible":false}
+```
+
+**이미 대상이면 클릭해도 알림이 안 난다.** `mask.create` 직후에는 마스크가 이미
+대상이라, 첫 시도에서 마스크 클릭이 아무것도 안 남기고 레이어 클릭만 잡혔다.
+
+## 양방향을 한 Tool 이 갖는다
+
+`target: "pixels"` 를 함께 연다. 마스크로 보내는 길만 있으면 호출자가 돌아올 수
+없고 그 뒤의 편집이 **전부 조용히** 마스크에 걸린다. Tool 을 둘로 나누지 않은
+이유는 **두 번째를 안 만들 수 없기 때문**이다.
+
+## 실증
+
+마스크에 `mask.dab hide`(반지름 400, 강도 100)로 검은 얼룩을 찍고, 마스크를 대상으로
+둔 뒤 `filter.gaussian_blur radius 120` 을 걸었다.
+
+```text
+              마스크                      레이어 픽셀
+전     clippedLow 2.061 · p1 0        mean 46.31/52.17/53.66 · σ .457/.473/.481
+후     clippedLow 0     · p1 53.1     mean 46.31/52.17/53.66 · σ .457/.473/.481
+```
+
+마스크 평균은 249.74 로 그대로다 — 블러의 특징이다. **레이어 픽셀은 소수점까지
+완전히 같다.** 필터가 마스크에만 걸렸다.
+
+## 상태를 물어서 확인한다
+
+`document.activeChannels` 가 두 상태를 구분한다.
+
+```text
+픽셀이 대상   ["빨강","녹색","파랑"]
+마스크가 대상  throw "Unknown or unsupported active channels."
+```
+
+처음에는 둘 다 `null` 로 뭉갰다. 그러면 **"마스크라서 못 읽었다" 와 "이 Photoshop
+에 속성이 없다" 가 같은 값**이 되어, 능력 없는 호스트에서 `verified` 가 거짓으로
+참이 된다. 셋으로 가른다 — 이름 · 던짐 · 알 수 없음.
+
+그래서 `verified` 는 요청값의 되풀이가 아니라 **물어본 결과**다. 다만 마스크인지
+알파 채널인지까지는 구분하지 않는다 — Photoshop 이 둘을 같은 오류로 답한다.
+Mock 은 물어볼 Photoshop 이 없으므로 **언제나 `false`** 다.
+
+## 체크리스트
+
+- [x] `photoshop.mask.select` — `target: mask | pixels`, `verified`
+- [x] descriptor 를 `["all"]` 알림으로 잡았다
+- [x] 실기: 필터가 마스크에만 걸리고 픽셀은 그대로인 것을 측정으로 확인
+- [x] 실기: 양방향 · 마스크 없는 레이어 거절

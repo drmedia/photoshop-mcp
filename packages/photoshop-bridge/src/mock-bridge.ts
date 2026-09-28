@@ -525,6 +525,29 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         this.#layers[at] = baked;
         return { ...baked } as TResult;
       }
+      /**
+       * 편집 대상을 마스크와 픽셀 사이에서 옮긴다. (CORE_API §5 P1)
+       *
+       * **Mock 은 `activeChannels` 를 지어내지 않는다.** 실기에서 그 이름이
+       * 무엇인지 확인하기 전에 그럴듯한 값을 주면, 그것을 보고 판단한
+       * 워크플로가 실기에서 다르게 돈다 — `LAYER_GET` 의 `bounds` 와 같다.
+       */
+      case "MASK_SELECT": {
+        this.#snapshot("Select channel");
+        const target = (command.params as { target?: "mask" | "pixels" }).target ?? "mask";
+        const index = this.#requireLayerIndex((command.params as { layerId?: number }).layerId);
+        const layer = this.#layers[index] as LayerInfo;
+        if (target === "mask" && layer.hasMask !== true) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `레이어 ${layer.id} 에 마스크가 없습니다. photoshop.mask.create 로 먼저 만드세요.`,
+            { recoverable: true, details: { layerId: layer.id } },
+          );
+        }
+        /* **`verified: false` 다.** Mock 에는 물어볼 Photoshop 이 없다.
+         * `true` 로 두면 "확인했다" 는 거짓이 테스트에 사실로 굳는다. */
+        return { layer: { ...layer }, target, activeChannels: null, verified: false } as TResult;
+      }
       case "MASK_DISABLE":
         this.#snapshot("Disable mask");
         return this.#setMask(command.params as { layerId?: number }, false) as TResult;

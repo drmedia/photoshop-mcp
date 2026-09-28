@@ -42,8 +42,10 @@ import {
   MASK_CREATE,
   MASK_DISABLE,
   MASK_APPLY,
+  MASK_SELECT,
   MASK_ENABLE,
   MaskCreateParamsSchema,
+  MaskSelectParamsSchema,
   MaskToggleParamsSchema,
   SELECTION_CLEAR,
   SELECTION_INVERT,
@@ -51,6 +53,7 @@ import {
   maskCreateCommand,
   maskDisableCommand,
   maskApplyCommand,
+  maskSelectCommand,
   maskEnableCommand,
   selectionClearCommand,
   selectionInvertCommand,
@@ -578,6 +581,13 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(MASK_APPLY, maskApplyCommand, {
     permission: "destructive",
     schema: MaskToggleParamsSchema,
+  });
+  /* **`edit` 다.** 픽셀을 바꾸지 않고 편집 대상만 옮긴다. 다만 옮겨 둔 채로
+   * 두면 뒤따르는 편집이 전부 마스크에 걸리므로, 되돌리는 `pixels` 를 같은
+   * Tool 이 갖는다. */
+  registry.register(MASK_SELECT, maskSelectCommand, {
+    permission: edit,
+    schema: MaskSelectParamsSchema,
   });
 
   // Phase 4 — 선택 영역

@@ -5,7 +5,7 @@ import { requireActiveDocument } from "./document.js";
 import { findLayerById } from "./layer-edit.js";
 import { flattenLayers } from "./layers.js";
 import { runModal } from "./modal.js";
-import { withMaskStateAsync } from "./mask-state.js";
+import { readMaskState, withMaskStateAsync } from "./mask-state.js";
 import { resolveMutatedLayer } from "./mutation-result.js";
 
 /**
@@ -229,5 +229,150 @@ export async function selectionInvert(): Promise<{ hasSelection: boolean }> {
     }
     await play("Invert selection", [{ _obj: "inverse" }]);
     return { hasSelection: hasSelection() };
+  });
+}
+
+/**
+ * `MASK_SELECT` — 마스크를 편집 대상으로. (CORE_API §5 P1)
+ *
+ * ## 무엇이 달라지는가
+ *
+ * 필터·조정·칠하기는 **지금 선택된 채널**에 걸린다. 마스크를 편집 대상으로 두면
+ * `filter.gaussian_blur` 가 마스크 경계를 부드럽게 하고, `adjustment.curves` 가
+ * 마스크의 세기를 조절한다. 지금까지는 `mask.dab` · `mask.gradient` 처럼 **대상을
+ * 스스로 정하는 Command** 로만 마스크를 건드릴 수 있었다.
+ *
+ * ## 양방향이다
+ *
+ * `target: "pixels"` 를 함께 연다. 마스크로 보내는 길만 있으면 호출자가 돌아올 수
+ * 없고, 그 뒤의 모든 편집이 조용히 마스크에 걸린다 — 이 프로젝트가 가장 싫어하는
+ * 실패 형태다. Tool 을 둘로 나누지 않은 이유는 **두 번째를 안 만들 수 없기
+ * 때문**이다. 하나면 짝이 빠질 수 없다.
+ *
+ * ## descriptor 는 잡은 것이다
+ *
+ * DOM 에 레이어 마스크를 채널로 얻는 길이 문서화되어 있지 않다 —
+ * `document.activeChannels` 는 문서 채널용이고 `Channel` 에 마스크를 가리키는
+ * 값이 없다. 그래서 batchPlay 이고, 이름은 `["all"]` 알림으로 사람이 썸네일을
+ * 클릭하는 것을 잡아 확인했다(§17.28). 짐작한 것이 하나도 없다.
+ *
+ * **마스크가 이미 대상이면 클릭해도 알림이 안 난다** — 잡는 동안 그것 때문에 한 번
+ * 헛돌았다. `mask.create` 직후에는 마스크가 이미 대상이다.
+ */
+export interface MaskSelectResult {
+  layer: LayerInfo;
+  /** 요청한 대상. 실제로 그렇게 되었는지는 `verified` 가 말한다. */
+  target: "mask" | "pixels";
+  /**
+   * 고른 뒤 읽은 `document.activeChannels` 의 이름. 예: `["빨강","녹색","파랑"]`.
+   *
+   * **마스크가 대상이면 `null` 이다** — 레이어 마스크는 문서 채널이 아니라서
+   * Photoshop 이 `Unknown or unsupported active channels.` 로 던진다.
+   */
+  activeChannels: string[] | null;
+  /**
+   * **Photoshop 에 물어 확인했는가.** 요청값을 되풀이한 것이 아니다.
+   *
+   * ```text
+   * pixels →  구성 채널이 활성인 것을 확인했다
+   * mask   →  구성 채널이 활성이 **아님**을 확인했다
+   * ```
+   *
+   * 마스크인지 알파 채널인지까지는 구분하지 않는다 — Photoshop 이 둘을 같은
+   * 오류로 답한다. `false` 면 확인하지 못한 것이고, 바뀌지 않았다는 뜻은 아니다.
+   */
+  verified: boolean;
+}
+
+/**
+ * `document.activeChannels` 를 읽어 본 결과.
+ *
+ * **셋을 구분해야 한다.** `null` 하나로 뭉뚱그리면 "마스크가 대상이라 못 읽었다"
+ * 와 "이 Photoshop 에 속성이 없다" 가 같은 값이 되고, 그러면 `verified` 가
+ * 능력 없는 호스트에서 거짓으로 참이 된다.
+ */
+type ChannelProbe =
+  /** 문서 채널이 활성이다. */
+  | { kind: "names"; names: string[] }
+  /** Photoshop 이 던졌다 — 문서 채널이 활성이 아니다. */
+  | { kind: "blocked" }
+  /** 속성이 없거나 모양이 다르다. 아무것도 알아내지 못했다. */
+  | { kind: "unknown" };
+
+function probeActiveChannels(document: unknown): ChannelProbe {
+  let raw: unknown;
+  try {
+    raw = (document as Record<string, unknown>)["activeChannels"];
+  } catch {
+    /* 실기에서 잡은 문구: `Unknown or unsupported active channels.`
+     * 레이어 마스크가 활성일 때 난다. */
+    return { kind: "blocked" };
+  }
+  if (!Array.isArray(raw)) {
+    return { kind: "unknown" };
+  }
+  return {
+    kind: "names",
+    names: raw.map((channel) => {
+      const name = (channel as { name?: unknown } | null)?.name;
+      return typeof name === "string" ? name : "?";
+    }),
+  };
+}
+
+export async function maskSelect(params: {
+  layerId?: number;
+  target?: "mask" | "pixels";
+}): Promise<MaskSelectResult> {
+  const target = params.target ?? "mask";
+  return runModal("Select mask", async () => {
+    const document = requireActiveDocument();
+    const targetId = activate(document, params.layerId);
+
+    /* **마스크가 없으면 미리 막는다.** Photoshop 은 "명령을 사용할 수 없습니다"
+     * 라고만 답해 이유를 알 수 없다 — Camera Raw 가 숨긴 레이어를 미리 막는 것과
+     * 같은 자리다(§17.17). 읽지 못하면 막지 않는다. */
+    if (target === "mask") {
+      const state = (await readMaskState([targetId])).get(targetId);
+      if (state !== undefined && !state.hasMask) {
+        throw new DispatchError(
+          "INVALID_PARAMETER",
+          `레이어 ${targetId} 에 마스크가 없습니다. photoshop.mask.create 로 먼저 만드세요.`,
+          { recoverable: true, details: { layerId: targetId } },
+        );
+      }
+    }
+
+    await play("Select channel", [
+      {
+        _obj: "select",
+        _target: [
+          { _ref: "channel", _enum: "channel", _value: target === "mask" ? "mask" : "RGB" },
+        ],
+        // 편집 대상만 바꾼다. 마스크를 빨간 오버레이로 띄우지 않는다.
+        makeVisible: false,
+      },
+    ]);
+
+    const layer = flattenLayers(document.layers).find((entry) => entry.id === targetId);
+    if (layer === undefined) {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        "채널은 바뀌었지만 결과 레이어를 확인하지 못했습니다. layer.list 로 확인하세요.",
+        { recoverable: true, details: { layerId: targetId } },
+      );
+    }
+
+    const probe = probeActiveChannels(document);
+    return {
+      layer: (await withMaskStateAsync([layer]))[0] as LayerInfo,
+      target,
+      activeChannels: probe.kind === "names" ? probe.names : null,
+      /* 요청을 되풀이하지 않는다. 구성 채널이 활성인지를 **물어서** 판단한다. */
+      verified:
+        target === "pixels"
+          ? probe.kind === "names" && probe.names.length > 0
+          : probe.kind === "blocked",
+    };
   });
 }

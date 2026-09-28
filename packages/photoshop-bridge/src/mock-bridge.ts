@@ -118,6 +118,15 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
    * 자기 교정이 된다.
    */
   #activeLayerIds: number[] = [];
+
+  /**
+   * 레이어별 칠 불투명도. (`LAYER_FILL_OPACITY`)
+   *
+   * `LayerInfo` 에 없는 값이라 따로 들고 있는다. **쓴 것만 담는다** — 건드린 적
+   * 없는 레이어는 `LAYER_GET` 이 `null` 로 답해야 한다. 100 으로 채우면 Mock 이
+   * 실기에 없는 사실을 말하게 된다.
+   */
+  readonly #fillOpacity = new Map<number, number>();
   /** 저장된 알파 채널 이름. Mock 은 픽셀을 모르므로 이름만 기억한다. */
   readonly #channels = new Set<string>();
   #nextLayerId: number;
@@ -267,7 +276,8 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
           locked: null,
           allLocked: null,
           isClippingMask: null,
-          fillOpacity: null,
+          // 쓴 적이 있으면 그 값을, 없으면 null. Mock 이 지어내지 않는다.
+          fillOpacity: this.#fillOpacity.get((this.#layers[index] as LayerInfo).id) ?? null,
         } as TResult;
       }
       case "LAYER_LIST":
@@ -329,6 +339,55 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
           }
           return { ...layer, opacity };
         }) as TResult;
+      }
+
+      /**
+       * 칠 불투명도. (CORE_API §5 P1)
+       *
+       * **배경 레이어는 `opacity` 와 다르게 실패한다.** 실기에서 확인했다 —
+       * 레이어가 둘 이상이면 아무 일도 안 일어나고, 배경이 유일하면 Photoshop 이
+       * 일반 레이어로 **승격만** 시키고 값은 넣지 않는다. `set_opacity` 는 승격되면
+       * 값도 들어갔다. Mock 이 이 차이를 흉내내지 않으면 "승격했는데 실패" 경로가
+       * 테스트에 영영 나오지 않는다 — 배경 `set_opacity` 버그가 실기에서만 드러난
+       * 이유가 그것이다.
+       */
+      case "LAYER_FILL_OPACITY": {
+        this.#snapshot("Set fill opacity");
+        const fillOpacity = (command.params as { fillOpacity: number }).fillOpacity;
+        const index = this.#requireLayerIndex((command.params as { layerId?: number }).layerId);
+        const target = this.#layers[index] as LayerInfo;
+
+        if (target.isBackground === true) {
+          const onlyLayer = this.#layers.length === 1;
+          if (onlyLayer) {
+            // 승격만 하고 값은 넣지 않는다. id 가 바뀐다.
+            const { isBackground: _dropped, ...rest } = target;
+            const promoted: LayerInfo = { ...rest, id: this.#nextLayerId++, name: "레이어 0" };
+            this.#layers[index] = promoted;
+            throw new PhotoshopMcpError(
+              ErrorCode.COMMAND_FAILED,
+              `칠 불투명도가 적용되지 않았습니다 — 요청 ${fillOpacity}, 실제 ${target.opacity}. ` +
+                `배경 레이어라서 Photoshop 이 일반 레이어(id ${promoted.id})로 승격시켰지만 값은 넣지 않았습니다. ` +
+                `**문서는 이미 바뀌었습니다.** 같은 요청을 layerId ${promoted.id} 로 다시 보내면 적용됩니다.`,
+              {
+                recoverable: true,
+                details: { requested: fillOpacity, promoted: true, layer: { ...promoted } },
+              },
+            );
+          }
+          throw new PhotoshopMcpError(
+            ErrorCode.COMMAND_FAILED,
+            `칠 불투명도가 적용되지 않았습니다 — 요청 ${fillOpacity}, 실제 100. ` +
+              "배경 레이어라서 Photoshop 이 거부했습니다. layer.from_background 로 일반 레이어로 바꾼 뒤 쓰세요.",
+            {
+              recoverable: true,
+              details: { requested: fillOpacity, promoted: false, layer: { ...target } },
+            },
+          );
+        }
+
+        this.#fillOpacity.set(target.id, fillOpacity);
+        return { layer: { ...target }, fillOpacity } as TResult;
       }
 
       // Phase 3 — 그룹

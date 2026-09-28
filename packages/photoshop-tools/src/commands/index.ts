@@ -67,18 +67,21 @@ import {
 import {
   LAYER_CREATE,
   LAYER_DUPLICATE,
+  LAYER_FILL_OPACITY,
   LAYER_OPACITY,
   LAYER_RENAME,
   LAYER_SELECT,
   LAYER_VISIBILITY,
   LayerCreateParamsSchema,
   LayerDuplicateParamsSchema,
+  LayerFillOpacityParamsSchema,
   LayerOpacityParamsSchema,
   LayerRenameParamsSchema,
   LayerSelectParamsSchema,
   LayerVisibilityParamsSchema,
   layerCreateCommand,
   layerDuplicateCommand,
+  layerFillOpacityCommand,
   layerOpacityCommand,
   layerRenameCommand,
   layerSelectCommand,
@@ -517,6 +520,10 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_OPACITY, layerOpacityCommand, {
     permission: edit,
     schema: LayerOpacityParamsSchema,
+  });
+  registry.register(LAYER_FILL_OPACITY, layerFillOpacityCommand, {
+    permission: edit,
+    schema: LayerFillOpacityParamsSchema,
   });
 
   // Phase 3 — 그룹

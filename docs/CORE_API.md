@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (86개)
+## 4. 구현된 Core API (87개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -260,6 +260,7 @@ RAW 의 현상 설정은 슬라이더를 보며 정하는 일이라 사람이 �
 | `photoshop.layer.select` | EDIT | 활성 레이어 지정 |
 | `photoshop.layer.set_visibility` | EDIT | |
 | `photoshop.layer.set_opacity` | EDIT | 0–100 |
+| `photoshop.layer.set_fill_opacity` | EDIT | 0–100. **스타일은 남기고 픽셀만** |
 | `photoshop.layer.set_blend_mode` | EDIT | normal · multiply · screen · overlay · softLight 등 |
 | `photoshop.layer.from_background` | EDIT | 배경 → 일반 레이어. id 가 바뀐다 |
 | `photoshop.layer.stamp_visible` | EDIT | 보이는 레이어를 합친 복제본 |
@@ -444,7 +445,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
-| `photoshop.layer.set_fill_opacity` | P1 | EDIT | |
 | `photoshop.layer.lock` | P2 | EDIT | |
 | `photoshop.layer.unlock` | P2 | EDIT | |
 | `photoshop.layer.place_linked` | P3 | EXTERNAL | 연결된 스마트 오브젝트 |
@@ -743,7 +743,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **86** |
+| 구현됨 | **87** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

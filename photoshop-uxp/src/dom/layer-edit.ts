@@ -246,6 +246,101 @@ export async function layerOpacity(params: TargetParams & { opacity: number }): 
   });
 }
 
+/**
+ * `LAYER_FILL_OPACITY` — 칠 불투명도. (CORE_API §5 P1)
+ *
+ * ## `opacity` 와 다르다
+ *
+ * `opacity` 는 레이어 전체(효과 포함)를 투명하게 하고, `fillOpacity` 는 **픽셀만**
+ * 투명하게 하며 레이어 스타일은 그대로 남긴다. Adobe 레퍼런스가 `opacity` 를
+ * "master opacity" 라고 부르며 둘을 따로 둔다.
+ *
+ * ## 읽어서 확인한다
+ *
+ * `LayerInfo` 에 `fillOpacity` 가 없어 `mutate()` 의 결과만으로는 값이 들어갔는지
+ * 알 수 없다. 대입 뒤 **다시 읽는다** — 배경 레이어 `set_opacity` 가 예외 없이
+ * 무시되던 전례가 있다(§17.6). 못 읽으면 `null` 이고, 그때는 막지 않는다.
+ * 없는 것을 참으로 읽어 멀쩡한 호출을 막는 쪽이 더 나쁘다.
+ *
+ * ## 배경 레이어는 `opacity` 와 다르게 실패한다
+ *
+ * 실기에서 두 경우를 다 봤다.
+ *
+ * ```text
+ * 레이어가 둘 이상  →  승격도 없고 값도 그대로 (id 1, 100)
+ * 배경이 유일       →  승격만 일어나고 값은 그대로 (id 1 → 6, 100)
+ * 승격된 레이어     →  적용된다 (50.196)
+ * ```
+ *
+ * `set_opacity` 는 승격되면 값도 들어갔는데 **이쪽은 승격만 하고 만다.** 그러면
+ * 실패를 보고하는데 문서는 이미 바뀐 상태다 — 이 프로젝트에서 가장 나쁜 실패
+ * 유형이다. 그래서 **승격 사실과 새 id 를 오류에 담고 다시 부르라고 말한다.**
+ *
+ * 그리고 배경 여부는 **변경 전에** 읽어 둔다. 변경 뒤에는 승격되어
+ * `isBackground` 가 `false` 라서, 그것을 보고 판단하면 원인을 놓친다.
+ */
+export async function layerFillOpacity(
+  params: TargetParams & { fillOpacity: number },
+): Promise<{ layer: LayerInfo; fillOpacity: number | null }> {
+  return runModal("Set layer fill opacity", async () => {
+    const document = requireActiveDocument();
+    const layer = resolveLayer(document, params.layerId);
+    const targetId = readId(layer);
+    /* 변경 **전에** 읽는다. 승격되면 뒤에는 `false` 라 원인을 놓친다. */
+    const wasBackground = toLayerInfo(layer).isBackground === true;
+
+    const info = await mutate(document, layer, (target) => {
+      (target as unknown as Record<string, unknown>)["fillOpacity"] = params.fillOpacity;
+    });
+
+    /* 결과 레이어에서 다시 읽는다. `mutate` 가 찾아 준 id 로 가야 한다 —
+     * 원래 참조는 Photoshop 이 레이어를 갈아치웠으면 무효다. */
+    const after = findLayerById(document.layers, info.id);
+    const actual = readFillOpacity(after);
+
+    if (actual !== null && !opacityApplied(params.fillOpacity, actual)) {
+      /* **문서가 이미 바뀌었는지 먼저 말한다.** 승격되면 id 가 달라지는데,
+       * 그 사실 없이 실패만 보고하면 호출자는 아무 일도 없었다고 믿는다. */
+      const promoted = wasBackground && targetId !== null && info.id !== targetId;
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        `칠 불투명도가 적용되지 않았습니다 — 요청 ${params.fillOpacity}, 실제 ${actual}. ` +
+          (promoted
+            ? `배경 레이어라서 Photoshop 이 일반 레이어(id ${info.id})로 승격시켰지만 값은 넣지 않았습니다. ` +
+              `**문서는 이미 바뀌었습니다.** 같은 요청을 layerId ${info.id} 로 다시 보내면 적용됩니다.`
+            : wasBackground
+              ? "배경 레이어라서 Photoshop 이 거부했습니다. layer.from_background 로 일반 레이어로 바꾼 뒤 쓰세요."
+              : "Photoshop 이 이 레이어의 칠 불투명도를 바꾸지 않았습니다."),
+        {
+          recoverable: true,
+          details: {
+            requested: params.fillOpacity,
+            actual,
+            layerId: targetId,
+            promoted,
+            layer: info,
+          },
+        },
+      );
+    }
+
+    return { layer: info, fillOpacity: actual };
+  });
+}
+
+/** 못 읽으면 `null`. 던지는 경우도 포함한다 — 무효가 된 참조가 있다. */
+function readFillOpacity(layer: PhotoshopLayer | null): number | null {
+  if (layer === null) {
+    return null;
+  }
+  try {
+    const value = (layer as unknown as Record<string, unknown>)["fillOpacity"];
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 /** 활성 문서의 활성 레이어. 진단용. */
 export function activeLayerIds(): number[] {
   const document = app.activeDocument;

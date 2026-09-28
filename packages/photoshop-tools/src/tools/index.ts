@@ -22,6 +22,7 @@ import { createHistoryUndoTool } from "./history.js";
 import {
   createLayerCreateTool,
   createLayerDuplicateTool,
+  createLayerFillOpacityTool,
   createLayerOpacityTool,
   createLayerRenameTool,
   createLayerSelectTool,
@@ -190,6 +191,7 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createLayerSelectTool(engine));
   registry.register(createLayerVisibilityTool(engine));
   registry.register(createLayerOpacityTool(engine));
+  registry.register(createLayerFillOpacityTool(engine));
 
   // Phase 3 — 그룹
   registry.register(createGroupCreateTool(engine));

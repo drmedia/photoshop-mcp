@@ -14,11 +14,11 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **86개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **87개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 92). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 93). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -29,6 +29,7 @@ Tool 까지 더한 수다(지금 92). 한동안 이 값을 Core 개수로 옮겨
   네 번 확인했다(§17.13 · §17.19 · §17.25 · §28). 문서가 없으면 `document.*` 는
   `false` 가 아니라 `null` 이다
 - 레이어: create / duplicate / rename / select / set_visibility / set_opacity / reorder
+- 칠 불투명도: `layer.set_fill_opacity` — **`opacity` 와 다르다.** 스타일은 남고 픽셀만
 - 스마트 오브젝트: `smart_object.convert` — 뒤에 거는 필터가 스마트 필터가 된다
 - 그룹: create / move_layer · History: undo
 - 조정 레이어: curves / levels / brightness_contrast
@@ -641,6 +642,7 @@ FITS → TIFF 변환에서 조심할 것은 **정규화**다. min/max 로 무조
 | `set_opacity` | **승격 또는 무시.** 아래 참조 |
 | `rename` | 거부. 문서는 바뀌지 않는다 |
 | `set_blend_mode` | 거부. 문서는 바뀌지 않는다 |
+| `set_fill_opacity` | **승격만 하고 값은 안 들어간다.** 또는 무시 (ROADMAP §29) |
 
 `set_opacity` 의 결과는 두 갈래다. 배경이 유일한 레이어면 **일반 레이어로 승격**되며
 적용되고, 레이어가 둘 이상이면 **예외 없이 무시된다** — 값도 그대로다. 어느 쪽이 될지
@@ -654,6 +656,10 @@ Photoshop 이 무엇을 기준으로 정하는지는 모른다. 규칙을 짐작
 승격이 위험하다. 레이어 객체가 통째로 교체되어 **원래 참조로 결과를 읽으면 던진다.**
 변경은 이미 일어났는데 그 예외가 `COMMAND_FAILED` 로 올라가면 호출자는 아무 일도
 없었다고 믿는다. 안 했다고 말하고 뭔가를 하는 것이 가장 나쁜 실패다.
+
+`set_fill_opacity` 는 또 다르다 — 배경이 유일하면 **승격은 되는데 값은 안 들어간다.**
+실패를 보고하는데 문서는 이미 바뀐 상태라, 오류에 **새 id** 를 담고 그 id 로 다시
+부르라고 말한다. 배경 여부는 **변경 전에** 읽는다. 뒤에는 승격되어 `false` 다.
 
 `LayerInfo.isBackground` 로 이 사실을 드러낸다. **Photoshop 이 알려줄 때만 담는다** —
 값을 얻지 못하면 필드가 아예 없다. 없는 것을 `false` 로 덮으면 "배경이 아니다" 라는
@@ -817,7 +823,7 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 86개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 87개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져

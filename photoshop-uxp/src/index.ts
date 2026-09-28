@@ -43,6 +43,7 @@ import { historyUndo } from "./dom/history.js";
 import {
   layerCreate,
   layerDuplicate,
+  layerFillOpacity,
   layerOpacity,
   layerRename,
   layerSelect,
@@ -235,6 +236,9 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("LAYER_OPACITY", async (p) =>
     layerOpacity(p as { layerId?: number; opacity: number }),
+  );
+  dispatcher.register("LAYER_FILL_OPACITY", async (p) =>
+    layerFillOpacity(p as { layerId?: number; fillOpacity: number }),
   );
 
   // Phase 3 — 그룹

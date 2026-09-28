@@ -3,18 +3,22 @@ import type { LayerInfo, ToolDefinition } from "@photoshop-mcp/photoshop-bridge"
 import {
   LAYER_CREATE,
   LAYER_DUPLICATE,
+  LAYER_FILL_OPACITY,
   LAYER_OPACITY,
   LAYER_RENAME,
   LAYER_SELECT,
   LAYER_VISIBILITY,
   LayerCreateParamsSchema,
   LayerDuplicateParamsSchema,
+  LayerFillOpacityParamsSchema,
   LayerOpacityParamsSchema,
   LayerRenameParamsSchema,
   LayerSelectParamsSchema,
   LayerVisibilityParamsSchema,
   type LayerCreateParams,
   type LayerDuplicateParams,
+  type LayerFillOpacityParams,
+  type LayerFillOpacityResult,
   type LayerOpacityParams,
   type LayerRenameParams,
   type LayerSelectParams,
@@ -131,4 +135,38 @@ export function createLayerOpacityTool(
     LAYER_OPACITY,
     engine,
   );
+}
+
+/**
+ * `photoshop.layer.set_fill_opacity` — 칠 불투명도.
+ *
+ * **다른 레이어 편집 Tool 과 결과 모양이 다르다.** `LayerInfo` 에 `fillOpacity` 가
+ * 없어 평탄하게 돌려주면 값을 확인할 수 없다. `photoshop.layer.get` 과 같은
+ * `{ layer, fillOpacity }` 로 맞췄다.
+ */
+export function createLayerFillOpacityTool(
+  engine: CommandEngine,
+): ToolDefinition<LayerFillOpacityParams, LayerFillOpacityResult> {
+  return {
+    name: "photoshop.layer.set_fill_opacity",
+    description:
+      "레이어 칠 불투명도를 0-100 으로 설정한다. layerId 를 생략하면 활성 레이어다. " +
+      "**opacity 와 다른 값이다** — opacity 는 레이어 스타일까지 함께 투명해지고, " +
+      "fillOpacity 는 픽셀만 투명해지고 스타일(획·그림자·광선)은 그대로 남는다. " +
+      "그래서 테두리만 남기거나, dodge_burn.dab 처럼 softLight 로 겹친 레이어의 " +
+      "세기를 스타일 없이 줄일 때 쓴다. 둘 다 필요하면 따로 건다 — 곱해진다. " +
+      "결과의 fillOpacity 는 요청값이 아니라 **Photoshop 에서 다시 읽은 실제값**이고, " +
+      "읽지 못하면 null 이다. Photoshop 이 0-255 로 저장해 35 를 넣으면 34.9 가 나온다. " +
+      "**배경 레이어에는 한 번에 걸리지 않는다** — 값이 조용히 무시되고, 배경이 유일한 " +
+      "레이어면 Photoshop 이 일반 레이어로 승격만 시킨다(id 가 바뀐다). 둘 다 실패로 " +
+      "보고하며, 승격된 경우 오류가 새 id 를 알려주므로 그 id 로 다시 부르면 된다. " +
+      "미리 피하려면 layer.from_background 를 먼저 쓴다.",
+    permission: "edit",
+    inputSchema: LayerFillOpacityParamsSchema,
+    handler: async (input, context) =>
+      engine.execute<LayerFillOpacityResult>(
+        { type: LAYER_FILL_OPACITY, params: input },
+        { requestId: context.requestId },
+      ),
+  };
 }

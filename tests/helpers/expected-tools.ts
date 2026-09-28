@@ -65,6 +65,7 @@ export const EXPECTED_TOOLS = [
   "photoshop.layer.select",
   "photoshop.layer.set_visibility",
   "photoshop.layer.set_opacity",
+  "photoshop.layer.set_fill_opacity",
   // Phase 3 — 그룹
   "photoshop.group.create",
   "photoshop.group.move_layer",
@@ -176,6 +177,7 @@ export const EXPECTED_COMMANDS = [
   "LAYER_SELECT",
   "LAYER_VISIBILITY",
   "LAYER_OPACITY",
+  "LAYER_FILL_OPACITY",
   "GROUP_CREATE",
   "GROUP_MOVE_LAYER",
   "HISTORY_UNDO",

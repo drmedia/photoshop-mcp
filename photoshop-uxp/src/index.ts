@@ -171,7 +171,12 @@ import {
   textSetTracking,
   textWarp,
 } from "./dom/text-style.js";
-import { colorGetForegroundBackground, preferencesGet } from "./dom/app-info.js";
+import {
+  colorGetForegroundBackground,
+  colorSetBackground,
+  colorSetForeground,
+  preferencesGet,
+} from "./dom/app-info.js";
 
 const PLUGIN = { name: "photoshop-mcp-uxp", version: "0.1.0" };
 
@@ -351,6 +356,12 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("COLOR_GET_FOREGROUND_BACKGROUND", async () =>
     colorGetForegroundBackground(),
+  );
+  dispatcher.register("COLOR_SET_FOREGROUND", async (p) =>
+    colorSetForeground(p as Parameters<typeof colorSetForeground>[0]),
+  );
+  dispatcher.register("COLOR_SET_BACKGROUND", async (p) =>
+    colorSetBackground(p as Parameters<typeof colorSetBackground>[0]),
   );
   dispatcher.register("DOCUMENT_FLATTEN", async () => documentFlatten());
   dispatcher.register("DOCUMENT_CLOSE", async (p) =>

@@ -92,3 +92,37 @@ export const colorGetCommand = forward<ColorGetParams, ColorGetResult>(
   ColorGetResultSchema,
   "전경·배경색",
 );
+
+/* ROADMAP §62 — 전경색·배경색 바꾸기. §61 에서 안 만들기로 했던 것을 연다. */
+
+export const COLOR_SET_FOREGROUND = "COLOR_SET_FOREGROUND";
+export const COLOR_SET_BACKGROUND = "COLOR_SET_BACKGROUND";
+
+export const ColorSetParamsSchema = z
+  .object({
+    red: z.number().int().min(0).max(255),
+    green: z.number().int().min(0).max(255),
+    blue: z.number().int().min(0).max(255),
+  })
+  .strict();
+
+export const ColorSetResultSchema = z.object({
+  /** **바꾸기 전 색.** 되돌리려면 이 값의 `red`·`green`·`blue` 를 다시 넣는다. */
+  previous: ColorInfoSchema,
+  /** 바꾼 뒤 다시 읽은 색. */
+  current: ColorInfoSchema,
+  /** 요청한 값이 실제로 들어갔는지. 읽지 못했으면 `false` 다. */
+  applied: z.boolean(),
+});
+
+export type ColorSetParams = z.infer<typeof ColorSetParamsSchema>;
+export type ColorSetResult = z.infer<typeof ColorSetResultSchema>;
+
+export const colorSetForegroundCommand = forward<ColorSetParams, ColorSetResult>(
+  ColorSetResultSchema,
+  "전경색 바꾸기",
+);
+export const colorSetBackgroundCommand = forward<ColorSetParams, ColorSetResult>(
+  ColorSetResultSchema,
+  "배경색 바꾸기",
+);

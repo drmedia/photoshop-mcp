@@ -539,10 +539,15 @@ import {
 } from "./text-style.js";
 import {
   COLOR_GET_FOREGROUND_BACKGROUND,
+  COLOR_SET_BACKGROUND,
+  COLOR_SET_FOREGROUND,
   ColorGetParamsSchema,
+  ColorSetParamsSchema,
   PREFERENCES_GET,
   PreferencesGetParamsSchema,
   colorGetCommand,
+  colorSetBackgroundCommand,
+  colorSetForegroundCommand,
   preferencesGetCommand,
 } from "./app-info.js";
 export { PING, pingCommand, type PingResult } from "./ping.js";
@@ -891,6 +896,15 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(COLOR_GET_FOREGROUND_BACKGROUND, colorGetCommand, {
     permission: "read",
     schema: ColorGetParamsSchema,
+  });
+  // ROADMAP 62 — 바꾸기. 문서가 아니라 앱 상태를 건드리지만 previous 로 되돌린다.
+  registry.register(COLOR_SET_FOREGROUND, colorSetForegroundCommand, {
+    permission: "edit",
+    schema: ColorSetParamsSchema,
+  });
+  registry.register(COLOR_SET_BACKGROUND, colorSetBackgroundCommand, {
+    permission: "edit",
+    schema: ColorSetParamsSchema,
   });
   registry.register(DODGE_BURN_DAB, dodgeBurnDabCommand, {
     // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.

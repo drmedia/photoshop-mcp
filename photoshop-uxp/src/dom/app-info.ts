@@ -1,5 +1,7 @@
 import { app } from "photoshop";
 import { DispatchError } from "../dispatcher/dispatcher.js";
+import { runModal } from "./modal.js";
+import { solidColor } from "./text.js";
 
 /**
  * 앱 설정과 색. (ROADMAP §61)
@@ -117,13 +119,25 @@ export interface ColorInfo {
  *
  * `solidColor()` 가 쓰는 것과 같은 경로다(`rgb.red` …). **통째로 읽을 수
  * 없다** — 쓸 때와 같은 제약이다(§17.33).
+ *
+ * ## 반올림한다 (ROADMAP §62)
+ *
+ * **Photoshop 은 정수로 넣은 값을 정수로 돌려주지 않는다** — 220 을 넣으면
+ * `220.00000208616257` 이 나온다. 내부가 0–1 실수라 왕복에서 오차가 샌다.
+ *
+ * 그대로 두면 **되돌리기가 깨진다.** `previous` 를 그 값으로 주면 호출자가
+ * 다시 넣을 수 없다 — 스키마가 정수만 받는다. 사용자가 색 선택기에서 고를 수
+ * 있는 것도 0–255 정수뿐이므로 반올림이 정보를 버리지 않는다.
+ *
+ * 배경 레이어의 `opacityApplied` 와 같은 자리다 — 거기도 0–255 저장 때문에
+ * 정확히 비교하면 오탐이 났다.
  */
 function readColor(source: unknown): ColorInfo {
   const pick = (key: string): number | null => {
     try {
       const rgb = (source as Bag | undefined)?.["rgb"] as Bag | undefined;
       const value = rgb?.[key];
-      return typeof value === "number" ? value : null;
+      return typeof value === "number" ? Math.round(value) : null;
     } catch {
       return null;
     }
@@ -148,9 +162,10 @@ function readColor(source: unknown): ColorInfo {
  * 주는 인자가 없어 전경색이 그대로 쓰인다(§58). 긋기 전에 이것으로 무슨 색이
  * 나올지 알 수 있다.
  *
- * **바꾸는 Tool 은 만들지 않았다.** 전경색은 사용자가 Photoshop UI 에서 쓰는
- * 상태다 — LLM 이 말없이 바꾸면 사용자가 다음에 칠할 때 엉뚱한 색이 나온다.
- * 색을 정해 칠하려면 `paint.dab` · `path.fill` 처럼 색을 받는 Tool 을 쓴다.
+ * **바꾸는 쪽은 `colorSetForeground` · `colorSetBackground` 다**(§62). 전경색은
+ * 사용자가 Photoshop UI 에서 쓰는 상태이므로 이것으로 먼저 읽어 두었다가
+ * 되돌린다. 색을 정해 칠하려면 `paint.dab` · `path.fill` 처럼 색을 받는
+ * Tool 을 쓴다.
  */
 export function colorGetForegroundBackground(): {
   foreground: ColorInfo;
@@ -161,4 +176,62 @@ export function colorGetForegroundBackground(): {
     foreground: readColor(bag["foregroundColor"]),
     background: readColor(bag["backgroundColor"]),
   };
+}
+
+/**
+ * 전경색·배경색을 바꾼다. (ROADMAP §62)
+ *
+ * ## 되돌릴 수 있게 만든다
+ *
+ * §61 에서 **만들지 않기로** 했던 것이다 — "사용자가 UI 에서 쓰는 상태라
+ * 말없이 바꾸면 다음에 칠할 때 엉뚱한 색이 나온다" 가 이유였다. 그 이유는
+ * 지금도 맞으므로 **바꾸기 전 색을 결과에 담는다.** 호출자가 끝나고
+ * 되돌릴 수 있어야 한다.
+ *
+ * ## 쓴 값이 들어갔는지 확인한다
+ *
+ * `SolidColor` 인스턴스를 통째로 대입하는 경로다. 배경 레이어의
+ * `set_opacity` 처럼 **오류 없이 무시되는** 자리가 이 프로젝트에 여럿
+ * 있었으므로 넣고 나서 다시 읽어 `applied` 로 답한다.
+ */
+async function setColor(
+  key: "foregroundColor" | "backgroundColor",
+  color: { red: number; green: number; blue: number },
+): Promise<{ previous: ColorInfo; current: ColorInfo; applied: boolean }> {
+  const bag = app as unknown as Bag;
+  const previous = readColor(bag[key]);
+
+  try {
+    bag[key] = solidColor(color);
+  } catch (error) {
+    throw new DispatchError(
+      "COMMAND_FAILED",
+      `색을 바꾸지 못했습니다: ${String((error as { message?: unknown })?.message ?? error)}`,
+      { recoverable: true, details: { key } },
+    );
+  }
+
+  /* `readColor` 가 반올림한 값이라 그대로 비교한다. 반올림 전 값으로 비교하면
+   * **들어갔는데 안 들어갔다고 답한다** — 실기에서 그렇게 나왔다. */
+  const current = readColor(bag[key]);
+  /* 읽지 못했으면 들어갔는지 알 수 없다 — `true` 로 답하지 않는다. */
+  const applied =
+    current.red === color.red && current.green === color.green && current.blue === color.blue;
+  return { previous, current, applied };
+}
+
+export async function colorSetForeground(params: {
+  red: number;
+  green: number;
+  blue: number;
+}): Promise<{ previous: ColorInfo; current: ColorInfo; applied: boolean }> {
+  return runModal("Set foreground color", async () => setColor("foregroundColor", params));
+}
+
+export async function colorSetBackground(params: {
+  red: number;
+  green: number;
+  blue: number;
+}): Promise<{ previous: ColorInfo; current: ColorInfo; applied: boolean }> {
+  return runModal("Set background color", async () => setColor("backgroundColor", params));
 }

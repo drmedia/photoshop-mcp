@@ -14,7 +14,7 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **159개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **161개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
@@ -27,9 +27,15 @@ Tool 까지 더한 수다(지금 165). 한동안 이 값을 Core 개수로 옮�
   새 문서가 활성이 되므로 이후 편집 대상이 바뀐다
 - 문서 복제: `document.duplicate` — 되돌릴 수 없는 작업 앞의 안전망.
   **`mergeLayersOnly` 는 원본을 합치지 않는다** — 복제본에 한 장만 넣는다 (ROADMAP §35)
-- 앱: `preferences.get`(열두 범주. **속성을 짐작하지 않고 반사적으로 읽는다**) ·
-  `color.get_foreground_background`(**`path.stroke` 가 쓰는 색**). 둘 다 읽기만 —
-  **바꾸는 Tool 은 없다**. 사용자가 UI 에서 쓰는 상태다 (ROADMAP §61)
+- 앱: `preferences.get` — 열두 범주. **속성을 짐작하지 않고 반사적으로 읽는다.**
+  **바꾸는 Tool 은 없다** — 무엇이 바뀌었는지 추적할 수 없고 범위가 Photoshop
+  전체다 (ROADMAP §61)
+- 색: `color.get_foreground_background` · `color.set_foreground` ·
+  `color.set_background` — **`path.stroke` 의 색을 정하는 유일한 통로**다.
+  사용자가 UI 에서 쓰는 상태를 빌리는 것이므로 **`previous` 로 돌려놓는다.**
+  **`previous` 를 통째로 넘기지 않는다** — `hex` 가 함께 있고 스키마는 셋만
+  받는다. Photoshop 이 220 을 `220.00000208` 로 돌려줘 **반올림하지 않으면
+  되돌리기가 깨진다** (ROADMAP §62)
 - 호스트: `host.get` — 버전 + **이 서버가 쓰는 API 의 유무.** 같은 질문을 실기에서
   네 번 확인했다(§17.13 · §17.19 · §17.25 · §28). 문서가 없으면 `document.*` 는
   `false` 가 아니라 `null` 이다
@@ -935,7 +941,7 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 159개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 161개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져

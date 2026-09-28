@@ -88,6 +88,23 @@ interface MockGuide {
   coordinate: number;
 }
 
+/** ROADMAP 62 — `ColorInfo` 모양으로 감싼다. 모르면 전부 `null` 이다. */
+function mockColor(source: { red: number; green: number; blue: number } | null): {
+  red: number | null;
+  green: number | null;
+  blue: number | null;
+  hex: string | null;
+} {
+  if (source === null) {
+    return { red: null, green: null, blue: null, hex: null };
+  }
+  const hex = `#${[source.red, source.green, source.blue]
+    .map((n) => n.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase()}`;
+  return { ...source, hex };
+}
+
 interface MockPathInfo {
   index: number;
   id: number;
@@ -248,6 +265,9 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   readonly #channels = new Set<string>();
   readonly #layerComps: MockLayerComp[] = [];
   readonly #paths: MockPath[] = [];
+  /** ROADMAP 62 — 전경·배경색. **처음에는 모른다.** 넣어 준 값만 안다. */
+  #foreground: { red: number; green: number; blue: number } | null = null;
+  #background: { red: number; green: number; blue: number } | null = null;
   readonly #guides: MockGuide[] = [];
   readonly #textStates = new Map<number, MockTextState>();
   #nextGuideId = 1;
@@ -2458,8 +2478,26 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         return { categories } as TResult;
       }
       case "COLOR_GET_FOREGROUND_BACKGROUND": {
-        const unknown = { red: null, green: null, blue: null, hex: null };
-        return { foreground: { ...unknown }, background: { ...unknown } } as TResult;
+        return {
+          foreground: mockColor(this.#foreground),
+          background: mockColor(this.#background),
+        } as TResult;
+      }
+      case "COLOR_SET_FOREGROUND":
+      case "COLOR_SET_BACKGROUND": {
+        /* Mock 은 Photoshop 의 색을 모른다 — **넣어 준 값만** 안다.
+         * 그래서 previous 는 처음 한 번 전부 null 이고, 그 뒤로는 실제로
+         * 넣었던 값이다. 지어내면 되돌리기가 Mock 에서만 도는 거짓이 된다. */
+        const params = command.params as { red: number; green: number; blue: number };
+        const foreground = command.type === "COLOR_SET_FOREGROUND";
+        const previous = mockColor(foreground ? this.#foreground : this.#background);
+        const next = { red: params.red, green: params.green, blue: params.blue };
+        if (foreground) {
+          this.#foreground = next;
+        } else {
+          this.#background = next;
+        }
+        return { previous, current: mockColor(next), applied: true } as TResult;
       }
 
       case "GUIDE_LIST":

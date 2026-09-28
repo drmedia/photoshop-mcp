@@ -182,8 +182,10 @@ export function createPathStrokeTool(
       "**굵기와 색을 정할 수 없다. 그 도구의 Photoshop 현재 설정을 그대로 쓴다** — " +
       "strokePath 에 그것을 주는 인자가 없다. 실기에서 브러시 크기를 모른 채 " +
       "eraser 로 그었더니 **200×150 타원이 통째로 지워졌다** — 획이 아니라 전면이었다. " +
-      "**무슨 색으로 그어질지는 photoshop.color.get_foreground_background 로 볼 수 있다** — " +
-      "굵기는 여전히 읽을 방법이 없다. " +
+      "**색은 photoshop.color.set_foreground 로 정할 수 있다** — 긋기 전에 바꾸고 " +
+      "끝나면 그 결과의 previous 로 되돌린다. 지금 색은 " +
+      "photoshop.color.get_foreground_background 가 준다. " +
+      "**굵기는 여전히 읽을 방법도 정할 방법도 없다.** " +
       "**예측 가능한 결과가 필요하면 photoshop.path.fill 을 쓴다** — 그쪽은 색과 " +
       "불투명도를 받는다. 이 Tool 은 사용자가 브러시를 맞춰 둔 것을 아는 경우에만 쓴다. " +
       "tool 은 brush(기본) · pencil · eraser · cloneStamp · dodge · burn 등 16가지, " +

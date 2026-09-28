@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (159개)
+## 4. 구현된 Core API (161개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -319,6 +319,8 @@ RAW 의 현상 설정은 슬라이더를 보며 정하는 일이라 사람이 �
 | `photoshop.text.convert_to_shape` | DESTRUCTIVE | **더는 텍스트가 아니다** |
 | `photoshop.preferences.get` | READ | 열두 범주. **속성을 짐작하지 않고 읽히는 것만** |
 | `photoshop.color.get_foreground_background` | READ | `path.stroke` 가 쓰는 색 |
+| `photoshop.color.set_foreground` | EDIT | **`path.stroke` 의 색을 정하는 유일한 통로** |
+| `photoshop.color.set_background` | EDIT | `canvas.resize` 로 넓힌 영역이 이 색 |
 | `photoshop.layer.delete` | DESTRUCTIVE | **id 를 명시한다.** 패턴을 받지 않는다 |
 
 `layerId` 를 생략하면 활성 레이어를 대상으로 한다. 그것이 무엇인지는
@@ -783,7 +785,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **159** |
+| 구현됨 | **161** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

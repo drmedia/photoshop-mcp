@@ -124,6 +124,11 @@ import { DOCUMENT_CROP, DocumentCropParamsSchema, documentCropCommand } from "./
 import { IMAGE_RESIZE, ImageResizeParamsSchema, imageResizeCommand } from "./image-resize.js";
 import { CANVAS_RESIZE, CanvasResizeParamsSchema, canvasResizeCommand } from "./canvas-resize.js";
 import { DOCUMENT_TRIM, DocumentTrimParamsSchema, documentTrimCommand } from "./document-trim.js";
+import {
+  DOCUMENT_MODE_CONVERT,
+  DocumentModeConvertParamsSchema,
+  documentModeConvertCommand,
+} from "./document-mode.js";
 import { DOCUMENT_OPEN, DocumentOpenParamsSchema, documentOpenCommand } from "./document-open.js";
 import {
   DOCUMENT_CLOSE,
@@ -290,6 +295,7 @@ export * from "./document-duplicate.js";
 export * from "./image-resize.js";
 export * from "./canvas-resize.js";
 export * from "./document-trim.js";
+export * from "./document-mode.js";
 export * from "./document-rotate.js";
 export * from "./measure-tilt.js";
 export * from "./layer-reorder.js";
@@ -393,6 +399,12 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(DOCUMENT_TRIM, documentTrimCommand, {
     permission: "destructive",
     schema: DocumentTrimParamsSchema,
+  });
+  /* **되돌릴 수 없다.** grayscale 은 색을, cmyk 는 색역 밖을 버린다 —
+   * 문서 어디에도 원래 값이 남지 않는다. (ROADMAP §38) */
+  registry.register(DOCUMENT_MODE_CONVERT, documentModeConvertCommand, {
+    permission: "destructive",
+    schema: DocumentModeConvertParamsSchema,
   });
   registry.register(IMAGE_RESIZE, imageResizeCommand, {
     /* **`crop` 과 갈리는 자리다.** 축소는 픽셀을 다시 표본화하고 버려진

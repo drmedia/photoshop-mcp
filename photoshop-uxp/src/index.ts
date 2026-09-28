@@ -58,6 +58,7 @@ import { documentCrop } from "./dom/document-crop.js";
 import { imageResize } from "./dom/image-resize.js";
 import { canvasResize } from "./dom/canvas-resize.js";
 import { documentTrim } from "./dom/document-trim.js";
+import { documentModeConvert } from "./dom/document-mode.js";
 import { documentRotate } from "./dom/document-rotate.js";
 import { documentTilt } from "./dom/document-tilt.js";
 import { documentClose, documentFlatten } from "./dom/document-lifecycle.js";
@@ -139,6 +140,9 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("DOCUMENT_TRIM", async (p) =>
     documentTrim(p as Parameters<typeof documentTrim>[0]),
+  );
+  dispatcher.register("DOCUMENT_MODE_CONVERT", async (p) =>
+    documentModeConvert(p as Parameters<typeof documentModeConvert>[0]),
   );
   dispatcher.register("IMAGE_RESIZE", async (p) =>
     imageResize(p as Parameters<typeof imageResize>[0]),

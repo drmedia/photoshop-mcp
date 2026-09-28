@@ -272,6 +272,12 @@ declare module "photoshop" {
      * 기준이 다르면 **무엇을 여백으로 볼지가 달라진다.**
      */
     readonly TrimType?: Readonly<Record<string, unknown>>;
+    /**
+     * `document.changeMode` 의 대상 모드. (`DOCUMENT_MODE_CONVERT`)
+     *
+     * 값이 무엇인지 확인한 적이 없으므로 `unknown` 이다. 없으면 거절한다.
+     */
+    readonly ChangeMode?: Readonly<Record<string, unknown>>;
   };
 }
 

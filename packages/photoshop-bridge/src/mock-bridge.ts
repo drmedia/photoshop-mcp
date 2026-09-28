@@ -1306,6 +1306,41 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        * Mock 에는 픽셀이 없다. 그럴듯한 크기를 돌려주면 그것을 보고 짠 워크플로가
        * 실기에서 다르게 돈다 — `MEASURE_TILT` 가 각도를 지어내지 않는 것과 같다.
        */
+      /**
+       * 색상 모드. (CORE_API §5 P2)
+       *
+       * 모드는 문서 메타라 Mock 도 들고 있을 수 있다. **이미 그 모드면 아무것도
+       * 하지 않는 것**까지 흉내낸다 — 그러지 않으면 "같은 모드로 다시 걸면
+       * 평탄화만 된다" 를 막아 둔 것이 테스트에 안 나온다.
+       *
+       * 픽셀은 없으므로 색이 어떻게 변하는지는 흉내내지 않는다.
+       */
+      case "DOCUMENT_MODE_CONVERT": {
+        const document = this.#requireDocument();
+        const label = { rgb: "RGB", grayscale: "Grayscale", cmyk: "CMYK", lab: "Lab" }[
+          (command.params as { mode: "rgb" | "grayscale" | "cmyk" | "lab" }).mode
+        ];
+        const before = { mode: document.colorMode, layers: this.#layers.length };
+        if (before.mode === label) {
+          return {
+            document: { ...(await this.getDocumentInfo()) },
+            before,
+            after: { ...before },
+            applied: true,
+            layersDiscarded: 0,
+          } as TResult;
+        }
+        this.#snapshot("Change mode");
+        this.#document = { ...document, colorMode: label };
+        const after = { mode: label, layers: this.#layers.length };
+        return {
+          document: { ...(await this.getDocumentInfo()) },
+          before,
+          after,
+          applied: true,
+          layersDiscarded: Math.max(0, before.layers - after.layers),
+        } as TResult;
+      }
       case "DOCUMENT_TRIM":
         this.#requireDocument();
         throw new PhotoshopMcpError(

@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 94개만
+기본            Extension 0개. Core Tool 95개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -7016,3 +7016,61 @@ document.trim   일반 레이어도 잘린다
 - [x] 실기: `transparent` · `topLeft` · 면 선택 · `changed: false`
 - [x] 실기: 숨긴 일반 레이어의 내용이 사라지는 것
 - [x] Mock 은 한 척하지 않고 실패한다
+
+# 38. 색상 모드 (`photoshop.document.mode_convert`)
+
+## 일곱 중 넷만 열었다
+
+`ChangeMode` 에는 `BITMAP` · `CMYK` · `GRAYSCALE` · `INDEXEDCOLOR` · `LAB` ·
+`MULTICHANNEL` · `RGB` 가 있는데 **넷만 내놓았다.**
+
+`BITMAP` · `INDEXEDCOLOR` 는 Photoshop UI 에서 설정 대화상자를 띄운다.
+**대화상자가 뜨면 플러그인이 멈추고 Bridge 가 15초에 타임아웃한다** — 이
+프로젝트에서 네 번 반복된 실패 유형이다(§17.11 · §17.25 · §17.26 · §17.34).
+`options` 인자로 피할 수 있을지도 모르지만 **실기에서 뜨지 않는 것을 확인하기
+전에는 열지 않는다.** `MULTICHANNEL` 은 이 서버의 쓰임과 멀다.
+
+## 실기에서 확인한 것
+
+네 모드를 이어서 돌렸다. **대화상자는 한 번도 뜨지 않았고 레이어도 그대로였다.**
+
+```text
+rgb        →  이미 RGB. 아무것도 안 함 (layersDiscarded 0)
+grayscale  →  RGB → Grayscale   레이어 2 → 2
+cmyk       →  Grayscale → CMYK  레이어 2 → 2
+lab        →  CMYK → Lab        레이어 2 → 2
+rgb        →  Lab → RGB         레이어 2 → 2
+```
+
+Photoshop UI 가 묻는 "색상 정보를 버릴까요?" 는 스크립팅 경로에서 나오지 않는다.
+
+## 색은 돌아오지 않는다 — `destructive` 의 근거
+
+같은 문서의 얼룩을 왕복 전후로 쟀다.
+
+```text
+칠한 색        (220, 40, 90)  분홍
+왕복 뒤        (146.92, 146.78, 146.97)  회색
+```
+
+`grayscale` 단계에서 채널이 사라졌고 RGB 로 돌아와도 복구되지 않는다. 문서
+어디에도 원래 값이 남지 않으므로 `DESTRUCTIVE` 다 — `image.resize` 가 해상도를
+버리는 것과 같은 자리다. CORE_API §5 에 `EDIT` 로 적혀 있던 것을 바꿨다.
+
+## 같은 모드로 부르면 아무것도 하지 않는다
+
+Photoshop 에 그대로 넘기면 얻는 것 없이 평탄화만 될 수 있다. 먼저 읽어서
+같으면 건너뛴다. Mock 도 같은 규칙을 갖는다.
+
+## 흑백은 이 Tool 이 아닐 수 있다
+
+`grayscale` 은 채널 자체를 없애 이후 색 보정이 불가능해진다. 비파괴로 흑백을
+얻으려면 `adjustment.hue_saturation` 이나 `camera_raw.apply` 쪽이다. Tool
+설명에 그렇게 적었다 — 호출자가 "흑백" 이라는 말만 보고 이쪽으로 오기 쉽다.
+
+## 체크리스트
+
+- [x] `photoshop.document.mode_convert` — `before` · `after` · `applied` · `layersDiscarded`
+- [x] Permission 을 `EDIT` → `DESTRUCTIVE` 로 바꾸고 근거를 측정으로 남겼다
+- [x] 실기: 네 모드 · 대화상자 없음 · 레이어 유지 · 색 소멸
+- [ ] `bitmap` · `indexedColor` — 대화상자가 뜨지 않는 것을 확인하면 연다

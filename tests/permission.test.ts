@@ -252,6 +252,7 @@ describe("Core Tool 분류", () => {
        * 이므로 이쪽은 갈린다. (ROADMAP §33) */
       "CANVAS_RESIZE",
       "DOCUMENT_TRIM",
+      "DOCUMENT_MODE_CONVERT",
       "IMAGE_RESIZE",
       "DOCUMENT_FLATTEN",
       "DOCUMENT_CLOSE",

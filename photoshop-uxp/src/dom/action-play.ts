@@ -1,4 +1,4 @@
-import { app } from "photoshop";
+import { app, constants } from "photoshop";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { runModal } from "./modal.js";
 import { isAllowed, readAllowed } from "./action-allowlist.js";
@@ -20,6 +20,14 @@ import { isAllowed, readAllowed } from "./action-allowlist.js";
  * `app.displayDialogs` 가 있으면 끄고 **반드시 되돌린다.** 없으면 끄지 못하며,
  * 그 사실을 결과에 담는다 — 껐다고 말하고 안 끄는 것이 가장 나쁘다.
  *
+ * **값을 짐작하지 않는다**(ROADMAP §63). 레퍼런스에 `DialogModes` 의 멤버
+ * 이름(`ALL` · `ERROR` · `NONE`)만 있고 런타임 문자열은 없다 —
+ * `constants.FlipAxis` 때(§44)와 같은 자리다. 한동안 `"dontDisplayDialogs"` 를
+ * 넣고 있었는데 그것은 지어낸 값이었다. `constants.DialogModes.NONE` 을 읽어
+ * 쓰고, 없으면 **끄지 않는다.**
+ *
+ * 결과의 `dialogMode` 가 실제로 건 값이다. `null` 이면 걸지 못한 것이다.
+ *
  * ## **허용 검사가 여기 있다**
  *
  * 서버의 Tool 이 아니라 플러그인에서 막는다. Extension 은 Tool 을 거치지 않고
@@ -27,26 +35,39 @@ import { isAllowed, readAllowed } from "./action-allowlist.js";
  * 그 길이 열려 있다. 허용 목록도 여기 있으니 검사도 여기가 맞다.
  */
 
-/** `displayDialogs` 를 끄고 되돌린다. 끄지 못했으면 `false`. */
+/** `displayDialogs` 를 끄고 되돌린다. 끄지 못했으면 `suppressed: false`. */
 async function withoutDialogs<T>(
   run: () => Promise<T>,
-): Promise<{ value: T; suppressed: boolean }> {
+): Promise<{ value: T; suppressed: boolean; mode: string | null }> {
   const anyApp = app as unknown as Record<string, unknown>;
+  /* **상수에서 읽는다.** 없으면 끄지 않는다 — 지어낸 문자열은 조용히 무시된다. */
+  const none = (constants as unknown as Record<string, unknown>)["DialogModes"] as
+    Record<string, unknown> | undefined;
+  const target = none?.["NONE"];
+
   const had = "displayDialogs" in anyApp;
   const previous = anyApp["displayDialogs"];
   let suppressed = false;
-  if (had) {
+  let mode: string | null = null;
+
+  if (had && target !== undefined) {
     try {
-      anyApp["displayDialogs"] = "dontDisplayDialogs";
-      suppressed = anyApp["displayDialogs"] !== previous;
+      anyApp["displayDialogs"] = target;
+      const now = anyApp["displayDialogs"];
+      /* **"바뀌었나" 가 아니라 "그 값이 되었나" 로 본다.** 이미 꺼져 있으면
+       * 바뀐 것이 없어 안 껐다고 답하게 된다 — 꺼져 있는데 false 다. */
+      suppressed = now === target;
+      mode = suppressed ? String(now) : null;
     } catch {
       suppressed = false;
     }
   }
+
+  const needsRestore = suppressed && previous !== target;
   try {
-    return { value: await run(), suppressed };
+    return { value: await run(), suppressed, mode };
   } finally {
-    if (suppressed) {
+    if (needsRestore) {
       try {
         anyApp["displayDialogs"] = previous;
       } catch {
@@ -60,6 +81,8 @@ export async function actionPlay(params: { set: string; action: string }): Promi
   set: string;
   action: string;
   dialogsSuppressed: boolean;
+  /** 실제로 건 `DialogModes` 값. 걸지 못했으면 `null`. */
+  dialogMode: string | null;
   durationMs: number;
 }> {
   return runModal("Play action", async () => {
@@ -123,11 +146,12 @@ export async function actionPlay(params: { set: string; action: string }): Promi
     }
 
     const started = Date.now();
-    const { suppressed } = await withoutDialogs(async () => play.call(target));
+    const { suppressed, mode } = await withoutDialogs(async () => play.call(target));
     return {
       set: params.set,
       action: params.action,
       dialogsSuppressed: suppressed,
+      dialogMode: mode,
       durationMs: Date.now() - started,
     };
   });

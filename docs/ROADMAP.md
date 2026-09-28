@@ -8842,7 +8842,7 @@ displayDialogs: true      27.8
 - [x] 실기: 열두 범주가 전부 값을 낸다 · 해상도는 없다
 - [x] 실기: 전경색 #000000 — §58 의 추정을 지웠다
 - [x] `host.get` 에 `displayDialogs` 추가 — CLAUDE.md 의 틀린 근거를 고쳤다
-- [ ] `displayDialogs` 를 실제로 걸면 액션 대화상자가 막히는지는 미확인
+- [x] `displayDialogs` 를 실제로 걸어 봤다 — §63. **거는 것은 되고 막히는지는 여전히 모른다**
 
 # 62. 전경색·배경색 바꾸기 (`color.set_foreground` · `color.set_background`)
 
@@ -8959,3 +8959,81 @@ Photoshop 의 색을 지어내면 첫 되돌리기가 엉뚱한 색을 남긴다
 - [x] 실기: 전경·배경이 섞이지 않는다
 - [x] 실기: `path.stroke` 가 전경색을 쓴다 — §58 "원인 미상" 해소
 - [x] Mock 은 넣어 준 값만 안다
+
+# 63. `displayDialogs` — 짐작한 문자열이 틀렸다
+
+§61 이 "`app.displayDialogs` 는 있다" 까지 확인하고 **"실제로 걸면 막히는지" 를
+열어 두었다.** 그것을 재려고 들어갔다가 다른 것을 찾았다.
+
+## 코드는 이미 걸고 있었고, 틀린 값을 넣고 있었다
+
+문서 세 곳이 "`app.displayDialogs` 가 UXP 에 없어 끄지 못한다" 였는데
+`action-play.ts` 의 `withoutDialogs()` 는 **이미 걸려고 시도하고 있었다.**
+문서와 코드가 어긋난 채로 있었다.
+
+넣던 값이 `"dontDisplayDialogs"` 였다. **어디서도 확인한 적 없는 지어낸
+문자열이다.**
+
+Adobe 레퍼런스를 봤다. `DialogModes` 는 **멤버 이름만** 있다.
+
+```text
+ALL     All dialogs will be shown
+ERROR   Dialogs will be shown only if Photoshop raises an error
+NONE    All dialogs will be hidden, and bad calls will silently fail
+```
+
+런타임 문자열이 없다 — `constants.FlipAxis`(§44) · `bitsPerChannel`(§39) 과
+같은 자리다. **레퍼런스에 없으면 재야 한다.**
+
+## 재 보니 `"dontDisplay"` 였다
+
+`constants.DialogModes.NONE` 을 읽어 걸고 실제로 들어간 값을 결과에 담았다.
+
+```text
+dialogMode         "dontDisplay"
+dialogsSuppressed  true
+```
+
+**`"dontDisplayDialogs"` 가 아니다.** 지어낸 값은 들어가지 않았고, 그동안
+`dialogsSuppressed` 는 계속 `false` 였다. 거짓말을 한 것은 아니지만 **한 번도
+동작하지 않았다.**
+
+## 판정을 "바뀌었나" 에서 "그 값이 되었나" 로 바꿨다
+
+옛 코드는 이랬다.
+
+```text
+suppressed = anyApp["displayDialogs"] !== previous
+```
+
+**이미 꺼져 있으면 바뀐 것이 없어 `false` 로 답한다** — 꺼져 있는데 안 껐다고
+말한다. `now === target` 으로 고쳤고, 되돌리기도 실제로 바꿨을 때만 한다.
+
+## 막히는지는 **여전히 모른다**
+
+여기서 멈춘다. 거는 것이 되는 것과 뜨려던 대화상자가 막히는 것은 다른 일이다.
+
+허용된 액션이 `StarXTerminator Unscreen` 하나인데 **두 번 다 정상으로 끝났다**
+(12.0초 · 11.5초, `Stars` + `Starless` 생성). 대화상자가 뜨지 않았으니 막혔다는
+증거가 없다 — **이 액션의 대화상자 토글이 원래 꺼져 있었을 뿐일 수 있다.**
+
+§17.34 에서 15초 멈추게 했던 "'StarXTerminator' 명령은 현재 사용할 수 없습니다"
+오류창도 재현되지 않았다. 그때와 달리 액션이 성공했다.
+
+**성공한 실행으로는 억제를 증명할 수 없다.** 증명하려면 대화상자 토글이 켜진
+액션이 필요하고 그것은 사용자가 고르는 것이다. 그래서 Tool 설명은
+"건다" 까지만 말하고 "막힌다" 고 말하지 않는다.
+
+## 문서 세 곳을 고쳤다
+
+"없어서 못 끈다" 가 근거였던 문장들이다. 근거가 두 번 틀렸다 —
+§61 에서 "없다" 가 틀렸고, 여기서 "값" 이 틀렸다.
+
+## 체크리스트
+
+- [x] Adobe 레퍼런스 확인 — `DialogModes` 는 멤버 이름만 있다
+- [x] `constants.DialogModes.NONE` 을 읽어 쓴다 — 짐작한 문자열을 뺐다
+- [x] 실기: 런타임 값이 `"dontDisplay"` 다
+- [x] `dialogsSuppressed` 판정을 `now === target` 으로 고쳤다
+- [x] 결과에 `dialogMode` 를 담는다 — 건 값을 호출자가 본다
+- [ ] **막히는지는 미확인** — 토글이 켜진 액션이 있어야 잰다

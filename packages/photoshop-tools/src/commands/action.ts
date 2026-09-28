@@ -131,6 +131,13 @@ export const ActionPlayResultSchema = z.object({
    * 뜰 수 있고, 뜨면 플러그인이 멈춘다.
    */
   dialogsSuppressed: z.boolean(),
+  /**
+   * 실제로 건 `DialogModes` 값. 걸지 못했으면 `null`.
+   *
+   * **레퍼런스에 런타임 문자열이 없어** `constants.DialogModes.NONE` 을 읽어
+   * 쓴다. 한동안 지어낸 문자열을 넣고 있었다 (ROADMAP §63).
+   */
+  dialogMode: z.string().nullable(),
   durationMs: z.number().int(),
 });
 

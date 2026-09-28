@@ -80,8 +80,12 @@ export function createActionRunTool(
       "파일 저장·평탄화·레이어 삭제가 들어 있을 수 있고 이름만으로는 구분되지 않는다. " +
       "기본 허용 밖이라 PHOTOSHOP_MCP_ALLOW 로 켜야 한다. " +
       "**액션 이름은 유일하지 않으므로 set 과 action 을 둘 다 준다.** " +
-      "액션 안의 대화상자는 끄지 못한다 — 결과의 dialogsSuppressed 가 false 면 " +
-      "대화상자가 떠서 플러그인이 멈출 수 있다. " +
+      "**대화상자를 끄려고 DialogModes.NONE 을 건다** — dialogMode 가 실제로 건 값이고 " +
+      "null 이면 못 건 것이다. dialogsSuppressed 가 false 면 대화상자가 떠서 " +
+      "플러그인이 멈출 수 있다. " +
+      "**건다고 반드시 막히는 것은 아니다** — 거는 데 성공하는 것은 확인했지만, " +
+      "뜨려던 대화상자가 실제로 막히는지는 아직 확인되지 않았다. " +
+      "액션의 대화상자 토글은 사용자가 꺼 두는 것이 여전히 안전하다. " +
       "되돌리려면 photoshop.history.undo 를 쓴다 — 액션은 여러 단계일 수 있어 여러 번 필요하다.",
     permission: "destructive",
     inputSchema: ActionRunInputSchema,

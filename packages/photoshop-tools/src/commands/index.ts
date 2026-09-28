@@ -352,6 +352,7 @@ export * from "./extension-registry.js";
 export * from "./adjustment.js";
 export * from "./adjustment-extra.js";
 export * from "./channel.js";
+export * from "./layer-comp.js";
 export * from "./filter.js";
 export * from "./filter-dom.js";
 export * from "./gap-tools.js";
@@ -452,6 +453,26 @@ import {
   channelListCommand,
   channelSelectCommand,
 } from "./channel.js";
+import {
+  LAYER_COMP_APPLY,
+  LAYER_COMP_CREATE,
+  LAYER_COMP_DELETE,
+  LAYER_COMP_GET,
+  LAYER_COMP_LIST,
+  LAYER_COMP_RECAPTURE,
+  LayerCompApplyParamsSchema,
+  LayerCompCreateParamsSchema,
+  LayerCompDeleteParamsSchema,
+  LayerCompGetParamsSchema,
+  LayerCompListParamsSchema,
+  LayerCompRecaptureParamsSchema,
+  layerCompApplyCommand,
+  layerCompCreateCommand,
+  layerCompDeleteCommand,
+  layerCompGetCommand,
+  layerCompListCommand,
+  layerCompRecaptureCommand,
+} from "./layer-comp.js";
 export { PING, pingCommand, type PingResult } from "./ping.js";
 
 /**
@@ -673,6 +694,33 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(CHANNEL_DELETE, channelDeleteCommand, {
     permission: "destructive",
     schema: ChannelDeleteParamsSchema,
+  });
+
+  // ROADMAP §57 — 레이어 컴프. 전부 DOM 이다.
+  registry.register(LAYER_COMP_LIST, layerCompListCommand, {
+    permission: "read",
+    schema: LayerCompListParamsSchema,
+  });
+  registry.register(LAYER_COMP_GET, layerCompGetCommand, {
+    permission: "read",
+    schema: LayerCompGetParamsSchema,
+  });
+  registry.register(LAYER_COMP_CREATE, layerCompCreateCommand, {
+    permission: "edit",
+    schema: LayerCompCreateParamsSchema,
+  });
+  registry.register(LAYER_COMP_APPLY, layerCompApplyCommand, {
+    permission: "edit",
+    schema: LayerCompApplyParamsSchema,
+  });
+  /* **저장해 둔 배치를 덮어쓴다.** History 말고 되돌릴 길이 없다. */
+  registry.register(LAYER_COMP_RECAPTURE, layerCompRecaptureCommand, {
+    permission: "destructive",
+    schema: LayerCompRecaptureParamsSchema,
+  });
+  registry.register(LAYER_COMP_DELETE, layerCompDeleteCommand, {
+    permission: "destructive",
+    schema: LayerCompDeleteParamsSchema,
   });
   registry.register(DODGE_BURN_DAB, dodgeBurnDabCommand, {
     // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.

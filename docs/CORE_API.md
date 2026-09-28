@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (132개)
+## 4. 구현된 Core API (138개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -292,6 +292,12 @@ RAW 의 현상 설정은 슬라이더를 보며 정하는 일이라 사람이 �
 | `photoshop.channel.select` | EDIT | 편집 대상 채널. **되돌리지 않으면 다음 작업이 걸린다** |
 | `photoshop.channel.duplicate` | EDIT | 채널 편집 전 사본 |
 | `photoshop.channel.delete` | DESTRUCTIVE | **색 성분 채널은 거절한다** |
+| `photoshop.layer_comp.list` | READ | 표시·위치·모양을 한 벌로 저장한 것 |
+| `photoshop.layer_comp.get` | READ | **이름이 유일하지 않다** — 여럿이면 거절 |
+| `photoshop.layer_comp.create` | EDIT | 지금 상태를 저장. **무엇을 기억할지 고른다** |
+| `photoshop.layer_comp.apply` | EDIT | 저장해 둔 배치를 건다 |
+| `photoshop.layer_comp.recapture` | DESTRUCTIVE | **지금 상태로 덮어쓴다** |
+| `photoshop.layer_comp.delete` | DESTRUCTIVE | 기록만 사라진다 |
 | `photoshop.layer.delete` | DESTRUCTIVE | **id 를 명시한다.** 패턴을 받지 않는다 |
 
 `layerId` 를 생략하면 활성 레이어를 대상으로 한다. 그것이 무엇인지는
@@ -758,7 +764,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **132** |
+| 구현됨 | **138** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

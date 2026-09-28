@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 132개만
+기본            Extension 0개. Core Tool 138개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -8387,3 +8387,94 @@ channel.get           저장해 둔 알파 채널을 256칸
 - [x] 실기: histogram 의 두 제약을 잡아 미리 막는다 (255번 칸 18000 로 검산)
 - [x] 실기: 색 성분 채널 삭제 거절 · 알파 채널 삭제·복제·생성
 - [x] Mock 은 알파 채널만 모델링한다 (이름이 지역화되어 지어낼 수 없다)
+
+# 57. 레이어 컴프 (`layer_comp.*` 여섯)
+
+레이어의 **표시 여부 · 위치 · 모양(레이어 스타일)** 을 한 벌로 저장해 두고
+오간다. `CORE_API.md` §5 에 없던 영역이다.
+
+`history.undo` 와 다른 물건이다 — History 는 시간 순서 하나이고 이쪽은 **이름
+붙인 여러 안을 나란히** 둔다.
+
+## 전부 DOM 이다
+
+`document.layerComps`(24.0+) 컬렉션에 `add` · `getAllByName` · `length` ·
+색인이 있고, `LayerComp` 에 `apply` · `recapture` · `remove` · `duplicate` ·
+`resetLayerComp` 와 R/W 속성들이 있다. batchPlay 를 쓰지 않았다.
+
+## `add` 의 옵션 모양을 짐작하지 않았다
+
+레퍼런스가 `add(options: LayerCompCreateOptions)` 라고만 적고 **그 인터페이스
+페이지가 404 다.** 옵션 키를 지어내는 대신 **`add({})` 로 만든 뒤 R/W 속성에
+직접 넣고 읽어서 확인**하는 쪽으로 갔다 — `name` · `comment` · `appearance` ·
+`position` · `visibility` · `childComp` 가 전부 읽기/쓰기다.
+
+실기에서 전부 들어갔다.
+
+```text
+create { name: "안-전부", comment: "…", appearance: true, position: true }
+→ name · comment · appearance · position 이 그대로 읽힌다
+```
+
+옵션 없이 만들면 레퍼런스 문장 그대로였다.
+
+```text
+create { name: "안-둘다" }
+→ appearance false · position false · visibility true
+  "If no options are given, only visibility will be recorded"
+```
+
+**결과가 요청값이 아니라 만든 뒤 읽은 값**이라 이것이 드러난다.
+
+## 이름이 유일하지 않다 — 추론을 실기로 확인했다
+
+`getAllByName` 이 **배열**을 돌려주는 것에서 "이름이 유일하지 않다" 고 추론하고
+이름 중복 시 거절하게 만들었다. **그 추론이 짐작인 채로 남지 않게 재 봤다.**
+
+```text
+create { name: "안-둘다" }   (이미 같은 이름이 있는 상태)
+→ 만들어진다. index 0 과 3 에 같은 이름
+get { name: "안-둘다" }
+→ 거절: "2개입니다. index 로 고르세요" · indexes [0, 3]
+```
+
+액션과 같은 성질이다(§17.34). 조용히 첫 번째를 고르면 호출자가 무엇에 걸었는지
+모른다.
+
+## `apply` 가 실제로 레이어를 바꾼다 — 재서 확인했다
+
+```text
+A·B 둘 다 보임  →  create "안-둘다"
+B 숨김          →  create "안-A만"
+apply "안-둘다" →  layer.list: B visible true   ← 되돌아온다
+apply "안-A만"  →  layer.list: B visible false
+```
+
+## `recapture` 는 덮어쓴다 — 그래서 destructive 다
+
+```text
+B 숨긴 상태에서 recapture index 0 ("안-둘다")
+B 를 다시 보이게 한 뒤 apply index 0
+→ B visible false
+```
+
+**원래 기록("둘 다 보임")이 사라졌다.** History 말고 되돌릴 길이 없어
+`mask.delete` · `channel.delete` 와 같은 자리에 둔다. 새 안을 만들려는 것이면
+`create` 가 맞다 — 그쪽은 기존 컴프를 건드리지 않는다.
+
+`apply` 는 `edit` 이다. 문서 배치는 바뀌지만 **저장해 둔 기록은 그대로 남는다.**
+
+## Mock 은 `apply` 가 레이어를 바꾸는 것을 흉내내지 않는다
+
+무엇이 어떻게 바뀌는지는 좌표와 스타일이라 Mock 이 모른다. 흉내내는 것은
+**이름 · 설명 · 무엇을 기억하는지 · 어느 컴프가 골라졌는지**까지다. 이름 중복
+거절도 흉내낸다 — 그것은 계약이다.
+
+## 체크리스트
+
+- [x] `photoshop.layer_comp.list` · `get` · `create` · `apply` · `recapture` · `delete`
+- [x] 전부 DOM — descriptor 를 한 번도 잡지 않았다
+- [x] `add` 옵션을 짐작하지 않고 속성 대입 + 읽기로 확인
+- [x] 실기: 이름 중복이 실제로 된다 (추론을 검증)
+- [x] 실기: `apply` 가 표시 여부를 되돌린다 (`layer.list` 로 검산)
+- [x] 실기: `recapture` 가 옛 기록을 지운다 → destructive

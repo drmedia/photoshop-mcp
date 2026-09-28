@@ -25,6 +25,24 @@ export const DEFAULT_MOCK_DOCUMENT: DocumentInfo = {
   colorMode: "RGB",
 };
 
+/**
+ * Mock 이 흉내내는 레이어 컴프.
+ *
+ * **이름 · 설명 · 무엇을 기억하는지까지는 흉내낸다** — 그 계약이 테스트에
+ * 나와야 한다. `apply` 가 레이어를 실제로 바꾸는 것은 좌표와 스타일이라
+ * Mock 이 모르므로 **상태만 바꾸고 레이어는 건드리지 않는다.**
+ */
+interface MockLayerComp {
+  id: number;
+  name: string;
+  comment: string | null;
+  appearance: boolean | null;
+  position: boolean | null;
+  visibility: boolean | null;
+  childComp: boolean | null;
+  selected: boolean | null;
+}
+
 /** Mock 이 흉내내는 채널. 색 성분은 담지 않는다 — 이름이 지역화된다. */
 interface MockChannelInfo {
   index: number;
@@ -168,6 +186,8 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   #editTarget: "mask" | "pixels" = "pixels";
   /** 저장된 알파 채널 이름. Mock 은 픽셀을 모르므로 이름만 기억한다. */
   readonly #channels = new Set<string>();
+  readonly #layerComps: MockLayerComp[] = [];
+  #nextLayerCompId = 1;
   #nextLayerId: number;
   readonly #history: {
     name: string;
@@ -2192,6 +2212,69 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        * 채널이 목록에 보이는 것, 만들면 늘고 지우면 주는 것, 없는 이름을
        * 거절하는 것.
        */
+      /**
+       * 레이어 컴프. (ROADMAP §57)
+       *
+       * **이름이 유일하지 않다** — 실제 `getAllByName` 이 배열을 돌려준다.
+       * 이름이 여럿일 때 거절하는 계약을 Mock 도 흉내낸다.
+       */
+      case "LAYER_COMP_LIST":
+        this.#requireDocument();
+        return { comps: this.#layerComps.map((entry, index) => ({ ...entry, index })) } as TResult;
+      case "LAYER_COMP_GET":
+        this.#requireDocument();
+        return this.#findComp(command.params as { name?: string; index?: number }) as TResult;
+      case "LAYER_COMP_CREATE": {
+        this.#requireDocument();
+        this.#snapshot("Create layer comp");
+        const params = command.params as {
+          name?: string;
+          comment?: string;
+          appearance?: boolean;
+          position?: boolean;
+          visibility?: boolean;
+          childComp?: boolean;
+        };
+        const comp: MockLayerComp = {
+          id: this.#nextLayerCompId++,
+          name: params.name ?? `레이어 컴프 ${String(this.#layerComps.length + 1)}`,
+          comment: params.comment ?? "",
+          /* 레퍼런스가 "옵션 없이 만들면 표시 여부만 기록된다" 고 적는다.
+           * 그 기본을 그대로 흉내낸다. */
+          appearance: params.appearance ?? false,
+          position: params.position ?? false,
+          visibility: params.visibility ?? true,
+          childComp: params.childComp ?? false,
+          selected: false,
+        };
+        this.#layerComps.push(comp);
+        return { ...comp, index: this.#layerComps.length - 1 } as TResult;
+      }
+      case "LAYER_COMP_APPLY": {
+        this.#requireDocument();
+        this.#snapshot("Apply layer comp");
+        const found = this.#findComp(command.params as { name?: string; index?: number });
+        /* **레이어를 건드리지 않는다.** 무엇이 어떻게 바뀌는지는 좌표와
+         * 스타일이라 Mock 이 모른다 — 지어내면 워크플로가 그것을 믿는다. */
+        for (const entry of this.#layerComps) {
+          entry.selected = entry.id === found.id;
+        }
+        return { ...found, selected: true } as TResult;
+      }
+      case "LAYER_COMP_RECAPTURE": {
+        this.#requireDocument();
+        this.#snapshot("Recapture layer comp");
+        return this.#findComp(command.params as { name?: string; index?: number }) as TResult;
+      }
+      case "LAYER_COMP_DELETE": {
+        this.#requireDocument();
+        this.#snapshot("Delete layer comp");
+        const found = this.#findComp(command.params as { name?: string; index?: number });
+        const at = this.#layerComps.findIndex((entry) => entry.id === found.id);
+        this.#layerComps.splice(at, 1);
+        return { deleted: found.name, remaining: this.#layerComps.length } as TResult;
+      }
+
       case "CHANNEL_LIST":
         this.#requireDocument();
         return { channels: this.#channelInfos() } as TResult;
@@ -2697,6 +2780,44 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
    * `asSmartFilter: true` 일 때 대상이 스마트 오브젝트로 바뀌는 것만 반영한다.
    * 호출자가 결과의 `type` 으로 비파괴 여부를 확인할 수 있어야 하기 때문이다.
    */
+  #findComp(params: { name?: string; index?: number }): MockLayerComp & { index: number } {
+    if (params.index !== undefined) {
+      const found = this.#layerComps[params.index];
+      if (found === undefined) {
+        throw new PhotoshopMcpError(
+          ErrorCode.INVALID_PARAMETER,
+          `레이어 컴프 색인 ${String(params.index)} 가 범위를 벗어납니다. 컴프는 ${String(this.#layerComps.length)}개입니다.`,
+          { recoverable: true, details: { index: params.index } },
+        );
+      }
+      return { ...found, index: params.index };
+    }
+    const matches = this.#layerComps
+      .map((entry, index) => ({ entry, index }))
+      .filter(({ entry }) => entry.name === params.name);
+    if (matches.length === 0) {
+      throw new PhotoshopMcpError(
+        ErrorCode.INVALID_PARAMETER,
+        `레이어 컴프 '${String(params.name)}' 이 없습니다.`,
+        {
+          recoverable: true,
+          details: { name: params.name, available: this.#layerComps.map((e) => e.name) },
+        },
+      );
+    }
+    /* **이름이 유일하지 않다.** 조용히 첫 번째를 고르면 호출자가 무엇에
+     * 걸었는지 모른다 — 실기 계약을 그대로 흉내낸다. */
+    if (matches.length > 1) {
+      throw new PhotoshopMcpError(
+        ErrorCode.INVALID_PARAMETER,
+        `레이어 컴프 '${String(params.name)}' 이 ${String(matches.length)}개입니다. index 로 고르세요.`,
+        { recoverable: true, details: { name: params.name, indexes: matches.map((m) => m.index) } },
+      );
+    }
+    const only = matches[0] as { entry: MockLayerComp; index: number };
+    return { ...only.entry, index: only.index };
+  }
+
   /** 알파 채널만. 색 성분은 이름이 지역화되어 Mock 이 지어낼 수 없다. */
   #channelInfos(): MockChannelInfo[] {
     return [...this.#channels].map((name, index) => ({

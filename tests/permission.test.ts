@@ -266,6 +266,8 @@ describe("Core Tool 분류", () => {
       "DOCUMENT_FLATTEN",
       "DOCUMENT_CLOSE",
       "CHANNEL_DELETE",
+      "LAYER_COMP_RECAPTURE",
+      "LAYER_COMP_DELETE",
       "ACTION_PLAY",
       "MASK_APPLY",
       "MASK_DELETE",
@@ -329,6 +331,10 @@ describe("Core Tool 분류", () => {
           /* 저장해 둔 선택 영역을 버린다. 색 성분 채널은 플러그인이 미리
            * 막는다 — 지우면 문서의 색이 망가진다. (ROADMAP §56) */
           type === "CHANNEL_DELETE" ||
+          /* 저장해 둔 배치를 덮어쓰거나 버린다. History 말고 되돌릴 길이
+           * 없다. (ROADMAP §57) */
+          type === "LAYER_COMP_RECAPTURE" ||
+          type === "LAYER_COMP_DELETE" ||
           /* 이미지를 다시 표본화한다. 축소하면 버려진 해상도가 문서 어디에도
            * 남지 않는다 — `DOCUMENT_CROP` 이 `edit` 인 근거가 "픽셀은 버리지
            * 않는다" 이므로 이쪽은 갈린다. (ROADMAP §33) */

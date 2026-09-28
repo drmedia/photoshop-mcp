@@ -142,6 +142,14 @@ import {
   channelList,
   channelSelect,
 } from "./dom/channel.js";
+import {
+  layerCompApply,
+  layerCompCreate,
+  layerCompDelete,
+  layerCompGet,
+  layerCompList,
+  layerCompRecapture,
+} from "./dom/layer-comp.js";
 
 const PLUGIN = { name: "photoshop-mcp-uxp", version: "0.1.0" };
 
@@ -256,6 +264,22 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("CHANNEL_DELETE", async (p) =>
     channelDelete(p as { name?: string; index?: number }),
+  );
+  dispatcher.register("LAYER_COMP_LIST", async () => layerCompList());
+  dispatcher.register("LAYER_COMP_GET", async (p) =>
+    layerCompGet(p as { name?: string; index?: number }),
+  );
+  dispatcher.register("LAYER_COMP_CREATE", async (p) =>
+    layerCompCreate(p as Parameters<typeof layerCompCreate>[0]),
+  );
+  dispatcher.register("LAYER_COMP_APPLY", async (p) =>
+    layerCompApply(p as { name?: string; index?: number }),
+  );
+  dispatcher.register("LAYER_COMP_RECAPTURE", async (p) =>
+    layerCompRecapture(p as { name?: string; index?: number }),
+  );
+  dispatcher.register("LAYER_COMP_DELETE", async (p) =>
+    layerCompDelete(p as { name?: string; index?: number }),
   );
   dispatcher.register("DOCUMENT_FLATTEN", async () => documentFlatten());
   dispatcher.register("DOCUMENT_CLOSE", async (p) =>

@@ -156,9 +156,18 @@ import {
   createChannelListTool,
   createChannelSelectTool,
 } from "./channel.js";
+import {
+  createLayerCompApplyTool,
+  createLayerCompCreateTool,
+  createLayerCompDeleteTool,
+  createLayerCompGetTool,
+  createLayerCompListTool,
+  createLayerCompRecaptureTool,
+} from "./layer-comp.js";
 export * from "./adjustment.js";
 export * from "./adjustment-extra.js";
 export * from "./channel.js";
+export * from "./layer-comp.js";
 export * from "./filter.js";
 export * from "./filter-dom.js";
 export * from "./capability.js";
@@ -256,6 +265,12 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createChannelSelectTool(engine));
   registry.register(createChannelDuplicateTool(engine));
   registry.register(createChannelDeleteTool(engine));
+  registry.register(createLayerCompListTool(engine));
+  registry.register(createLayerCompGetTool(engine));
+  registry.register(createLayerCompCreateTool(engine));
+  registry.register(createLayerCompApplyTool(engine));
+  registry.register(createLayerCompRecaptureTool(engine));
+  registry.register(createLayerCompDeleteTool(engine));
   registry.register(createDodgeBurnDabTool(engine));
   registry.register(createActionListTool(engine));
   registry.register(createActionDeclaredTool(engine));

@@ -208,6 +208,13 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       }
       case "DOCUMENT_GET":
         return (await this.getDocumentInfo()) as TResult;
+      /* **문서가 없으면 빈 배열이다. 던지지 않는다.** `DOCUMENT_GET` 과
+       * 다른 점이고, Mock 이 여기서 던지면 그 차이가 테스트에 안 나온다. */
+      case "DOCUMENT_LIST":
+        return {
+          documents:
+            this.#document === null ? [] : [{ ...(await this.getDocumentInfo()), active: true }],
+        } as TResult;
       case "LAYER_LIST":
         return (await this.getLayers()) as TResult;
       // Mock 은 활성 레이어를 하나만 들고 있다. 실제 Photoshop 은 여러 개를 선택할 수

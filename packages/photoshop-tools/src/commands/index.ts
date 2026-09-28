@@ -11,6 +11,7 @@ import {
   levelsCommand,
 } from "./adjustment.js";
 import { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
+import { DOCUMENT_LIST, DocumentListParamsSchema, documentListCommand } from "./document-list.js";
 import { FILTER_GAUSSIAN_BLUR, GaussianBlurParamsSchema, gaussianBlurCommand } from "./filter.js";
 import {
   ADJUSTMENT_HUE_SATURATION,
@@ -294,6 +295,10 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     schema: HostGetParamsSchema,
   });
   registry.register(DOCUMENT_GET, documentGetCommand, { permission: "read" });
+  registry.register(DOCUMENT_LIST, documentListCommand, {
+    permission: "read",
+    schema: DocumentListParamsSchema,
+  });
   registry.register(LAYER_LIST, layerListCommand, { permission: "read" });
   registry.register(LAYER_GET_ACTIVE, layerGetActiveCommand, { permission: "read" });
   registry.register(SELECTION_SKY, selectionSkyCommand, { permission: "edit" });

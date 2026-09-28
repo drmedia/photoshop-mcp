@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 101개만
+기본            Extension 0개. Core Tool 102개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -7480,3 +7480,58 @@ text        id 4  →  rasterize  →  pixel id 4
 - [x] `photoshop.layer.rasterize` — `previousType` · `previousId` · `target`
 - [x] `smart_object.rasterize` 항목을 옮겼다
 - [x] 실기: 여섯 상수 존재 · 스마트 오브젝트 · 텍스트 · id 유지 · 무해한 재실행
+
+# 46. 레이어 병합 (`photoshop.layer.merge`)
+
+## 선택 개수로 뜻이 달라진다
+
+Adobe 레퍼런스가 적는다 — "Combines selected layers; merges one layer downward
+if only one is selected."
+
+```text
+하나 선택   →  아래로 병합 (Merge Down)
+여럿 선택   →  그것들끼리 병합
+```
+
+**숨은 의존성을 그대로 두지 않았다.** `layerIds` 를 주면 이 Command 가 먼저
+선택한다 — 호출자가 "지금 무엇이 선택돼 있는지" 를 추적해야 결과를 예측할 수
+있는 API 는 조용히 틀린다(§17.20). 어느 쪽이었는지는 `mergedDown` 에 담는다.
+
+## 결과 레이어를 못 찾아 한 번 실패했다
+
+첫 실기에서 이렇게 끝났다.
+
+```text
+COMMAND_FAILED: 합쳤지만 결과 레이어를 확인하지 못했습니다. (before 4, after 3)
+```
+
+**병합은 됐는데** 남는 레이어를 못 찾았다. 아래로 병합의 결과는 **바로 밑
+레이어**여서 대상 목록에도 없고 새로 생긴 id 도 아니다.
+
+그리고 **`merge()` 의 반환값을 쓰지 않고 있었다.** `Promise<Layer>` 를 돌려주는데
+무시했다. 네 갈래로 고쳤다 — 반환값 → 살아남은 대상 → 새 id → 바로 밑 레이어.
+반환값을 먼저 쓰되 **믿지는 않는다**(`duplicate()` 의 `id: undefined` 전례).
+
+## 숨긴 레이어는 조용히 아무 일도 안 한다
+
+```text
+내용 있는 숨긴 레이어  →  before 3 · after 3 · 오류 없음
+보이게 한 뒤          →  before 3 · after 2 · 두 색이 한 장에
+```
+
+`mergeVisibleLayers` 와 같은 자리다(§40). **전후 개수를 세는 검사가 바로 값을
+했다** — 없었으면 성공으로 보고했을 것이다.
+
+빈 숨긴 레이어는 병합됐다. 내용이 있고 없고로 갈리는 것으로 보이지만 두
+경우만 봤으므로 규칙을 못 박지 않는다.
+
+## 맨 아래로는 아래로 병합할 수 없다
+
+같은 부모 안에서 마지막이면 아래가 없다. Photoshop 은 이유를 말해 주지 않아
+미리 막는다.
+
+## 체크리스트
+
+- [x] `photoshop.layer.merge` — `merged` · `mergedDown` · 전후 개수
+- [x] 실기: 아래로 병합 · 여럿 병합 · 맨 아래 거절 · 숨긴 레이어
+- [x] `merge()` 반환값을 쓰고, 믿지 않고 확인한다

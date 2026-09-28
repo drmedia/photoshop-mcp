@@ -25,6 +25,7 @@ import {
 import { LAYER_GET, LayerGetParamsSchema, layerGetCommand } from "./layer-get.js";
 import { LAYER_SET_LOCK, LayerSetLockParamsSchema, layerSetLockCommand } from "./layer-lock.js";
 import { LAYER_FLIP, LayerFlipParamsSchema, layerFlipCommand } from "./layer-flip.js";
+import { LAYER_MERGE, LayerMergeParamsSchema, layerMergeCommand } from "./layer-merge.js";
 import {
   LAYER_RASTERIZE,
   LayerRasterizeParamsSchema,
@@ -307,6 +308,7 @@ export * from "./layer-edit.js";
 export * from "./layer-lock.js";
 export * from "./layer-flip.js";
 export * from "./layer-rasterize.js";
+export * from "./layer-merge.js";
 export {
   LAYER_GET_ACTIVE,
   LayerGetActiveParams,
@@ -399,6 +401,11 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_RASTERIZE, layerRasterizeCommand, {
     permission: "destructive",
     schema: LayerRasterizeParamsSchema,
+  });
+  /* **합쳐진 레이어들이 사라진다.** CORE_API §9 가 처음부터 이렇게 분류했다. */
+  registry.register(LAYER_MERGE, layerMergeCommand, {
+    permission: "destructive",
+    schema: LayerMergeParamsSchema,
   });
   registry.register(LAYER_SELECT_MULTIPLE, layerSelectMultipleCommand, {
     permission: "edit",

@@ -359,6 +359,73 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        * **id 는 바꾸지 않는다.** 실기에서 바뀌는지 확인한 적이 없고, 지어내면
        * 그 거짓이 테스트에 굳는다 — 코드는 양쪽을 모두 다룬다.
        */
+      /**
+       * 레이어 병합. (CORE_API §5 P2)
+       *
+       * **선택 개수로 뜻이 갈리는 것**을 흉내낸다 — 하나면 아래로, 여럿이면
+       * 그것들끼리다. Mock 이 이 차이를 갖지 않으면 `mergedDown` 계약이
+       * 테스트에 나오지 않는다.
+       *
+       * **맨 아래 하나로는 아래로 병합이 안 된다.** 실제 Photoshop 이 이유를
+       * 말해 주지 않아 미리 막는 자리이고, Mock 도 같이 막는다.
+       */
+      case "LAYER_MERGE": {
+        const p = command.params as { layerIds?: number[] };
+        const ids = p.layerIds ?? (this.#activeLayerId === null ? [] : [this.#activeLayerId]);
+        if (ids.length === 0) {
+          throw new PhotoshopMcpError(
+            ErrorCode.LAYER_NOT_FOUND,
+            "선택된 레이어가 없습니다. layerIds 를 주거나 photoshop.layer.select_multiple 로 먼저 고르세요.",
+            { recoverable: true },
+          );
+        }
+        const missing = ids.filter((id) => !this.#layers.some((entry) => entry.id === id));
+        if (missing.length > 0) {
+          throw new PhotoshopMcpError(
+            ErrorCode.LAYER_NOT_FOUND,
+            `레이어 ${missing.join(", ")} 를 찾을 수 없어 아무것도 합치지 않았습니다.`,
+            { recoverable: true, details: { missing } },
+          );
+        }
+
+        const before = this.#layers.length;
+        const mergedDown = ids.length === 1;
+        const indexes = ids
+          .map((id) => this.#layers.findIndex((entry) => entry.id === id))
+          .sort((a, b) => a - b);
+
+        if (mergedDown) {
+          const at = indexes[0] as number;
+          if (at === this.#layers.length - 1) {
+            throw new PhotoshopMcpError(
+              ErrorCode.INVALID_PARAMETER,
+              `레이어 ${String(ids[0])} 아래에 합칠 레이어가 없습니다. ` +
+                "여러 장을 합치려면 layerIds 에 둘 이상을 주세요.",
+              { recoverable: true, details: { layerId: ids[0] } },
+            );
+          }
+        }
+
+        this.#snapshot("Merge layers");
+        /* 남는 것은 **가장 아래** 대상이다. 아래로 병합이면 바로 밑 레이어다. */
+        const survivorIndex = mergedDown
+          ? (indexes[0] as number) + 1
+          : (indexes[indexes.length - 1] as number);
+        const survivor = { ...(this.#layers[survivorIndex] as LayerInfo) };
+        const removeIds = new Set(mergedDown ? ids : ids.filter((id) => id !== survivor.id));
+        this.#layers = this.#layers.filter((entry) => !removeIds.has(entry.id));
+        this.#activeLayerId = survivor.id;
+
+        const after = this.#layers.length;
+        return {
+          layer: { ...survivor },
+          merged: [...ids],
+          before,
+          after,
+          removed: before - after,
+          mergedDown,
+        } as TResult;
+      }
       case "LAYER_RASTERIZE": {
         const p = command.params as { layerId?: number; target?: string };
         const target = p.target ?? "entireLayer";

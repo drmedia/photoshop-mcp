@@ -340,6 +340,7 @@ export * from "./extension-registry.js";
 export * from "./adjustment.js";
 export * from "./adjustment-extra.js";
 export * from "./filter.js";
+export * from "./filter-dom.js";
 export * from "./gap-tools.js";
 export * from "./group.js";
 export * from "./mask-selection.js";
@@ -404,6 +405,20 @@ import {
   adjustmentExposureCommand,
   adjustmentPhotoFilterCommand,
 } from "./adjustment-extra.js";
+import {
+  FILTER_DUST_AND_SCRATCHES,
+  FILTER_MOTION_BLUR,
+  FILTER_SHARPEN,
+  FILTER_UNSHARP_MASK,
+  FilterDustAndScratchesParamsSchema,
+  FilterMotionBlurParamsSchema,
+  FilterSharpenParamsSchema,
+  FilterUnsharpMaskParamsSchema,
+  filterDustAndScratchesCommand,
+  filterMotionBlurCommand,
+  filterSharpenCommand,
+  filterUnsharpMaskCommand,
+} from "./filter-dom.js";
 export { PING, pingCommand, type PingResult } from "./ping.js";
 
 /**
@@ -672,6 +687,24 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(FILTER_MINIMUM_MAXIMUM, filterMinimumMaximumCommand, {
     permission: "edit",
     schema: MinimumMaximumParams,
+  });
+
+  // ROADMAP §53 — DOM `layer.apply*` 필터. 전부 픽셀 편집이라 `edit` 이다.
+  registry.register(FILTER_SHARPEN, filterSharpenCommand, {
+    permission: "edit",
+    schema: FilterSharpenParamsSchema,
+  });
+  registry.register(FILTER_UNSHARP_MASK, filterUnsharpMaskCommand, {
+    permission: "edit",
+    schema: FilterUnsharpMaskParamsSchema,
+  });
+  registry.register(FILTER_MOTION_BLUR, filterMotionBlurCommand, {
+    permission: "edit",
+    schema: FilterMotionBlurParamsSchema,
+  });
+  registry.register(FILTER_DUST_AND_SCRATCHES, filterDustAndScratchesCommand, {
+    permission: "edit",
+    schema: FilterDustAndScratchesParamsSchema,
   });
   registry.register(SELECTION_SAVE_CHANNEL, selectionSaveChannelCommand, {
     permission: "edit",

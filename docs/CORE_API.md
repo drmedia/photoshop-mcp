@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (118개)
+## 4. 구현된 Core API (122개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -393,6 +393,10 @@ Photoshop 의 방사형은 중심에서 반지름까지 **선형 보간**이다.
 | `photoshop.filter.gaussian_blur` | EDIT | radius 0.1–1000. 기본은 픽셀 직접 적용 |
 | `photoshop.filter.high_pass` | EDIT | 가장자리만 남긴다. softLight 혼합과 함께 쓴다 |
 | `photoshop.filter.minimum_maximum` | EDIT | 밝은 영역 축소·확장. 별 축소에 쓴다 |
+| `photoshop.filter.sharpen` | EDIT | **인자가 없다.** sharpen · edges · more |
+| `photoshop.filter.unsharp_mask` | EDIT | 조절 가능한 선명화. **smart_sharpen 이 DOM 에 없어 이것이 그 자리** |
+| `photoshop.filter.motion_blur` | EDIT | 각도(도) · 거리(px) |
+| `photoshop.filter.dust_scratches` | EDIT | 전체에 건다. **별이 함께 사라진다** |
 
 ### 4.7 History
 
@@ -499,13 +503,10 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
-| `photoshop.filter.sharpen` | P2 | EDIT | |
-| `photoshop.filter.smart_sharpen` | P2 | EDIT | |
-| `photoshop.filter.motion_blur` | P2 | EDIT | |
-| `photoshop.filter.surface_blur` | P2 | EDIT | |
-| `photoshop.filter.noise_reduce` | P2 | EDIT | |
+| `photoshop.filter.smart_sharpen` | P2 | EDIT | **DOM 에 없다**(`applySmartSharpen` 부재). `unsharp_mask` 가 대신한다 |
+| `photoshop.filter.surface_blur` | P2 | EDIT | **DOM 에 없다.** `applySmartBlur` 는 고급 흐림으로 다른 필터다 |
+| `photoshop.filter.noise_reduce` | P2 | EDIT | **DOM 에 없고 `camera_raw.apply` 가 훨씬 낫다**(실기 49% 대 7%) |
 | `photoshop.filter.noise_add` | P3 | EDIT | |
-| `photoshop.filter.dust_scratches` | P3 | EDIT | |
 
 ### 5.7 Transform · Geometry
 
@@ -759,7 +760,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **118** |
+| 구현됨 | **122** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

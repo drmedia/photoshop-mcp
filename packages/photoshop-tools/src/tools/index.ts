@@ -136,9 +136,16 @@ import {
   createAdjustmentExposureTool,
   createAdjustmentPhotoFilterTool,
 } from "./adjustment-extra.js";
+import {
+  createFilterDustAndScratchesTool,
+  createFilterMotionBlurTool,
+  createFilterSharpenTool,
+  createFilterUnsharpMaskTool,
+} from "./filter-dom.js";
 export * from "./adjustment.js";
 export * from "./adjustment-extra.js";
 export * from "./filter.js";
+export * from "./filter-dom.js";
 export * from "./capability.js";
 export * from "./window-capture.js";
 export * from "./document-crop.js";
@@ -244,6 +251,10 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createColorBalanceTool(engine));
   registry.register(createHighPassTool(engine));
   registry.register(createMinimumMaximumTool(engine));
+  registry.register(createFilterSharpenTool(engine));
+  registry.register(createFilterUnsharpMaskTool(engine));
+  registry.register(createFilterMotionBlurTool(engine));
+  registry.register(createFilterDustAndScratchesTool(engine));
   registry.register(createSaveChannelTool(engine));
   registry.register(createLoadChannelTool(engine));
   registry.register(createSelectionTranslateBoundaryTool(engine));

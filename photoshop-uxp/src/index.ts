@@ -27,7 +27,15 @@ import { layerRotate, layerScale, layerTranslate } from "./dom/layer-transform.j
 import { layerLink, layerUnlink } from "./dom/layer-link.js";
 import { layerSelectMultiple } from "./dom/layer-select-multiple.js";
 import { documentGet, documentList } from "./dom/document.js";
-import { gaussianBlur, highPass, minimumMaximum } from "./dom/filter.js";
+import {
+  filterDustAndScratches,
+  filterMotionBlur,
+  filterSharpen,
+  filterUnsharpMask,
+  gaussianBlur,
+  highPass,
+  minimumMaximum,
+} from "./dom/filter.js";
 import {
   adjustmentHueSaturation,
   adjustmentColorBalance,
@@ -307,6 +315,18 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("FILTER_MINIMUM_MAXIMUM", async (p) =>
     minimumMaximum(p as Parameters<typeof minimumMaximum>[0]),
+  );
+  dispatcher.register("FILTER_SHARPEN", async (p) =>
+    filterSharpen(p as Parameters<typeof filterSharpen>[0]),
+  );
+  dispatcher.register("FILTER_UNSHARP_MASK", async (p) =>
+    filterUnsharpMask(p as Parameters<typeof filterUnsharpMask>[0]),
+  );
+  dispatcher.register("FILTER_MOTION_BLUR", async (p) =>
+    filterMotionBlur(p as Parameters<typeof filterMotionBlur>[0]),
+  );
+  dispatcher.register("FILTER_DUST_AND_SCRATCHES", async (p) =>
+    filterDustAndScratches(p as Parameters<typeof filterDustAndScratches>[0]),
   );
 
   // Phase 3 — 레이어 편집 (비파괴)

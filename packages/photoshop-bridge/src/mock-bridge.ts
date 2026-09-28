@@ -979,6 +979,25 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       case "FILTER_MINIMUM_MAXIMUM":
         this.#snapshot("Minimum/Maximum");
         return this.#gaussianBlur(command.params as { layerId?: number }) as TResult;
+      /**
+       * DOM `layer.apply*` 필터. (ROADMAP §53)
+       *
+       * **Mock 이 흉내내는 것은 "그 레이어에 걸린다" 까지다.** 픽셀이 어떻게
+       * 바뀌는지는 모른다 — 기존 필터 셋과 같은 자리라 같은 경로를 쓴다.
+       * 조정 레이어·그룹 거절과 스마트 필터 변환이 그 경로에 들어 있다.
+       */
+      case "FILTER_SHARPEN":
+        this.#snapshot("Sharpen");
+        return this.#gaussianBlur(command.params as { layerId?: number }) as TResult;
+      case "FILTER_UNSHARP_MASK":
+        this.#snapshot("Unsharp mask");
+        return this.#gaussianBlur(command.params as { layerId?: number }) as TResult;
+      case "FILTER_MOTION_BLUR":
+        this.#snapshot("Motion blur");
+        return this.#gaussianBlur(command.params as { layerId?: number }) as TResult;
+      case "FILTER_DUST_AND_SCRATCHES":
+        this.#snapshot("Dust & scratches");
+        return this.#gaussianBlur(command.params as { layerId?: number }) as TResult;
       // 선택 영역 조작. Mock 은 픽셀을 모르므로 유무와 채널 이름만 추적한다.
       // 그래도 "선택이 없으면 실패" 같은 경로는 실제와 같아야 한다.
       case "SELECTION_SAVE_CHANNEL": {
@@ -2498,6 +2517,22 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   #gaussianBlur(params: { layerId?: number; asSmartFilter?: boolean }): LayerInfo {
     const index = this.#requireLayerIndex(params.layerId);
     const layer = this.#layers[index] as LayerInfo;
+
+    /* **조정 레이어와 그룹에는 필터를 걸 수 없다.**
+     *
+     * 한동안 Mock 이 이것을 통과시켰다 — 그래서 이 계약이 테스트에 한 번도
+     * 나오지 않았다. 실제 Plugin 은 **변환 전에** 막는다. 안 막으면 스마트
+     * 오브젝트 변환이 먼저 성공한 뒤 필터가 실패해, 실패로 보고되는데 조정
+     * 레이어는 이미 망가진다. 실기에서 그렇게 겪은 자리다. (ROADMAP §8.4) */
+    if (layer.type === "adjustment" || layer.type === "group") {
+      throw new PhotoshopMcpError(
+        ErrorCode.INVALID_PARAMETER,
+        `${layer.type === "group" ? "그룹" : "조정 레이어"}에는 필터를 적용할 수 없습니다. ` +
+          "픽셀 레이어나 스마트 오브젝트를 layerId 로 지정하세요.",
+        { recoverable: true, details: { layerId: layer.id, type: layer.type } },
+      );
+    }
+
     // 기본은 픽셀 직접 적용. 실제 Plugin 과 같아야 한다.
     const asSmartFilter = params.asSmartFilter ?? false;
     const updated: LayerInfo =

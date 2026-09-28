@@ -31,10 +31,10 @@ async function play(commandName: string, descriptor: Record<string, unknown>): P
  * 필터를 적용한다. 대상 해결 · 스마트 오브젝트 변환 · 결과 확인이 전부 같으므로
  * descriptor 만 바꿔 쓴다.
  */
-async function applyFilter(
+async function applyFilterCore(
   commandName: string,
   params: { layerId?: number; asSmartFilter?: boolean },
-  descriptor: Record<string, unknown>,
+  run: (layer: unknown) => Promise<void>,
 ): Promise<LayerInfo> {
   return runModal(commandName, async () => {
     const document = requireActiveDocument();
@@ -97,7 +97,16 @@ async function applyFilter(
       await play("Convert to smart object", { _obj: "newPlacedLayer" });
     }
 
-    await play(commandName, descriptor);
+    /* **변환 뒤의 레이어를 넘긴다.** 스마트 오브젝트로 바꾸면 객체가 통째로
+     * 교체되므로 변환 전에 잡아 둔 참조로 DOM 메서드를 부르면 던진다. */
+    const current = document.activeLayers[0];
+    if (current === undefined) {
+      throw new DispatchError("COMMAND_FAILED", "필터를 걸 레이어를 찾지 못했습니다.", {
+        recoverable: true,
+        details: { commandName },
+      });
+    }
+    await run(current);
 
     // 스마트 오브젝트로 변환되면 id 가 바뀐다. 활성 레이어로 추정하지 않고
     // **이번에 생긴 id** 로 찾는다 — 다른 이유로 활성 레이어가 바뀌었을 수 있다.
@@ -110,6 +119,60 @@ async function applyFilter(
       );
     }
     return resolved;
+  });
+}
+
+/** batchPlay descriptor 로 거는 필터. DOM 에 없는 것들이 쓴다. */
+async function applyFilter(
+  commandName: string,
+  params: { layerId?: number; asSmartFilter?: boolean },
+  descriptor: Record<string, unknown>,
+): Promise<LayerInfo> {
+  return applyFilterCore(commandName, params, async () => {
+    await play(commandName, descriptor);
+  });
+}
+
+/**
+ * DOM `layer.apply*` 로 거는 필터. (ROADMAP §53)
+ *
+ * **레퍼런스를 먼저 봤고 있었다.** Adobe Layer 레퍼런스에 `apply*` 가 서른여덟
+ * 개 있다(23.5+). descriptor 를 잡을 이유가 없는 것들이다.
+ *
+ * 다만 **없는 것도 분명하다** — `applySmartSharpen` · 표면 흐림 · 노이즈
+ * 감소는 목록에 없다. 이름이 비슷한 `applySmartBlur` 는 **고급 흐림**이라
+ * 표면 흐림이 아니다. 비슷한 것으로 대신 채우지 않는다.
+ *
+ * 런타임에 메서드가 없으면 거절한다 — `constants.FlipAxis` 가 레퍼런스에
+ * 있으면서 27.8 런타임에 없었다(§44).
+ */
+async function applyDomFilter(
+  commandName: string,
+  params: { layerId?: number; asSmartFilter?: boolean },
+  method: string,
+  args: readonly unknown[],
+): Promise<LayerInfo> {
+  return applyFilterCore(commandName, params, async (layer) => {
+    const bag = layer as Record<string, unknown>;
+    const fn = bag[method];
+    if (typeof fn !== "function") {
+      throw new DispatchError(
+        "COMMAND_NOT_SUPPORTED",
+        `이 Photoshop 의 Layer 에 ${method} 가 없습니다(23.5 이상이 필요합니다).`,
+        { recoverable: false, details: { method } },
+      );
+    }
+    try {
+      await (fn as (...a: unknown[]) => Promise<void>).call(layer, ...args);
+    } catch (error) {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        `${commandName} 을(를) 적용하지 못했습니다: ${String(
+          (error as { message?: unknown })?.message ?? error,
+        )}`,
+        { recoverable: true, details: { method } },
+      );
+    }
   });
 }
 
@@ -163,4 +226,87 @@ export async function minimumMaximum(params: {
       _value: params.preserveShape ?? "roundness",
     },
   });
+}
+
+/**
+ * 선명하게. **인자가 없다.**
+ *
+ * 레퍼런스의 `applySharpen` · `applySharpenEdges` · `applySharpenMore` 셋 다
+ * 파라미터를 받지 않는다. 강도를 조절하려면 `unsharpMask` 쪽이다.
+ *
+ * `edges` 는 가장자리만 건드려 평탄한 영역의 노이즈를 덜 키운다.
+ */
+export async function filterSharpen(params: {
+  layerId?: number;
+  mode?: "sharpen" | "edges" | "more";
+  asSmartFilter?: boolean;
+}): Promise<LayerInfo> {
+  const method =
+    params.mode === "edges"
+      ? "applySharpenEdges"
+      : params.mode === "more"
+        ? "applySharpenMore"
+        : "applySharpen";
+  return applyDomFilter("Sharpen", params, method, []);
+}
+
+/**
+ * 언샵 마스크.
+ *
+ * **`smart_sharpen` 이 DOM 에 없어서 이것이 조절 가능한 선명화의 자리다.**
+ * 레퍼런스에 `applySmartSharpen` 이 없다 — 이름이 비슷한 것으로 채우지 않고
+ * 있는 것을 쓴다.
+ *
+ * `threshold` 는 **이만큼 차이 나는 곳만 건드린다** — 천체사진에서 이것을 0 으로
+ * 두면 배경 노이즈가 함께 선명해진다.
+ */
+export async function filterUnsharpMask(params: {
+  layerId?: number;
+  amount: number;
+  radius: number;
+  threshold?: number;
+  asSmartFilter?: boolean;
+}): Promise<LayerInfo> {
+  return applyDomFilter("Unsharp mask", params, "applyUnSharpMask", [
+    params.amount,
+    params.radius,
+    params.threshold ?? 0,
+  ]);
+}
+
+/**
+ * 모션 블러.
+ *
+ * `angle` 은 도, `distance` 는 픽셀이다. 별을 궤적처럼 늘리거나 배경을
+ * 흐릴 때 쓴다.
+ */
+export async function filterMotionBlur(params: {
+  layerId?: number;
+  angle: number;
+  distance: number;
+  asSmartFilter?: boolean;
+}): Promise<LayerInfo> {
+  return applyDomFilter("Motion blur", params, "applyMotionBlur", [params.angle, params.distance]);
+}
+
+/**
+ * 먼지와 스크래치.
+ *
+ * `radius` 안에서 `threshold` 보다 튀는 픽셀을 주변으로 덮는다. **`threshold` 를
+ * 0 으로 두면 전체가 뭉개진다** — 값을 올릴수록 튀는 것만 골라낸다.
+ *
+ * **`retouch.remove_spots` 와 다른 물건이다.** 그쪽은 좌표를 받아 한 점을
+ * 내용 인식으로 지우고, 이쪽은 레이어 전체에 건다. 새·비행기처럼 지우면 안 되는
+ * 것까지 함께 사라지므로(§17.14) 전체에 걸 때는 결과를 확인한다.
+ */
+export async function filterDustAndScratches(params: {
+  layerId?: number;
+  radius: number;
+  threshold?: number;
+  asSmartFilter?: boolean;
+}): Promise<LayerInfo> {
+  return applyDomFilter("Dust & scratches", params, "applyDustAndScratches", [
+    params.radius,
+    params.threshold ?? 0,
+  ]);
 }

@@ -393,15 +393,19 @@ describe("Phase 4 필터 Tool", () => {
   });
 
   it("이미 스마트 오브젝트면 변환하지 않는다", async () => {
+    /* **대상은 픽셀 레이어(10)여야 한다.** 한동안 조정 레이어(11)를 쓰고 있었는데,
+     * Mock 이 "조정 레이어에는 필터를 걸 수 없다" 를 흉내내지 않아 통과했다.
+     * 실기라면 거절당할 호출이었다 — Mock 이 관대하면 틀린 테스트가 산다.
+     * (ROADMAP §53) */
     const mcp = setup();
     await call(mcp, "photoshop.filter.gaussian_blur", {
-      layerId: 11,
+      layerId: 10,
       radius: 3,
       asSmartFilter: true,
     });
     await expect(
-      call(mcp, "photoshop.filter.gaussian_blur", { layerId: 11, radius: 3 }),
-    ).resolves.toMatchObject({ id: 11, type: "smartObject" });
+      call(mcp, "photoshop.filter.gaussian_blur", { layerId: 10, radius: 3 }),
+    ).resolves.toMatchObject({ id: 10, type: "smartObject" });
   });
 
   it("radius 범위를 검증한다", async () => {

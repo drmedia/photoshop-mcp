@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 118개만
+기본            Extension 0개. Core Tool 122개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -8002,3 +8002,95 @@ Photoshop 은 descriptor 에 없는 출력 채널을 항등이 아니라 **전�
 - [x] 실기: 키마다 따로 걸어 값이 반영되는 것을 픽셀로 확인
 - [x] 실기: 안 준 출력 채널이 0 이 되는 것을 잡아 항등으로 채움
 - [x] 실기: 넷 다 속성 패널이 열리고 값이 보인다
+
+# 53. DOM 필터 넷 (sharpen · unsharp_mask · motion_blur · dust_scratches)
+
+`CORE_API.md` §5.6 에 있던 일곱 중 넷이다. **여섯을 요청받았는데 셋은 DOM 에
+없었고 하나는 요청에 없던 것을 더했다.** 그 차이가 이 절의 내용이다.
+
+## 레퍼런스가 있는 것과 없는 것을 갈랐다
+
+Adobe Layer 레퍼런스에 `apply*` 가 **서른여덟 개** 있다(23.5+). descriptor 를
+잡을 이유가 없다 — 이번에는 사용자에게 한 번도 부탁하지 않았다.
+
+```text
+filter.sharpen         applySharpen · applySharpenEdges · applySharpenMore
+filter.motion_blur     applyMotionBlur(angle, distance)
+filter.dust_scratches  applyDustAndScratches(radius, threshold)
+
+filter.smart_sharpen   없다 — applySmartSharpen 이 목록에 없다
+filter.surface_blur    없다 — applySmartBlur 는 고급 흐림으로 다른 필터다
+filter.noise_reduce    없다
+```
+
+**비슷한 이름으로 채우지 않았다.** `applySmartBlur` 를 `surface_blur` 로 내놓으면
+호출자는 표면 흐림이 걸렸다고 믿는다.
+
+## `sharpen` 은 강도를 받지 않는다
+
+세 변종 모두 파라미터가 없다. 강도를 받는 척하면 호출자가 조절했다고 믿는다.
+
+그래서 **`filter.unsharp_mask` 를 더했다.** 요청 목록에 없었지만 DOM 에
+`applyUnSharpMask(amount, radius, threshold)` 가 있고, **없는 `smart_sharpen` 의
+자리가 이것**이다. 이름을 바꿔 달지 않고 별도 Tool 로 두되 설명이 그 사실을
+말한다.
+
+## `noise_reduce` 는 만들지 않기로 했다
+
+DOM 에 없기도 하지만, 만들더라도 **`camera_raw.apply` 가 훨씬 낫다** — 실기에서
+σ 6.72 → 3.42(49%)였고 `filter` 쪽 `denoise` 는 최대 강도로도 7% 였다(§17.17).
+비슷한 이름의 열등한 Tool 이 있으면 LLM 이 그쪽을 고른다.
+
+## 실기: 히스토그램 빈으로 쟀다
+
+값이 **딱 둘**인 그림을 만들었다(어두운 원 16.757% · 밝은 배경 83.243%).
+필터가 걸리면 빈이 늘어난다 — 걸렸는지 아닌지가 한눈에 갈린다.
+
+```text
+기준                              빈 2개 · p1 40 · p99 200 · 클리핑 0
+
+unsharp amount300 radius5 thr0    clippedLow 2.81% · clippedHigh 2.55%
+                                  p1 40→0 · p99 200→255   ← 가장자리 오버슈트
+unsharp 같은 값 thr255            기준과 완전히 동일        ← 한계값이 게이트다
+sharpen more                      clippedLow 0.53% · High 0.38%  ← 얇은 헤일로
+motion_blur angle0 distance150    가로로만 번졌다 (캡처로 확인)
+dust radius100 thr0               **원이 통째로 사라졌다** — 전부 200
+dust radius100 thr255             기준과 완전히 동일
+```
+
+**먼지·스크래치가 반지름 80 원을 통째로 지웠다.** Tool 설명의 "천체사진에서
+전체에 걸면 별이 함께 사라진다" 가 이것이다 — 작은 점을 Photoshop 이 먼지와
+구분하지 못한다.
+
+`asSmartFilter: true` 는 스마트 오브젝트로 바꾸고 **id 가 2 → 4 로 바뀌었다.**
+설명에 적어 둔 그대로다.
+
+## Mock 이 관대해서 틀린 테스트가 살아 있었다
+
+실기 플러그인은 **조정 레이어와 그룹에 필터를 못 걸게 막는데**(변환이 먼저
+성공한 뒤 필터가 실패하면 조정 레이어만 망가진다, §8.4) **Mock 은 통과시켰다.**
+
+그래서 `tests/adjustment.test.ts` 의 "이미 스마트 오브젝트면 변환하지 않는다"
+가 **조정 레이어(11)를 필터 대상으로 쓰면서 통과**하고 있었다. 실기라면
+거절당할 호출이다.
+
+Mock 에 그 거절을 넣고 테스트는 픽셀 레이어(10)로 고쳤다. 의도는 그대로다.
+[[mock-guesses-get-encoded-as-truth]] 가 말하는 "계약을 흉내낼 수 있으면
+흉내낸다 — 안 하면 그 계약이 테스트에 영영 안 나온다" 의 실제 사례다.
+
+## `applyFilter` 를 콜백으로 열었다
+
+기존 `applyFilter` 는 descriptor 를 받았다. 대상 해결 · 조정 레이어 거절 ·
+스마트 오브젝트 변환 · 결과 확인이 전부 그 안에 있어 **버릴 수 없다.**
+마지막 한 걸음만 콜백으로 바꿔 DOM 메서드가 같은 안전장치를 그대로 쓴다.
+
+**변환 뒤의 레이어를 콜백에 넘긴다.** 스마트 오브젝트로 바뀌면 객체가 통째로
+교체되므로 변환 전 참조로 DOM 메서드를 부르면 던진다.
+
+## 체크리스트
+
+- [x] `photoshop.filter.sharpen` · `unsharp_mask` · `motion_blur` · `dust_scratches` (EDIT)
+- [x] DOM 에 없는 셋은 만들지 않고 §5.6 에 이유를 적었다
+- [x] 실기: 네 필터 모두 파라미터가 실제로 반영됨 (한계값 게이트 포함)
+- [x] 실기: 조정 레이어 거절 · `asSmartFilter` 변환과 id 변경
+- [x] Mock 이 조정 레이어·그룹 거절을 흉내내게 고침 (틀린 테스트 하나 발견)

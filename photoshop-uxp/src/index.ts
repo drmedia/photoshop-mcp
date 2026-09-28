@@ -21,6 +21,7 @@ import { documentDuplicate } from "./dom/document-duplicate.js";
 import { layerGet } from "./dom/layer-get.js";
 import { layerSetLock } from "./dom/layer-lock.js";
 import { layerFlip } from "./dom/layer-flip.js";
+import { layerRasterize } from "./dom/layer-rasterize.js";
 import { layerSelectMultiple } from "./dom/layer-select-multiple.js";
 import { documentGet, documentList } from "./dom/document.js";
 import { gaussianBlur, highPass, minimumMaximum } from "./dom/filter.js";
@@ -215,6 +216,9 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("DOCUMENT_LIST", async () => documentList());
   dispatcher.register("LAYER_GET", async (p) => layerGet(p as { layerId?: number }));
   dispatcher.register("LAYER_FLIP", async (p) => layerFlip(p as Parameters<typeof layerFlip>[0]));
+  dispatcher.register("LAYER_RASTERIZE", async (p) =>
+    layerRasterize(p as Parameters<typeof layerRasterize>[0]),
+  );
   dispatcher.register("LAYER_SET_LOCK", async (p) =>
     layerSetLock(p as Parameters<typeof layerSetLock>[0]),
   );

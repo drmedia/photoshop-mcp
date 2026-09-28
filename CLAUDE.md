@@ -14,11 +14,11 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **100개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **101개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 106). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 107). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -37,6 +37,9 @@ Tool 까지 더한 수다(지금 106). 한동안 이 값을 Core 개수로 옮�
 - 뒤집기: `layer.flip` — `horizontal` · `vertical` · `both`. **캔버스가 아니라
   레이어 경계 기준**이라 경계가 안 변한다. **`constants.FlipAxis` 가 27.8 에 없어**
   소문자 문자열로 넘긴다 (ROADMAP §44)
+- 굽기: `layer.rasterize` — 스마트 오브젝트·텍스트·모양을 픽셀로. **`destructive`**.
+  **id 는 안 바뀐다**(`smart_object.convert` 와 다르다). 할 일이 없어도 조용히
+  성공하므로 `previousType` 으로 읽는다 (ROADMAP §45)
 - 칠 불투명도: `layer.set_fill_opacity` — **`opacity` 와 다르다.** 스타일은 남고 픽셀만
 - 스마트 오브젝트: `smart_object.convert` — 뒤에 거는 필터가 스마트 필터가 된다
 - 그룹: create / move_layer · History: undo / redo — **새 편집을 하면 redo 가 사라진다**
@@ -855,7 +858,7 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 100개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 101개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져

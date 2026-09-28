@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (100개)
+## 4. 구현된 Core API (101개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -113,6 +113,7 @@ P3  확장 기능
 | `photoshop.layer.get` | READ | 한 레이어의 상세. **`bounds` 를 준다** — 목록에는 없다 |
 | `photoshop.layer.set_lock` | EDIT | **잠금은 넷이다.** `all` 을 켜면 나머지도 켜진다 |
 | `photoshop.layer.flip` | EDIT | horizontal · vertical · **both**. 레이어 하나만 |
+| `photoshop.layer.rasterize` | DESTRUCTIVE | 픽셀로 굽는다. **id 가 바뀔 수 있다** |
 | `photoshop.layer.select_multiple` | EDIT | 여러 장을 한 번에. **순서는 Photoshop 이 정한다** |
 | `photoshop.document.capture` | READ | 문서를 합성해 **그림으로** 돌려준다 |
 | `photoshop.layer.capture` | READ | 레이어 하나만 그림으로 |
@@ -518,7 +519,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 | `photoshop.smart_object.relink` | P3 | EXTERNAL | |
 | `photoshop.smart_object.update` | P3 | EDIT | |
 | `photoshop.smart_object.new_via_copy` | P3 | EDIT | |
-| `photoshop.smart_object.rasterize` | P2 | DESTRUCTIVE | 아래 참조 |
 
 `smart_object.rasterize` 가 `DESTRUCTIVE` 인 이유는 **되돌릴 수 없기 때문**이다 —
 스마트 오브젝트 안의 원본이 사라진다. 그래서 **만들지 않는 쪽이 지우는 것보다 낫다.**
@@ -725,7 +725,7 @@ layer.delete · layer.merge · group.ungroup
 mask.apply · mask.delete
 image.resize · canvas.resize · document.trim
 document.mode_convert · document.bit_depth_convert · document.merge_visible
-smart_object.rasterize
+layer.rasterize
 channel.delete · path.delete · guide.delete
 workspace.delete
 ```
@@ -750,7 +750,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **100** |
+| 구현됨 | **101** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

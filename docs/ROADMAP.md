@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 100개만
+기본            Extension 0개. Core Tool 101개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -7435,3 +7435,48 @@ both            그대로            원래 배치 (앞의 둘을 상쇄)
 - [x] `constants.FlipAxis` 부재를 확인하고 문자열 경로로 우회
 - [x] 오류가 **무엇이 있는지** 함께 알린다
 - [x] 실기: 세 축 모두 그림으로 확인
+
+# 45. 굽기 (`photoshop.layer.rasterize`)
+
+## 이름을 옮겼다
+
+CORE_API §5 에는 `photoshop.smart_object.rasterize` 로 올라 있었는데 실제 API 는
+**`Layer.rasterize(target)`** 이고 스마트 오브젝트만의 일이 아니다 — 텍스트 ·
+모양 · 레이어 스타일도 같은 메서드로 굽는다. `layer.rasterize` 로 옮기고
+`DESTRUCTIVE` 분류는 그대로 가져왔다.
+
+## 열 가지 중 여섯만 열었다
+
+`linkedLayers` · `placed` · `video` · `layerClippingPath` 는 이 서버의 쓰임과
+멀다. 안 쓰는 값이 스키마에 있으면 호출자가 무엇이 중요한지 모른다 — `text` 가
+자간·행간을 열지 않은 것과 같은 판단이다.
+
+여섯 상수가 **모두 실제로 있었다.** `FlipAxis` 처럼 표가 통째로 없는 경우가
+있어(§44) 여섯을 하나씩 확인했다.
+
+## 실기에서 짐작이 두 개 틀렸다
+
+**1. id 가 바뀌지 않는다.** `smart_object.convert` 가 바꾸길래 굽기도 그럴 줄
+알고 결과에 `previousId` 를 두고 목록 대조까지 넣었다. 스마트 오브젝트와 텍스트
+둘 다 id 가 유지됐다.
+
+```text
+smartObject id 3  →  rasterize  →  pixel id 3
+text        id 4  →  rasterize  →  pixel id 4
+```
+
+대조 코드는 남겼다 — 다른 대상·다른 버전에서 바뀌면 그때 드러나야 한다.
+
+**2. 할 일이 없어도 오류가 아니다.** "이미 픽셀 레이어이거나 해당 내용이 없으면
+실패한다" 고 Tool 설명에 적었는데, 이미 픽셀인 레이어에 걸어도 **조용히
+성공한다.** 네 대상(`layerStyle` · `vectorMask` · `shape` · `fillContent`)을
+해당 내용이 없는 레이어에 걸었을 때도 마찬가지였다.
+
+실패로 만들지 않고 설명을 고쳤다 — `entireLayer` 로 걸었을 때 `previousType` 이
+`pixel` 이면 아무 일도 없었다는 뜻이고, 그것을 호출자가 읽는다.
+
+## 체크리스트
+
+- [x] `photoshop.layer.rasterize` — `previousType` · `previousId` · `target`
+- [x] `smart_object.rasterize` 항목을 옮겼다
+- [x] 실기: 여섯 상수 존재 · 스마트 오브젝트 · 텍스트 · id 유지 · 무해한 재실행

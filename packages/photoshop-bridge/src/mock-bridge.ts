@@ -349,6 +349,31 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        * `LAYER_GET` 의 `bounds` 와 같은 규칙이다. 뒤집혔는지는 어차피 경계로
        * 알 수 없으므로 잃는 것도 없다.
        */
+      /**
+       * 굽기. (CORE_API §5 P2)
+       *
+       * **종류가 픽셀로 바뀌는 것**이 요점이라 Mock 도 그것을 지킨다 —
+       * `MASK_APPLY` 가 `hasMask` 를 내리는 것과 같은 이유다. 그러지 않으면
+       * "구웠는데 아직 스마트 오브젝트" 라는 있을 수 없는 상태가 정상으로 보인다.
+       *
+       * **id 는 바꾸지 않는다.** 실기에서 바뀌는지 확인한 적이 없고, 지어내면
+       * 그 거짓이 테스트에 굳는다 — 코드는 양쪽을 모두 다룬다.
+       */
+      case "LAYER_RASTERIZE": {
+        const p = command.params as { layerId?: number; target?: string };
+        const target = p.target ?? "entireLayer";
+        const index = this.#requireLayerIndex(p.layerId);
+        const layer = this.#layers[index] as LayerInfo;
+        this.#snapshot("Rasterize layer");
+        const baked: LayerInfo = { ...layer, type: "pixel" };
+        this.#layers[index] = baked;
+        return {
+          layer: { ...baked },
+          previousType: layer.type,
+          previousId: layer.id,
+          target,
+        } as TResult;
+      }
       case "LAYER_FLIP": {
         const p = command.params as {
           layerId?: number;

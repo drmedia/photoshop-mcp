@@ -26,6 +26,11 @@ import { LAYER_GET, LayerGetParamsSchema, layerGetCommand } from "./layer-get.js
 import { LAYER_SET_LOCK, LayerSetLockParamsSchema, layerSetLockCommand } from "./layer-lock.js";
 import { LAYER_FLIP, LayerFlipParamsSchema, layerFlipCommand } from "./layer-flip.js";
 import {
+  LAYER_RASTERIZE,
+  LayerRasterizeParamsSchema,
+  layerRasterizeCommand,
+} from "./layer-rasterize.js";
+import {
   LAYER_SELECT_MULTIPLE,
   LayerSelectMultipleParamsSchema,
   layerSelectMultipleCommand,
@@ -301,6 +306,7 @@ export * from "./history.js";
 export * from "./layer-edit.js";
 export * from "./layer-lock.js";
 export * from "./layer-flip.js";
+export * from "./layer-rasterize.js";
 export {
   LAYER_GET_ACTIVE,
   LayerGetActiveParams,
@@ -387,6 +393,12 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_FLIP, layerFlipCommand, {
     permission: "edit",
     schema: LayerFlipParamsSchema,
+  });
+  /* **되돌릴 수 없다.** 스마트 오브젝트의 원본과 텍스트의 글자가 사라진다 —
+   * CORE_API §9 가 `smart_object.rasterize` 로 처음부터 이렇게 분류했다. */
+  registry.register(LAYER_RASTERIZE, layerRasterizeCommand, {
+    permission: "destructive",
+    schema: LayerRasterizeParamsSchema,
   });
   registry.register(LAYER_SELECT_MULTIPLE, layerSelectMultipleCommand, {
     permission: "edit",

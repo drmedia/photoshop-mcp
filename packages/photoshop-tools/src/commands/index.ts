@@ -125,6 +125,11 @@ import { IMAGE_RESIZE, ImageResizeParamsSchema, imageResizeCommand } from "./ima
 import { CANVAS_RESIZE, CanvasResizeParamsSchema, canvasResizeCommand } from "./canvas-resize.js";
 import { DOCUMENT_TRIM, DocumentTrimParamsSchema, documentTrimCommand } from "./document-trim.js";
 import {
+  DOCUMENT_BIT_DEPTH_CONVERT,
+  DocumentBitDepthParamsSchema,
+  documentBitDepthConvertCommand,
+} from "./document-bit-depth.js";
+import {
   DOCUMENT_MODE_CONVERT,
   DocumentModeConvertParamsSchema,
   documentModeConvertCommand,
@@ -296,6 +301,7 @@ export * from "./image-resize.js";
 export * from "./canvas-resize.js";
 export * from "./document-trim.js";
 export * from "./document-mode.js";
+export * from "./document-bit-depth.js";
 export * from "./document-rotate.js";
 export * from "./measure-tilt.js";
 export * from "./layer-reorder.js";
@@ -405,6 +411,11 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(DOCUMENT_MODE_CONVERT, documentModeConvertCommand, {
     permission: "destructive",
     schema: DocumentModeConvertParamsSchema,
+  });
+  /* **내리면 되돌릴 수 없다.** 16 → 8 은 계조를 버린다. (ROADMAP §39) */
+  registry.register(DOCUMENT_BIT_DEPTH_CONVERT, documentBitDepthConvertCommand, {
+    permission: "destructive",
+    schema: DocumentBitDepthParamsSchema,
   });
   registry.register(IMAGE_RESIZE, imageResizeCommand, {
     /* **`crop` 과 갈리는 자리다.** 축소는 픽셀을 다시 표본화하고 버려진

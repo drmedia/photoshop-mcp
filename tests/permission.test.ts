@@ -253,6 +253,7 @@ describe("Core Tool 분류", () => {
       "CANVAS_RESIZE",
       "DOCUMENT_TRIM",
       "DOCUMENT_MODE_CONVERT",
+      "DOCUMENT_BIT_DEPTH_CONVERT",
       "IMAGE_RESIZE",
       "DOCUMENT_FLATTEN",
       "DOCUMENT_CLOSE",

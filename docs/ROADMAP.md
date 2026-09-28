@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 95개만
+기본            Extension 0개. Core Tool 96개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -7074,3 +7074,59 @@ Photoshop 에 그대로 넘기면 얻는 것 없이 평탄화만 될 수 있다.
 - [x] Permission 을 `EDIT` → `DESTRUCTIVE` 로 바꾸고 근거를 측정으로 남겼다
 - [x] 실기: 네 모드 · 대화상자 없음 · 레이어 유지 · 색 소멸
 - [ ] `bitmap` · `indexedColor` — 대화상자가 뜨지 않는 것을 확인하면 연다
+
+# 39. 비트 심도 (`photoshop.document.bit_depth_convert`)
+
+## 메서드가 아니라 속성이다
+
+`bitsPerChannel` 은 읽기/쓰기 속성이고 **문자열 상수**를 받는다(`"bitDepth16"`).
+숫자를 대입하면 조용히 무시된다 — `export_tiff` 가 이미 그렇게 쓰고 있었고 실기에서
+검증된 경로라 새로 짜지 않고 그것을 따랐다. 지식은 `document-bit-depth.ts` 한
+곳에 모았다.
+
+속성 대입이 조용히 무시되는 것은 이 프로젝트에서 반복된 실패 유형이다(배경
+`set_opacity` · Camera Raw 정수 · 파라메트릭 곡선). 그래서 쓰고 나서 **읽어
+확인하고**, 안 들어갔으면 실패로 답한다.
+
+## 실기에서 확인한 것
+
+```text
+8  → 16   applied true
+16 → 8    applied true
+8  → 32   applied true   ← "bitDepth32" 는 검증된 적이 없던 문자열이다
+32 → 16   applied true   ← HDR Toning 대화상자가 **뜨지 않았다**
+```
+
+**32 → 16 이 가장 걱정이었다.** Photoshop UI 에서는 HDR Toning 대화상자가 뜨는
+경로인데 스크립팅 경로에서는 뜨지 않았다. `mode_convert`(§38) 에서 "색상 정보를
+버릴까요" 가 안 뜬 것과 같다.
+
+1비트는 열지 않았다. Bitmap 색상 모드에서만 뜻이 있고 그 모드는 §38 에서도
+대화상자 위험으로 빼 두었다.
+
+**계조가 버려지는 것 자체는 재지 않았다.** 16 → 8 이 계조를 잃는 것은 정보이론이지
+Photoshop 의 버릇이 아니다. 이 프로젝트가 재는 것은 짐작할 수 없는 쪽이다.
+
+## 덤으로 잡은 버그 — `document.create` 의 `bitDepth` 가 먹지 않았다
+
+`bitDepth: 16` 으로 문서를 만들었더니 8비트가 나왔고 `applied.bitDepth` 가
+`false` 였다. **`documents.add` 가 그 키를 무시한다.** 두 번 재현했다.
+
+`document-create.ts` 는 이 키를 "문서에 없는 키" 라고 적어 두고 "먹는지는
+`applied.bitDepth` 가 말한다 — 안 먹으면 파라미터를 뺀다" 고 해 두었다.
+**`applied` 를 둔 것이 값을 했다.** 없었으면 8비트 문서를 16비트로 알고
+외부 처리기를 돌렸을 것이다.
+
+빼는 대신 **고쳤다.** 이제 검증된 경로를 아니까 만든 뒤에 다시 건다. Mock 도
+맞췄다 — 8 로 고정돼 있으면 이 수정이 테스트에 나오지 않는다.
+
+**한동안 먹는 것처럼 보였다.** 오늘 앞서 만든 문서들이 16비트로 나왔는데 그것은
+Photoshop 의 새 문서 기본값이 마침 16이었기 때문이다. `applied` 가 없었으면
+"된다" 고 적고 넘어갔을 자리다.
+
+## 체크리스트
+
+- [x] `photoshop.document.bit_depth_convert` — `before` · `after` · `applied`
+- [x] 실기: 8·16·32 왕복, `"bitDepth32"` 확인, 32→16 대화상자 없음
+- [x] `document.create` 의 `bitDepth` 를 만든 뒤 다시 걸도록 고쳤다
+- [x] 실기: 고친 `document.create` 가 요청한 심도를 준다 (16 · 32 확인)

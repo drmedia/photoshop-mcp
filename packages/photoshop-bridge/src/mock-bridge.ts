@@ -251,10 +251,12 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         return (await this.getDocumentInfo()) as TResult;
       /* **문서가 없으면 빈 배열이다. 던지지 않는다.** `DOCUMENT_GET` 과
        * 다른 점이고, Mock 이 여기서 던지면 그 차이가 테스트에 안 나온다. */
-      /* **Mock 은 요청한 값이 다 들어갔다고 답하지 않는다.** 실제로는
-       * documents.add 가 무시하는 키가 있을 수 있고(bitDepth 는 문서에도
-       * 없다), Mock 이 전부 true 를 주면 그 차이가 테스트에 안 나온다.
-       * 크기만 반영하고 나머지는 실기에서 확인한다. */
+      /* **`bitDepth` 는 반영한다.** `documents.add` 가 그 키를 무시하는 것을
+       * 실기에서 확인하고(ROADMAP §39) 실제 구현이 **만든 뒤 다시 걸도록**
+       * 고쳤으므로, Mock 이 8 로 고정하면 현실과 어긋난다.
+       *
+       * `colorMode` 는 그대로 둔다 — `mode` 가 먹는지 실기에서 확인한 적이
+       * 없다. 모르는 것을 Mock 이 정하면 그 거짓이 테스트에 사실로 굳는다. */
       case "DOCUMENT_CREATE": {
         this.#snapshot("Create document");
         const p = command.params as {
@@ -269,7 +271,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
           name: p.name ?? "무제",
           width: p.width,
           height: p.height,
-          bitDepth: 8,
+          bitDepth: p.bitDepth ?? 8,
           colorMode: "RGB",
         };
         return {
@@ -1315,6 +1317,34 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        *
        * 픽셀은 없으므로 색이 어떻게 변하는지는 흉내내지 않는다.
        */
+      /**
+       * 비트 심도. (CORE_API §5 P2)
+       *
+       * 심도는 문서 메타라 Mock 도 들고 있을 수 있다. **이미 그 심도면 아무것도
+       * 하지 않는 것**까지 흉내낸다. 계조가 어떻게 버려지는지는 픽셀이 없어
+       * 흉내내지 않는다.
+       */
+      case "DOCUMENT_BIT_DEPTH_CONVERT": {
+        const document = this.#requireDocument();
+        const depth = (command.params as { depth: number }).depth;
+        const before = document.bitDepth;
+        if (before === depth) {
+          return {
+            document: { ...(await this.getDocumentInfo()) },
+            before,
+            after: before,
+            applied: true,
+          } as TResult;
+        }
+        this.#snapshot("Change bit depth");
+        this.#document = { ...document, bitDepth: depth };
+        return {
+          document: { ...(await this.getDocumentInfo()) },
+          before,
+          after: depth,
+          applied: true,
+        } as TResult;
+      }
       case "DOCUMENT_MODE_CONVERT": {
         const document = this.#requireDocument();
         const label = { rgb: "RGB", grayscale: "Grayscale", cmyk: "CMYK", lab: "Lab" }[

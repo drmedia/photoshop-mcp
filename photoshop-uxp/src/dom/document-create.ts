@@ -2,6 +2,7 @@ import { app, type PhotoshopDocument } from "photoshop";
 import type { DocumentInfo } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { toDocumentInfo } from "./document.js";
+import { applyBitDepth, type BitDepthValue } from "./document-bit-depth.js";
 import { toArray } from "./layers.js";
 import { runModal } from "./modal.js";
 
@@ -79,9 +80,10 @@ export async function documentCreate(params: DocumentCreateParams): Promise<Docu
       ...(params.mode === undefined
         ? {}
         : { mode: params.mode === "RGB" ? "RGBColorMode" : "GrayscaleMode" }),
-      /* **문서에 없는 키다.** 읽는 쪽 속성 이름(`bitsPerChannel`)과 그 값
-       * 형태(`bitDepth16`)를 그대로 맞춰 본다. 먹는지는 결과의
-       * `applied.bitDepth` 가 말한다 — 안 먹으면 파라미터를 뺀다. */
+      /* **`documents.add` 는 이 키를 조용히 무시한다.** 실기에서 확인했다
+       * (ROADMAP §39) — `bitDepth: 16` 을 줘도 8비트 문서가 나오고
+       * `applied.bitDepth` 가 `false` 였다. 그래도 함께 보낸다. 다른 버전에서
+       * 먹을 수 있고, 먹으면 아래 보정이 그냥 건너뛴다. */
       ...(params.bitDepth === undefined
         ? {}
         : { bitsPerChannel: `bitDepth${String(params.bitDepth)}` }),
@@ -114,6 +116,13 @@ export async function documentCreate(params: DocumentCreateParams): Promise<Docu
         "문서를 만들었지만 어느 것인지 확인하지 못했습니다. photoshop.document.list 로 확인하세요.",
         { recoverable: true, details: { before: [...before] } },
       );
+    }
+
+    /* **만든 뒤에 심도를 맞춘다.** `add` 가 무시하므로 여기서 다시 건다 —
+     * 검증된 경로는 `bitsPerChannel` 에 문자열 상수를 넣는 것이고, 그 지식은
+     * `document-bit-depth.ts` 한 곳에만 둔다. */
+    if (params.bitDepth !== undefined) {
+      applyBitDepth(created, params.bitDepth as BitDepthValue);
     }
 
     const info = toDocumentInfo(created);

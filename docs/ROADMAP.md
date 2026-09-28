@@ -8189,11 +8189,14 @@ layer.duplicate (id 4) xmp.did:19e77c48-…   ← 같다
 마스크가 그대로 살아남는다. 다만 DOM 에 없어 **descriptor 캡처가 필요하다.**
 할 일로 남긴다.
 
-## 아직 못 잰 것
+## 아직 못 잰 것 — §55 에서 쟀다
 
 **`linked: true` 는 확인하지 못했다.** `layer.place` 가 포함으로 가져오고
 연결로 가져오는 길이 없다. 키 이름이 맞는 것은 `false` 가 그 키로 온 것으로
 확인됐지만, 연결일 때 `fileReference` 가 실제 경로인지는 **아직 짐작이다.**
+
+**§55 가 `layer.place` 에 `linked` 를 열어 이것을 닫았다.**
+`linked: true · link._path E:\test01\so-red.tif` — 실제 경로가 맞다.
 
 ## 체크리스트
 
@@ -8202,7 +8205,7 @@ layer.duplicate (id 4) xmp.did:19e77c48-…   ← 같다
 - [x] 키를 짐작하지 않고 직접 물어서 확인 — 알림 캡처 없이
 - [x] 실기: 비-SO 는 오류가 아니라 `false` · 포함에도 `fileReference` 가 온다
 - [x] 실기: `contentId` 가 복제본과 같고 별개와 다르다
-- [ ] `linked: true` 는 연결 SO 를 만들 길이 없어 미확인
+- [x] `linked: true` — §55 가 `layer.place` 에 `linked` 를 열어 확인했다
 
 # 55. 스마트 오브젝트 셋 + 연결 배치
 

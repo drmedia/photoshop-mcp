@@ -18,7 +18,7 @@ Core Tool **161개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 165). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 167). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 

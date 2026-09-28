@@ -224,8 +224,11 @@ import {
 } from "./paint.js";
 import {
   SMART_OBJECT_CONVERT,
+  SMART_OBJECT_GET_INFO,
   SmartObjectConvertParamsSchema,
+  SmartObjectGetInfoParamsSchema,
   smartObjectConvertCommand,
+  smartObjectGetInfoCommand,
 } from "./smart-object.js";
 import { LAYER_REORDER, LayerReorderParamsSchema, layerReorderCommand } from "./layer-reorder.js";
 import { MEASURE_TILT, MeasureTiltParamsSchema, measureTiltCommand } from "./measure-tilt.js";
@@ -595,6 +598,11 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     // 픽셀을 버리지 않는다. 레이어가 한 겹 감싸질 뿐이고 rasterize 로 되돌린다.
     permission: "edit",
     schema: SmartObjectConvertParamsSchema,
+  });
+  /* **읽기다.** batchPlay `get` 은 문서를 바꾸지 않는다. (ROADMAP §54) */
+  registry.register(SMART_OBJECT_GET_INFO, smartObjectGetInfoCommand, {
+    permission: "read",
+    schema: SmartObjectGetInfoParamsSchema,
   });
   registry.register(DODGE_BURN_DAB, dodgeBurnDabCommand, {
     // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.

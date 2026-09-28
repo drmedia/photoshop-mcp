@@ -82,7 +82,7 @@ import { documentPaste } from "./dom/document-paste.js";
 import { documentRotate } from "./dom/document-rotate.js";
 import { documentTilt } from "./dom/document-tilt.js";
 import { documentClose, documentFlatten } from "./dom/document-lifecycle.js";
-import { smartObjectConvert } from "./dom/smart-object.js";
+import { smartObjectConvert, smartObjectGetInfo } from "./dom/smart-object.js";
 import { dodgeBurnDab } from "./dom/dodge-burn.js";
 import { maskDab, paintDab } from "./dom/paint.js";
 import { fontList, textCreate, textSet } from "./dom/text.js";
@@ -220,6 +220,9 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("MASK_DAB", async (p) => maskDab(p as Parameters<typeof maskDab>[0]));
   dispatcher.register("SMART_OBJECT_CONVERT", async (p) =>
     smartObjectConvert(p as Parameters<typeof smartObjectConvert>[0]),
+  );
+  dispatcher.register("SMART_OBJECT_GET_INFO", async (p) =>
+    smartObjectGetInfo(p as { layerId?: number }),
   );
   dispatcher.register("DOCUMENT_FLATTEN", async () => documentFlatten());
   dispatcher.register("DOCUMENT_CLOSE", async (p) =>

@@ -77,3 +77,63 @@ export const smartObjectConvertCommand: CommandHandler<
   }
   return parsed.data;
 };
+
+/**
+ * `photoshop.smart_object.get_info` — 스마트 오브젝트의 속성을 읽는다. (ROADMAP §54)
+ *
+ * **DOM 에 스마트 오브젝트 관련 멤버가 하나도 없다** — Adobe Layer 레퍼런스가
+ * 그렇다. batchPlay `get` 은 읽기만 하므로 키를 알아내는 데 알림 캡처가
+ * 필요 없었다.
+ */
+export const SMART_OBJECT_GET_INFO = "SMART_OBJECT_GET_INFO";
+
+export const SmartObjectGetInfoParamsSchema = z
+  .object({
+    layerId: z.number().int().positive().optional(),
+  })
+  .strict();
+
+export type SmartObjectGetInfoParams = z.infer<typeof SmartObjectGetInfoParamsSchema>;
+
+export const SmartObjectInfoSchema = z.object({
+  layer: LayerInfoSchema,
+  /** 스마트 오브젝트가 아니면 `false` 이고 나머지는 전부 `null` 이다. */
+  isSmartObject: z.boolean(),
+  /** 연결(linked) 이면 `true`, 포함(embedded) 이면 `false`. **모르면 `null`.** */
+  linked: z.boolean().nullable(),
+  /**
+   * 내용 파일 이름.
+   *
+   * **포함이어도 값이 있다** — 실기에서 변환한 레이어가 `PLAIN.psb` 를
+   * 돌려줬다. 포함일 때는 Photoshop 내부 이름이고 연결일 때만 실제 경로다.
+   */
+  fileReference: z.string().nullable(),
+  /** `placed` 의 안쪽 값. 실기에서 `rasterizeContent` 가 왔다. */
+  placed: z.string().nullable(),
+  /** 내용의 XMP 문서 id. 같은 내용을 가리키는 레이어끼리 같다. */
+  contentId: z.string().nullable(),
+  /**
+   * 해석하지 못한 원본.
+   *
+   * 이름을 짐작해 채우지 않는다 — `rawBitDepth` · `rawKind` 와 같은 원칙이다.
+   */
+  raw: z.record(z.unknown()).nullable(),
+});
+
+export type SmartObjectInfo = z.infer<typeof SmartObjectInfoSchema>;
+
+export const smartObjectGetInfoCommand: CommandHandler<
+  SmartObjectGetInfoParams,
+  SmartObjectInfo
+> = async (command, context) => {
+  const raw = await context.bridge.executeCommand<unknown>(command);
+  const parsed = SmartObjectInfoSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new PhotoshopMcpError(
+      ErrorCode.PROTOCOL_ERROR,
+      "스마트 오브젝트 정보가 예상과 다릅니다.",
+      { details: { issues: parsed.error.issues, received: raw }, cause: parsed.error },
+    );
+  }
+  return parsed.data;
+};

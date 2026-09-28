@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 122개만
+기본            Extension 0개. Core Tool 123개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -8094,3 +8094,95 @@ Mock 에 그 거절을 넣고 테스트는 픽셀 레이어(10)로 고쳤다. �
 - [x] 실기: 네 필터 모두 파라미터가 실제로 반영됨 (한계값 게이트 포함)
 - [x] 실기: 조정 레이어 거절 · `asSmartFilter` 변환과 id 변경
 - [x] Mock 이 조정 레이어·그룹 거절을 흉내내게 고침 (틀린 테스트 하나 발견)
+
+# 54. 스마트 오브젝트 정보 (`smart_object.get_info`)
+
+`CORE_API.md` §5.8 의 P2 넷 중 하나다. **나머지 셋은 만들지 않았고 그 이유가
+이 절의 절반이다.**
+
+## DOM 에 스마트 오브젝트가 통째로 없다
+
+Adobe Layer 레퍼런스에 스마트 오브젝트 관련 멤버가 **하나도 없다.**
+`SmartObject` 클래스 페이지도 404 다. `rasterize()` 만 있고 그건
+`layer.rasterize` 가 이미 쓴다(§45).
+
+## 읽기라 잡아 달라고 부탁하지 않았다
+
+batchPlay `get` 은 **문서를 바꾸지 않는다.** 없는 속성을 물으면 오류가 나거나
+빈 값이 오고 그게 전부다. 그래서 알림 캡처 없이 **직접 물어서** 키를 알아냈다 —
+`mask.select` 의 `ChannelProbe` 와 같은 방법이다(§31).
+
+조정 레이어 넷(§52)은 사용자에게 네 번 부탁해야 했다. **쓰기와 읽기를 가르면
+부탁이 필요한 범위가 줄어든다.**
+
+## 짐작한 키 둘은 맞았고 설명 하나는 틀렸다
+
+`linked` · `fileReference` 는 그 이름 그대로 있었다. 그런데 **포함(embedded)
+인데도 `fileReference` 에 값이 왔다.**
+
+```json
+{ "linked": false, "fileReference": "PLAIN.psb",
+  "placed": "rasterizeContent",
+  "contentId": "xmp.did:19e77c48-bb6c-4149-82d5-ef5ae6c32fc0" }
+```
+
+"포함이면 `null`" 이라고 적어 두었던 것이 틀렸다. 포함일 때는 Photoshop 내부
+이름이고 연결일 때만 실제 경로다. **값이 오는 것을 보고 설명을 고쳤다 — 값을
+버리지 않았다.**
+
+## `raw` 가 두 개를 더 줬다
+
+처음에는 아는 둘만 올리고 나머지를 `raw` 에 두었다. 실기에서 받아 보니 쓸
+만한 것이 둘 더 있어 올렸다.
+
+```text
+placed      rasterizeContent   `{_enum:"placed", _value:...}` 의 안쪽 값
+contentId   xmp.did:...        내용의 XMP 문서 id
+```
+
+`_obj` 는 descriptor 자신의 클래스 이름이라 담지 않는다. 남은 `compsList` 는
+해석하지 못해 `raw` 에 그대로 둔다.
+
+**`raw` 를 먼저 두고 실기에서 채운 것이 맞았다.** 짐작으로 스키마를 다 채웠으면
+`placed` 와 `contentId` 를 놓쳤을 것이다.
+
+## `contentId` 가 내용 공유를 가른다 — 재서 확인했다
+
+설명에 적기 전에 양쪽을 다 쟀다.
+
+```text
+원본 (id 3)            xmp.did:19e77c48-…
+layer.duplicate (id 4) xmp.did:19e77c48-…   ← 같다. 내용을 공유한다
+별개로 변환 (id 6)     xmp.did:e19bccd7-…   ← 다르다
+```
+
+## 만들지 않은 셋
+
+**`smart_object.rasterize`** — `layer.rasterize` 가 이미 한다(§45). 같은 능력에
+이름이 둘이면 호출자가 고민한다. `CORE_API.md` §5.8 이 이미 "만들지 않는 쪽이
+지우는 것보다 낫다" 고 적어 두었다.
+
+**`smart_object.open_contents`** — **활성 문서가 바뀐다.** 내용이 새 창으로
+열리고 그 뒤의 모든 편집이 그 창에 걸린다. 이 프로젝트가 반복해서 겪은 실패
+유형이다(§17.20 그룹 · §17.27 마스크 · §18.1 mock). **오류 없이 엉뚱한 대상에
+작업하는 것**이 공통점이다. 얻는 것도 사람용 affordance 다.
+
+**`smart_object.replace_contents`** — 값은 크다. 지금은 외부 처리기 결과를
+`place` 로 새 레이어에 놓는데, 내용만 갈아끼우면 걸어 둔 스마트 필터·변형·
+마스크가 그대로 살아남는다. 다만 DOM 에 없어 **descriptor 캡처가 필요하다.**
+할 일로 남긴다.
+
+## 아직 못 잰 것
+
+**`linked: true` 는 확인하지 못했다.** `layer.place` 가 포함으로 가져오고
+연결로 가져오는 길이 없다. 키 이름이 맞는 것은 `false` 가 그 키로 온 것으로
+확인됐지만, 연결일 때 `fileReference` 가 실제 경로인지는 **아직 짐작이다.**
+
+## 체크리스트
+
+- [x] `photoshop.smart_object.get_info` (READ)
+- [x] DOM 부재를 레퍼런스로 확인 (Layer 에 멤버 없음 · SmartObject 페이지 404)
+- [x] 키를 짐작하지 않고 직접 물어서 확인 — 알림 캡처 없이
+- [x] 실기: 비-SO 는 오류가 아니라 `false` · 포함에도 `fileReference` 가 온다
+- [x] 실기: `contentId` 가 복제본과 같고 별개와 다르다
+- [ ] `linked: true` 는 연결 SO 를 만들 길이 없어 미확인

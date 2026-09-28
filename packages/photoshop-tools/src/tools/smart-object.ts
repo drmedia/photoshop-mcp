@@ -3,6 +3,10 @@ import type { ToolDefinition } from "@photoshop-mcp/photoshop-bridge";
 import type { z } from "zod";
 import {
   SMART_OBJECT_CONVERT,
+  SMART_OBJECT_GET_INFO,
+  SmartObjectGetInfoParamsSchema,
+  type SmartObjectGetInfoParams,
+  type SmartObjectInfo,
   SmartObjectConvertParamsSchema,
   type SmartObjectConvertResult,
 } from "../commands/smart-object.js";
@@ -27,6 +31,34 @@ export function createSmartObjectConvertTool(
     handler: async (input, context) =>
       engine.execute<SmartObjectConvertResult>(
         { type: SMART_OBJECT_CONVERT, params: input },
+        { requestId: context.requestId },
+      ),
+  };
+}
+
+/** `photoshop.smart_object.get_info` — 스마트 오브젝트의 속성을 읽는다. (ROADMAP §54) */
+export function createSmartObjectGetInfoTool(
+  engine: CommandEngine,
+): ToolDefinition<SmartObjectGetInfoParams, SmartObjectInfo> {
+  return {
+    name: "photoshop.smart_object.get_info",
+    description:
+      "스마트 오브젝트의 속성을 읽는다. layerId 를 생략하면 활성 레이어. " +
+      "**linked 가 연결(true)인지 포함(false)인지 가른다** — 연결이면 원본 파일이 " +
+      "바뀔 때 문서도 따라 바뀐다. photoshop.layer.place 로 가져온 것은 기본이 포함이다. " +
+      "**fileReference 는 포함이어도 값이 있다** — 포함일 때는 Photoshop 내부 이름" +
+      "(예: PLAIN.psb)이고 연결일 때만 실제 경로다. " +
+      "contentId 는 내용의 XMP 문서 id 로, 같은 내용을 가리키는 레이어끼리 같다 — " +
+      "복제한 스마트 오브젝트가 원본과 내용을 공유하는지 이것으로 가른다. " +
+      "**스마트 오브젝트가 아니면 오류가 아니라 isSmartObject: false 를 돌려준다** — " +
+      "먼저 확인하는 용도로 쓸 수 있다. " +
+      "**모르는 값은 null 이다.** Photoshop 이 알려주지 않으면 지어내지 않고, " +
+      "해석하지 못한 키는 raw 에 원본 그대로 남는다.",
+    permission: "read",
+    inputSchema: SmartObjectGetInfoParamsSchema,
+    handler: async (input, context) =>
+      engine.execute<SmartObjectInfo>(
+        { type: SMART_OBJECT_GET_INFO, params: input },
         { requestId: context.requestId },
       ),
   };

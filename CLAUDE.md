@@ -14,11 +14,11 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **122개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **123개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 128). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 129). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -51,6 +51,11 @@ Tool 까지 더한 수다(지금 128). 한동안 이 값을 Core 개수로 옮�
   **`linkedLayers` 속성에는 없다** (ROADMAP §48)
 - 칠 불투명도: `layer.set_fill_opacity` — **`opacity` 와 다르다.** 스타일은 남고 픽셀만
 - 스마트 오브젝트: `smart_object.convert` — 뒤에 거는 필터가 스마트 필터가 된다
+- 스마트 오브젝트 정보: `smart_object.get_info` — **DOM 에 스마트 오브젝트가 통째로
+  없다**(`SmartObject` 페이지가 404). 다만 **batchPlay `get` 은 읽기라 알림 캡처 없이**
+  키를 직접 물어 알아냈다. **포함이어도 `fileReference` 에 값이 온다**(내부 `.psb` 이름).
+  `contentId` 가 같으면 내용을 공유한다 — 복제본이 그렇다. `linked: true` 는
+  연결 SO 를 만들 길이 없어 미확인이다 (ROADMAP §54)
 - 그룹: create / move_layer · History: undo / redo — **새 편집을 하면 redo 가 사라진다**
 - 조정 레이어: curves / levels / brightness_contrast
 - 조정 레이어 넷: `exposure`(스톱·**`gammaCorrection`**) · `black_white`(여섯 색·
@@ -893,7 +898,7 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 122개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 123개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져
@@ -949,6 +954,10 @@ doctor 는 클라이언트가 넘길 env 를 모르므로** 권한은 참고용�
 **체크박스와 드롭다운은 슬라이더와 따로 잡는다.** 기본값인 키는 descriptor 에
 안 담긴다. 그래서 `useTint` · `monochromatic` · 포토 필터의 Lab 색을 한 번 놓쳤고,
 하필 그것들이 이름을 틀리기 쉬운 것들이었다.
+
+**쓰기와 읽기를 가른다.** batchPlay `get` 은 문서를 바꾸지 않으므로 **키를 직접
+물어서** 알아낼 수 있다 — 캡처를 부탁할 필요가 없다(§54). 부탁이 필요한 것은
+`make` · `set` 처럼 무언가를 바꾸는 descriptor 다.
 
 **이 규칙은 batchPlay descriptor 한정이다.** DOM API 는 Adobe UXP 레퍼런스가
 있으므로 **문서를 먼저 본다.** `document.create` 에서 `mode` 를 `"RGB"` 로 보낼

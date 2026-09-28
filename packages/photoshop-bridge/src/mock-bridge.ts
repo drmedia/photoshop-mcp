@@ -973,6 +973,27 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         this.#activeLayerId = wrapped.id;
         return { layer: { ...wrapped }, converted: true, previousId } as TResult;
       }
+      /**
+       * 스마트 오브젝트 속성 읽기. (ROADMAP §54)
+       *
+       * **Mock 은 연결 여부와 파일 경로를 모른다.** 파일 시스템에 닿는 값이라
+       * 지어내면 그 거짓이 워크플로 판단에 그대로 들어간다 — `linked` 와
+       * `fileReference` 를 `null` 로 둔다. 흉내낼 수 있는 것은
+       * `isSmartObject` 뿐이고 그것은 정확히 흉내낸다.
+       */
+      case "SMART_OBJECT_GET_INFO": {
+        const at = this.#requireLayerIndex((command.params as { layerId?: number }).layerId);
+        const layer = this.#layers[at] as LayerInfo;
+        return {
+          layer: { ...layer },
+          isSmartObject: layer.type === "smartObject",
+          linked: null,
+          fileReference: null,
+          placed: null,
+          contentId: null,
+          raw: null,
+        } as TResult;
+      }
       case "FILTER_HIGH_PASS":
         this.#snapshot("High pass");
         return this.#gaussianBlur(command.params as { layerId?: number }) as TResult;

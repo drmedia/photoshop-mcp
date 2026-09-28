@@ -100,3 +100,155 @@ export async function smartObjectConvert(params: { layerId?: number }): Promise<
     };
   });
 }
+
+export interface SmartObjectInfo {
+  layer: LayerInfo;
+  isSmartObject: boolean;
+  /** 연결(linked) 인지 포함(embedded) 인지. 모르면 `null`. */
+  linked: boolean | null;
+  /**
+   * 내용 파일 이름.
+   *
+   * **포함이어도 값이 있다** — 실기에서 변환한 레이어가 `PLAIN.psb` 를
+   * 돌려줬다. 포함일 때는 Photoshop 내부 이름이고 연결일 때만 실제 경로다.
+   * 처음에 "포함이면 null" 이라고 적었는데 재 보니 틀렸다.
+   */
+  fileReference: string | null;
+  /** `placed` 의 안쪽 값. 실기에서 `rasterizeContent` 가 왔다. */
+  placed: string | null;
+  /** 내용의 XMP 문서 id. 복제해도 같은 내용이면 같다. */
+  contentId: string | null;
+  /** 해석하지 못한 원본. 아는 것만 위로 올리고 나머지는 그대로 둔다. */
+  raw: Record<string, unknown> | null;
+}
+
+/**
+ * 스마트 오브젝트의 속성을 읽는다. (ROADMAP §54)
+ *
+ * ## DOM 에 없다 — 레퍼런스가 그렇게 말한다
+ *
+ * Adobe Layer 레퍼런스에 스마트 오브젝트 관련 멤버가 **하나도 없다.**
+ * `rasterize()` 만 있고 그건 `layer.rasterize` 가 이미 쓴다.
+ *
+ * ## 읽기라 잡아 달라고 부탁하지 않았다
+ *
+ * batchPlay `get` 은 **읽기만 한다.** 없는 속성을 물으면 오류가 나거나 빈 값이
+ * 오고 문서는 바뀌지 않는다. 그래서 키를 알아내는 데 알림 캡처가 필요 없다 —
+ * `mask.select` 의 `ChannelProbe` 와 같은 방법이다(§31).
+ *
+ * ## 아는 것만 올리고 나머지는 `raw` 로 둔다
+ *
+ * 이름을 짐작해 채우지 않는다. 매핑하지 못한 키는 `raw` 에 그대로 남긴다 —
+ * `rawBitDepth` · `rawKind` · `rawAdjustmentType` 과 같은 원칙이다.
+ */
+export async function smartObjectGetInfo(params: { layerId?: number }): Promise<SmartObjectInfo> {
+  return runModal("Get smart object info", async () => {
+    const document = requireActiveDocument();
+    const target =
+      params.layerId === undefined
+        ? document.activeLayers[0]
+        : findLayerById(document.layers, params.layerId);
+    if (target === undefined || target === null) {
+      throw new DispatchError(
+        "LAYER_NOT_FOUND",
+        params.layerId === undefined
+          ? "활성 레이어가 없습니다."
+          : `레이어 ${params.layerId} 를 찾을 수 없습니다.`,
+        { recoverable: true, details: { layerId: params.layerId } },
+      );
+    }
+
+    const info = flattenLayers(document.layers).find((entry) => entry.id === target.id);
+    if (info === undefined) {
+      throw new DispatchError(
+        "LAYER_NOT_FOUND",
+        `레이어 ${target.id} 를 목록에서 찾지 못했습니다.`,
+        {
+          recoverable: true,
+          details: { layerId: target.id },
+        },
+      );
+    }
+    const layer = (await withMaskStateAsync([info]))[0] as LayerInfo;
+
+    /* **스마트 오브젝트가 아니면 묻지 않는다.** 물으면 batchPlay 가 실패하고,
+     * 그 실패를 "정보를 못 읽었다" 로 돌려주면 호출자는 스마트 오브젝트인데
+     * 읽기에 실패한 것으로 읽는다. */
+    if (layer.type !== "smartObject") {
+      return {
+        layer,
+        isSmartObject: false,
+        linked: null,
+        fileReference: null,
+        placed: null,
+        contentId: null,
+        raw: null,
+      };
+    }
+
+    let bag: Record<string, unknown> | null = null;
+    try {
+      const results = await action.batchPlay(
+        [
+          {
+            _obj: "get",
+            _target: [{ _property: "smartObject" }, { _ref: "layer", _id: layer.id }],
+          },
+        ],
+        {},
+      );
+      const value = results[0]?.["smartObject"];
+      bag = value !== null && typeof value === "object" ? (value as Record<string, unknown>) : null;
+    } catch {
+      /* 읽지 못하면 `null` 이다. 지어내지 않는다. */
+      bag = null;
+    }
+
+    if (bag === null) {
+      return {
+        layer,
+        isSmartObject: true,
+        linked: null,
+        fileReference: null,
+        placed: null,
+        contentId: null,
+        raw: null,
+      };
+    }
+
+    /* `_obj` 는 descriptor 자신의 클래스 이름("smartObject")이라 담지 않는다.
+     * 나머지 넷은 실기에서 실제로 온 것이다. */
+    const known = new Set(["_obj", "linked", "fileReference", "placed", "documentID"]);
+    const linkedValue = bag["linked"];
+    const fileValue = bag["fileReference"];
+    const documentIdValue = bag["documentID"];
+
+    /* `placed` 는 `{_enum:"placed", _value:"rasterizeContent"}` 로 온다.
+     * 안쪽 값만 꺼내고, 모양이 다르면 `null` 로 둔 채 `raw` 에 남긴다. */
+    const placedRaw = bag["placed"];
+    const placedValue =
+      placedRaw !== null && typeof placedRaw === "object"
+        ? (placedRaw as Record<string, unknown>)["_value"]
+        : undefined;
+
+    const rest: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(bag)) {
+      if (!known.has(key)) {
+        rest[key] = value;
+      }
+    }
+    if (placedValue === undefined && placedRaw !== undefined) {
+      rest["placed"] = placedRaw;
+    }
+
+    return {
+      layer,
+      isSmartObject: true,
+      linked: typeof linkedValue === "boolean" ? linkedValue : null,
+      fileReference: typeof fileValue === "string" ? fileValue : null,
+      placed: typeof placedValue === "string" ? placedValue : null,
+      contentId: typeof documentIdValue === "string" ? documentIdValue : null,
+      raw: Object.keys(rest).length === 0 ? null : rest,
+    };
+  });
+}

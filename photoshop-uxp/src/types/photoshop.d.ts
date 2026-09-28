@@ -284,6 +284,13 @@ declare module "photoshop" {
      * 값이 무엇인지 확인한 적이 없으므로 `unknown` 이다. 없으면 거절한다.
      */
     readonly FlipAxis?: Readonly<Record<string, unknown>>;
+    /**
+     * `Layer.scale` · `Layer.rotate` 의 `options.interpolation`.
+     * (`LAYER_SCALE` · `LAYER_ROTATE`)
+     *
+     * 값이 무엇인지 확인한 적이 없으므로 `unknown` 이다. 없으면 거절한다.
+     */
+    readonly InterpolationMethod?: Readonly<Record<string, unknown>>;
   };
 }
 

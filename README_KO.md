@@ -16,7 +16,7 @@ Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입�
 MCP 클라이언트는 Claude Code · VS Code Copilot Chat 에서 확인했습니다.
 
 > **현재 상태: Phase 13 (Production Hardening) 까지 완료. Phase 14 (Distribution) 는 준비만 되어 있습니다.**
-> Core Tool 102개, Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 · `rcastro` 3 ·
+> Core Tool 105개, Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 · `rcastro` 3 ·
 > `starnet` 1)를 포함해 Photoshop 27.8 에서 실기 검증했습니다.
 > 모든 Tool 과 Command 가 권한 레벨을 선언하며, 기본값은 `read` · `edit` 만 허용합니다.
 > npm 에는 아직 올리지 않았습니다 — 클론해서 쓰십시오.
@@ -218,7 +218,7 @@ Job 은 메모리에만 있어 서버를 다시 띄우면 사라집니다.
 
 ## 지금 동작하는 것
 
-Core Tool 102개, Resource 6개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
+Core Tool 105개, Resource 6개가 **Mock Bridge** 와 **실제 Photoshop Bridge** 양쪽에서 동작합니다.
 전체 목록과 Permission 기준은 [docs/CORE_API.md](docs/CORE_API.md) 에 있습니다.
 
 **조회**

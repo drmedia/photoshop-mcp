@@ -251,6 +251,7 @@ describe("Core Tool 분류", () => {
     expect(byLevel("destructive")).toEqual([
       "LAYER_RASTERIZE",
       "LAYER_MERGE",
+      "LAYER_SCALE",
       "LAYER_DELETE",
       /* 축소는 픽셀을 다시 표본화하고 버려진 해상도가 문서 어디에도 남지
        * 않는다. `document.crop` 이 `edit` 인 근거가 "픽셀은 버리지 않는다"
@@ -305,6 +306,9 @@ describe("Core Tool 분류", () => {
           type === "LAYER_RASTERIZE" ||
           // 합쳐진 레이어들이 사라진다. (ROADMAP §46)
           type === "LAYER_MERGE" ||
+          /* 줄이면 되돌릴 수 없다. `image.resize` 와 같은 종류이고 이쪽은
+           * 레이어 하나다. (ROADMAP §47) */
+          type === "LAYER_SCALE" ||
           type === "WORKSPACE_DELETE" ||
           /* 선택 영역을 파일로 내보낸다. 파일을 만드는 규칙이 `DOCUMENT_EXPORT`
            * 와 같아 같은 등급이다 — 승인된 폴더 안, 덮어쓰지 않는다. */

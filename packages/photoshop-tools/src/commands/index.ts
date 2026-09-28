@@ -27,6 +27,17 @@ import { LAYER_SET_LOCK, LayerSetLockParamsSchema, layerSetLockCommand } from ".
 import { LAYER_FLIP, LayerFlipParamsSchema, layerFlipCommand } from "./layer-flip.js";
 import { LAYER_MERGE, LayerMergeParamsSchema, layerMergeCommand } from "./layer-merge.js";
 import {
+  LAYER_ROTATE,
+  LAYER_SCALE,
+  LAYER_TRANSLATE,
+  LayerRotateParamsSchema,
+  LayerScaleParamsSchema,
+  LayerTranslateParamsSchema,
+  layerRotateCommand,
+  layerScaleCommand,
+  layerTranslateCommand,
+} from "./layer-transform.js";
+import {
   LAYER_RASTERIZE,
   LayerRasterizeParamsSchema,
   layerRasterizeCommand,
@@ -309,6 +320,7 @@ export * from "./layer-lock.js";
 export * from "./layer-flip.js";
 export * from "./layer-rasterize.js";
 export * from "./layer-merge.js";
+export * from "./layer-transform.js";
 export {
   LAYER_GET_ACTIVE,
   LayerGetActiveParams,
@@ -406,6 +418,22 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_MERGE, layerMergeCommand, {
     permission: "destructive",
     schema: LayerMergeParamsSchema,
+  });
+  // 옮기는 것은 픽셀을 다시 표본화하지 않는다. 잃는 것이 없다.
+  registry.register(LAYER_TRANSLATE, layerTranslateCommand, {
+    permission: "edit",
+    schema: LayerTranslateParamsSchema,
+  });
+  /* **줄이면 되돌릴 수 없다.** `image.resize` 가 문서 전체에 대해 그런 것과
+   * 같은 종류이고 이쪽은 레이어 하나다. (ROADMAP §47) */
+  registry.register(LAYER_SCALE, layerScaleCommand, {
+    permission: "destructive",
+    schema: LayerScaleParamsSchema,
+  });
+  // `document.rotate` 가 edit 인 것과 같다. 덜어내는 것이 아니다.
+  registry.register(LAYER_ROTATE, layerRotateCommand, {
+    permission: "edit",
+    schema: LayerRotateParamsSchema,
   });
   registry.register(LAYER_SELECT_MULTIPLE, layerSelectMultipleCommand, {
     permission: "edit",

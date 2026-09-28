@@ -369,6 +369,28 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        * **맨 아래 하나로는 아래로 병합이 안 된다.** 실제 Photoshop 이 이유를
        * 말해 주지 않아 미리 막는 자리이고, Mock 도 같이 막는다.
        */
+      /**
+       * 레이어 변환 셋. (CORE_API §5)
+       *
+       * **Mock 은 경계를 지어내지 않는다.** 픽셀을 모르므로 `null` 이다 —
+       * 그럴듯한 사각형을 주면 그것을 보고 "얼마나 움직였다" 고 판단한
+       * 워크플로가 실기에서 다르게 돈다. `LAYER_GET` 의 `bounds` 와 같은 규칙.
+       *
+       * 쓴 기준점은 그대로 돌려준다. 그것은 지어낸 값이 아니라 요청이다.
+       */
+      case "LAYER_TRANSLATE":
+      case "LAYER_SCALE":
+      case "LAYER_ROTATE": {
+        const p = command.params as { layerId?: number; anchor?: string };
+        const index = this.#requireLayerIndex(p.layerId);
+        this.#snapshot("Transform layer");
+        return {
+          layer: { ...(this.#layers[index] as LayerInfo) },
+          before: null,
+          after: null,
+          anchor: p.anchor ?? null,
+        } as TResult;
+      }
       case "LAYER_MERGE": {
         const p = command.params as { layerIds?: number[] };
         const ids = p.layerIds ?? (this.#activeLayerId === null ? [] : [this.#activeLayerId]);

@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 102개만
+기본            Extension 0개. Core Tool 105개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -7535,3 +7535,60 @@ COMMAND_FAILED: 합쳤지만 결과 레이어를 확인하지 못했습니다. (
 - [x] `photoshop.layer.merge` — `merged` · `mergedDown` · 전후 개수
 - [x] 실기: 아래로 병합 · 여럿 병합 · 맨 아래 거절 · 숨긴 레이어
 - [x] `merge()` 반환값을 쓰고, 믿지 않고 확인한다
+
+# 47. 레이어 변환 셋 (`translate` · `scale` · `rotate`)
+
+## 단위를 재려다 레퍼런스에서 읽었다
+
+타입 서명만 보면 `number | PercentValue | PixelValue` 라 맨 숫자가 무슨 단위인지
+알 수 없다. **실기로 재려고 준비했는데 레퍼런스의 예제 코드에 다 있었다.**
+
+```js
+await layer.translate(-200, 0)                       // 픽셀
+let xOffsetPct = {_unit: "percentUnit", _value: 0};  // PercentValue 만드는 법
+await layer.scale(80, 80)                            // 퍼센트
+await layer.rotate(-90, anchorPos.TOPLEFT)           // 도
+```
+
+**`options` 를 "문서화되어 있지 않아 열지 않았다" 고 적을 뻔했다.** 틀렸다 —
+`options.interpolation: InterpolationMethod` 가 적혀 있고 여섯 가지다.
+`image.resize` 의 `resample` 과 같은 자리라 열었다.
+
+`PercentValue` 는 만드는 법을 알았지만 **열지 않았다.** `translate` 를 퍼센트로
+주는 쓰임이 이 서버에 없다. 필요해지면 그때 더한다.
+
+## 실기로 확인한 것
+
+```text
+translate(200, 50)                 left 100→300 · top 50→100 · 크기 불변
+scale(50,50) anchor topLeft        100×100 → 50×50 · 좌상단 (300,100) 고정
+scale(200,200) anchor bottomRight  50×50 → 100×100 · 우하단 (350,150) 고정
+rotate(90) anchor middleCenter     144×24 → 24×144 · 중심 유지
+rotate(90) 비대칭 표식             오른쪽 → **아래**  = 시계 방향
+```
+
+**기준점이 실제로 다르다.** `topLeft` 와 `bottomRight` 가 서로 다른 점을
+고정하는 것을 좌표로 확인했다. **회전 부호는 시계 방향 양수**이고
+`document.rotate` 와 같다(§17.19).
+
+대칭인 막대로는 회전 부호를 가를 수 없었다 — `flip` 때와 같은 함정이라(§44)
+한쪽 끝에 노란 표식을 달고 나서야 갈렸다.
+
+## 등급이 셋 다 다르다
+
+```text
+translate   edit         다시 표본화하지 않는다. 반대로 부르면 제자리
+scale       destructive  줄이면 되돌릴 수 없다 — `image.resize` 와 같은 종류
+rotate      edit         `document.rotate` 가 edit 인 것과 같다
+```
+
+## Mock 은 경계를 지어내지 않는다
+
+픽셀을 모르므로 `null` 이다. 그럴듯한 사각형을 주면 "얼마나 움직였다" 고 판단한
+워크플로가 실기에서 다르게 돈다 — `LAYER_GET` 의 `bounds` 와 같은 규칙이다.
+
+## 체크리스트
+
+- [x] `layer.translate` · `layer.scale` · `layer.rotate`
+- [x] `options.interpolation` 여섯 가지
+- [x] 실기: 단위 셋 · 기준점 둘 · 회전 부호

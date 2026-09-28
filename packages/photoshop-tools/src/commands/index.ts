@@ -351,6 +351,7 @@ export * from "./workspace-files.js";
 export * from "./extension-registry.js";
 export * from "./adjustment.js";
 export * from "./adjustment-extra.js";
+export * from "./channel.js";
 export * from "./filter.js";
 export * from "./filter-dom.js";
 export * from "./gap-tools.js";
@@ -431,6 +432,26 @@ import {
   filterSharpenCommand,
   filterUnsharpMaskCommand,
 } from "./filter-dom.js";
+import {
+  CHANNEL_CREATE,
+  CHANNEL_DELETE,
+  CHANNEL_DUPLICATE,
+  CHANNEL_GET,
+  CHANNEL_LIST,
+  CHANNEL_SELECT,
+  ChannelCreateParamsSchema,
+  ChannelDeleteParamsSchema,
+  ChannelDuplicateParamsSchema,
+  ChannelGetParamsSchema,
+  ChannelListParamsSchema,
+  ChannelSelectParamsSchema,
+  channelCreateCommand,
+  channelDeleteCommand,
+  channelDuplicateCommand,
+  channelGetCommand,
+  channelListCommand,
+  channelSelectCommand,
+} from "./channel.js";
 export { PING, pingCommand, type PingResult } from "./ping.js";
 
 /**
@@ -625,6 +646,33 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(SMART_OBJECT_UPDATE, smartObjectUpdateCommand, {
     permission: "edit",
     schema: SmartObjectUpdateParamsSchema,
+  });
+
+  // ROADMAP §56 — 채널. 전부 DOM 이라 descriptor 를 잡지 않았다.
+  registry.register(CHANNEL_LIST, channelListCommand, {
+    permission: "read",
+    schema: ChannelListParamsSchema,
+  });
+  registry.register(CHANNEL_GET, channelGetCommand, {
+    permission: "read",
+    schema: ChannelGetParamsSchema,
+  });
+  registry.register(CHANNEL_CREATE, channelCreateCommand, {
+    permission: "edit",
+    schema: ChannelCreateParamsSchema,
+  });
+  registry.register(CHANNEL_SELECT, channelSelectCommand, {
+    permission: "edit",
+    schema: ChannelSelectParamsSchema,
+  });
+  registry.register(CHANNEL_DUPLICATE, channelDuplicateCommand, {
+    permission: "edit",
+    schema: ChannelDuplicateParamsSchema,
+  });
+  /* **저장해 둔 선택 영역을 버린다.** 색 성분 채널은 플러그인이 미리 막는다. */
+  registry.register(CHANNEL_DELETE, channelDeleteCommand, {
+    permission: "destructive",
+    schema: ChannelDeleteParamsSchema,
   });
   registry.register(DODGE_BURN_DAB, dodgeBurnDabCommand, {
     // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.

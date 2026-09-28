@@ -134,6 +134,14 @@ import {
   adjustmentExposure,
   adjustmentPhotoFilter,
 } from "./dom/adjustment-extra.js";
+import {
+  channelCreate,
+  channelDelete,
+  channelDuplicate,
+  channelGet,
+  channelList,
+  channelSelect,
+} from "./dom/channel.js";
 
 const PLUGIN = { name: "photoshop-mcp-uxp", version: "0.1.0" };
 
@@ -237,6 +245,18 @@ export function createDispatcher(): CommandDispatcher {
     smartObjectRelink(p as { layerId?: number; filename: string }),
   );
   dispatcher.register("SMART_OBJECT_UPDATE", async () => smartObjectUpdate());
+  dispatcher.register("CHANNEL_LIST", async () => channelList());
+  dispatcher.register("CHANNEL_GET", async (p) =>
+    channelGet(p as { name?: string; index?: number; histogram?: boolean }),
+  );
+  dispatcher.register("CHANNEL_CREATE", async (p) => channelCreate(p as { name?: string }));
+  dispatcher.register("CHANNEL_SELECT", async (p) => channelSelect(p as { names: string[] }));
+  dispatcher.register("CHANNEL_DUPLICATE", async (p) =>
+    channelDuplicate(p as { name?: string; index?: number }),
+  );
+  dispatcher.register("CHANNEL_DELETE", async (p) =>
+    channelDelete(p as { name?: string; index?: number }),
+  );
   dispatcher.register("DOCUMENT_FLATTEN", async () => documentFlatten());
   dispatcher.register("DOCUMENT_CLOSE", async (p) =>
     documentClose(p as Parameters<typeof documentClose>[0]),

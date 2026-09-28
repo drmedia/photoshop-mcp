@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (126개)
+## 4. 구현된 Core API (132개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -286,6 +286,12 @@ RAW 의 현상 설정은 슬라이더를 보며 정하는 일이라 사람이 �
 | `photoshop.smart_object.new_via_copy` | EDIT | **내용을 공유하지 않는 사본.** duplicate 와 다르다 |
 | `photoshop.smart_object.relink` | EXTERNAL | 내용을 다른 파일로. **필터·마스크는 남는다** |
 | `photoshop.smart_object.update` | EDIT | 수정된 연결 내용을 새로 읽는다. **문서 전체다** |
+| `photoshop.channel.list` | READ | **save_channel 이 만든 채널이 여기 보인다** |
+| `photoshop.channel.get` | READ | 256칸 히스토그램(선택). statistics 와 다른 축 |
+| `photoshop.channel.create` | EDIT | **빈** 알파 채널. 내용까지 넣으려면 save_channel |
+| `photoshop.channel.select` | EDIT | 편집 대상 채널. **되돌리지 않으면 다음 작업이 걸린다** |
+| `photoshop.channel.duplicate` | EDIT | 채널 편집 전 사본 |
+| `photoshop.channel.delete` | DESTRUCTIVE | **색 성분 채널은 거절한다** |
 | `photoshop.layer.delete` | DESTRUCTIVE | **id 를 명시한다.** 패턴을 받지 않는다 |
 
 `layerId` 를 생략하면 활성 레이어를 대상으로 한다. 그것이 무엇인지는
@@ -538,13 +544,7 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
-| `photoshop.channel.list` | P2 | READ | |
-| `photoshop.channel.get` | P2 | READ | |
-| `photoshop.channel.create` | P2 | EDIT | |
-| `photoshop.channel.select` | P2 | EDIT | |
-| `photoshop.channel.load_as_selection` | P2 | EDIT | |
-| `photoshop.channel.duplicate` | P3 | EDIT | |
-| `photoshop.channel.delete` | P3 | DESTRUCTIVE | |
+| `photoshop.channel.load_as_selection` | P2 | EDIT | **만들지 않는다** — `selection.load_channel` 이 한다 (ROADMAP §56) |
 
 ### 5.10 History
 
@@ -758,7 +758,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **126** |
+| 구현됨 | **132** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

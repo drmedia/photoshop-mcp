@@ -14,11 +14,11 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **126개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **132개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 132). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 138). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -68,6 +68,12 @@ Tool 까지 더한 수다(지금 132). 한동안 이 값을 Core 개수로 옮�
   (ROADMAP §31). `mask.dab` · `mask.gradient` 는 대상을 스스로 정하므로 무관하다
 - 마스크 반전: `mask.invert` — `{_obj:"invert"}` 에 **타깃이 없어** 대상을 잠깐
   옮겼다 되돌린다. 어디에 남겼는지를 `editTarget` 이 말한다 (ROADMAP §32)
+- 채널: `channel.list` · `get` · `create` · `select` · `duplicate` · `delete` —
+  **전부 DOM 이라 descriptor 를 한 번도 안 잡았다.** `save_channel` 이 만든 채널을
+  드디어 볼 수 있다. **이름이 지역화된다**(빨강·녹색·파랑) — 그래서 Mock 은 알파
+  채널만 모델링한다. `histogram` 은 **알파 채널이고 보일 때만** 나온다 — 성분 쪽은
+  `document.statistics` 다. `load_as_selection` 은 `selection.load_channel` 이
+  이미 해서 안 만들었다 (ROADMAP §56)
 - 광도 마스크: `selection.luminosity` — **`color_range` 는 광도 마스크가 아니다.**
   그쪽은 임계 기반 구간 선택이라 거의 이진이고 구조를 못 따라간다
 - 다각형 선택: `selection.polygon` — 사각형·타원으로 못 만드는 모양. 점 셋 이상.
@@ -899,7 +905,7 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 126개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 132개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져

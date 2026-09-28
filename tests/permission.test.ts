@@ -265,6 +265,7 @@ describe("Core Tool 분류", () => {
       "IMAGE_RESIZE",
       "DOCUMENT_FLATTEN",
       "DOCUMENT_CLOSE",
+      "CHANNEL_DELETE",
       "ACTION_PLAY",
       "MASK_APPLY",
       "MASK_DELETE",
@@ -325,6 +326,9 @@ describe("Core Tool 분류", () => {
            * `mask.dab` · `mask.gradient` 로 쌓아 둔 것이 한 번에 없어지고,
            * 되살리는 쪽이 목적이면 `MASK_DISABLE` 이 있다. (ROADMAP §50) */
           type === "MASK_DELETE" ||
+          /* 저장해 둔 선택 영역을 버린다. 색 성분 채널은 플러그인이 미리
+           * 막는다 — 지우면 문서의 색이 망가진다. (ROADMAP §56) */
+          type === "CHANNEL_DELETE" ||
           /* 이미지를 다시 표본화한다. 축소하면 버려진 해상도가 문서 어디에도
            * 남지 않는다 — `DOCUMENT_CROP` 이 `edit` 인 근거가 "픽셀은 버리지
            * 않는다" 이므로 이쪽은 갈린다. (ROADMAP §33) */

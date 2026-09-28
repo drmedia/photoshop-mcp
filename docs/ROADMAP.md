@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 126개만
+기본            Extension 0개. Core Tool 132개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -8306,3 +8306,84 @@ Photoshop 메뉴 이름 그대로이고 클립보드와 상관이 없다.
 - [x] 실기: `linkMissing` 이 `workspace.delete` 로 깨진 연결을 잡는다
 - [x] 실기: `new_via_copy` 가 연결에 안 걸린다 — 미리 막는다
 - [x] §54 의 `contentId` 해석 정정
+
+# 56. 채널 (`channel.*` 여섯)
+
+`CORE_API.md` §5.9 의 일곱 중 여섯이다.
+
+## 전부 DOM 이다 — 캡처가 한 번도 필요 없었다
+
+레퍼런스에 `Channels` 컬렉션(`add` · `getByName` · `length` · 색인)과 `Channel`
+클래스(`histogram` · `name` · `kind` · `visible` · `opacity` · `duplicate` ·
+`remove`)가 있고, **`document.activeChannels` 는 읽기/쓰기**다. batchPlay 를
+한 줄도 쓰지 않았다.
+
+## 왜 필요했는가
+
+`selection.save_channel` 이 채널을 만드는데 **목록을 볼 방법이 없었다.**
+이름이 틀리면 `selection.load_channel` 이 `"설정" 명령은 현재 사용할 수
+없습니다` 만 돌려준다 — 그 벽은 `selection-ops.ts` 주석에 이미 적혀 있었다.
+
+```text
+selection.save_channel { name: "하늘" }
+channel.list  →  index 3 · 하늘 · isComponent false · kind maskedAreas
+```
+
+## 이름이 지역화된다
+
+```text
+빨강 · 녹색 · 파랑     isComponent: true   kind: "component"
+하늘                   isComponent: false  kind: "maskedAreas"
+```
+
+**Mock 은 색 성분 채널을 담지 않는다.** 영어 이름을 지어 넣으면 테스트가
+실기와 다른 이름을 사실로 굳힌다. 그 대가로 `channel.delete` 의 "색 성분은
+거절한다" 경로는 Mock 으로 나오지 않아 실기에서 확인했다.
+
+`kind` 는 그대로 읽을 수 있는 문자열이라 매핑이 필요 없었다 — `rawKind` 는
+못 읽었을 때만 담는다.
+
+## `histogram` 에 제약이 둘 있다
+
+처음에 `null` 이 나왔다. **삼키지 않고 이유를 캐서** 두 가지를 잡았다.
+
+```text
+성분 채널       문자 구성 요소의 채널에 유효한 작업이 아닙니다
+                → 혼자 보이게 해도 안 된다. 알파 채널 전용이다
+안 보이는 채널  보이는 채널에 대한 막대 그래프만 얻을 수 있습니다
+                → channel.select 로 보이게 하면 나온다
+```
+
+둘 다 **미리 막고 무엇을 하면 되는지 말한다.** 예외를 `null` 로 삼키면
+호출자는 "값이 없다" 로 읽는다.
+
+보이게 한 뒤 읽은 값이 맞는지도 쟀다 — 150×120 사각형을 저장한 채널의 255번
+칸이 **18000** 이었다.
+
+성분 채널의 분포는 `document.statistics` 가 이미 준다. 둘의 자리가 갈린다.
+
+```text
+document.statistics   문서·레이어를 64칸 + 채널별 평균·노이즈
+channel.get           저장해 둔 알파 채널을 256칸
+```
+
+## `load_as_selection` 은 만들지 않았다
+
+`selection.load_channel` 이 이미 한다. 같은 능력에 이름이 둘이면 호출자가
+어느 쪽이 맞는지 고민한다. (`selection.from_layer` · `smart_object.rasterize`
+와 같은 판단)
+
+## `channel.select` 는 보이는 채널도 바꾼다
+
+고른 채널이 보이게 되고 나머지는 숨는다. 그래서 `channel.get` 의 histogram 을
+읽기 전에 이것을 부르게 된다. **끝나면 성분 채널 전부로 되돌려야 한다** —
+안 되돌리면 다음 필터·조정이 조용히 한 채널에만 걸린다.
+
+## 체크리스트
+
+- [x] `photoshop.channel.list` · `get` · `create` · `select` · `duplicate` · `delete`
+- [x] 전부 DOM — descriptor 를 한 번도 잡지 않았다
+- [x] 실기: 지역화된 이름 · `kind` 값 · `save_channel` 연동
+- [x] 실기: histogram 의 두 제약을 잡아 미리 막는다 (255번 칸 18000 로 검산)
+- [x] 실기: 색 성분 채널 삭제 거절 · 알파 채널 삭제·복제·생성
+- [x] Mock 은 알파 채널만 모델링한다 (이름이 지역화되어 지어낼 수 없다)

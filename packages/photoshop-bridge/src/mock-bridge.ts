@@ -25,6 +25,16 @@ export const DEFAULT_MOCK_DOCUMENT: DocumentInfo = {
   colorMode: "RGB",
 };
 
+/** Mock 이 흉내내는 채널. 색 성분은 담지 않는다 — 이름이 지역화된다. */
+interface MockChannelInfo {
+  index: number;
+  name: string;
+  isComponent: boolean;
+  kind: string | null;
+  visible: boolean | null;
+  opacity: number | null;
+}
+
 /** ROADMAP §5.5 의 기본 Mock 레이어. */
 export const DEFAULT_MOCK_LAYERS: readonly LayerInfo[] = [
   {
@@ -2166,6 +2176,84 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         return { documentId: document.id } as TResult;
       }
 
+      /**
+       * 채널. (ROADMAP §56)
+       *
+       * **Mock 은 알파 채널만 모델링한다.**
+       *
+       * 색 성분 채널(R·G·B)의 **이름이 Photoshop 언어 설정에 따라 다르다** —
+       * 한국어 환경에서는 `빨강`·`녹색`·`파랑` 이다. 영어 이름을 지어 넣으면
+       * 테스트가 실기와 다른 이름을 사실로 굳힌다. 그래서 담지 않는다.
+       *
+       * 그 대가로 **`channel.delete` 의 "색 성분은 거절한다" 경로는 Mock 으로
+       * 나오지 않는다** — 실기에서 확인한다.
+       *
+       * 흉내낼 수 있는 것은 정확히 흉내낸다: `selection.save_channel` 이 만든
+       * 채널이 목록에 보이는 것, 만들면 늘고 지우면 주는 것, 없는 이름을
+       * 거절하는 것.
+       */
+      case "CHANNEL_LIST":
+        this.#requireDocument();
+        return { channels: this.#channelInfos() } as TResult;
+      case "CHANNEL_GET": {
+        this.#requireDocument();
+        const params = command.params as { name?: string; index?: number; histogram?: boolean };
+        const info = this.#findChannel(params);
+        /* **히스토그램은 픽셀이라 Mock 이 모른다.** 요청해도 `null` 이다 —
+         * 그럴듯한 256개 숫자를 지어내면 워크플로가 그것을 보고 판단한다. */
+        return { ...info, histogram: null } as TResult;
+      }
+      case "CHANNEL_CREATE": {
+        this.#requireDocument();
+        this.#snapshot("Create channel");
+        const name =
+          (command.params as { name?: string }).name ?? `알파 ${String(this.#channels.size + 1)}`;
+        if (this.#channels.has(name)) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `채널 '${name}' 이 이미 있습니다.`,
+            { recoverable: true, details: { name } },
+          );
+        }
+        this.#channels.add(name);
+        return this.#findChannel({ name }) as TResult;
+      }
+      case "CHANNEL_SELECT": {
+        this.#requireDocument();
+        this.#snapshot("Select channels");
+        const names = (command.params as { names: string[] }).names;
+        for (const name of names) {
+          if (!this.#channels.has(name)) {
+            throw new PhotoshopMcpError(
+              ErrorCode.INVALID_PARAMETER,
+              `채널 '${name}' 이 없습니다.`,
+              { recoverable: true, details: { name, available: [...this.#channels] } },
+            );
+          }
+        }
+        return { active: [...names] } as TResult;
+      }
+      case "CHANNEL_DUPLICATE": {
+        this.#requireDocument();
+        this.#snapshot("Duplicate channel");
+        const info = this.#findChannel(command.params as { name?: string; index?: number });
+        let copy = `${info.name} 복사`;
+        let n = 2;
+        while (this.#channels.has(copy)) {
+          copy = `${info.name} 복사 ${String(n)}`;
+          n += 1;
+        }
+        this.#channels.add(copy);
+        return this.#findChannel({ name: copy }) as TResult;
+      }
+      case "CHANNEL_DELETE": {
+        this.#requireDocument();
+        this.#snapshot("Delete channel");
+        const info = this.#findChannel(command.params as { name?: string; index?: number });
+        this.#channels.delete(info.name);
+        return { deleted: info.name, remaining: this.#channels.size } as TResult;
+      }
+
       case "LAYER_PLACE":
         this.#snapshot("Place file");
         return this.#place(
@@ -2609,6 +2697,43 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
    * `asSmartFilter: true` 일 때 대상이 스마트 오브젝트로 바뀌는 것만 반영한다.
    * 호출자가 결과의 `type` 으로 비파괴 여부를 확인할 수 있어야 하기 때문이다.
    */
+  /** 알파 채널만. 색 성분은 이름이 지역화되어 Mock 이 지어낼 수 없다. */
+  #channelInfos(): MockChannelInfo[] {
+    return [...this.#channels].map((name, index) => ({
+      index,
+      name,
+      isComponent: false,
+      /* 실기 값을 모르므로 `null` 이다. */
+      kind: null,
+      visible: null,
+      opacity: null,
+    }));
+  }
+
+  #findChannel(params: { name?: string; index?: number }): MockChannelInfo {
+    const all = this.#channelInfos();
+    if (params.index !== undefined) {
+      const found = all[params.index];
+      if (found === undefined) {
+        throw new PhotoshopMcpError(
+          ErrorCode.INVALID_PARAMETER,
+          `채널 색인 ${String(params.index)} 가 범위를 벗어납니다. 채널은 ${String(all.length)}개입니다.`,
+          { recoverable: true, details: { index: params.index, count: all.length } },
+        );
+      }
+      return found;
+    }
+    const found = all.find((entry) => entry.name === params.name);
+    if (found === undefined) {
+      throw new PhotoshopMcpError(
+        ErrorCode.INVALID_PARAMETER,
+        `채널 '${String(params.name)}' 이 없습니다.`,
+        { recoverable: true, details: { name: params.name, available: all.map((e) => e.name) } },
+      );
+    }
+    return found;
+  }
+
   #gaussianBlur(params: { layerId?: number; asSmartFilter?: boolean }): LayerInfo {
     const index = this.#requireLayerIndex(params.layerId);
     const layer = this.#layers[index] as LayerInfo;

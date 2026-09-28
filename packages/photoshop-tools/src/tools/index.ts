@@ -148,8 +148,17 @@ import {
   createFilterSharpenTool,
   createFilterUnsharpMaskTool,
 } from "./filter-dom.js";
+import {
+  createChannelCreateTool,
+  createChannelDeleteTool,
+  createChannelDuplicateTool,
+  createChannelGetTool,
+  createChannelListTool,
+  createChannelSelectTool,
+} from "./channel.js";
 export * from "./adjustment.js";
 export * from "./adjustment-extra.js";
+export * from "./channel.js";
 export * from "./filter.js";
 export * from "./filter-dom.js";
 export * from "./capability.js";
@@ -241,6 +250,12 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createSmartObjectNewViaCopyTool(engine));
   registry.register(createSmartObjectRelinkTool(engine));
   registry.register(createSmartObjectUpdateTool(engine));
+  registry.register(createChannelListTool(engine));
+  registry.register(createChannelGetTool(engine));
+  registry.register(createChannelCreateTool(engine));
+  registry.register(createChannelSelectTool(engine));
+  registry.register(createChannelDuplicateTool(engine));
+  registry.register(createChannelDeleteTool(engine));
   registry.register(createDodgeBurnDabTool(engine));
   registry.register(createActionListTool(engine));
   registry.register(createActionDeclaredTool(engine));

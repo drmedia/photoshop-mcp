@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 98개만
+기본            Extension 0개. Core Tool 99개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -7312,3 +7312,77 @@ app.fonts · app.actionTree (두 곳)
 - [x] `closeWorkDocument()` 로 `?? "no"` 제거
 - [x] 능력 가드 여섯 곳 `COMMAND_NOT_SUPPORTED`
 - [x] `capture` 가 변환 불가 시 실패
+
+# 43. 레이어 잠금 (`photoshop.layer.set_lock`)
+
+## 레퍼런스와 실기가 달랐다
+
+Adobe 레퍼런스는 넷을 **각각 읽기/쓰기 불린**으로 적는다.
+
+```text
+allLocked · pixelsLocked · positionLocked · transparentPixelsLocked   읽기/쓰기
+locked                                                                읽기 전용
+```
+
+실기는 다르다. **하나를 쓰면 나머지가 전부 지워진다.**
+
+```text
+pixels true              →  pixels true, 나머지 false
+그 뒤 position true      →  position true, pixels **false**
+그 뒤 transparent true   →  transparent true, position **false**
+그 뒤 all false          →  전부 false
+```
+
+즉 **한 번에 하나만 걸 수 있다.** 넷이 아니라 다섯 갈래의 단일 상태다.
+
+## 그래서 API 를 다시 짰다
+
+처음에는 네 불린을 받는 Tool 로 만들었다. 그러면 `pixels` 와 `position` 을
+함께 달라는 **절대 성공할 수 없는 요청**을 받아들이게 된다 — 스키마가 되지 않는
+일을 되는 것처럼 보이게 하는 셈이다. 단일 `lock` 값으로 바꿨다.
+
+```text
+none · all · pixels · position · transparentPixels
+```
+
+`none` 이 "전부 풀기" 다 — `allLocked = false` 가 그 일을 한다.
+
+**`lock` / `unlock` 두 Tool 로 나누지 않은 이유는 그대로다.** 무엇을 잠갔는지가
+사라지고, `locked` 는 읽기 전용이라 대상이 될 수도 없다.
+
+## 결과는 다섯을 그대로 준다
+
+단일 값으로 요약하지 않는다. **배경 레이어가 `position` 과
+`transparentPixels` 를 동시에 갖기 때문**이다 — 설정기로는 도달할 수 없는
+상태이고, 요약하면 그 사실을 말할 수 없다.
+
+```text
+배경   any true · all false · pixels false · position true · transparentPixels true
+```
+
+배경의 잠금은 **풀리지 않는다.** 대입이 조용히 무시되므로 읽어서 확인하고
+실패로 답한다 — `layer.from_background` 를 안내한다.
+
+## `mutate()` 규칙을 안 따라 한 번 데었다
+
+배경의 `positionLocked` 를 풀려다 이렇게 끝났다.
+
+```text
+COMMAND_FAILED: The 레이어 with an id of undefined does not exist.
+```
+
+**이 프로젝트가 아는 참조 무효화다.** 쓰기 뒤에 원래 참조로 읽었기 때문이고,
+`mutate()` 가 존재하는 바로 그 이유였다. id 를 미리 떠 두고 뒤에 다시 찾도록
+고쳤으며, `readLocks` 는 속성 접근 자체가 던질 수 있어 `try/catch` 로 감쌌다.
+
+## `layer.get` 도 다섯으로 채웠다
+
+둘만 주고 있어 `set_lock` 으로 건 값을 확인할 길이 없었다. 쓰는 쪽과 읽는 쪽의
+어휘가 같아야 한다.
+
+## 체크리스트
+
+- [x] `photoshop.layer.set_lock` — 단일 `lock`, `locks` 다섯, `applied`
+- [x] `photoshop.layer.get` 이 잠금 다섯을 모두 돌려준다
+- [x] 실기: 배타성 · `none` · `all` · 배경 거절
+- [x] Mock 이 배타성을 흉내낸다

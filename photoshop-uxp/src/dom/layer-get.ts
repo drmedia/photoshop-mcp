@@ -43,8 +43,12 @@ export interface LayerDetail {
   bounds: LayerBounds | null;
   /** 효과를 뺀 경계. 효과가 없으면 `bounds` 와 같다. */
   boundsNoEffects: LayerBounds | null;
+  /** 무엇이든 잠겼는가. **읽기 전용 파생값**이다. */
   locked: boolean | null;
   allLocked: boolean | null;
+  pixelsLocked: boolean | null;
+  positionLocked: boolean | null;
+  transparentPixelsLocked: boolean | null;
   isClippingMask: boolean | null;
   /** 0–100. `opacity` 와 다르다 — 효과는 남기고 픽셀만 투명해진다. */
   fillOpacity: number | null;
@@ -112,8 +116,13 @@ export async function layerGet(params: { layerId?: number }): Promise<LayerDetai
       layer: base,
       bounds: toBounds(raw["bounds"]),
       boundsNoEffects: toBounds(raw["boundsNoEffects"]),
+      /* **다섯을 모두 담는다.** 둘만 주면 `layer.set_lock` 으로 건 값을
+       * 확인할 길이 없다 — 쓰는 쪽과 읽는 쪽의 어휘가 같아야 한다. */
       locked: flag(raw["locked"]),
       allLocked: flag(raw["allLocked"]),
+      pixelsLocked: flag(raw["pixelsLocked"]),
+      positionLocked: flag(raw["positionLocked"]),
+      transparentPixelsLocked: flag(raw["transparentPixelsLocked"]),
       isClippingMask: flag(raw["isClippingMask"]),
       fillOpacity: num(raw["fillOpacity"]),
     };

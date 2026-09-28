@@ -23,6 +23,7 @@ import {
   documentDuplicateCommand,
 } from "./document-duplicate.js";
 import { LAYER_GET, LayerGetParamsSchema, layerGetCommand } from "./layer-get.js";
+import { LAYER_SET_LOCK, LayerSetLockParamsSchema, layerSetLockCommand } from "./layer-lock.js";
 import {
   LAYER_SELECT_MULTIPLE,
   LayerSelectMultipleParamsSchema,
@@ -297,6 +298,7 @@ export * from "./group.js";
 export * from "./mask-selection.js";
 export * from "./history.js";
 export * from "./layer-edit.js";
+export * from "./layer-lock.js";
 export {
   LAYER_GET_ACTIVE,
   LayerGetActiveParams,
@@ -374,6 +376,10 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_GET, layerGetCommand, {
     permission: "read",
     schema: LayerGetParamsSchema,
+  });
+  registry.register(LAYER_SET_LOCK, layerSetLockCommand, {
+    permission: "edit",
+    schema: LayerSetLockParamsSchema,
   });
   registry.register(LAYER_SELECT_MULTIPLE, layerSelectMultipleCommand, {
     permission: "edit",

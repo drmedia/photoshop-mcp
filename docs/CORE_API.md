@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (98개)
+## 4. 구현된 Core API (99개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -111,6 +111,7 @@ P3  확장 기능
 | `photoshop.document.get` | READ | 활성 문서 정보 |
 | `photoshop.layer.list` | READ | 활성 문서의 레이어 목록 |
 | `photoshop.layer.get` | READ | 한 레이어의 상세. **`bounds` 를 준다** — 목록에는 없다 |
+| `photoshop.layer.set_lock` | EDIT | **잠금은 넷이다.** `all` 을 켜면 나머지도 켜진다 |
 | `photoshop.layer.select_multiple` | EDIT | 여러 장을 한 번에. **순서는 Photoshop 이 정한다** |
 | `photoshop.document.capture` | READ | 문서를 합성해 **그림으로** 돌려준다 |
 | `photoshop.layer.capture` | READ | 레이어 하나만 그림으로 |
@@ -453,8 +454,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
-| `photoshop.layer.lock` | P2 | EDIT | |
-| `photoshop.layer.unlock` | P2 | EDIT | |
 | `photoshop.layer.place_linked` | P3 | EXTERNAL | 연결된 스마트 오브젝트 |
 | `photoshop.layer.delete` | P2 | DESTRUCTIVE | |
 | `photoshop.layer.merge` | P2 | DESTRUCTIVE | |
@@ -752,7 +751,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **98** |
+| 구현됨 | **99** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

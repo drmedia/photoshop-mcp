@@ -41,10 +41,16 @@ export const LayerDetailSchema = z.object({
   /** 효과를 포함한 경계. 네 값을 모두 읽었을 때만 담긴다. */
   bounds: BoundsSchema.nullable(),
   boundsNoEffects: BoundsSchema.nullable(),
-  /** 무엇이든 잠겼는지. */
+  /** 무엇이든 잠겼는지. **읽기 전용 파생값**이다. */
   locked: z.boolean().nullable(),
   /** 전부 잠겼는지. */
   allLocked: z.boolean().nullable(),
+  /** 픽셀 편집이 막혔는지. */
+  pixelsLocked: z.boolean().nullable(),
+  /** 이동이 막혔는지. */
+  positionLocked: z.boolean().nullable(),
+  /** 투명 영역 편집이 막혔는지. */
+  transparentPixelsLocked: z.boolean().nullable(),
   isClippingMask: z.boolean().nullable(),
   /** 0–100. `opacity` 와 다르다 — 효과는 남기고 픽셀만 투명해진다. */
   fillOpacity: z.number().nullable(),

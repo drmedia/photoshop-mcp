@@ -129,6 +129,17 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   readonly #fillOpacity = new Map<number, number>();
 
   /**
+   * 레이어별 잠금. (`LAYER_SET_LOCK`)
+   *
+   * `LayerInfo` 에 없는 값이라 따로 들고 있는다. **넷이 배타적이다** —
+   * 하나를 쓰면 나머지가 지워진다(ROADMAP §43).
+   */
+  readonly #locks = new Map<
+    number,
+    { all: boolean; pixels: boolean; position: boolean; transparentPixels: boolean }
+  >();
+
+  /**
    * 지금 편집 대상이 무엇인가. (`MASK_SELECT` · `MASK_INVERT`)
    *
    * **픽셀을 흉내내는 것이 아니라 계약을 흉내낸다.** `mask.invert` 는 대상을
@@ -294,12 +305,21 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        * 워크플로가 실기에서 다르게 돈다. 실기에서만 확인할 값이다. */
       case "LAYER_GET": {
         const index = this.#requireLayerIndex((command.params as { layerId?: number }).layerId);
+        const shown = this.#layers[index] as LayerInfo;
+        const lock = this.#locks.get(shown.id);
         return {
-          layer: { ...(this.#layers[index] as LayerInfo) },
+          layer: { ...shown },
           bounds: null,
           boundsNoEffects: null,
-          locked: null,
-          allLocked: null,
+          /* 건 적이 있으면 그 값을, 없으면 null. Mock 이 지어내지 않는다. */
+          locked:
+            lock === undefined
+              ? null
+              : lock.all || lock.pixels || lock.position || lock.transparentPixels,
+          allLocked: lock?.all ?? null,
+          pixelsLocked: lock?.pixels ?? null,
+          positionLocked: lock?.position ?? null,
+          transparentPixelsLocked: lock?.transparentPixels ?? null,
           isClippingMask: null,
           // 쓴 적이 있으면 그 값을, 없으면 null. Mock 이 지어내지 않는다.
           fillOpacity: this.#fillOpacity.get((this.#layers[index] as LayerInfo).id) ?? null,
@@ -314,6 +334,38 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
 
       /* **없는 id 가 하나라도 있으면 아무것도 선택하지 않는다.** 일부만
        * 선택된 채로 실패하면 호출자가 무엇이 선택됐는지 모른다. */
+      /**
+       * 레이어 잠금. (CORE_API §5 P2)
+       *
+       * **하나를 쓰면 나머지가 지워진다.** 실기에서 확인했다(ROADMAP §43) —
+       * `pixels` 를 건 뒤 `position` 을 걸면 `pixels` 가 풀린다. 넷이 독립
+       * 플래그라고 짐작했다가 반대로 틀렸고, Mock 이 그대로였으면 테스트가
+       * 그 거짓을 굳혔다.
+       */
+      case "LAYER_SET_LOCK": {
+        const p = command.params as {
+          layerId?: number;
+          lock: "none" | "all" | "pixels" | "position" | "transparentPixels";
+        };
+        const index = this.#requireLayerIndex(p.layerId);
+        const layer = this.#layers[index] as LayerInfo;
+        this.#snapshot("Set layer lock");
+
+        // 하나만 남긴다. `none` 은 전부 푼다.
+        const next = {
+          all: p.lock === "all",
+          pixels: p.lock === "pixels",
+          position: p.lock === "position",
+          transparentPixels: p.lock === "transparentPixels",
+        };
+        this.#locks.set(layer.id, next);
+
+        const locks = {
+          any: next.all || next.pixels || next.position || next.transparentPixels,
+          ...next,
+        };
+        return { layer: { ...layer }, locks, applied: true } as TResult;
+      }
       case "LAYER_SELECT_MULTIPLE": {
         const ids = (command.params as { layerIds: number[] }).layerIds;
         const missing = ids.filter((id) => !this.#layers.some((entry) => entry.id === id));

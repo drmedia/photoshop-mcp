@@ -109,6 +109,7 @@ import {
 } from "./document-save.js";
 import { LAYER_GET_ACTIVE, layerGetActiveCommand } from "./layer-active.js";
 import { DOCUMENT_CROP, DocumentCropParamsSchema, documentCropCommand } from "./document-crop.js";
+import { IMAGE_RESIZE, ImageResizeParamsSchema, imageResizeCommand } from "./image-resize.js";
 import { DOCUMENT_OPEN, DocumentOpenParamsSchema, documentOpenCommand } from "./document-open.js";
 import {
   DOCUMENT_CLOSE,
@@ -271,6 +272,7 @@ export {
 export { LAYER_LIST, layerListCommand } from "./layer-list.js";
 export * from "./capture.js";
 export * from "./document-crop.js";
+export * from "./image-resize.js";
 export * from "./document-rotate.js";
 export * from "./measure-tilt.js";
 export * from "./layer-reorder.js";
@@ -356,6 +358,12 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     // 픽셀을 버리지 않는다. 캔버스만 줄이므로 되돌릴 수 있다.
     permission: "edit",
     schema: DocumentCropParamsSchema,
+  });
+  registry.register(IMAGE_RESIZE, imageResizeCommand, {
+    /* **`crop` 과 갈리는 자리다.** 축소는 픽셀을 다시 표본화하고 버려진
+     * 해상도가 문서 어디에도 남지 않는다 — `mask.apply` 와 같은 종류다. */
+    permission: "destructive",
+    schema: ImageResizeParamsSchema,
   });
   registry.register(DOCUMENT_OPEN, documentOpenCommand, {
     // 파일을 읽는다. 승인된 폴더 안으로 가두지만 경계를 넘는 것은 같다.

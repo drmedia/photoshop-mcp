@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 89개만
+기본            Extension 0개. Core Tool 90개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -6766,3 +6766,56 @@ Tool 로 후   246.79   86.8287       0
 - [x] 실기: 손 반전과 Tool 반전이 정확히 상쇄
 - [x] 실기: 픽셀이 대상이어도 마스크에 걸리고 픽셀은 그대로
 - [x] 실기: `editTarget` 양쪽
+
+# 33. 이미지 크기 (`photoshop.image.resize`)
+
+## `document.crop` 과 갈린다
+
+`crop` 이 `edit` 인 근거는 CORE_API 가 적어 둔 **"픽셀은 버리지 않는다"** 다.
+캔버스만 줄이고 바깥 픽셀은 레이어에 남는다. 이쪽은 픽셀을 다시 표본화하고,
+축소하면 버려진 해상도가 **문서 어디에도 남지 않는다.** 그래서 CORE_API §5 에
+`EDIT` 로 적혀 있던 것을 구현하면서 **`DESTRUCTIVE`** 로 바꿨다.
+
+`mask.apply`(가려 둔 픽셀이 없어진다) · `flatten`(숨긴 레이어를 버린다) 과 같은
+종류다. `tests/permission.test.ts` 의 고정 목록이 이 변경을 잡아냈다 — 의도한
+변경임을 확인하고 목록에 더했다.
+
+## DOM 에 있다
+
+Adobe 레퍼런스에 `resizeImage(width?, height?, resolution?, resampleMethod?,
+amount?)` 가 있다(23.0+). batchPlay 를 쓰지 않았다. `ResampleMethod` 아홉 개 중
+`NONE` 은 Adobe 가 "Currently unsupported" 라고 적어 두어 뺐다 — 스키마에 두고
+조용히 무시되면 그것이 이 프로젝트의 "조용한 실패" 네 번째가 된다.
+
+`constants.ResampleMethod` 는 타입 선언에 없어서 더했다. 값이 무엇인지 확인한 적이
+없으므로 `unknown` 이다 — `SaveOptions` 를 `string` 이라고 잘못 선언했던 자리와
+같다(§28).
+
+## 한쪽만 주면 어떻게 되는지는 재 봤다
+
+레퍼런스가 말하지 않는다. 실기에서 셋을 확인했다.
+
+```text
+4000×2500  width 2000            →  2000×1250   비율 유지
+1920×1200  width 800 height 800  →  800×800     비율 무시, 왜곡
+2000×1250 300ppi  resolution 72  →  480×300     픽셀도 함께 줄었다
+```
+
+**마지막 줄이 예상 밖이었다.** `resolution` 만 바꾸면 DPI 메타데이터만 고쳐질 것
+같지만, 인쇄 크기를 유지한 채 다시 표본화해서 픽셀이 0.24배(72/300)가 된다.
+"해상도만 300 에서 72 로 낮춰 줘" 라는 요청에 76% 의 픽셀이 사라진다 — 이 Command 가
+`destructive` 인 이유를 가장 잘 보여주는 경우다. Tool 설명에 수치와 함께 적었다.
+
+`constants.ResampleMethod.PRESERVEDETAILS` 는 27.8 에 실제로 있고 동작했다.
+
+## 실기는 임시 문서에서 했다
+
+`document.create` 로 만들어 확인하고 `document.close` 로 닫았다. `destructive` 이고
+축소는 되돌릴 수 없으므로 사용자 문서에 걸지 않는다.
+
+## 체크리스트
+
+- [x] `photoshop.image.resize` — `before` · `after` · `applied`
+- [x] Permission 을 `EDIT` → `DESTRUCTIVE` 로 바꾸고 CORE_API §9 에 근거를 적었다
+- [x] 실기: 비율 유지 · 비율 무시 · `resolution` 단독
+- [x] 실기: `PRESERVEDETAILS` 상수 존재 확인

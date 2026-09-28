@@ -247,6 +247,16 @@ declare module "photoshop" {
     readonly SaveOptions?: { readonly DONOTSAVECHANGES: unknown };
     /** 무엇을 구울지. 스마트 오브젝트는 ENTIRELAYER 로 통째로 굽는다. */
     readonly RasterizeType?: { readonly ENTIRELAYER: unknown };
+    /**
+     * `document.resizeImage` 의 보간 방식. (`IMAGE_RESIZE`)
+     *
+     * 값이 무엇인지 확인한 적이 없으므로 `unknown` 이다 — `SaveOptions` 를
+     * `string` 이라고 잘못 선언했던 자리와 같다. 쓰는 쪽은 `=== undefined`
+     * 로 있는지만 보고, 없으면 조용히 떨어뜨리지 않고 거절한다.
+     *
+     * `NONE` 은 Adobe 가 "Currently unsupported" 라고 적어 두어 뺐다.
+     */
+    readonly ResampleMethod?: Readonly<Record<string, unknown>>;
   };
 }
 

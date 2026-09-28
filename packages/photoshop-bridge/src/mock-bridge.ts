@@ -1245,6 +1245,48 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       //
       // 범위 검사를 실기와 같게 한다 — Mock 이 더 너그러우면 그 오류 경로는
       // 테스트에 영영 나오지 않는다.
+      /**
+       * 이미지 크기. (CORE_API §5 P1)
+       *
+       * **한쪽만 주면 비율을 유지한다.** 실기의 `resizeImage` 가 그렇게
+       * 동작하는지 확인한 뒤 맞췄다(ROADMAP §33). Mock 이 다르면 "한쪽만
+       * 줘도 된다" 는 계약이 테스트에 영영 나오지 않는다.
+       *
+       * Mock 에는 해상도가 없다. `resolution` 은 받아 두기만 하고 문서에
+       * 담지 않으며, `applied.resolution` 을 참이라고 말하지 않는다 —
+       * 확인한 것이 없는데 확인했다고 하는 것이 가장 나쁘다.
+       */
+      case "IMAGE_RESIZE": {
+        const document = this.#requireDocument();
+        const params = command.params as {
+          width?: number;
+          height?: number;
+          resolution?: number;
+        };
+        this.#snapshot("Resize image");
+        const before = { width: document.width, height: document.height, resolution: null };
+
+        const ratio = document.height === 0 ? 1 : document.width / document.height;
+        const width =
+          params.width ??
+          (params.height === undefined ? document.width : Math.round(params.height * ratio));
+        const height =
+          params.height ??
+          (params.width === undefined ? document.height : Math.round(params.width / ratio));
+
+        this.#document = { ...document, width, height };
+        const after = { width, height, resolution: null };
+        return {
+          document: { ...(await this.getDocumentInfo()) },
+          before,
+          after,
+          applied: {
+            ...(params.width === undefined ? {} : { width: after.width === params.width }),
+            ...(params.height === undefined ? {} : { height: after.height === params.height }),
+            ...(params.resolution === undefined ? {} : { resolution: false }),
+          },
+        } as TResult;
+      }
       case "DOCUMENT_CROP": {
         const document = this.#requireDocument();
         const { bounds } = command.params as {

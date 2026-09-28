@@ -247,6 +247,10 @@ describe("Core Tool 분류", () => {
     ]);
     expect(byLevel("destructive")).toEqual([
       "LAYER_DELETE",
+      /* 축소는 픽셀을 다시 표본화하고 버려진 해상도가 문서 어디에도 남지
+       * 않는다. `document.crop` 이 `edit` 인 근거가 "픽셀은 버리지 않는다"
+       * 이므로 이쪽은 갈린다. (ROADMAP §33) */
+      "IMAGE_RESIZE",
       "DOCUMENT_FLATTEN",
       "DOCUMENT_CLOSE",
       "ACTION_PLAY",
@@ -279,7 +283,7 @@ describe("Core Tool 분류", () => {
     // 위험 등급이 문서 저장·가져오기·파일 삭제·레이어 삭제·액션 실행 말고
     // 늘어나지 않았는지 확인한다. `LAYER_DELETE` 는 ROADMAP §17.18 에서,
     // `DOCUMENT_FLATTEN` · `DOCUMENT_CLOSE` 는 §17.25 에서,
-    // `ACTION_PLAY` 는 §17.35 에서 더했다 — 액션은 내용을 알 수 없다.
+    // `ACTION_PLAY` 는 §17.35 에서, `IMAGE_RESIZE` 는 §33 에서 더했다.
     expect(
       [...risky].every(
         (type) =>
@@ -293,6 +297,10 @@ describe("Core Tool 분류", () => {
           /* 마스크를 픽셀에 굽는다. 마스크는 끄면 되살아나지만 구우면
            * 가려진 픽셀이 없어진다 — CORE_API §9 가 처음부터 이렇게 분류했다. */
           type === "MASK_APPLY" ||
+          /* 이미지를 다시 표본화한다. 축소하면 버려진 해상도가 문서 어디에도
+           * 남지 않는다 — `DOCUMENT_CROP` 이 `edit` 인 근거가 "픽셀은 버리지
+           * 않는다" 이므로 이쪽은 갈린다. (ROADMAP §33) */
+          type === "IMAGE_RESIZE" ||
           type === "ACTION_PLAY",
       ),
     ).toBe(true);

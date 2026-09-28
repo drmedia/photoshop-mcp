@@ -54,6 +54,7 @@ import {
 import { layerGetActive, layerList } from "./dom/layers.js";
 import { captureDocument, captureLayer, captureSelection } from "./dom/capture.js";
 import { documentCrop } from "./dom/document-crop.js";
+import { imageResize } from "./dom/image-resize.js";
 import { documentRotate } from "./dom/document-rotate.js";
 import { documentTilt } from "./dom/document-tilt.js";
 import { documentClose, documentFlatten } from "./dom/document-lifecycle.js";
@@ -129,6 +130,9 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("DOCUMENT_CROP", async (p) =>
     documentCrop(p as Parameters<typeof documentCrop>[0]),
+  );
+  dispatcher.register("IMAGE_RESIZE", async (p) =>
+    imageResize(p as Parameters<typeof imageResize>[0]),
   );
   dispatcher.register("DOCUMENT_ROTATE", async (p) =>
     documentRotate(p as Parameters<typeof documentRotate>[0]),

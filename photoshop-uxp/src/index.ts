@@ -16,6 +16,7 @@ import {
   adjustmentCurves,
   adjustmentLevels,
 } from "./dom/adjustment.js";
+import { documentCreate } from "./dom/document-create.js";
 import { documentGet, documentList } from "./dom/document.js";
 import { gaussianBlur, highPass, minimumMaximum } from "./dom/filter.js";
 import {
@@ -178,6 +179,9 @@ export function createDispatcher(): CommandDispatcher {
   /* 호스트 정보와 쓰는 API 의 유무. 같은 질문을 실기에서 네 번 확인했다. */
   dispatcher.register("HOST_GET", async () => Promise.resolve(hostGet()));
   dispatcher.register("DOCUMENT_LIST", async () => documentList());
+  dispatcher.register("DOCUMENT_CREATE", async (p) =>
+    documentCreate(p as unknown as Parameters<typeof documentCreate>[0]),
+  );
   dispatcher.register("SELECTION_LOAD_CHANNEL", async (p) =>
     selectionLoadChannel(p as { name: string; invert?: boolean; mode?: "new" | "intersect" }),
   );

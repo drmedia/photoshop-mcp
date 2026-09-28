@@ -11,6 +11,11 @@ import {
   levelsCommand,
 } from "./adjustment.js";
 import { DOCUMENT_GET, documentGetCommand } from "./document-get.js";
+import {
+  DOCUMENT_CREATE,
+  DocumentCreateParamsSchema,
+  documentCreateCommand,
+} from "./document-create.js";
 import { DOCUMENT_LIST, DocumentListParamsSchema, documentListCommand } from "./document-list.js";
 import { FILTER_GAUSSIAN_BLUR, GaussianBlurParamsSchema, gaussianBlurCommand } from "./filter.js";
 import {
@@ -298,6 +303,10 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(DOCUMENT_LIST, documentListCommand, {
     permission: "read",
     schema: DocumentListParamsSchema,
+  });
+  registry.register(DOCUMENT_CREATE, documentCreateCommand, {
+    permission: "edit",
+    schema: DocumentCreateParamsSchema,
   });
   registry.register(LAYER_LIST, layerListCommand, { permission: "read" });
   registry.register(LAYER_GET_ACTIVE, layerGetActiveCommand, { permission: "read" });

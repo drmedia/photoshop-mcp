@@ -14,15 +14,17 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **83개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **84개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 89). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 90). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
 - 조회: `ping`, `document.get`, `document.list`, `layer.list`
+- 문서 만들기: `document.create` — **`applied` 로 요청값이 들어갔는지 확인한다.**
+  새 문서가 활성이 되므로 이후 편집 대상이 바뀐다
 - 호스트: `host.get` — 버전 + **이 서버가 쓰는 API 의 유무.** 같은 질문을 실기에서
   네 번 확인했다(§17.13 · §17.19 · §17.25 · §28). 문서가 없으면 `document.*` 는
   `false` 가 아니라 `null` 이다
@@ -815,7 +817,7 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 83개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 84개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져
@@ -863,6 +865,11 @@ doctor 는 클라이언트가 넘길 env 를 모르므로** 권한은 참고용�
 
 **이벤트 버퍼는 MCP 서버 프로세스에 있다.** 스크립트를 돌릴 때마다 새 서버가 떠서
 버퍼가 빈다 — descriptor 를 잡으려면 서버를 띄워 둔 채로 사람이 메뉴를 실행해야 한다.
+
+**이 규칙은 batchPlay descriptor 한정이다.** DOM API 는 Adobe UXP 레퍼런스가
+있으므로 **문서를 먼저 본다.** `document.create` 에서 `mode` 를 `"RGB"` 로 보낼
+뻔했는데 레퍼런스가 `"RGBColorMode"` 라고 알려줬다 — 짧은 이름은 조용히 무시된다.
+반대로 레퍼런스에 없는 것(`bitsPerChannel`)은 재서 확인했다. 둘 다 필요하다.
 
 이것으로 Camera Raw 와 `autoCutout` 의 descriptor 를 잡아냈다. 막혀 있는 batchPlay
 이름은 문서에서 가져오지 말고 이 방법으로 확인한다.

@@ -210,6 +210,37 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         return (await this.getDocumentInfo()) as TResult;
       /* **문서가 없으면 빈 배열이다. 던지지 않는다.** `DOCUMENT_GET` 과
        * 다른 점이고, Mock 이 여기서 던지면 그 차이가 테스트에 안 나온다. */
+      /* **Mock 은 요청한 값이 다 들어갔다고 답하지 않는다.** 실제로는
+       * documents.add 가 무시하는 키가 있을 수 있고(bitDepth 는 문서에도
+       * 없다), Mock 이 전부 true 를 주면 그 차이가 테스트에 안 나온다.
+       * 크기만 반영하고 나머지는 실기에서 확인한다. */
+      case "DOCUMENT_CREATE": {
+        this.#snapshot("Create document");
+        const p = command.params as {
+          width: number;
+          height: number;
+          name?: string;
+          bitDepth?: number;
+          mode?: string;
+        };
+        const created = {
+          id: this.#nextLayerId++,
+          name: p.name ?? "무제",
+          width: p.width,
+          height: p.height,
+          bitDepth: 8,
+          colorMode: "RGB",
+        };
+        return {
+          document: created,
+          applied: {
+            width: true,
+            height: true,
+            ...(p.bitDepth === undefined ? {} : { bitDepth: p.bitDepth === created.bitDepth }),
+            ...(p.mode === undefined ? {} : { colorMode: p.mode === created.colorMode }),
+          },
+        } as TResult;
+      }
       case "DOCUMENT_LIST":
         return {
           documents:

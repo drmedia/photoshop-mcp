@@ -1290,6 +1290,39 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        * 담지 않으며, `applied.resolution` 을 참이라고 말하지 않는다 —
        * 확인한 것이 없는데 확인했다고 하는 것이 가장 나쁘다.
        */
+      /**
+       * 캔버스 크기. (CORE_API §5 P2)
+       *
+       * **생략한 쪽은 지금 값 그대로다.** `IMAGE_RESIZE` 가 비율을 맞추는 것과
+       * 다르고, Mock 이 그 차이를 갖지 않으면 두 Tool 을 바꿔 써도 테스트가
+       * 통과한다.
+       *
+       * Mock 에는 픽셀이 없으므로 무엇이 잘렸는지는 흉내내지 않는다.
+       */
+      case "CANVAS_RESIZE": {
+        const document = this.#requireDocument();
+        const params = command.params as {
+          width?: number;
+          height?: number;
+          anchor?: string;
+        };
+        this.#snapshot("Resize canvas");
+        const before = { width: document.width, height: document.height };
+        const width = params.width ?? before.width;
+        const height = params.height ?? before.height;
+
+        this.#document = { ...document, width, height };
+        return {
+          document: { ...(await this.getDocumentInfo()) },
+          before,
+          after: { width, height },
+          applied: {
+            ...(params.width === undefined ? {} : { width: width === params.width }),
+            ...(params.height === undefined ? {} : { height: height === params.height }),
+          },
+          anchor: params.anchor ?? null,
+        } as TResult;
+      }
       case "IMAGE_RESIZE": {
         const document = this.#requireDocument();
         const params = command.params as {

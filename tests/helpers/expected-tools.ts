@@ -29,6 +29,7 @@ export const EXPECTED_TOOLS = [
   // ROADMAP §17.18 — DESTRUCTIVE. 기본 설정에서는 막혀 있다
   "photoshop.layer.delete",
   "photoshop.document.crop",
+  "photoshop.canvas.resize",
   "photoshop.image.resize",
   "photoshop.document.rotate",
   "photoshop.layer.reorder",
@@ -146,6 +147,7 @@ export const EXPECTED_COMMANDS = [
   "RETOUCH_REMOVE_SPOTS",
   "DOCUMENT_STATISTICS",
   "DOCUMENT_CROP",
+  "CANVAS_RESIZE",
   "IMAGE_RESIZE",
   "DOCUMENT_OPEN",
   "DOCUMENT_FLATTEN",

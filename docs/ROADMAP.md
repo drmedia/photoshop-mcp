@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 92개만
+기본            Extension 0개. Core Tool 93개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -6907,3 +6907,53 @@ Mock 은 문서를 하나만 들고 있어 진짜 복제본을 만들 수 없다
 - [x] `duplicated-document.ts` 헬퍼 재사용
 - [x] 실기: 기본 복제 · `mergeLayersOnly` · 원본 보존 · 이름 생략
 - [x] Mock 은 한 척하지 않고 실패한다
+
+# 36. 캔버스 크기 (`photoshop.canvas.resize`)
+
+`image.resize`(§33) 와 다르다. 그쪽은 픽셀을 다시 표본화해 그림이 통째로 커지거나
+작아지고, 이쪽은 그림은 그대로 두고 **종이 크기만** 바꾼다. 여백을 더하거나
+덜어낼 때가 이쪽이다.
+
+**생략한 쪽의 뜻도 다르다.** `image.resize` 는 비율을 맞추고 이쪽은 지금 값을
+그대로 쓴다 — 캔버스에는 맞출 비율이 없다.
+
+## Permission 을 짐작하지 않고 재서 갈랐다
+
+처음에는 `document.crop` 과 같은 계열이니 `edit` 이라고 두었다. **틀렸다.**
+
+빨간 얼룩을 구운 배경으로 같은 왕복(800×600 → 300×200 → 800×600)을 돌렸다.
+
+```text
+                  빨간 영역          green 평균      결과
+일반 레이어       경계 140–660 유지   —              완전 왕복
+document.crop     44.245% 유지        142.18 유지     완전 왕복
+canvas.resize     44.245% → 2.584%    142.18 → 248.41 픽셀 소멸
+```
+
+**`crop` 의 `delete: false` 가 하는 일은 배경을 일반 레이어로 승격시키는 것**이다
+(id 1 → 3, 이름 `레이어 0`). 배경은 캔버스 밖에 픽셀을 가질 수 없으므로 그래야
+남길 수 있다. `resizeCanvas` 는 승격시키지 않아 배경의 바깥 픽셀이 사라진다.
+
+그래서 `canvas.resize` 를 **`DESTRUCTIVE`** 로 두었다. **"우회 가능한 경계" 문제도
+없다** — `crop` 이 무손실 대안을 이미 제공하므로, 막혔을 때 그쪽으로 가면 파괴
+없이 같은 구도를 얻는다. 반대로 둘을 같은 등급에 두면 이 차이가 묻힌다.
+
+`document.crop` 의 `pixelsRetained: true` 는 **사실이었다.** 재 보기 전에는
+배경에서 깨지는 줄 알았고 문서를 고칠 뻔했다. 짐작으로 고쳤으면 맞는 문서를
+틀리게 만들었을 것이다.
+
+## 덤으로 나온 것 — `crop` 이 id 를 바꾼다
+
+승격 때문에 **배경 레이어의 id 가 바뀌는데 `document.crop` 의 결과에는 그것이
+없다.** 호출자가 들고 있던 id 는 사라진다. 이 프로젝트가 이미 세 번 겪은
+유형이다(`set_opacity` 승격 · `smart_object.convert` · `layer.from_background`).
+당장은 Tool 설명에 "`layer.list` 로 다시 읽으라" 고 적었다.
+
+- [ ] `document.crop` 이 승격된 레이어 id 를 결과에 담는다
+
+## 체크리스트
+
+- [x] `photoshop.canvas.resize` — `before` · `after` · `applied` · `anchor`
+- [x] Permission 을 실기 측정으로 `DESTRUCTIVE` 로 정했다
+- [x] 실기: 일반 레이어 왕복 · 배경 소멸 · `crop` 대조군
+- [x] `anchor` 아홉 가지, 모르는 값은 거절

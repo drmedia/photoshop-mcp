@@ -257,6 +257,14 @@ declare module "photoshop" {
      * `NONE` 은 Adobe 가 "Currently unsupported" 라고 적어 두어 뺐다.
      */
     readonly ResampleMethod?: Readonly<Record<string, unknown>>;
+    /**
+     * `document.resizeCanvas` 의 기준점. (`CANVAS_RESIZE`)
+     *
+     * 값이 무엇인지 확인한 적이 없으므로 `unknown` 이다. 쓰는 쪽은
+     * `=== undefined` 로 있는지만 보고, 없으면 거절한다 — 기준점이 다르면
+     * **어느 쪽이 잘리는지가 달라진다.**
+     */
+    readonly AnchorPosition?: Readonly<Record<string, unknown>>;
   };
 }
 

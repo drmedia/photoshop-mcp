@@ -250,6 +250,7 @@ describe("Core Tool 분류", () => {
       /* 축소는 픽셀을 다시 표본화하고 버려진 해상도가 문서 어디에도 남지
        * 않는다. `document.crop` 이 `edit` 인 근거가 "픽셀은 버리지 않는다"
        * 이므로 이쪽은 갈린다. (ROADMAP §33) */
+      "CANVAS_RESIZE",
       "IMAGE_RESIZE",
       "DOCUMENT_FLATTEN",
       "DOCUMENT_CLOSE",
@@ -301,6 +302,10 @@ describe("Core Tool 분류", () => {
            * 남지 않는다 — `DOCUMENT_CROP` 이 `edit` 인 근거가 "픽셀은 버리지
            * 않는다" 이므로 이쪽은 갈린다. (ROADMAP §33) */
           type === "IMAGE_RESIZE" ||
+          /* 캔버스를 줄이면 배경 레이어의 바깥 픽셀이 사라진다. `document.crop`
+           * 은 배경을 승격시켜 남기므로 `edit` 이고 이쪽은 갈린다 — 실기에서
+           * 같은 왕복을 돌려 재서 갈랐다. (ROADMAP §36) */
+          type === "CANVAS_RESIZE" ||
           type === "ACTION_PLAY",
       ),
     ).toBe(true);

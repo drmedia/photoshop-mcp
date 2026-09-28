@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (92개)
+## 4. 구현된 Core API (93개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -130,6 +130,7 @@ P3  확장 기능
 | API | Permission | 비고 |
 |---|---|---|
 | `photoshop.document.crop` | EDIT | 캔버스를 줄인다. **픽셀은 버리지 않는다** |
+| `photoshop.canvas.resize` | DESTRUCTIVE | 종이 크기만. **배경의 바깥 픽셀은 사라진다** |
 | `photoshop.image.resize` | DESTRUCTIVE | 이미지를 다시 표본화한다. **축소는 되돌릴 수 없다** |
 | `photoshop.document.rotate` | EDIT | 문서 전체를 돌린다. **수평 교정용** |
 | `photoshop.document.open` | EXTERNAL | 승인된 폴더의 파일을 연다. **RAW 는 거절한다** |
@@ -497,7 +498,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
-| `photoshop.canvas.resize` | P2 | EDIT | |
 | `photoshop.crop` | P2 | EDIT | |
 | `photoshop.transform.scale` | P2 | EDIT | |
 | `photoshop.transform.rotate` | P2 | EDIT | |
@@ -722,7 +722,7 @@ Mock 만 보고 만들었으면 조용히 어긋난 채로 남았을 버그다. 
 document.save · document.close · document.flatten
 layer.delete · layer.merge · group.ungroup
 mask.apply · mask.delete
-image.resize
+image.resize · canvas.resize
 smart_object.rasterize
 channel.delete · path.delete · guide.delete
 workspace.delete
@@ -735,7 +735,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 역할이다.
 
 위 목록 중 구현된 것은 `document.save` · `document.close` · `document.flatten` · `layer.delete` ·
-`mask.apply` · `image.resize` · `workspace.delete` 다. 나머지는 분류 체계만 서 있고 구현이 없다.
+`mask.apply` · `image.resize` · `canvas.resize` · `workspace.delete` 다. 나머지는 분류 체계만 서 있고 구현이 없다.
 분류가 있다고 있는 척하지 않는다.
 
 `image.resize` 는 §5 에 `EDIT` 로 적혀 있던 것을 구현하면서 바꿨다. 근거는 같은 문서가
@@ -748,7 +748,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **92** |
+| 구현됨 | **93** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

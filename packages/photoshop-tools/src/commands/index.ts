@@ -122,6 +122,7 @@ import {
 import { LAYER_GET_ACTIVE, layerGetActiveCommand } from "./layer-active.js";
 import { DOCUMENT_CROP, DocumentCropParamsSchema, documentCropCommand } from "./document-crop.js";
 import { IMAGE_RESIZE, ImageResizeParamsSchema, imageResizeCommand } from "./image-resize.js";
+import { CANVAS_RESIZE, CanvasResizeParamsSchema, canvasResizeCommand } from "./canvas-resize.js";
 import { DOCUMENT_OPEN, DocumentOpenParamsSchema, documentOpenCommand } from "./document-open.js";
 import {
   DOCUMENT_CLOSE,
@@ -286,6 +287,7 @@ export * from "./capture.js";
 export * from "./document-crop.js";
 export * from "./document-duplicate.js";
 export * from "./image-resize.js";
+export * from "./canvas-resize.js";
 export * from "./document-rotate.js";
 export * from "./measure-tilt.js";
 export * from "./layer-reorder.js";
@@ -376,6 +378,13 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
     // 픽셀을 버리지 않는다. 캔버스만 줄이므로 되돌릴 수 있다.
     permission: "edit",
     schema: DocumentCropParamsSchema,
+  });
+  /* **`document.crop` 과 갈린다 — 실기에서 재서 갈랐다.** crop 은 배경을 일반
+   * 레이어로 승격시켜 바깥 픽셀을 남기지만(왕복 확인) 이쪽은 배경을 그대로
+   * 잘라 픽셀이 사라진다(빨간 영역 44.245% → 2.584%). (ROADMAP §36) */
+  registry.register(CANVAS_RESIZE, canvasResizeCommand, {
+    permission: "destructive",
+    schema: CanvasResizeParamsSchema,
   });
   registry.register(IMAGE_RESIZE, imageResizeCommand, {
     /* **`crop` 과 갈리는 자리다.** 축소는 픽셀을 다시 표본화하고 버려진

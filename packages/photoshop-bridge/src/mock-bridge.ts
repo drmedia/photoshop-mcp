@@ -180,6 +180,32 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     switch (command.type) {
       case "PING":
         return { connected: this.#connected } as TResult;
+      /* **Mock 은 "다 된다" 고 답하지 않는다.** 이 Tool 의 쓸모가 "이 Photoshop
+       * 에서 무엇이 되는가" 인데, 가짜가 전부 true 를 주면 그것을 보고 짠
+       * 워크플로가 실기에서 다르게 돈다. 픽셀을 모르므로 픽셀 계열은 false 다.
+       *
+       * `document.*` 는 문서가 없으면 null 이다 — 실기와 같은 규칙이다. */
+      case "HOST_GET": {
+        const open = this.#document === null ? 0 : 1;
+        return {
+          name: "Mock Photoshop",
+          version: null,
+          uxp: null,
+          openDocuments: open,
+          features: {
+            imagingGetPixels: false,
+            imagingGetLayerMask: false,
+            saveOptionsDoNotSave: false,
+            rasterizeEntireLayer: false,
+            notifications: false,
+            documentRotate: open === 0 ? null : false,
+            documentHistogram: open === 0 ? null : false,
+            selectionDom: open === 0 ? null : false,
+            layerComps: open === 0 ? null : false,
+            pathItems: open === 0 ? null : false,
+          },
+        } as TResult;
+      }
       case "DOCUMENT_GET":
         return (await this.getDocumentInfo()) as TResult;
       case "LAYER_LIST":

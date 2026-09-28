@@ -35,6 +35,7 @@ import {
   selectionInvert,
 } from "./dom/mask-selection.js";
 import { groupCreate, groupMoveLayer } from "./dom/group.js";
+import { hostGet } from "./dom/host.js";
 import { historyUndo } from "./dom/history.js";
 import {
   layerCreate,
@@ -174,6 +175,8 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("SELECTION_SAVE_CHANNEL", async (p) =>
     selectionSaveChannel(p as { name: string }),
   );
+  /* 호스트 정보와 쓰는 API 의 유무. 같은 질문을 실기에서 네 번 확인했다. */
+  dispatcher.register("HOST_GET", async () => Promise.resolve(hostGet()));
   dispatcher.register("SELECTION_LOAD_CHANNEL", async (p) =>
     selectionLoadChannel(p as { name: string; invert?: boolean; mode?: "new" | "intersect" }),
   );

@@ -70,7 +70,9 @@ declare module "photoshop" {
      *
      * UXP 버전에 따라 없을 수 있어 선택으로 둔다. 부르는 쪽이 있는지 확인한다.
      */
-    rasterize?(target: string): Promise<void>;
+    /** `target` 은 `constants.RasterizeType.*` 를 그대로 넘긴다. 문자열이라는
+     * 보장이 없어 `unknown` 이다 — `SaveOptions` 에서 같은 가정이 틀렸다. */
+    rasterize?(target: unknown): Promise<void>;
   }
 
   export interface PhotoshopDocument {
@@ -235,10 +237,16 @@ declare module "photoshop" {
   export const core: PhotoshopCore;
   export const constants: {
     readonly ElementPlacement: ElementPlacementConstants;
-    /** 문서를 닫을 때의 저장 여부. 복제본은 DONOTSAVECHANGES 로 닫는다. */
-    readonly SaveOptions?: { readonly DONOTSAVECHANGES: string };
+    /**
+     * 문서를 닫을 때의 저장 여부. 복제본은 DONOTSAVECHANGES 로 닫는다.
+     *
+     * **`string` 이라고 선언해 두었던 것은 틀렸다.** 실기에서 재 보니
+     * 문자열이 아니었다(`host.get` 이 잡았다). 무엇인지 모르므로 `unknown`
+     * 이고, 쓰는 쪽은 `=== undefined` 로 있는지만 본다.
+     */
+    readonly SaveOptions?: { readonly DONOTSAVECHANGES: unknown };
     /** 무엇을 구울지. 스마트 오브젝트는 ENTIRELAYER 로 통째로 굽는다. */
-    readonly RasterizeType?: { readonly ENTIRELAYER: string };
+    readonly RasterizeType?: { readonly ENTIRELAYER: unknown };
   };
 }
 

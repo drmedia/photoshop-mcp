@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (81개)
+## 4. 구현된 Core API (82개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -104,6 +104,7 @@ P3  확장 기능
 | API | Permission | 비고 |
 |---|---|---|
 | `photoshop.ping` | READ | 서버 상태와 Bridge 연결 여부 |
+| `photoshop.host.get` | READ | 버전 + **이 서버가 쓰는 API 의 유무**. 문서 없으면 `document.*` 는 `null` |
 | `photoshop.document.get` | READ | 활성 문서 정보 |
 | `photoshop.layer.list` | READ | 활성 문서의 레이어 목록 |
 | `photoshop.document.capture` | READ | 문서를 합성해 **그림으로** 돌려준다 |
@@ -547,7 +548,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
-| `photoshop.host.get` | P1 | READ | Photoshop 버전 + 지원 기능. §8 참조 |
 | `photoshop.preferences.get` | P3 | READ | |
 | `photoshop.units.get` | P3 | READ | |
 | `photoshop.color.get_foreground_background` | P3 | READ | |
@@ -743,7 +743,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **81** |
+| 구현됨 | **82** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

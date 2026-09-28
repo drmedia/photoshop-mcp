@@ -147,6 +147,7 @@ import {
   documentRotateCommand,
 } from "./document-rotate.js";
 import { CAMERA_RAW_APPLY, CameraRawParamsSchema, cameraRawApplyCommand } from "./camera-raw.js";
+import { HOST_GET, HostGetParamsSchema, hostGetCommand } from "./host.js";
 import { LAYER_DELETE, LayerDeleteParamsSchema, layerDeleteCommand } from "./layer-delete.js";
 import {
   RETOUCH_REMOVE_SPOTS,
@@ -286,6 +287,12 @@ export { PING, pingCommand, type PingResult } from "./ping.js";
 export function registerPhotoshopCommands(registry: CommandRegistry): void {
   // Phase 1 — 조회
   registry.register(PING, pingCommand, { permission: "read" });
+  /* 호스트가 무엇을 할 수 있는지. diagnostics 는 서버 설정이 무엇을 막고
+   * 있는지이고 이쪽은 Photoshop 쪽 능력이다. */
+  registry.register(HOST_GET, hostGetCommand, {
+    permission: "read",
+    schema: HostGetParamsSchema,
+  });
   registry.register(DOCUMENT_GET, documentGetCommand, { permission: "read" });
   registry.register(LAYER_LIST, layerListCommand, { permission: "read" });
   registry.register(LAYER_GET_ACTIVE, layerGetActiveCommand, { permission: "read" });

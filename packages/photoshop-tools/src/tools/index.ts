@@ -83,6 +83,7 @@ import {
 import { createLayerListTool } from "./layer-list.js";
 import { createLayerPlaceTool } from "./layer-place.js";
 import { createWorkspaceDeleteTool, createWorkspaceUsageTool } from "./workspace-files.js";
+import { createHostGetTool } from "./host.js";
 import { createPingTool } from "./ping.js";
 
 export { DocumentGetInputSchema, createDocumentGetTool } from "./document-get.js";
@@ -132,6 +133,7 @@ export { PingInputSchema, createPingTool, type PingToolResult } from "./ping.js"
 export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEngine): void {
   // Phase 1 — 조회
   registry.register(createPingTool(engine));
+  registry.register(createHostGetTool(engine));
   registry.register(createDocumentGetTool(engine));
   registry.register(createLayerListTool(engine));
   registry.register(createLayerGetActiveTool(engine));

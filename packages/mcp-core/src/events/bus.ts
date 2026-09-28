@@ -157,6 +157,7 @@ export class EventBus {
   recent(query: EventQuery = {}): EventRecord[] {
     const filtered = this.#records
       .filter((record) => query.after === undefined || record.seq > query.after)
+      .filter((record) => query.before === undefined || record.seq < query.before)
       .filter((record) => query.prefix === undefined || matches(query.prefix, record.name));
 
     // 개수를 자를 때는 **최신 쪽**을 남긴다. 오래된 것을 남기면 폴링이 앞으로 못 간다.

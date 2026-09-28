@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 114개만
+기본            Extension 0개. Core Tool 118개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -7894,3 +7894,111 @@ mask.delete    마스크 사라짐                · destructive
 - [x] 걸고 나서 다시 읽어 `applied` 로 확인 (`true` 방향은 캡처되지 않았다)
 - [x] 마스크 없는 레이어 거절 · 상태를 못 읽으면 막지 않는다
 - [x] 실기: 양방향 적용 · 연결/해제가 이동에 실제로 반영됨
+
+# 52. 조정 레이어 넷 (노출 · 흑백 · 포토 필터 · 채널 혼합)
+
+`CORE_API.md` §5.5 에 P2 로 남아 있던 넷이다.
+
+## DOM 에 없다 — 레퍼런스가 그렇게 말한다
+
+Adobe Document 레퍼런스의 레이어 생성 메서드는 `createLayer` · `createPixelLayer`
+· `createTextLayer` · `createLayerGroup` · `duplicateLayers` · `groupLayers` 뿐이고
+**조정 레이어를 만드는 것이 하나도 없다.** 기존 여섯 개가 batchPlay 인 이유가
+오래된 판단이 아니라 지금도 맞는 사실임을 다시 확인했다.
+
+## `event.recent` 에 `before` 를 더했다
+
+descriptor 를 잡는 §17.17 의 방법이 **이번에 막혔다.** 슬라이더를 한 번 끌면
+`historyStateChanged` 가 수백 개 쌓이는데, `limit` 은 **뒤에서** 자르고
+(폴링이 앞으로 가야 해서 그쪽이 맞다) `after` 만으로는 앞쪽에 닿을 수 없다.
+버퍼에 500개가 있는데 200개까지만 보였고 **조정 레이어 넷 중 셋을 놓쳤다.**
+
+`EventQuery.before` 를 더해 구간을 끊어 훑는다. 폴링 의미는 그대로다.
+
+## 체크박스와 드롭다운은 슬라이더와 따로 잡아야 한다
+
+처음에 슬라이더만 움직이게 안내해서 **세 키를 놓쳤고, 하필 이름을 틀리기
+쉬운 것들이었다.**
+
+```text
+blackAndWhite   useTint        ← tint 가 아니다
+channelMixer    monochromatic  ← monochrome 이 아니고 gray 와 짝이다
+photoFilter     color 가 프리셋 이름이 아니라 labColor 다
+```
+
+**포토 필터의 드롭다운은 이름으로 나가지 않는다.** "Warming Filter (85)" 를
+고르면 descriptor 에는 `{_obj:"labColor", luminance, a, b}` 가 실린다. 이름을
+받는 스키마를 만들었으면 조용히 무시됐을 것이다.
+
+## 단위가 종류마다 다르다
+
+**채널 혼합만 `percentUnit` 으로 감싼다.** 노출과 흑백은 맨숫자다.
+
+```text
+exposure       exposure -0.5 · offset 0.0667 · gammaCorrection 0.77   맨실수
+blackAndWhite  red 56 · yellow 104 · grain 42 · cyan 92 · blue 17 ·
+               magenta 104                                            맨정수
+photoFilter    density 51 · preserveLuminosity true · color(labColor)
+channelMixer   red/grain/blue → channelMatrix{red,grain,blue,constant} percentUnit
+```
+
+`gammaCorrection` 은 **`gamma` 가 아니다.** 녹색은 또 `grain` 이다(이 저장소에서
+세 번째다 — `channelReference` · `RGBColor` · 여기). 우리 API 는 `green` 으로
+받고 경계에서 바꾼다.
+
+## 값이 실제로 걸리는지 하나씩 쟀다
+
+평탄한 R180 G100 B60 위에서 **키를 하나씩 따로** 걸었다. 섞으면 조용히 무시되는
+키를 못 잡는다.
+
+```text
+exposure -1          R 180 → 131   비율 0.728 = 0.5^(1/2.2)  ← 스톱이 맞다
+offset 0.2           R 180 → 212
+gammaCorrection 2    R 180 → 214
+blackAndWhite 기본   → 116 (무채색)
+  red 300            → 255          ← 채널 가중치가 걸린다
+  useTint true       → 130/116/84   ← 세피아. 무채색이 아니다
+photoFilter density 100
+  preserve 끔        휘도 114 → 28
+  preserve 켬        휘도 114 → 108 ← 광도가 유지된다
+channelMixer gray{red:100} + monochrome  → 세 채널 모두 180
+```
+
+## 안 준 출력 채널이 0 이 된다 — 고쳤다
+
+**채널 혼합에서 `red` 만 주고 걸었더니 녹색·파랑 출력이 0 이 됐다.**
+
+```text
+요청   red: {red:0, green:100, blue:0}     green·blue 출력은 안 건드림
+결과   R 100 ✓   G 0 ✗   B 0 ✗            R180 G100 B60 → R100 G0 B0
+```
+
+Photoshop 은 descriptor 에 없는 출력 채널을 항등이 아니라 **전부 0** 으로 둔다.
+그대로 두면 "빨강만 만졌는데 사진이 빨강 단색이 되는" 사고다.
+
+안 준 출력 채널을 **항등으로 채운다.** 채울 값은 `make` descriptor 에서 읽은
+기본값이다(`red:{red:100}` · `grain:{grain:100}` · `blue:{blue:100}`). 고친 뒤
+다시 재니 `R 100 · G 100 · B 60` 으로 맞았다.
+
+**채널 안의 항은 채우지 않는다.** `red: {green: 100}` 은 "빨강 출력은 녹색
+입력만 쓴다" 로 읽는 것이 자연스럽다.
+
+## 두 모드를 섞으면 거절한다
+
+단색일 때 `red`·`green`·`blue` 를 함께 주면 Photoshop 은 오류 없이 한쪽만 쓴다.
+스키마와 플러그인 양쪽에서 막는다.
+
+## 고칠 수 있는지까지 확인했다
+
+§17.38 의 교훈이 "만드는 것만 확인하고 고칠 수 있는지는 확인하지 않았다" 였다.
+넷 다 속성 패널이 열리고 넣은 값이 그대로 보이는 것을 실기에서 확인했다 —
+`presetKind` 가 `makeAdjustmentLayer` 한 곳에 있어서 자동으로 따라왔다.
+
+## 체크리스트
+
+- [x] `photoshop.adjustment.exposure` · `black_white` · `photo_filter` · `channel_mixer` (EDIT)
+- [x] descriptor 를 `["all"]` 알림으로 잡았다 — 체크박스·드롭다운 포함
+- [x] `event.recent` 에 `before` 추가 (구간 조회)
+- [x] 실기: 키마다 따로 걸어 값이 반영되는 것을 픽셀로 확인
+- [x] 실기: 안 준 출력 채널이 0 이 되는 것을 잡아 항등으로 채움
+- [x] 실기: 넷 다 속성 패널이 열리고 값이 보인다

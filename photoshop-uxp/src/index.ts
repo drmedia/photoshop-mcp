@@ -114,6 +114,12 @@ import { layerPlace } from "./dom/place.js";
 import { documentExport, documentSave, documentSaveAs, selectionExportMask } from "./dom/save.js";
 import { approveFolder, revokeFolder, workspaceStatus } from "./dom/workspace.js";
 import { BridgeClient, type ClientState } from "./transport/ws-client.js";
+import {
+  adjustmentBlackWhite,
+  adjustmentChannelMixer,
+  adjustmentExposure,
+  adjustmentPhotoFilter,
+} from "./dom/adjustment-extra.js";
 
 const PLUGIN = { name: "photoshop-mcp-uxp", version: "0.1.0" };
 
@@ -382,6 +388,18 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("ADJUSTMENT_VIBRANCE", async (p) =>
     adjustmentVibrance(p as Parameters<typeof adjustmentVibrance>[0]),
+  );
+  dispatcher.register("ADJUSTMENT_EXPOSURE", async (p) =>
+    adjustmentExposure(p as Parameters<typeof adjustmentExposure>[0]),
+  );
+  dispatcher.register("ADJUSTMENT_BLACK_WHITE", async (p) =>
+    adjustmentBlackWhite(p as Parameters<typeof adjustmentBlackWhite>[0]),
+  );
+  dispatcher.register("ADJUSTMENT_PHOTO_FILTER", async (p) =>
+    adjustmentPhotoFilter(p as Parameters<typeof adjustmentPhotoFilter>[0]),
+  );
+  dispatcher.register("ADJUSTMENT_CHANNEL_MIXER", async (p) =>
+    adjustmentChannelMixer(p as Parameters<typeof adjustmentChannelMixer>[0]),
   );
 
   // Phase 9 — 파일 저장 (ROADMAP §8.5)

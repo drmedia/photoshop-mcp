@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (114개)
+## 4. 구현된 Core API (118개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -321,6 +321,10 @@ Photoshop UI 는 그룹 끝에서 한 번 더 누르면 밖으로 나간다. 그
 | `photoshop.adjustment.brightness_contrast` | EDIT | −150~150 / −50~100 |
 | `photoshop.adjustment.hue_saturation` | EDIT | hue −180~180 |
 | `photoshop.adjustment.vibrance` | EDIT | vibrance · saturation −100~100 |
+| `photoshop.adjustment.exposure` | EDIT | 노출·오프셋·감마. **`gammaCorrection` 이다** |
+| `photoshop.adjustment.black_white` | EDIT | 여섯 색의 회색 밝기. `useTint` 로 색조 |
+| `photoshop.adjustment.photo_filter` | EDIT | **색이 Lab 이다** — 프리셋 이름 통로가 없다 |
+| `photoshop.adjustment.channel_mixer` | EDIT | 출력 채널을 다시 만든다. `monochrome` 은 `gray` 와 짝 |
 | `photoshop.adjustment.color_balance` | EDIT | 구간별 `[C↔R, M↔G, Y↔B]` |
 
 **전부 조정 레이어로 만든다.** 픽셀을 직접 고치지 않는다. 그래서 EDIT 이다.
@@ -488,10 +492,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
-| `photoshop.adjustment.exposure` | P2 | EDIT | |
-| `photoshop.adjustment.black_white` | P2 | EDIT | |
-| `photoshop.adjustment.photo_filter` | P2 | EDIT | |
-| `photoshop.adjustment.channel_mixer` | P2 | EDIT | |
 
 모두 조정 레이어로 만든다. 픽셀 직접 수정은 하지 않는다.
 
@@ -759,7 +759,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **114** |
+| 구현됨 | **118** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

@@ -142,6 +142,40 @@ describe("조회", () => {
     expect(events.recent({ after: mark }).map((r) => r.name)).toEqual(["c.d", "e.f"]);
   });
 
+  /**
+   * **`limit` 은 뒤에서 자른다.** 폴링이 앞으로 가야 해서 그쪽이 맞지만,
+   * descriptor 를 잡을 때는 반대로 오래된 구간을 봐야 한다 — 슬라이더를 한 번
+   * 끌면 이벤트가 수백 개 쌓여 앞의 것이 창 밖으로 밀린다. 실기에서 조정
+   * 레이어 넷 중 셋을 이렇게 놓쳤다. (ROADMAP §52)
+   */
+  it("**after + limit 으로는 오래된 쪽에 못 닿는다** — before 가 있는 이유", () => {
+    const events = bus();
+    for (const name of ["a.one", "a.two", "a.three", "a.four"]) {
+      events.emit(name);
+    }
+
+    /* 뒤에서 둘. 앞의 둘은 볼 방법이 없다. */
+    expect(events.recent({ after: 0, limit: 2 }).map((r) => r.name)).toEqual(["a.three", "a.four"]);
+  });
+
+  it("before 로 오래된 구간을 본다", () => {
+    const events = bus();
+    events.emit("a.one");
+    const mark = events.lastSeq;
+    events.emit("b.two");
+    events.emit("c.three");
+
+    /* `before` 는 그 번호를 **포함하지 않는다** — `after` 와 짝이 맞아야
+     * 두 값을 이어 붙여 훑을 수 있다. */
+    expect(events.recent({ before: events.lastSeq }).map((r) => r.name)).toEqual([
+      "a.one",
+      "b.two",
+    ]);
+    expect(events.recent({ after: mark, before: events.lastSeq }).map((r) => r.name)).toEqual([
+      "b.two",
+    ]);
+  });
+
   it("prefix 로 거른다", () => {
     const events = bus();
     events.emit("photoshop.layer.created");

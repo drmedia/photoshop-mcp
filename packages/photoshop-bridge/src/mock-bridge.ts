@@ -1983,6 +1983,27 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         this.#snapshot("Vibrance");
         return this.#adjustment("Vibrance", "vibrance", command.params) as TResult;
 
+      /**
+       * 조정 레이어 넷. (ROADMAP §52)
+       *
+       * **Mock 이 흉내내는 것은 "조정 레이어가 하나 생긴다" 까지다.** 값이
+       * 픽셀에 어떻게 반영되는지는 Mock 이 모른다 — 기존 여섯 개와 같은 자리다.
+       * `adjustmentType` 은 실제 descriptor 의 `_obj` 를 그대로 쓴다. 지어낸
+       * 이름을 넣으면 `layer.list` 가 거짓을 말한다.
+       */
+      case "ADJUSTMENT_EXPOSURE":
+        this.#snapshot("Exposure");
+        return this.#adjustment("Exposure", "exposure", command.params) as TResult;
+      case "ADJUSTMENT_BLACK_WHITE":
+        this.#snapshot("Black & White");
+        return this.#adjustment("Black & White", "blackAndWhite", command.params) as TResult;
+      case "ADJUSTMENT_PHOTO_FILTER":
+        this.#snapshot("Photo Filter");
+        return this.#adjustment("Photo Filter", "photoFilter", command.params) as TResult;
+      case "ADJUSTMENT_CHANNEL_MIXER":
+        this.#snapshot("Channel Mixer");
+        return this.#adjustment("Channel Mixer", "channelMixer", command.params) as TResult;
+
       // Phase 9 — 파일 저장 (ROADMAP §8.5)
       case "WORKSPACE_STATUS":
         return {

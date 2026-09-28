@@ -76,6 +76,16 @@ export interface EventRecord {
 export interface EventQuery {
   /** 이 일련번호보다 큰 것만. 폴링할 때 마지막으로 본 번호를 넘긴다. */
   after?: number;
+  /**
+   * 이 일련번호보다 **작은** 것만.
+   *
+   * `after` 하나로는 오래된 쪽에 닿을 수 없다 — `limit` 이 **뒤에서** 자르기
+   * 때문이다(폴링이 앞으로 가야 해서 그쪽이 맞다). descriptor 를 잡을 때는
+   * 반대로 **오래된 구간**을 봐야 하는데, 슬라이더를 한 번 끌면 이벤트가
+   * 수백 개 쌓여 앞의 것이 창 밖으로 밀린다. 실기에서 조정 레이어 넷 중
+   * 셋을 이렇게 놓쳤다. (ROADMAP §52)
+   */
+  before?: number;
   /** 이 이름으로 시작하는 것만. `photoshop.` 처럼 앞부분만 줘도 된다. */
   prefix?: string;
   /** 최대 개수. */

@@ -130,7 +130,14 @@ export {
   createLayerListTool,
   type LayerListToolResult,
 } from "./layer-list.js";
+import {
+  createAdjustmentBlackWhiteTool,
+  createAdjustmentChannelMixerTool,
+  createAdjustmentExposureTool,
+  createAdjustmentPhotoFilterTool,
+} from "./adjustment-extra.js";
 export * from "./adjustment.js";
+export * from "./adjustment-extra.js";
 export * from "./filter.js";
 export * from "./capability.js";
 export * from "./window-capture.js";
@@ -295,6 +302,10 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createSelectionSetTool(engine));
   registry.register(createHueSaturationTool(engine));
   registry.register(createVibranceTool(engine));
+  registry.register(createAdjustmentExposureTool(engine));
+  registry.register(createAdjustmentBlackWhiteTool(engine));
+  registry.register(createAdjustmentPhotoFilterTool(engine));
+  registry.register(createAdjustmentChannelMixerTool(engine));
 
   // Phase 9 — 파일 저장 (ROADMAP §8.5)
   //

@@ -12,6 +12,13 @@ export const EventRecentInputSchema = z
   .object({
     /** 이 일련번호보다 큰 것만. 폴링할 때 마지막으로 본 seq 를 넘긴다. */
     after: z.number().int().min(0).optional(),
+    /**
+     * 이 일련번호보다 **작은** 것만. `after` 와 함께 주면 구간이 된다.
+     *
+     * `limit` 이 뒤에서 자르므로 `after` 하나로는 오래된 쪽에 못 닿는다.
+     * (ROADMAP §52)
+     */
+    before: z.number().int().min(0).optional(),
     /** 이름 앞부분. `photoshop.` 이나 `command.` 처럼 쓴다. */
     prefix: z.string().trim().min(1).max(100).optional(),
     /** 최대 개수. 생략하면 50. */
@@ -37,6 +44,9 @@ export function createEventRecentTool(
       "최근에 일어난 일을 조회한다. Photoshop 의 변화(`photoshop.*`)와 " +
       "Command 수명(`command.started` · `command.completed` · `command.failed`)이 담긴다. " +
       "반환된 lastSeq 를 다음 호출의 after 로 넘기면 새로 생긴 것만 받는다. " +
+      "**오래된 구간을 보려면 before 를 함께 준다** — limit 은 뒤에서 자르므로 " +
+      "after 하나로는 앞쪽에 닿지 않는다. descriptor 를 잡을 때 슬라이더 한 번에 " +
+      "이벤트가 수백 개 쌓이면 이것이 필요하다. " +
       "해석하지 못한 Photoshop 알림은 photoshop.unknown 으로 원본과 함께 기록된다. " +
       '**Photoshop 알림은 동작한다** — 플러그인이 `["all"]` 로 등록한다. 한동안 이 ' +
       "설명에 '27.8 에서는 전달되지 않는다' 고 적혀 있었는데 틀렸다. 이름 있는 " +
@@ -49,6 +59,7 @@ export function createEventRecentTool(
     handler: (input) => {
       const records = events.recent({
         ...(input.after === undefined ? {} : { after: input.after }),
+        ...(input.before === undefined ? {} : { before: input.before }),
         ...(input.prefix === undefined ? {} : { prefix: input.prefix }),
         limit: input.limit ?? 50,
       });

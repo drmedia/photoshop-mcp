@@ -338,6 +338,7 @@ export * from "./state-read.js";
 export * from "./workspace-files.js";
 export * from "./extension-registry.js";
 export * from "./adjustment.js";
+export * from "./adjustment-extra.js";
 export * from "./filter.js";
 export * from "./gap-tools.js";
 export * from "./group.js";
@@ -389,6 +390,20 @@ export {
   selectionSkyCommand,
   type SelectionResult,
 } from "./selection-auto.js";
+import {
+  ADJUSTMENT_BLACK_WHITE,
+  ADJUSTMENT_CHANNEL_MIXER,
+  ADJUSTMENT_EXPOSURE,
+  ADJUSTMENT_PHOTO_FILTER,
+  AdjustmentBlackWhiteParamsSchema,
+  AdjustmentChannelMixerParamsSchema,
+  AdjustmentExposureParamsSchema,
+  AdjustmentPhotoFilterParamsSchema,
+  adjustmentBlackWhiteCommand,
+  adjustmentChannelMixerCommand,
+  adjustmentExposureCommand,
+  adjustmentPhotoFilterCommand,
+} from "./adjustment-extra.js";
 export { PING, pingCommand, type PingResult } from "./ping.js";
 
 /**
@@ -855,6 +870,24 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(ADJUSTMENT_VIBRANCE, vibranceCommand, {
     permission: edit,
     schema: VibranceParamsSchema,
+  });
+
+  // ROADMAP §52 — 조정 레이어 넷. descriptor 는 ["all"] 알림으로 잡았다.
+  registry.register(ADJUSTMENT_EXPOSURE, adjustmentExposureCommand, {
+    permission: edit,
+    schema: AdjustmentExposureParamsSchema,
+  });
+  registry.register(ADJUSTMENT_BLACK_WHITE, adjustmentBlackWhiteCommand, {
+    permission: edit,
+    schema: AdjustmentBlackWhiteParamsSchema,
+  });
+  registry.register(ADJUSTMENT_PHOTO_FILTER, adjustmentPhotoFilterCommand, {
+    permission: edit,
+    schema: AdjustmentPhotoFilterParamsSchema,
+  });
+  registry.register(ADJUSTMENT_CHANNEL_MIXER, adjustmentChannelMixerCommand, {
+    permission: edit,
+    schema: AdjustmentChannelMixerParamsSchema,
   });
 
   // Phase 9 — 파일 저장 (ROADMAP §8.5)

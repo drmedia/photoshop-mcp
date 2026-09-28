@@ -72,6 +72,7 @@ export const EXPECTED_TOOLS = [
   "photoshop.group.move_layer",
   // Phase 3 — History
   "photoshop.history.undo",
+  "photoshop.history.redo",
   // Phase 4 — 조정 레이어
   "photoshop.adjustment.curves",
   "photoshop.adjustment.levels",
@@ -185,6 +186,7 @@ export const EXPECTED_COMMANDS = [
   "GROUP_CREATE",
   "GROUP_MOVE_LAYER",
   "HISTORY_UNDO",
+  "HISTORY_REDO",
   "ADJUSTMENT_CURVES",
   "ADJUSTMENT_LEVELS",
   "ADJUSTMENT_BRIGHTNESS_CONTRAST",

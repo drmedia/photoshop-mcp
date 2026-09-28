@@ -60,7 +60,14 @@ import {
   selectionClearCommand,
   selectionInvertCommand,
 } from "./mask-selection.js";
-import { HISTORY_UNDO, HistoryUndoParamsSchema, historyUndoCommand } from "./history.js";
+import {
+  HISTORY_REDO,
+  HISTORY_UNDO,
+  HistoryRedoParamsSchema,
+  HistoryUndoParamsSchema,
+  historyRedoCommand,
+  historyUndoCommand,
+} from "./history.js";
 import {
   GROUP_CREATE,
   GROUP_MOVE_LAYER,
@@ -556,6 +563,11 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(HISTORY_UNDO, historyUndoCommand, {
     permission: edit,
     schema: HistoryUndoParamsSchema,
+  });
+  // redo 도 같다. 되돌린 것을 다시 놓을 뿐이고 잃는 것이 없다.
+  registry.register(HISTORY_REDO, historyRedoCommand, {
+    permission: edit,
+    schema: HistoryRedoParamsSchema,
   });
 
   // Phase 4 — 조정 레이어 (비파괴)

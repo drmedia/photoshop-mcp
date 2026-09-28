@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (90개)
+## 4. 구현된 Core API (91개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -372,6 +372,7 @@ Photoshop 의 방사형은 중심에서 반지름까지 **선형 보간**이다.
 | API | Permission | 비고 |
 |---|---|---|
 | `photoshop.history.undo` | EDIT | |
+| `photoshop.history.redo` | EDIT | 되돌린 것을 다시. **새 편집을 하면 사라진다** |
 
 History **조회**는 Tool 이 아니라 `photoshop://history` Resource 다. (§6)
 
@@ -540,7 +541,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
-| `photoshop.history.redo` | P1 | EDIT | |
 | `photoshop.history.create_snapshot` | P3 | EDIT | |
 | `photoshop.history.restore_snapshot` | P3 | EDIT | |
 
@@ -748,7 +748,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **90** |
+| 구현됨 | **91** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

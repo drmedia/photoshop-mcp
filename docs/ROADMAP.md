@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 90개만
+기본            Extension 0개. Core Tool 91개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -6819,3 +6819,45 @@ amount?)` 가 있다(23.0+). batchPlay 를 쓰지 않았다. `ResampleMethod` �
 - [x] Permission 을 `EDIT` → `DESTRUCTIVE` 로 바꾸고 CORE_API §9 에 근거를 적었다
 - [x] 실기: 비율 유지 · 비율 무시 · `resolution` 단독
 - [x] 실기: `PRESERVEDETAILS` 상수 존재 확인
+
+# 34. Redo (`photoshop.history.redo`)
+
+`history.undo` 의 거울이다. 포인터 산술이 같아 `currentIndexOf` 하나로 묶었다 —
+`historyStates` 는 되돌려도 줄어들지 않고 `activeHistoryState` 포인터만 움직인다
+(§7.3 에서 undo 가 이미 겪은 것이다).
+
+어디 있는지 찾지 못하면 **가장 최근**으로 본다. undo 는 거기서 한 칸 뒤로 가면
+되고 redo 는 갈 곳이 없어 실패한다 — 모를 때 임의의 지점으로 뛰는 것보다 아무
+데도 안 가는 쪽이 안전하다.
+
+## 실기에서 확인한 것
+
+```text
+새 문서에서 redo          →  HISTORY_EMPTY (states 2, index 1)
+레이어 만들기 → undo      →  레이어 사라짐
+redo                      →  id 2 까지 그대로 돌아옴 ("새 레이어")
+undo → 새 레이어 만들기   →  redo 가 HISTORY_EMPTY (states 3, index 2)
+```
+
+**마지막 줄이 핵심이다.** 되돌린 뒤 새로 편집하면 Photoshop 이 앞쪽 가지를
+버린다. `states` 가 3 인 것이 이력이 잘렸다는 증거다. 이 Tool 의 제약이 아니라
+Photoshop 의 동작이므로 Tool 설명에 그렇게 적었다.
+
+## Mock 이 같은 규칙을 갖는다
+
+Mock 의 `#undo` 는 이력을 **pop** 하기만 해서 redo 가 불가능했다. redo 스택을
+두고, **`#snapshot` 이 그것을 비우게** 했다 — 새 편집이 앞쪽 가지를 버리는 것이
+그 자리다. 흉내내지 않으면 "되돌리고 편집한 뒤에도 redo 가 된다" 는 있을 수 없는
+상태가 테스트에서 정상으로 보인다.
+
+## 임의 지점 복원은 넣지 않았다
+
+이름으로 지점을 고르게 하면 같은 이름이 여러 개일 때 어디로 갈지 알 수 없다 —
+액션 이름이 유일하지 않았던 것과 같은 문제다(§17.34).
+
+## 체크리스트
+
+- [x] `photoshop.history.redo` — 결과 모양이 `undo` 와 같다
+- [x] 실기: undo → redo 왕복, id 까지 복원
+- [x] 실기: 새 편집이 앞쪽 이력을 버리는 것
+- [x] Mock 이 redo 스택과 "새 편집이 비운다" 를 갖는다

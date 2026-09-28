@@ -147,6 +147,20 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     // 크기를 되돌리지 못하고, Mock 만 "자르기는 되돌릴 수 없다" 는 거짓을 말한다.
     document: DocumentInfo | null;
   }[] = [];
+
+  /**
+   * 되돌린 것들. (`HISTORY_REDO`)
+   *
+   * **새 편집을 하면 비운다.** Photoshop 이 되돌린 뒤 새로 편집하면 앞쪽
+   * 가지를 버리는데, Mock 이 이것을 흉내내지 않으면 "되돌리고 편집한 뒤에도
+   * redo 가 된다" 는 있을 수 없는 상태가 테스트에서 정상으로 보인다.
+   */
+  readonly #redo: {
+    name: string;
+    layers: LayerInfo[];
+    activeLayerId: number | null;
+    document: DocumentInfo | null;
+  }[] = [];
   #hasSelection = false;
   #workspacePath: string | null;
   #documentPath: string | null;
@@ -494,6 +508,8 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       // Phase 3 — History
       case "HISTORY_UNDO":
         return this.#undo() as TResult;
+      case "HISTORY_REDO":
+        return this.#redoOnce() as TResult;
 
       // Phase 4 — 조정 레이어
       case "ADJUSTMENT_CURVES":
@@ -1752,14 +1768,55 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         recoverable: true,
       });
     }
+    // 되돌리기 **전** 상태를 남겨야 redo 가 돌아올 곳이 있다.
+    this.#redo.push({
+      name: snapshot.name,
+      layers: this.#layers.map((layer) => ({ ...layer })),
+      activeLayerId: this.#activeLayerId,
+      document: this.#document === null ? null : { ...this.#document },
+    });
     this.#layers = snapshot.layers.map((layer) => ({ ...layer }));
     this.#activeLayerId = snapshot.activeLayerId;
     this.#document = snapshot.document === null ? null : { ...snapshot.document };
     return { currentState: snapshot.name };
   }
 
-  /** 편집 전 상태를 기록한다. */
+  /**
+   * Redo 1단계. `#undo` 의 거울이다.
+   *
+   * 다시 실행할 것이 없으면 실제 Plugin 과 같은 `HISTORY_EMPTY` 로 실패한다 —
+   * 아무 일도 안 하고 성공을 돌려주면 호출자가 한 단계 갔다고 믿는다.
+   */
+  #redoOnce(): { currentState: string } {
+    this.#requireDocument();
+    const snapshot = this.#redo.pop();
+    if (snapshot === undefined) {
+      throw new PhotoshopMcpError(
+        ErrorCode.HISTORY_EMPTY,
+        "다시 실행할 작업이 없습니다 — 이미 가장 최근 상태입니다.",
+        { recoverable: true },
+      );
+    }
+    // 다시 실행한 것은 되돌릴 수 있어야 한다.
+    this.#history.push({
+      name: snapshot.name,
+      layers: this.#layers.map((layer) => ({ ...layer })),
+      activeLayerId: this.#activeLayerId,
+      document: this.#document === null ? null : { ...this.#document },
+    });
+    this.#layers = snapshot.layers.map((layer) => ({ ...layer }));
+    this.#activeLayerId = snapshot.activeLayerId;
+    this.#document = snapshot.document === null ? null : { ...snapshot.document };
+    return { currentState: snapshot.name };
+  }
+
+  /**
+   * 편집 전 상태를 기록한다.
+   *
+   * **앞쪽 가지를 버린다.** Photoshop 이 되돌린 뒤 새로 편집하면 그렇게 한다.
+   */
   #snapshot(name: string): void {
+    this.#redo.length = 0;
     this.#history.push({
       name,
       layers: this.#layers.map((layer) => ({ ...layer })),

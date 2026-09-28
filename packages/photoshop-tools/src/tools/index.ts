@@ -20,7 +20,7 @@ import {
   createSelectionInvertTool,
 } from "./mask-selection.js";
 import { createGroupCreateTool, createGroupMoveLayerTool } from "./group.js";
-import { createHistoryUndoTool } from "./history.js";
+import { createHistoryRedoTool, createHistoryUndoTool } from "./history.js";
 import {
   createLayerCreateTool,
   createLayerDuplicateTool,
@@ -204,6 +204,7 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
 
   // Phase 3 — History
   registry.register(createHistoryUndoTool(engine));
+  registry.register(createHistoryRedoTool(engine));
 
   // Phase 4 — 조정 레이어 (비파괴)
   registry.register(createCurvesTool(engine));

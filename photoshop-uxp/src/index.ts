@@ -41,7 +41,7 @@ import {
 } from "./dom/mask-selection.js";
 import { groupCreate, groupMoveLayer } from "./dom/group.js";
 import { hostGet } from "./dom/host.js";
-import { historyUndo } from "./dom/history.js";
+import { historyRedo, historyUndo } from "./dom/history.js";
 import {
   layerCreate,
   layerDuplicate,
@@ -257,6 +257,7 @@ export function createDispatcher(): CommandDispatcher {
 
   // Phase 3 — History
   dispatcher.register("HISTORY_UNDO", async () => historyUndo());
+  dispatcher.register("HISTORY_REDO", async () => historyRedo());
 
   // Phase 4 — 조정 레이어 (비파괴)
   dispatcher.register("ADJUSTMENT_CURVES", async (p) =>

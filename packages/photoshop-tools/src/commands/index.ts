@@ -24,6 +24,7 @@ import {
 } from "./document-duplicate.js";
 import { LAYER_GET, LayerGetParamsSchema, layerGetCommand } from "./layer-get.js";
 import { LAYER_SET_LOCK, LayerSetLockParamsSchema, layerSetLockCommand } from "./layer-lock.js";
+import { LAYER_FLIP, LayerFlipParamsSchema, layerFlipCommand } from "./layer-flip.js";
 import {
   LAYER_SELECT_MULTIPLE,
   LayerSelectMultipleParamsSchema,
@@ -299,6 +300,7 @@ export * from "./mask-selection.js";
 export * from "./history.js";
 export * from "./layer-edit.js";
 export * from "./layer-lock.js";
+export * from "./layer-flip.js";
 export {
   LAYER_GET_ACTIVE,
   LayerGetActiveParams,
@@ -380,6 +382,11 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_SET_LOCK, layerSetLockCommand, {
     permission: "edit",
     schema: LayerSetLockParamsSchema,
+  });
+  // 같은 축으로 두 번 부르면 제자리다. 잃는 것이 없다.
+  registry.register(LAYER_FLIP, layerFlipCommand, {
+    permission: "edit",
+    schema: LayerFlipParamsSchema,
   });
   registry.register(LAYER_SELECT_MULTIPLE, layerSelectMultipleCommand, {
     permission: "edit",

@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 99개만
+기본            Extension 0개. Core Tool 100개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -7386,3 +7386,52 @@ COMMAND_FAILED: The 레이어 with an id of undefined does not exist.
 - [x] `photoshop.layer.get` 이 잠금 다섯을 모두 돌려준다
 - [x] 실기: 배타성 · `none` · `all` · 배경 거절
 - [x] Mock 이 배타성을 흉내낸다
+
+# 44. 레이어 뒤집기 (`photoshop.layer.flip`)
+
+DOM 이 `flip(axis: FlipAxis)` **하나**이고 축이 셋이다. `flip_horizontal` /
+`flip_vertical` 둘로 나누면 **`both` 를 쓸 수 없고**, `mask.select` ·
+`document.trim` 이 잡아 둔 "한 Tool + 축 파라미터" 관례와도 어긋난다.
+
+## `constants.FlipAxis` 가 **없다**
+
+Adobe 레퍼런스는 `FlipAxis` 에 `BOTH` · `HORIZONTAL` · `VERTICAL` 이 있다고
+적는데, **Photoshop 27.8 런타임에는 `constants.FlipAxis` 자체가 없다.**
+
+```text
+hasTable false · available []
+```
+
+없다는 말만 하는 오류로는 "상수가 없는 것인지 이름이 다른 것인지" 를 가를 수
+없어, **무엇이 있는지 함께 담도록** 오류를 고쳤다. 그 한 줄이 답을 줬다.
+
+상수가 있으면 그것을, 없으면 **소문자 축 이름**(`"horizontal"`)을 넘긴다.
+짐작으로 둔 것이 아니라 실기에서 그림으로 확인한 경로다.
+
+## 레이어 자기 경계 기준이다
+
+캔버스가 아니라 **레이어의 경계 상자** 안에서 뒤집힌다.
+
+```text
+                경계              내용
+뒤집기 전       40–335 × 20–255   빨강 왼쪽 위 · 파랑 오른쪽 아래
+horizontal      그대로            빨강 오른쪽 위 · 파랑 왼쪽 아래
+vertical        그대로            빨강 오른쪽 아래 · 파랑 왼쪽 위
+both            그대로            원래 배치 (앞의 둘을 상쇄)
+```
+
+**대칭인 원 하나로는 확인이 안 됐다.** 처음 시도가 그랬다 — 경계도 그대로고
+그림도 같아서 "안 된 것" 과 구분되지 않았다. 크기와 색이 다른 얼룩 둘을
+대각선으로 두고 나서야 갈렸다. **검증할 수 없는 시험은 시험이 아니다.**
+
+## Mock 은 경계를 지어내지 않는다
+
+픽셀을 모르므로 `null` 이다. 어차피 경계로는 뒤집혔는지 알 수 없어 잃는 것도
+없다 — `LAYER_GET` 의 `bounds` 와 같은 규칙이다.
+
+## 체크리스트
+
+- [x] `photoshop.layer.flip` — `axis` 셋, `before` · `after`
+- [x] `constants.FlipAxis` 부재를 확인하고 문자열 경로로 우회
+- [x] 오류가 **무엇이 있는지** 함께 알린다
+- [x] 실기: 세 축 모두 그림으로 확인

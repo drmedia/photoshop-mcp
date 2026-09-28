@@ -342,6 +342,27 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        * 플래그라고 짐작했다가 반대로 틀렸고, Mock 이 그대로였으면 테스트가
        * 그 거짓을 굳혔다.
        */
+      /**
+       * 레이어 뒤집기. (CORE_API §5 P2)
+       *
+       * **Mock 은 경계를 지어내지 않는다.** 픽셀을 모르므로 `null` 이다 —
+       * `LAYER_GET` 의 `bounds` 와 같은 규칙이다. 뒤집혔는지는 어차피 경계로
+       * 알 수 없으므로 잃는 것도 없다.
+       */
+      case "LAYER_FLIP": {
+        const p = command.params as {
+          layerId?: number;
+          axis: "horizontal" | "vertical" | "both";
+        };
+        const index = this.#requireLayerIndex(p.layerId);
+        this.#snapshot("Flip layer");
+        return {
+          layer: { ...(this.#layers[index] as LayerInfo) },
+          axis: p.axis,
+          before: null,
+          after: null,
+        } as TResult;
+      }
       case "LAYER_SET_LOCK": {
         const p = command.params as {
           layerId?: number;

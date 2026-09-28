@@ -278,6 +278,12 @@ declare module "photoshop" {
      * 값이 무엇인지 확인한 적이 없으므로 `unknown` 이다. 없으면 거절한다.
      */
     readonly ChangeMode?: Readonly<Record<string, unknown>>;
+    /**
+     * `Layer.flip` 의 축. (`LAYER_FLIP`)
+     *
+     * 값이 무엇인지 확인한 적이 없으므로 `unknown` 이다. 없으면 거절한다.
+     */
+    readonly FlipAxis?: Readonly<Record<string, unknown>>;
   };
 }
 

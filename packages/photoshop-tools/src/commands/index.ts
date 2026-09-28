@@ -353,6 +353,7 @@ export * from "./adjustment.js";
 export * from "./adjustment-extra.js";
 export * from "./channel.js";
 export * from "./layer-comp.js";
+export * from "./path.js";
 export * from "./filter.js";
 export * from "./filter-dom.js";
 export * from "./gap-tools.js";
@@ -473,6 +474,32 @@ import {
   layerCompListCommand,
   layerCompRecaptureCommand,
 } from "./layer-comp.js";
+import {
+  PATH_CREATE,
+  PATH_DELETE,
+  PATH_FILL,
+  PATH_GET,
+  PATH_LIST,
+  PATH_SELECT,
+  PATH_STROKE,
+  PATH_TO_SELECTION,
+  PathCreateParamsSchema,
+  PathDeleteParamsSchema,
+  PathFillParamsSchema,
+  PathGetParamsSchema,
+  PathListParamsSchema,
+  PathSelectParamsSchema,
+  PathStrokeParamsSchema,
+  PathToSelectionParamsSchema,
+  pathCreateCommand,
+  pathDeleteCommand,
+  pathFillCommand,
+  pathGetCommand,
+  pathListCommand,
+  pathSelectCommand,
+  pathStrokeCommand,
+  pathToSelectionCommand,
+} from "./path.js";
 export { PING, pingCommand, type PingResult } from "./ping.js";
 
 /**
@@ -721,6 +748,41 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_COMP_DELETE, layerCompDeleteCommand, {
     permission: "destructive",
     schema: LayerCompDeleteParamsSchema,
+  });
+
+  // ROADMAP §58 — 패스. 전부 DOM 이다.
+  registry.register(PATH_LIST, pathListCommand, {
+    permission: "read",
+    schema: PathListParamsSchema,
+  });
+  registry.register(PATH_GET, pathGetCommand, {
+    permission: "read",
+    schema: PathGetParamsSchema,
+  });
+  registry.register(PATH_CREATE, pathCreateCommand, {
+    permission: "edit",
+    schema: PathCreateParamsSchema,
+  });
+  registry.register(PATH_SELECT, pathSelectCommand, {
+    permission: "edit",
+    schema: PathSelectParamsSchema,
+  });
+  registry.register(PATH_TO_SELECTION, pathToSelectionCommand, {
+    permission: "edit",
+    schema: PathToSelectionParamsSchema,
+  });
+  registry.register(PATH_FILL, pathFillCommand, {
+    permission: "edit",
+    schema: PathFillParamsSchema,
+  });
+  registry.register(PATH_STROKE, pathStrokeCommand, {
+    permission: "edit",
+    schema: PathStrokeParamsSchema,
+  });
+  /* **저장해 둔 윤곽을 버린다.** 칠한 픽셀은 남고 윤곽만 사라진다. */
+  registry.register(PATH_DELETE, pathDeleteCommand, {
+    permission: "destructive",
+    schema: PathDeleteParamsSchema,
   });
   registry.register(DODGE_BURN_DAB, dodgeBurnDabCommand, {
     // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.

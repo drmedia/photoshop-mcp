@@ -268,6 +268,7 @@ describe("Core Tool 분류", () => {
       "CHANNEL_DELETE",
       "LAYER_COMP_RECAPTURE",
       "LAYER_COMP_DELETE",
+      "PATH_DELETE",
       "ACTION_PLAY",
       "MASK_APPLY",
       "MASK_DELETE",
@@ -335,6 +336,8 @@ describe("Core Tool 분류", () => {
            * 없다. (ROADMAP §57) */
           type === "LAYER_COMP_RECAPTURE" ||
           type === "LAYER_COMP_DELETE" ||
+          /* 저장해 둔 윤곽을 버린다. 칠한 픽셀은 남는다. (ROADMAP §58) */
+          type === "PATH_DELETE" ||
           /* 이미지를 다시 표본화한다. 축소하면 버려진 해상도가 문서 어디에도
            * 남지 않는다 — `DOCUMENT_CROP` 이 `edit` 인 근거가 "픽셀은 버리지
            * 않는다" 이므로 이쪽은 갈린다. (ROADMAP §33) */

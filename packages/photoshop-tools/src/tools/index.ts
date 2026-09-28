@@ -164,10 +164,21 @@ import {
   createLayerCompListTool,
   createLayerCompRecaptureTool,
 } from "./layer-comp.js";
+import {
+  createPathCreateTool,
+  createPathDeleteTool,
+  createPathFillTool,
+  createPathGetTool,
+  createPathListTool,
+  createPathSelectTool,
+  createPathStrokeTool,
+  createPathToSelectionTool,
+} from "./path.js";
 export * from "./adjustment.js";
 export * from "./adjustment-extra.js";
 export * from "./channel.js";
 export * from "./layer-comp.js";
+export * from "./path.js";
 export * from "./filter.js";
 export * from "./filter-dom.js";
 export * from "./capability.js";
@@ -271,6 +282,14 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createLayerCompApplyTool(engine));
   registry.register(createLayerCompRecaptureTool(engine));
   registry.register(createLayerCompDeleteTool(engine));
+  registry.register(createPathListTool(engine));
+  registry.register(createPathGetTool(engine));
+  registry.register(createPathCreateTool(engine));
+  registry.register(createPathSelectTool(engine));
+  registry.register(createPathToSelectionTool(engine));
+  registry.register(createPathFillTool(engine));
+  registry.register(createPathStrokeTool(engine));
+  registry.register(createPathDeleteTool(engine));
   registry.register(createDodgeBurnDabTool(engine));
   registry.register(createActionListTool(engine));
   registry.register(createActionDeclaredTool(engine));

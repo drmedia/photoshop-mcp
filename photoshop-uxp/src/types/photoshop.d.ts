@@ -299,6 +299,8 @@ declare module "photoshop" {
      * 무엇인지는 확인한 적이 없으므로 `unknown` 이다. 없으면 거절한다.
      */
     readonly SelectionType?: Readonly<Record<string, unknown>>;
+    /** 패스 긋기용 도구. 값은 실기에서 확인한다. (ROADMAP §58) */
+    readonly ToolType?: Readonly<Record<string, unknown>>;
   };
 }
 

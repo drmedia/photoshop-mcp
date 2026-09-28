@@ -150,6 +150,16 @@ import {
   layerCompList,
   layerCompRecapture,
 } from "./dom/layer-comp.js";
+import {
+  pathCreate,
+  pathDelete,
+  pathFill,
+  pathGet,
+  pathList,
+  pathSelect,
+  pathStroke,
+  pathToSelection,
+} from "./dom/path.js";
 
 const PLUGIN = { name: "photoshop-mcp-uxp", version: "0.1.0" };
 
@@ -280,6 +290,24 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("LAYER_COMP_DELETE", async (p) =>
     layerCompDelete(p as { name?: string; index?: number }),
+  );
+  dispatcher.register("PATH_LIST", async () => pathList());
+  dispatcher.register("PATH_GET", async (p) => pathGet(p as { name?: string; index?: number }));
+  dispatcher.register("PATH_CREATE", async (p) =>
+    pathCreate(p as { name?: string; tolerance?: number }),
+  );
+  dispatcher.register("PATH_SELECT", async (p) =>
+    pathSelect(p as { name?: string; index?: number; selected?: boolean }),
+  );
+  dispatcher.register("PATH_TO_SELECTION", async (p) =>
+    pathToSelection(p as Parameters<typeof pathToSelection>[0]),
+  );
+  dispatcher.register("PATH_FILL", async (p) => pathFill(p as Parameters<typeof pathFill>[0]));
+  dispatcher.register("PATH_STROKE", async (p) =>
+    pathStroke(p as Parameters<typeof pathStroke>[0]),
+  );
+  dispatcher.register("PATH_DELETE", async (p) =>
+    pathDelete(p as { name?: string; index?: number }),
   );
   dispatcher.register("DOCUMENT_FLATTEN", async () => documentFlatten());
   dispatcher.register("DOCUMENT_CLOSE", async (p) =>

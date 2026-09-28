@@ -43,6 +43,28 @@ interface MockLayerComp {
   selected: boolean | null;
 }
 
+/**
+ * Mock 이 흉내내는 패스.
+ *
+ * **이름 · 선택 상태 · 선택 영역과의 왕복까지 흉내낸다** — 그것이 계약이다.
+ * `kind` 는 실기 값을 모르므로 `null` 이고, `fill` · `stroke` 는 픽셀이라
+ * 그리지 않는다(필터와 같은 자리).
+ */
+interface MockPathInfo {
+  index: number;
+  id: number;
+  name: string;
+  /** 실기 값을 모른다 — 지어내지 않는다. */
+  kind: null;
+  subPathCount: null;
+}
+
+interface MockPath {
+  id: number;
+  name: string;
+  selected: boolean;
+}
+
 /** Mock 이 흉내내는 채널. 색 성분은 담지 않는다 — 이름이 지역화된다. */
 interface MockChannelInfo {
   index: number;
@@ -187,6 +209,8 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   /** 저장된 알파 채널 이름. Mock 은 픽셀을 모르므로 이름만 기억한다. */
   readonly #channels = new Set<string>();
   readonly #layerComps: MockLayerComp[] = [];
+  readonly #paths: MockPath[] = [];
+  #nextPathId = 1;
   #nextLayerCompId = 1;
   #nextLayerId: number;
   readonly #history: {
@@ -2218,6 +2242,71 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        * **이름이 유일하지 않다** — 실제 `getAllByName` 이 배열을 돌려준다.
        * 이름이 여럿일 때 거절하는 계약을 Mock 도 흉내낸다.
        */
+      /**
+       * 패스. (ROADMAP §58)
+       *
+       * **`create` 는 선택 영역을 요구한다** — 실기도 그렇다. `to_selection` 이
+       * 선택을 만드는 것까지 흉내내 둘이 왕복하는 계약이 테스트에 나온다.
+       * `fill` · `stroke` 는 픽셀이라 그리지 않는다.
+       */
+      case "PATH_LIST":
+        this.#requireDocument();
+        return {
+          paths: this.#paths.map((entry, index) => this.#pathInfo(entry, index)),
+        } as TResult;
+      case "PATH_GET":
+        this.#requireDocument();
+        return this.#findPath(command.params as { name?: string; index?: number }) as TResult;
+      case "PATH_CREATE": {
+        this.#requireDocument();
+        if (!this.#hasSelection) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "선택 영역이 없습니다. photoshop.selection.* 로 먼저 선택하세요.",
+            { recoverable: true },
+          );
+        }
+        this.#snapshot("Make work path");
+        const name = (command.params as { name?: string }).name ?? "작업 패스";
+        const made: MockPath = { id: this.#nextPathId++, name, selected: true };
+        this.#paths.push(made);
+        return this.#pathInfo(made, this.#paths.length - 1) as TResult;
+      }
+      case "PATH_SELECT": {
+        this.#requireDocument();
+        this.#snapshot("Select path");
+        const params = command.params as { name?: string; index?: number; selected?: boolean };
+        const info = this.#findPath(params);
+        const target = this.#paths.find((entry) => entry.id === info.id);
+        if (target !== undefined) {
+          target.selected = params.selected ?? true;
+        }
+        return this.#findPath({ index: info.index }) as TResult;
+      }
+      case "PATH_TO_SELECTION": {
+        this.#requireDocument();
+        this.#snapshot("Path to selection");
+        const info = this.#findPath(command.params as { name?: string; index?: number });
+        this.#hasSelection = true;
+        return { path: info, hasSelection: true } as TResult;
+      }
+      case "PATH_FILL":
+      case "PATH_STROKE": {
+        this.#requireDocument();
+        this.#snapshot(command.type === "PATH_FILL" ? "Fill path" : "Stroke path");
+        /* **픽셀은 그리지 않는다.** 무엇이 어떻게 그려지는지 Mock 이 모른다 —
+         * 필터와 같은 자리다. 패스를 찾는 계약만 흉내낸다. */
+        return this.#findPath(command.params as { name?: string; index?: number }) as TResult;
+      }
+      case "PATH_DELETE": {
+        this.#requireDocument();
+        this.#snapshot("Delete path");
+        const info = this.#findPath(command.params as { name?: string; index?: number });
+        const at = this.#paths.findIndex((entry) => entry.id === info.id);
+        this.#paths.splice(at, 1);
+        return { deleted: info.name, remaining: this.#paths.length } as TResult;
+      }
+
       case "LAYER_COMP_LIST":
         this.#requireDocument();
         return { comps: this.#layerComps.map((entry, index) => ({ ...entry, index })) } as TResult;
@@ -2780,6 +2869,48 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
    * `asSmartFilter: true` 일 때 대상이 스마트 오브젝트로 바뀌는 것만 반영한다.
    * 호출자가 결과의 `type` 으로 비파괴 여부를 확인할 수 있어야 하기 때문이다.
    */
+  #pathInfo(path: MockPath, index: number): MockPathInfo {
+    /* `kind` 와 하위 패스 개수는 실기 값을 모른다 — 지어내지 않는다. */
+    return { index, id: path.id, name: path.name, kind: null, subPathCount: null };
+  }
+
+  #findPath(params: { name?: string; index?: number }): MockPathInfo {
+    if (params.index !== undefined) {
+      const found = this.#paths[params.index];
+      if (found === undefined) {
+        throw new PhotoshopMcpError(
+          ErrorCode.INVALID_PARAMETER,
+          `패스 색인 ${String(params.index)} 가 범위를 벗어납니다. 패스는 ${String(this.#paths.length)}개입니다.`,
+          { recoverable: true, details: { index: params.index } },
+        );
+      }
+      return this.#pathInfo(found, params.index);
+    }
+    const matches = this.#paths
+      .map((entry, index) => ({ entry, index }))
+      .filter(({ entry }) => entry.name === params.name);
+    if (matches.length === 0) {
+      throw new PhotoshopMcpError(
+        ErrorCode.INVALID_PARAMETER,
+        `패스 '${String(params.name)}' 이 없습니다.`,
+        {
+          recoverable: true,
+          details: { name: params.name, available: this.#paths.map((e) => e.name) },
+        },
+      );
+    }
+    /* **이름이 유일하지 않다** — `getByName` 이 "the first" 라고 적혀 있다. */
+    if (matches.length > 1) {
+      throw new PhotoshopMcpError(
+        ErrorCode.INVALID_PARAMETER,
+        `패스 '${String(params.name)}' 이 ${String(matches.length)}개입니다. index 로 고르세요.`,
+        { recoverable: true, details: { name: params.name, indexes: matches.map((m) => m.index) } },
+      );
+    }
+    const only = matches[0] as { entry: MockPath; index: number };
+    return this.#pathInfo(only.entry, only.index);
+  }
+
   #findComp(params: { name?: string; index?: number }): MockLayerComp & { index: number } {
     if (params.index !== undefined) {
       const found = this.#layerComps[params.index];

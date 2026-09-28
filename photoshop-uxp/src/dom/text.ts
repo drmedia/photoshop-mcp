@@ -79,7 +79,7 @@ function requireFont(postScriptName: string): void {
  * 생성자는 `app.SolidColor` 다 — `photoshop` 모듈 최상위에는 없다.
  * **`rgb` 는 통째로 바꿀 수 없고 속성을 하나씩 넣어야 한다.**
  */
-function solidColor(color: { red: number; green: number; blue: number }): unknown {
+export function solidColor(color: { red: number; green: number; blue: number }): unknown {
   const Ctor = (app as unknown as Record<string, unknown>)["SolidColor"] as
     (new () => Record<string, unknown>) | undefined;
   if (typeof Ctor !== "function") {

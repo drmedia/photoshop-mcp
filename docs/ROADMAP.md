@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 138개만
+기본            Extension 0개. Core Tool 146개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -8478,3 +8478,95 @@ B 를 다시 보이게 한 뒤 apply index 0
 - [x] 실기: 이름 중복이 실제로 된다 (추론을 검증)
 - [x] 실기: `apply` 가 표시 여부를 되돌린다 (`layer.list` 로 검산)
 - [x] 실기: `recapture` 가 옛 기록을 지운다 → destructive
+
+# 58. 패스 (`path.*` 여덟)
+
+`CORE_API.md` §5.12 에 이름만 잡혀 있던 것이다. `fill` · `stroke` 가 더해져
+여덟이 됐다.
+
+## 전부 DOM 이다
+
+`document.pathItems`(23.3+) 컬렉션과 `PathItem` 클래스로 다 된다. batchPlay 를
+쓰지 않았다.
+
+## `create` 는 선택 영역에서 만든다
+
+`pathItems.add(name, entirePath: SubPathInfo[])` 는 **베지어 기하를 요구하고
+`SubPathInfo` 의 인터페이스 문서가 없다.** 좌표를 지어내 넘기면 무엇이
+만들어질지 모른다.
+
+대신 `Selection.makeWorkPath(tolerance)` 를 쓴다 — 이 저장소에는
+`selection.sky` · `subject` · `polygon` · `color_range` 처럼 좋은 선택을 만드는
+길이 이미 많다. 그쪽에서 받아 오는 것이 자연스럽다.
+
+**이름을 주면 저장된 패스가 되는 것도 재서 확인했다.**
+
+```text
+create { name: "타원" }  →  kind: normalPath
+create { }               →  name: "작업 패스" · kind: workPathIndex
+```
+
+**런타임 값이 상수 이름과 다르다** — `constants.PathKind` 의 멤버는 `WORKPATH`
+인데 읽히는 값은 `workPathIndex` 다. 그래서 `kind` 를 매핑하지 않고 문자열
+그대로 두었다.
+
+## 선택과 왕복한다
+
+```text
+selection.set ellipse 100,75,300,225
+path.create { tolerance: 1 }   →  normalPath
+selection.clear
+path.to_selection              →  selection:99,75,301,226
+```
+
+±1px 는 tolerance 1 의 베지어 근사다. `selection.save_channel` 과 갈리는
+자리다 — 그쪽은 픽셀이라 확대하면 뭉개지고 패스는 안 매인다.
+
+## `fill` 은 정확하다
+
+```text
+path.fill { color: {240, 40, 40} }
+→ 레이어 p50: R 240 · G 40 · B 40
+```
+
+## `stroke` 는 굵기와 색을 정할 수 없다 — 그것이 지배적 사실이다
+
+`strokePath(tool, simulatePressure, sourceOrigin?, sourceLayer?)` 에 **굵기도
+색도 없다.** 도구의 Photoshop 현재 설정을 그대로 쓴다.
+
+처음에는 "결과를 확인하라" 는 주의로 적었는데 **실기가 그보다 셌다.**
+
+```text
+brush 로 긋기   →  합성 화면에 아무 변화가 없다 (흰색 + 큰 지름으로 추정)
+eraser 로 긋기  →  200×150 빨간 타원이 통째로 사라졌다
+                   statistics: "invalid empty image region"
+```
+
+**획이 아니라 전면이었다.** 브러시 지름이 타원보다 컸다는 뜻이고, 그것을 읽을
+방법도 없다.
+
+그래서 설명이 **"예측 가능한 결과가 필요하면 `path.fill` 을 쓴다"** 로 시작한다.
+Tool 을 없애지는 않았다 — 패스를 따라 긋는 다른 길이 없고, 사용자가 브러시를
+맞춰 둔 경우에는 쓸 수 있다. 다만 **모르고 부르면 그림이 지워진다.**
+
+## 알파를 무시하는 측정에 또 걸렸다
+
+획이 그어졌는지 보려고 `document.statistics { layerId }` 를 불렀더니 전부 0 이
+나왔다 — **투명한 곳과 검은 획을 구분할 수 없다.** `layer.capture` 도 같았다.
+합성(`document.capture`)으로 봐야 갈렸다. CLAUDE.md 가 GraXpert 자리에 적어 둔
+것과 같은 함정이다.
+
+## `fill` 의 혼합 모드는 열지 않았다
+
+`fillPath` 의 `mode` 인자다. 색과 불투명도로 충분하고, 모드까지 열면
+`constants.BlendMode` 매핑이 하나 더 필요해진다. 필요해지면 그때 더한다.
+
+## 체크리스트
+
+- [x] `photoshop.path.list` · `get` · `create` · `select` · `to_selection` · `fill` · `stroke` · `delete`
+- [x] 전부 DOM — descriptor 를 한 번도 잡지 않았다
+- [x] `SubPathInfo` 를 짐작하지 않고 `makeWorkPath` 로 갔다
+- [x] 실기: 이름 유무로 `normalPath` / `workPathIndex` 가 갈린다
+- [x] 실기: 선택 ↔ 패스 왕복 (±1px)
+- [x] 실기: `fill` 이 정확한 색으로 칠한다
+- [x] 실기: `stroke` 가 타원을 통째로 지웠다 → 설명을 경고에서 사실로 바꿨다

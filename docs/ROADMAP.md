@@ -4664,7 +4664,15 @@ manifest 에 선언해야 한다(§22).
 
 ## 대화상자를 끄지 못한다
 
-**`app.displayDialogs` 가 UXP 에 없다.** 실기에서 확인했다.
+**한동안 "`app.displayDialogs` 가 UXP 에 없다" 고 적어 두었는데 틀렸다.**
+§61 에서 `host.get` 에 물어보니 27.8 에서 `true` 다 — Adobe 레퍼런스에도
+23.0 부터 R/W 로 있다.
+
+무엇을 "확인했다" 고 적었는지는 남아 있지 않다. 없는 것을 확인한 것인지,
+걸었는데 대화상자가 그대로 떠서 없다고 읽은 것인지 가릴 수 없다.
+**후자라면 결론(못 끈다)은 살아 있고 근거만 틀린 것이다.**
+
+지금 코드는 그대로 둔다 — 걸어서 재 보기 전에는 바꾸지 않는다.
 
 결과의 `dialogsSuppressed` 가 그 사실을 담는다. **껐다고 말하고 안 끄는 것이
 가장 나쁘다** — 액션 안의 대화상자가 뜨면 플러그인이 멈추고 Bridge 가 15초에
@@ -5628,7 +5636,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 157개만
+기본            Extension 0개. Core Tool 159개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -8537,7 +8545,7 @@ path.fill { color: {240, 40, 40} }
 처음에는 "결과를 확인하라" 는 주의로 적었는데 **실기가 그보다 셌다.**
 
 ```text
-brush 로 긋기   →  합성 화면에 아무 변화가 없다 (흰색 + 큰 지름으로 추정)
+brush 로 긋기   →  합성 화면에 아무 변화가 없다 (원인 미상)
 eraser 로 긋기  →  200×150 빨간 타원이 통째로 사라졌다
                    statistics: "invalid empty image region"
 ```
@@ -8744,3 +8752,87 @@ Photoshop 이 **명시적으로 설정한 것만** 보고한다. 다시 읽어�
 - [x] 실기: 자동 행간이 `leading` 을 지운다 (짐작보다 셌다)
 - [x] **기존 결함 수정**: `\n` 이 네모로 그려지던 것을 `\r` 로 바꾼다
 - [x] 워프 이름을 경계에서 되돌린다 (넣는 어휘 = 읽는 어휘)
+
+# 61. 환경 설정과 색 (`preferences.get` · `color.get_foreground_background`)
+
+`CORE_API.md` §5.11 의 P3 셋 중 둘이다. `units.get` 은 만들지 않았다 —
+`preferences.get` 의 `unitsAndRulers` 가 그것이다.
+
+## 속성 이름을 짐작하지 않고 반사적으로 읽는다
+
+`Preferences` 는 열두 개 하위 객체인데 **그 안쪽 속성이 레퍼런스 페이지에
+없다.** 이름을 지어 읽으면 무엇이 빠졌는지도 모른다.
+
+그래서 하위 객체의 열거 가능한 키를 훑어 **값이 읽히는 것만** 담는다. 중첩
+객체와 함수는 뺀다 — 무엇이 값이고 무엇이 API 인지 호출자가 가릴 수 없게 된다.
+
+실기에서 열두 범주가 전부 값을 냈다. 짐작한 이름은 하나도 없다.
+
+```text
+unitsAndRulers  rulerUnits "rulerPixels" · typeUnits "rulerPoints" · pointSize "POSTSCRIPT"
+history         numberOfHistoryStates 50 · nonLinearHistory false · createFirstSnapshot true
+performance     maxRAMuse 70 · imageCacheLevels 4
+fileHandling    maximizeCompatibility "queryAsk" · recentFileListMaximum 20
+```
+
+**`unitsAndRulers` 에 해상도는 없었다.** 설명에 "눈금자 단위와 기본 해상도를
+담는다" 고 적어 두었다가 재 보고 고쳤다 — 문서 해상도는 `document.get` 쪽이다.
+
+## 전경색이 검정이었다 — §58 의 추정을 지웠다
+
+§58 에서 `path.stroke` 의 브러시 획이 안 보인 것을 **"흰색 + 큰 지름으로
+추정"** 이라고 적었다. 재 보니 전경색은 **#000000** 이다.
+
+```text
+foreground  #000000
+background  #FFFFFF
+```
+
+지우개가 타원을 통째로 지운 것은 사실이므로 **지름이 큰 것은 맞다.** 검은
+브러시가 왜 안 보였는지는 **아직 모른다** — §58 의 괄호를 "원인 미상" 으로
+바꿨다.
+
+**짐작을 괄호에 넣어 두면 나중에 사실처럼 읽힌다.**
+
+## 바꾸는 Tool 은 만들지 않았다
+
+전경색과 환경 설정은 **사용자가 Photoshop UI 에서 쓰는 상태**다. LLM 이 말없이
+바꾸면 사용자가 다음에 칠할 때 엉뚱한 색이 나오고, 환경 설정은 이후 모든
+작업이 달라진다.
+
+색을 정해 칠하려면 색을 인자로 받는 Tool 을 쓴다 — `paint.dab` · `path.fill` ·
+`text.create`.
+
+## `app.displayDialogs` 는 있다 — 저장소 문서가 틀렸다
+
+레퍼런스를 읽다가 `app` 에 `displayDialogs`(DialogModes, R/W, 23.0+)가 있는
+것을 봤다. CLAUDE.md 는 **세 곳에서** "UXP 에 없어 대화상자를 끄지 못한다" 고
+적고 있었다.
+
+`host.get` 이 "이 서버가 쓰는 API 의 유무" 를 답하는 자리이므로 거기에 물었다.
+
+```text
+displayDialogs: true      27.8
+```
+
+**속성은 있다.** 다만 **있다는 것과 대화상자를 실제로 막는다는 것은 다르다** —
+걸어서 재 보지 않았으므로 `ACTION_PLAY` 는 그대로 두었고, 문서에서는
+**결론(못 끈다)과 근거(없다)를 분리해** 근거만 고쳤다.
+
+옛 기록에 "실기에서 확인했다" 고만 적혀 있어 **무엇을 확인한 것인지 가릴 수
+없다.** 없는 것을 본 것인지, 걸었는데 안 먹어서 없다고 읽은 것인지 모른다.
+후자라면 결론은 살아 있다.
+
+`host.get` 의 `layerComps` · `pathItems` 주석에 "이 서버는 아직 쓰지 않는다"
+고 남아 있던 것도 함께 고쳤다 — §57 · §58 이 이제 쓴다.
+
+## 체크리스트
+
+- [x] `photoshop.preferences.get` (READ, 열두 범주)
+- [x] `photoshop.color.get_foreground_background` (READ)
+- [x] `units.get` 은 만들지 않았다 — `unitsAndRulers` 가 준다
+- [x] 속성 이름을 짐작하지 않고 반사적으로 읽는다
+- [x] 실기: 열두 범주가 전부 값을 낸다 · 해상도는 없다
+- [x] 실기: 전경색 #000000 — §58 의 추정을 지웠다
+- [x] `host.get` 에 `displayDialogs` 추가 — CLAUDE.md 의 틀린 근거를 고쳤다
+- [ ] `displayDialogs` 를 실제로 걸면 액션 대화상자가 막히는지는 미확인

@@ -359,6 +359,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
             selectionDom: open === 0 ? null : false,
             layerComps: open === 0 ? null : false,
             pathItems: open === 0 ? null : false,
+            displayDialogs: open === 0 ? null : false,
           },
         } as TResult;
       }
@@ -2423,6 +2424,42 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
          * 그것이 실기 계약이다. */
         this.#textStates.delete(id);
         return { layer: { ...shaped }, previousType: "text" } as TResult;
+      }
+
+      /**
+       * 앱 설정과 색. (ROADMAP 61)
+       *
+       * **Mock 은 Photoshop 앱 상태를 모른다.** 환경 설정도 전경색도 실행 중인
+       * Photoshop 에만 있다 — 그럴듯한 값을 지어내면 워크플로가 오지 않은
+       * 결과를 믿는다. 계약이 "모르면 null" 이라고 정해 두었으므로 그대로 둔다.
+       *
+       * 흉내내는 것은 **모양과 범주 이름**까지다.
+       */
+      case "PREFERENCES_GET": {
+        const wanted = (command.params as { category?: string }).category;
+        const names = [
+          "cursors",
+          "fileHandling",
+          "general",
+          "guidesGridsAndSlices",
+          "history",
+          "interface",
+          "notifications",
+          "performance",
+          "tools",
+          "transparencyAndGamut",
+          "type",
+          "unitsAndRulers",
+        ];
+        const categories: Record<string, null> = {};
+        for (const name of wanted === undefined ? names : [wanted]) {
+          categories[name] = null;
+        }
+        return { categories } as TResult;
+      }
+      case "COLOR_GET_FOREGROUND_BACKGROUND": {
+        const unknown = { red: null, green: null, blue: null, hex: null };
+        return { foreground: { ...unknown }, background: { ...unknown } } as TResult;
       }
 
       case "GUIDE_LIST":

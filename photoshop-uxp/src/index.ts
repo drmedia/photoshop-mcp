@@ -171,6 +171,7 @@ import {
   textSetTracking,
   textWarp,
 } from "./dom/text-style.js";
+import { colorGetForegroundBackground, preferencesGet } from "./dom/app-info.js";
 
 const PLUGIN = { name: "photoshop-mcp-uxp", version: "0.1.0" };
 
@@ -344,6 +345,12 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("TEXT_CONVERT_TO_SHAPE", async (p) =>
     textConvertToShape(p as { layerId?: number }),
+  );
+  dispatcher.register("PREFERENCES_GET", async (p) =>
+    preferencesGet(p as Parameters<typeof preferencesGet>[0]),
+  );
+  dispatcher.register("COLOR_GET_FOREGROUND_BACKGROUND", async () =>
+    colorGetForegroundBackground(),
   );
   dispatcher.register("DOCUMENT_FLATTEN", async () => documentFlatten());
   dispatcher.register("DOCUMENT_CLOSE", async (p) =>

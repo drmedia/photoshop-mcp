@@ -45,11 +45,22 @@ export interface HostFeatures {
   /**
    * `document.layerComps` · `document.pathItems`.
    *
-   * **이 서버는 아직 쓰지 않는다.** 호스트가 가졌는지를 말할 뿐이고 Tool 이
-   * 있다는 뜻이 아니다 — 만들 수 있는지 미리 판단하는 근거다.
+   * 한동안 "이 서버는 아직 쓰지 않는다" 고 적혀 있었다. 이제 `layer_comp.*`
+   * (ROADMAP §57) 와 `path.*`(§58) 가 쓴다.
    */
   layerComps: boolean | null;
   pathItems: boolean | null;
+  /**
+   * `app.displayDialogs`.
+   *
+   * **저장소 문서와 레퍼런스가 어긋나는 자리다.** CLAUDE.md 가 세 곳에서
+   * "`app.displayDialogs` 가 UXP 에 없어 대화상자를 끄지 못한다" 고 적는데
+   * Adobe 레퍼런스에는 23.0 부터 R/W 로 있다.
+   *
+   * 어느 쪽이 맞는지 호스트에게 직접 묻는다 — `constants.FlipAxis` 처럼
+   * 레퍼런스에 있고 런타임에 없는 전례가 있다(§44). (ROADMAP §61)
+   */
+  displayDialogs: boolean | null;
 }
 
 export interface HostInfoResult {
@@ -67,6 +78,19 @@ export interface HostInfoResult {
 /** 문자열이 아니면 `null`. 빈 문자열도 `null` 이다 — 없는 것과 같다. */
 function text(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/**
+ * `app` 에 그 속성이 있는지. 값을 읽어 보지 않고 **존재만** 본다.
+ *
+ * 읽다가 던지면 `null` 이다 — 없는 것과 못 읽은 것을 가르지 않는다.
+ */
+function hasAppProperty(name: string): boolean | null {
+  try {
+    return (app as unknown as Record<string, unknown>)[name] !== undefined;
+  } catch {
+    return null;
+  }
 }
 
 export function hostGet(): HostInfoResult {
@@ -117,6 +141,7 @@ export function hostGet(): HostInfoResult {
       selectionDom: onDocumentProperty("selection"),
       layerComps: onDocumentProperty("layerComps"),
       pathItems: onDocumentProperty("pathItems"),
+      displayDialogs: hasAppProperty("displayDialogs"),
     },
   };
 }

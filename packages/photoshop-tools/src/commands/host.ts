@@ -44,6 +44,14 @@ const HostFeaturesSchema = z.object({
    */
   layerComps: z.boolean().nullable(),
   pathItems: z.boolean().nullable(),
+  /**
+   * `app.displayDialogs`.
+   *
+   * **저장소 문서와 레퍼런스가 어긋나는 자리다** — CLAUDE.md 는 없다고,
+   * Adobe 레퍼런스는 23.0 부터 있다고 적는다. 호스트에게 직접 묻는다.
+   * (ROADMAP §61)
+   */
+  displayDialogs: z.boolean().nullable(),
 });
 
 export const HostInfoSchema = z.object({

@@ -185,6 +185,7 @@ import {
   createTextSetTrackingTool,
   createTextWarpTool,
 } from "./text-style.js";
+import { createColorGetTool, createPreferencesGetTool } from "./app-info.js";
 export * from "./adjustment.js";
 export * from "./adjustment-extra.js";
 export * from "./channel.js";
@@ -192,6 +193,7 @@ export * from "./layer-comp.js";
 export * from "./path.js";
 export * from "./guide.js";
 export * from "./text-style.js";
+export * from "./app-info.js";
 export * from "./filter.js";
 export * from "./filter-dom.js";
 export * from "./capability.js";
@@ -314,6 +316,8 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createTextConvertToPointTool(engine));
   registry.register(createTextConvertToParagraphTool(engine));
   registry.register(createTextConvertToShapeTool(engine));
+  registry.register(createPreferencesGetTool(engine));
+  registry.register(createColorGetTool(engine));
   registry.register(createDodgeBurnDabTool(engine));
   registry.register(createActionListTool(engine));
   registry.register(createActionDeclaredTool(engine));

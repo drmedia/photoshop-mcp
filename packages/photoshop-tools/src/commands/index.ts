@@ -356,6 +356,7 @@ export * from "./layer-comp.js";
 export * from "./path.js";
 export * from "./guide.js";
 export * from "./text-style.js";
+export * from "./app-info.js";
 export * from "./filter.js";
 export * from "./filter-dom.js";
 export * from "./gap-tools.js";
@@ -536,6 +537,14 @@ import {
   textSetTrackingCommand,
   textWarpCommand,
 } from "./text-style.js";
+import {
+  COLOR_GET_FOREGROUND_BACKGROUND,
+  ColorGetParamsSchema,
+  PREFERENCES_GET,
+  PreferencesGetParamsSchema,
+  colorGetCommand,
+  preferencesGetCommand,
+} from "./app-info.js";
 export { PING, pingCommand, type PingResult } from "./ping.js";
 
 /**
@@ -872,6 +881,16 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(TEXT_CONVERT_TO_SHAPE, textConvertToShapeCommand, {
     permission: "destructive",
     schema: TextTargetParamsSchema,
+  });
+
+  // ROADMAP 61 — 앱 설정과 색. 둘 다 읽기만 한다.
+  registry.register(PREFERENCES_GET, preferencesGetCommand, {
+    permission: "read",
+    schema: PreferencesGetParamsSchema,
+  });
+  registry.register(COLOR_GET_FOREGROUND_BACKGROUND, colorGetCommand, {
+    permission: "read",
+    schema: ColorGetParamsSchema,
   });
   registry.register(DODGE_BURN_DAB, dodgeBurnDabCommand, {
     // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.

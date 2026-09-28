@@ -14,11 +14,11 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **157개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **159개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 163). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 165). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -27,6 +27,9 @@ Tool 까지 더한 수다(지금 163). 한동안 이 값을 Core 개수로 옮�
   새 문서가 활성이 되므로 이후 편집 대상이 바뀐다
 - 문서 복제: `document.duplicate` — 되돌릴 수 없는 작업 앞의 안전망.
   **`mergeLayersOnly` 는 원본을 합치지 않는다** — 복제본에 한 장만 넣는다 (ROADMAP §35)
+- 앱: `preferences.get`(열두 범주. **속성을 짐작하지 않고 반사적으로 읽는다**) ·
+  `color.get_foreground_background`(**`path.stroke` 가 쓰는 색**). 둘 다 읽기만 —
+  **바꾸는 Tool 은 없다**. 사용자가 UI 에서 쓰는 상태다 (ROADMAP §61)
 - 호스트: `host.get` — 버전 + **이 서버가 쓰는 API 의 유무.** 같은 질문을 실기에서
   네 번 확인했다(§17.13 · §17.19 · §17.25 · §28). 문서가 없으면 `document.*` 는
   `false` 가 아니라 `null` 이다
@@ -308,10 +311,14 @@ Imaging API 는 **8비트만 인코딩한다.** `componentSize: 8` 요청도, `f
 위쪽에서만 막으면 그 길이 열린다. 서버는 **부를 때마다 조회**한다 — 기동 시 한 번
 읽으면 사용자가 바꾼 것이 반영되지 않는다.
 
-**액션 중 대화상자가 뜨면 플러그인이 멈춘다.** `app.displayDialogs` 가 UXP 에
-없어 끄지 못한다. 실기에서 "'StarXTerminator' 명령은 현재 사용할 수 없습니다"
-창이 떠 15초 타임아웃했다. `ACTION_PLAY` 는 타임아웃을 잡아 `window.capture` 로
-화면을 보라고 안내한다.
+**액션 중 대화상자가 뜨면 플러그인이 멈춘다.** 실기에서 "'StarXTerminator'
+명령은 현재 사용할 수 없습니다" 창이 떠 15초 타임아웃했다. `ACTION_PLAY` 는
+타임아웃을 잡아 `window.capture` 로 화면을 보라고 안내한다.
+
+**"`app.displayDialogs` 가 UXP 에 없다" 고 적어 두었던 것은 틀렸다.**
+`host.get` 의 `displayDialogs` 가 27.8 에서 `true` 다 (ROADMAP §61). 다만
+**있다는 것과 대화상자를 실제로 막는다는 것은 다르다** — 걸어서 재 보지
+않았으므로 지금 코드는 그대로 두었다.
 
 UXP 패널 UI 에서 세 가지를 실기로 배웠다 — **버튼 기본 스타일이 커서 높이를 직접
 못 박아야 하고**, **대화상자는 텍스트 색을 물려주지 않으며**, **`<form
@@ -320,9 +327,10 @@ method="dialog">` 제출로 닫히지 않아 `dialog.close(값)` 을 직접 걸�
 **이름을 그대로 받는 Tool 을 내놓지 않았다.** `action.play` 는 없다 — 있으면
 허용 목록이 무의미해진다.
 
-**`app.displayDialogs` 가 UXP 에 없어 대화상자를 끄지 못한다.** 결과의
-`dialogsSuppressed` 가 그 사실을 담는다. 액션의 대화상자 토글은 사용자가 꺼 둬야
-한다. 안 그러면 플러그인이 멈춘다.
+**지금은 대화상자를 끄지 않는다.** 결과의 `dialogsSuppressed` 가 그 사실을
+담는다. 액션의 대화상자 토글은 사용자가 꺼 둬야 하고, 안 그러면 플러그인이
+멈춘다. **근거로 적어 두었던 "`app.displayDialogs` 가 없다" 는 틀렸다** —
+속성은 있다(§61). 그것을 걸면 막히는지는 아직 안 재 봤다.
 
 **UXP 는 속성 하나마다 Photoshop 으로 왕복한다.** 액션 91개를 한 번에 읽으려다
 두 번 타임아웃했다(속성 3개 300왕복 · 2개 200왕복). `action.list` 는 **두 단계**다 —
@@ -927,7 +935,7 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 157개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 159개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져

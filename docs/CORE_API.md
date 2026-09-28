@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (107개)
+## 4. 구현된 Core API (111개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -343,6 +343,10 @@ Photoshop UI 는 그룹 끝에서 한 번 더 누르면 밖으로 나간다. 그
 | `photoshop.selection.clear` | EDIT | |
 | `photoshop.selection.invert` | EDIT | 선택이 없으면 실패한다 |
 | `photoshop.selection.modify` | EDIT | feather · expand · contract · smooth |
+| `photoshop.selection.polygon` | EDIT | 꼭짓점 셋 이상. **사각형·타원으로 못 만드는 모양** |
+| `photoshop.selection.translate_boundary` | EDIT | 경계만 옮긴다. **픽셀은 그대로** |
+| `photoshop.selection.scale_boundary` | EDIT | **퍼센트**. DOM 이름은 `resizeBoundary` |
+| `photoshop.selection.rotate_boundary` | EDIT | **도**. 시계 방향 양수 |
 | `photoshop.selection.color_range` | EDIT | 광도 **구간** 선택. 임계 기반이라 거의 이진이다 |
 | `photoshop.selection.luminosity` | EDIT | 합성 휘도를 선택으로. **이것이 광도 마스크다.** `invert` 로 Darks |
 | `photoshop.selection.save_channel` | EDIT | 선택을 알파 채널로 저장 |
@@ -755,7 +759,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **107** |
+| 구현됨 | **111** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

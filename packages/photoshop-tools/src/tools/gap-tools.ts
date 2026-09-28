@@ -26,7 +26,9 @@ export function createSelectionSetTool(
     description:
       "선택 영역을 만든다. shape 는 rectangle / ellipse (bounds 필요) / canvas (문서 전체) / " +
       "layerTransparency (레이어의 불투명한 픽셀). bounds 는 픽셀 좌표 {left, top, right, bottom}. " +
-      "feather 로 가장자리를 부드럽게 할 수 있다. 만든 선택은 mask.create 의 fromSelection 으로 쓸 수 있다. 다만 **조정 레이어를 만들면 Photoshop 이 선택 영역을 마스크로 소비**하므로 그 뒤에는 남아 있지 않다.",
+      "feather 로 가장자리를 부드럽게 할 수 있다. 만든 선택은 mask.create 의 fromSelection 으로 쓸 수 있다. 다만 **조정 레이어를 만들면 Photoshop 이 선택 영역을 마스크로 소비**하므로 그 뒤에는 남아 있지 않다. " +
+      "**레이어에서 선택을 만드는 길이 layerTransparency 다** — 따로 Tool 이 있지 않다. " +
+      "사각형·타원으로 만들 수 없는 모양은 photoshop.selection.polygon 이다.",
     permission: "edit",
     inputSchema: SelectionSetParamsSchema,
     handler: async (input, context) =>

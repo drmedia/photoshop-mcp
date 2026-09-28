@@ -98,6 +98,12 @@ import {
   selectionModify,
   selectionSaveChannel,
 } from "./dom/selection-ops.js";
+import {
+  selectionPolygon,
+  selectionRotateBoundary,
+  selectionScaleBoundary,
+  selectionTranslateBoundary,
+} from "./dom/selection-dom.js";
 import { startNotifications } from "./dom/notifications.js";
 import { historyList, selectionGet } from "./dom/state-read.js";
 import { workspaceDelete, workspaceUsage } from "./dom/workspace-files.js";
@@ -256,6 +262,18 @@ export function createDispatcher(): CommandDispatcher {
   /* 합성 휘도를 선택으로. color_range 와 달리 연속 계조라 구조를 따라간다. */
   dispatcher.register("SELECTION_LUMINOSITY", async (p) =>
     selectionLuminosity(p as { invert?: boolean }),
+  );
+  dispatcher.register("SELECTION_TRANSLATE_BOUNDARY", async (p) =>
+    selectionTranslateBoundary(p as Parameters<typeof selectionTranslateBoundary>[0]),
+  );
+  dispatcher.register("SELECTION_SCALE_BOUNDARY", async (p) =>
+    selectionScaleBoundary(p as Parameters<typeof selectionScaleBoundary>[0]),
+  );
+  dispatcher.register("SELECTION_ROTATE_BOUNDARY", async (p) =>
+    selectionRotateBoundary(p as Parameters<typeof selectionRotateBoundary>[0]),
+  );
+  dispatcher.register("SELECTION_POLYGON", async (p) =>
+    selectionPolygon(p as Parameters<typeof selectionPolygon>[0]),
   );
   dispatcher.register("SELECTION_MODIFY", async (p) =>
     selectionModify(p as Parameters<typeof selectionModify>[0]),

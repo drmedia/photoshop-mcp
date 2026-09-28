@@ -291,6 +291,14 @@ declare module "photoshop" {
      * 값이 무엇인지 확인한 적이 없으므로 `unknown` 이다. 없으면 거절한다.
      */
     readonly InterpolationMethod?: Readonly<Record<string, unknown>>;
+    /**
+     * `Selection.select*` · `load` · `saveTo` 의 합성 방식.
+     * (`SELECTION_POLYGON` 등)
+     *
+     * `REPLACE` · `EXTEND` · `DIMINISH` · `INTERSECT` 네 가지이고 값이
+     * 무엇인지는 확인한 적이 없으므로 `unknown` 이다. 없으면 거절한다.
+     */
+    readonly SelectionType?: Readonly<Record<string, unknown>>;
   };
 }
 

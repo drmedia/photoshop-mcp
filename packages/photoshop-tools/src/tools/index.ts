@@ -90,6 +90,12 @@ import {
   createSelectionModifyTool,
   createStampVisibleTool,
 } from "./workflow-gaps.js";
+import {
+  createSelectionPolygonTool,
+  createSelectionRotateBoundaryTool,
+  createSelectionScaleBoundaryTool,
+  createSelectionTranslateBoundaryTool,
+} from "./selection-dom.js";
 import { createLayerListTool } from "./layer-list.js";
 import { createLayerPlaceTool } from "./layer-place.js";
 import { createWorkspaceDeleteTool, createWorkspaceUsageTool } from "./workspace-files.js";
@@ -166,6 +172,7 @@ export * from "./layer-rasterize.js";
 export * from "./layer-merge.js";
 export * from "./layer-transform.js";
 export * from "./layer-link.js";
+export * from "./selection-dom.js";
 export { PingInputSchema, createPingTool, type PingToolResult } from "./ping.js";
 
 /** Photoshop Core Tool 을 레지스트리에 등록한다. (ROADMAP §5.6, §7.1) */
@@ -229,6 +236,10 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createMinimumMaximumTool(engine));
   registry.register(createSaveChannelTool(engine));
   registry.register(createLoadChannelTool(engine));
+  registry.register(createSelectionTranslateBoundaryTool(engine));
+  registry.register(createSelectionScaleBoundaryTool(engine));
+  registry.register(createSelectionRotateBoundaryTool(engine));
+  registry.register(createSelectionPolygonTool(engine));
   registry.register(createSelectionModifyTool(engine));
   registry.register(createColorRangeTool(engine));
   registry.register(createLuminosityTool(engine));

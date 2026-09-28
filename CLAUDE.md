@@ -14,11 +14,11 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **107개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **111개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 113). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 117). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -60,6 +60,13 @@ Tool 까지 더한 수다(지금 113). 한동안 이 값을 Core 개수로 옮�
   옮겼다 되돌린다. 어디에 남겼는지를 `editTarget` 이 말한다 (ROADMAP §32)
 - 광도 마스크: `selection.luminosity` — **`color_range` 는 광도 마스크가 아니다.**
   그쪽은 임계 기반 구간 선택이라 거의 이진이고 구조를 못 따라간다
+- 다각형 선택: `selection.polygon` — 사각형·타원으로 못 만드는 모양. 점 셋 이상.
+  `replace` · `add` · `subtract` · `intersect`. **같은 모양을 그대로 빼도 경계가
+  안 줄어든다** — 안티앨리어싱 가장자리가 남는다 (ROADMAP §49)
+- 선택 경계 변형: `selection.translate_boundary`(픽셀) · `scale_boundary`
+  (**퍼센트**) · `rotate_boundary`(도·시계 방향 양수). **픽셀을 안 건드려서
+  `edit` 이다** — 재서 확인했다. DOM 이름은 `resizeBoundary` 이고 **25.0 부터**다.
+  회전 부호는 **기준점을 모서리로 둬야** 가려진다 (ROADMAP §49)
 - 마스크 굽기: `mask.apply` — **destructive 다.** 가려 둔 픽셀이 실제로 없어진다
 - 필터: gaussian_blur · high_pass · minimum_maximum (기본은 픽셀 직접 적용)
 - §8.6 공백 보완: selection.set · layer.set_blend_mode · adjustment.hue_saturation · vibrance
@@ -867,7 +874,7 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 107개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 111개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져

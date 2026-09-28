@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 107개만
+기본            Extension 0개. Core Tool 111개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -7652,3 +7652,95 @@ L-C  top 50 → 110   (연결되어 따라온 것)
 - [x] `photoshop.layer.link` · `photoshop.layer.unlink`
 - [x] `photoshop.layer.get` 이 `linkedLayerIds` 를 준다
 - [x] 실기: 자기 자신 제외 · 전이성 · 부분 해제 · 함께 이동
+
+# 49. DOM 선택 (`selection.polygon` · 경계 변형 셋)
+
+## 기존 선택이 전부 batchPlay 였던 이유는 "없어서" 가 아니었다
+
+`selection-ops.ts` · `gap-tools.ts` 의 선택 Command 는 전부 batchPlay 다. 그때는
+DOM 에 없다고 판단한 것이 아니라 **찾아보지 않았다.** Adobe 레퍼런스에
+`Selection` 클래스가 있고 스물두 개 멤버가 적혀 있다 — **25.0 부터다.**
+
+`document.selection` 이 없거나 메서드가 없으면 `COMMAND_NOT_SUPPORTED` 로
+거절한다. 짐작해서 batchPlay 로 우회하지 않는다 — 우회하면 두 경로가 생기고
+어느 쪽이 돌았는지 호출자가 모른다.
+
+## 이름은 레퍼런스에, Tool 이름은 짝에 맞춘다
+
+DOM 이름은 **`resizeBoundary`** 다. Tool 은 `selection.scale_boundary` 로 두었다 —
+호출자에게는 `layer.scale` 과 짝이 맞는 쪽이 읽기 쉽다. **무엇을 부르는지는
+주석에 남긴다.** 남기지 않으면 레퍼런스를 다시 볼 때 없는 메서드를 찾게 된다.
+
+## 경계 변형은 픽셀을 건드리지 않는다 — 재서 확인했다
+
+레퍼런스가 "Does not affect the active layer" 라고 적는다. 그대로 믿지 않고
+칠한 레이어를 두고 경계를 옮기고 늘리고 돌린 뒤 다시 쟀다.
+
+```text
+변형 전   R 70.41 · G 86.12 · B 211.8 · 57600px
+변형 후   R 70.41 · G 86.12 · B 211.8 · 57600px
+```
+
+**한 자리도 안 변했다.** 그래서 `edit` 이고, 다시 표본화하는 `layer.scale`
+(`destructive`) 과 갈린다.
+
+## 단위는 실기에서 잰다
+
+```text
+translate  deltaX 50 · deltaY -20   →  150,150-350,250  →  200,130-400,230
+scale      50% · anchor topLeft     →  200,130-400,230  →  200,130-300,180
+scale      200% · anchor bottomRight→  200,130-300,180  →  100, 80-300,180
+```
+
+**픽셀 · 퍼센트**이고 양수가 오른쪽·아래다. `anchor` 는 실제로 고정점을 바꾼다 —
+`topLeft` 에서 left·top 이, `bottomRight` 에서 right·bottom 이 그대로다.
+
+## 회전 부호는 대칭 도형으로 못 잰다
+
+§44 · §47 에서 두 번 겪었다. 대칭 도형은 "돌았다" 와 "아무 일도 안 했다" 를
+가르지 못한다. 여기서는 한 걸음 더 필요했다 — **직각삼각형이라도 기준점이
+중심이면 시계·반시계가 같은 경계를 낸다.**
+
+**기준점을 모서리로 옮기면 갈린다.**
+
+```text
+150,150-350,250 · angle 90 · anchor topLeft
+
+시계    예측  50,150-150,350      ← 실제로 이것이 나왔다
+반시계  예측 150,  0-250,150
+```
+
+레퍼런스의 "clockwise" 가 맞았다.
+
+## 안티앨리어싱 잔여는 우리 실패가 아니다
+
+같은 다각형을 `add` 로 더했다가 **그대로 `subtract` 하면 경계가 안 줄어든다.**
+
+```text
+add       →  50,50-500,350
+subtract  →  50,50-500,350   (같다)
+여유를 두고 subtract → 50,150-150,350
+```
+
+반투명 가장자리가 남아 경계에 잡히기 때문이다. Photoshop 선택의 성질이지
+Command 의 조용한 실패가 아니다 — 읽는 사람이 헷갈리므로 적어 둔다.
+
+## `constants.SelectionType` 은 27.8 에 있다
+
+`FlipAxis` 가 레퍼런스에 있으면서 런타임에 표 자체가 없었으므로(§44) 이번에도
+`fromTable` 로 없으면 **무엇이 있는지 함께** 담아 거절하게 두었다. 네 모드
+(`replace` · `add` · `subtract` · `intersect`) 모두 실기에서 동작했다.
+
+## `selection.from_layer` 는 만들지 않았다
+
+`selection.set { shape: "layerTransparency" }` 가 이미 같은 일을 한다. Tool 을
+더하면 같은 능력에 두 이름이 생기고 호출자가 어느 쪽이 맞는지 고민한다.
+대신 `selection.set` 의 설명이 그 자리를 가리킨다.
+
+## 체크리스트
+
+- [x] `photoshop.selection.polygon`
+- [x] `photoshop.selection.translate_boundary` · `scale_boundary` · `rotate_boundary`
+- [x] 25.0 미만 거절 (`document.selection` · 메서드 유무를 각각 본다)
+- [x] 실기: 단위 · 기준점 · 회전 부호 · 네 가지 모드
+- [x] 실기: 경계 변형 전후 통계가 같다 (픽셀 불변)

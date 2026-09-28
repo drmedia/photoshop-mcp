@@ -970,6 +970,51 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         this.#hasSelection = true;
         return this.#selectionState() as TResult;
       }
+      /**
+       * 경계 변형 셋. (CORE_API §5)
+       *
+       * **Mock 은 경계를 지어내지 않는다.** 픽셀을 모르므로 `#selectionState`
+       * 가 주는 고정 사각형을 그대로 쓰고 `before` 도 같은 값이다 — 얼마나
+       * 움직였는지는 실기에서만 알 수 있다. 그럴듯한 좌표를 주면 그것을 보고
+       * 판단한 워크플로가 실기에서 다르게 돈다.
+       *
+       * **선택이 없으면 거절하는 것**은 흉내낸다. 그것이 계약이다.
+       */
+      case "SELECTION_TRANSLATE_BOUNDARY":
+      case "SELECTION_SCALE_BOUNDARY":
+      case "SELECTION_ROTATE_BOUNDARY": {
+        if (!this.#hasSelection) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "선택 영역이 없습니다. photoshop.selection.* 로 먼저 선택하세요.",
+            { recoverable: true },
+          );
+        }
+        this.#snapshot("Transform selection boundary");
+        const state = this.#selectionState() as { hasSelection: boolean; bounds: unknown };
+        return {
+          ...state,
+          before: state.bounds,
+          anchor: (command.params as { anchor?: string }).anchor ?? null,
+        } as TResult;
+      }
+      /**
+       * 다각형 선택. **점이 셋 미만이면 면적이 없다** — 실제 Photoshop 이
+       * 이유를 말해 주지 않아 미리 막는 자리이고 Mock 도 같이 막는다.
+       */
+      case "SELECTION_POLYGON": {
+        const points = (command.params as { points: unknown[] }).points;
+        if (points.length < 3) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `점이 ${String(points.length)}개라 면적이 없습니다. 셋 이상이 필요합니다.`,
+            { recoverable: true, details: { points: points.length } },
+          );
+        }
+        this.#snapshot("Select polygon");
+        this.#hasSelection = this.#document !== null;
+        return this.#selectionState() as TResult;
+      }
       case "SELECTION_MODIFY":
         if (!this.#hasSelection) {
           throw new PhotoshopMcpError(

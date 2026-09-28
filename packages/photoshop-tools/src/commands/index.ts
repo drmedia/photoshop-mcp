@@ -293,6 +293,20 @@ import {
   selectionModifyCommand,
   selectionSaveChannelCommand,
 } from "./workflow-gaps.js";
+import {
+  SELECTION_POLYGON,
+  SELECTION_ROTATE_BOUNDARY,
+  SELECTION_SCALE_BOUNDARY,
+  SELECTION_TRANSLATE_BOUNDARY,
+  SelectionPolygonParamsSchema,
+  SelectionRotateBoundaryParamsSchema,
+  SelectionScaleBoundaryParamsSchema,
+  SelectionTranslateBoundaryParamsSchema,
+  selectionPolygonCommand,
+  selectionRotateBoundaryCommand,
+  selectionScaleBoundaryCommand,
+  selectionTranslateBoundaryCommand,
+} from "./selection-dom.js";
 import { LAYER_LIST, layerListCommand } from "./layer-list.js";
 import { LAYER_PLACE, LayerPlaceParamsSchema, layerPlaceCommand } from "./layer-place.js";
 import {
@@ -330,6 +344,7 @@ export * from "./layer-rasterize.js";
 export * from "./layer-merge.js";
 export * from "./layer-transform.js";
 export * from "./layer-link.js";
+export * from "./selection-dom.js";
 export {
   LAYER_GET_ACTIVE,
   LayerGetActiveParams,
@@ -644,6 +659,24 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(SELECTION_LOAD_CHANNEL, selectionLoadChannelCommand, {
     permission: "edit",
     schema: LoadChannelParams,
+  });
+  /* **선택 경계만 움직인다.** 레퍼런스가 "Does not affect the active layer"
+   * 라고 적는다 — 픽셀을 다시 표본화하지 않으므로 `layer.scale` 과 갈린다. */
+  registry.register(SELECTION_TRANSLATE_BOUNDARY, selectionTranslateBoundaryCommand, {
+    permission: "edit",
+    schema: SelectionTranslateBoundaryParamsSchema,
+  });
+  registry.register(SELECTION_SCALE_BOUNDARY, selectionScaleBoundaryCommand, {
+    permission: "edit",
+    schema: SelectionScaleBoundaryParamsSchema,
+  });
+  registry.register(SELECTION_ROTATE_BOUNDARY, selectionRotateBoundaryCommand, {
+    permission: "edit",
+    schema: SelectionRotateBoundaryParamsSchema,
+  });
+  registry.register(SELECTION_POLYGON, selectionPolygonCommand, {
+    permission: "edit",
+    schema: SelectionPolygonParamsSchema,
   });
   registry.register(SELECTION_MODIFY, selectionModifyCommand, {
     permission: "edit",

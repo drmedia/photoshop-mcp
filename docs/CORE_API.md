@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (84개)
+## 4. 구현된 Core API (85개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -109,6 +109,7 @@ P3  확장 기능
 | `photoshop.document.create` | EDIT | 새 문서. **`applied` 로 요청값이 들어갔는지 확인한다** |
 | `photoshop.document.get` | READ | 활성 문서 정보 |
 | `photoshop.layer.list` | READ | 활성 문서의 레이어 목록 |
+| `photoshop.layer.get` | READ | 한 레이어의 상세. **`bounds` 를 준다** — 목록에는 없다 |
 | `photoshop.document.capture` | READ | 문서를 합성해 **그림으로** 돌려준다 |
 | `photoshop.layer.capture` | READ | 레이어 하나만 그림으로 |
 | `photoshop.selection.capture` | READ | 선택 영역(경계 상자)을 그림으로 |
@@ -442,7 +443,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
-| `photoshop.layer.get` | P1 | READ | 한 레이어의 상세 |
 | `photoshop.layer.select_multiple` | P1 | EDIT | |
 | `photoshop.layer.set_fill_opacity` | P1 | EDIT | |
 | `photoshop.layer.lock` | P2 | EDIT | |
@@ -743,7 +743,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **84** |
+| 구현됨 | **85** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

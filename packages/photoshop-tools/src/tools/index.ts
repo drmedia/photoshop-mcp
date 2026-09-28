@@ -86,6 +86,7 @@ import { createWorkspaceDeleteTool, createWorkspaceUsageTool } from "./workspace
 import { createDocumentCreateTool } from "./document-create.js";
 import { createDocumentListTool } from "./document-list.js";
 import { createHostGetTool } from "./host.js";
+import { createLayerGetTool } from "./layer-get.js";
 import { createPingTool } from "./ping.js";
 
 export { DocumentGetInputSchema, createDocumentGetTool } from "./document-get.js";
@@ -140,6 +141,7 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createDocumentListTool(engine));
   registry.register(createDocumentCreateTool(engine));
   registry.register(createLayerListTool(engine));
+  registry.register(createLayerGetTool(engine));
   registry.register(createLayerGetActiveTool(engine));
   registry.register(createSelectionSkyTool(engine));
   registry.register(createSelectionSubjectTool(engine));

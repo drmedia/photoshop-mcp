@@ -246,6 +246,21 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
           documents:
             this.#document === null ? [] : [{ ...(await this.getDocumentInfo()), active: true }],
         } as TResult;
+      /* **Mock 은 경계를 지어내지 않는다.** 픽셀을 모르므로 bounds 는 null 이고,
+       * 그럴듯한 사각형을 주면 그것을 보고 "제자리에 놓였다" 고 판단한
+       * 워크플로가 실기에서 다르게 돈다. 실기에서만 확인할 값이다. */
+      case "LAYER_GET": {
+        const index = this.#requireLayerIndex((command.params as { layerId?: number }).layerId);
+        return {
+          layer: { ...(this.#layers[index] as LayerInfo) },
+          bounds: null,
+          boundsNoEffects: null,
+          locked: null,
+          allLocked: null,
+          isClippingMask: null,
+          fillOpacity: null,
+        } as TResult;
+      }
       case "LAYER_LIST":
         return (await this.getLayers()) as TResult;
       // Mock 은 활성 레이어를 하나만 들고 있다. 실제 Photoshop 은 여러 개를 선택할 수

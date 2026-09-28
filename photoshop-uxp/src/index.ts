@@ -18,6 +18,7 @@ import {
 } from "./dom/adjustment.js";
 import { documentCreate } from "./dom/document-create.js";
 import { layerGet } from "./dom/layer-get.js";
+import { layerSelectMultiple } from "./dom/layer-select-multiple.js";
 import { documentGet, documentList } from "./dom/document.js";
 import { gaussianBlur, highPass, minimumMaximum } from "./dom/filter.js";
 import {
@@ -181,6 +182,9 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("HOST_GET", async () => Promise.resolve(hostGet()));
   dispatcher.register("DOCUMENT_LIST", async () => documentList());
   dispatcher.register("LAYER_GET", async (p) => layerGet(p as { layerId?: number }));
+  dispatcher.register("LAYER_SELECT_MULTIPLE", async (p) =>
+    layerSelectMultiple(p as { layerIds: number[] }),
+  );
   dispatcher.register("DOCUMENT_CREATE", async (p) =>
     documentCreate(p as unknown as Parameters<typeof documentCreate>[0]),
   );

@@ -109,6 +109,15 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   #layers: LayerInfo[];
   #pendingFailure: PhotoshopMcpError | null = null;
   #activeLayerId: number | null;
+  /**
+   * 다중 선택. `LAYER_SELECT_MULTIPLE` 만 채운다.
+   *
+   * **28곳에서 `#activeLayerId` 를 직접 쓰므로 여기서 동기화하지 않는다.**
+   * 대신 읽을 때 **첫 번째가 `#activeLayerId` 와 같은지** 본다. 다르면 다른
+   * Command 가 활성을 바꾼 것이라 낡은 목록이고, 버린다. 이러면 한 줄로
+   * 자기 교정이 된다.
+   */
+  #activeLayerIds: number[] = [];
   /** 저장된 알파 채널 이름. Mock 은 픽셀을 모르므로 이름만 기억한다. */
   readonly #channels = new Set<string>();
   #nextLayerId: number;
@@ -266,7 +275,24 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       // Mock 은 활성 레이어를 하나만 들고 있다. 실제 Photoshop 은 여러 개를 선택할 수
       // 있으므로 **배열로** 돌려준다 — Mock 이 단수로 주면 호출자가 단수라고 믿는다.
       case "LAYER_GET_ACTIVE":
-        return this.#layers.filter((layer) => layer.id === this.#activeLayerId) as TResult;
+        return this.#activeSelection() as TResult;
+
+      /* **없는 id 가 하나라도 있으면 아무것도 선택하지 않는다.** 일부만
+       * 선택된 채로 실패하면 호출자가 무엇이 선택됐는지 모른다. */
+      case "LAYER_SELECT_MULTIPLE": {
+        const ids = (command.params as { layerIds: number[] }).layerIds;
+        const missing = ids.filter((id) => !this.#layers.some((entry) => entry.id === id));
+        if (missing.length > 0) {
+          throw new PhotoshopMcpError(
+            ErrorCode.LAYER_NOT_FOUND,
+            `레이어 ${missing.join(", ")} 를 찾을 수 없어 아무것도 선택하지 않았습니다.`,
+            { recoverable: true, details: { missing } },
+          );
+        }
+        this.#activeLayerId = ids[0] ?? null;
+        this.#activeLayerIds = [...ids];
+        return this.#activeSelection() as TResult;
+      }
 
       // Phase 3 — 레이어 편집. 실제 Photoshop 과 같은 의미로 상태를 바꾼다.
       case "LAYER_CREATE":
@@ -1484,6 +1510,26 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       filename: document.name,
       format: dot === -1 ? "unknown" : document.name.slice(dot + 1).toLowerCase(),
     };
+  }
+
+  /**
+   * 지금 선택된 레이어. **순서가 의미를 갖는다** — 첫 번째가 편집 대상이다.
+   *
+   * 다중 목록은 `#activeLayerId` 와 첫 번째가 같을 때만 믿는다. 다르면 다른
+   * Command 가 활성을 바꾼 것이라 낡았다.
+   */
+  #activeSelection(): LayerInfo[] {
+    const valid =
+      this.#activeLayerIds.length > 0 && this.#activeLayerIds[0] === this.#activeLayerId;
+    const ids = valid ? this.#activeLayerIds : [this.#activeLayerId];
+    const out: LayerInfo[] = [];
+    for (const id of ids) {
+      const found = this.#layers.find((layer) => layer.id === id);
+      if (found !== undefined) {
+        out.push({ ...found });
+      }
+    }
+    return out;
   }
 
   #requireLayerIndex(layerId?: number): number {

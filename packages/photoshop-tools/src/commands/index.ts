@@ -18,6 +18,11 @@ import {
 } from "./document-create.js";
 import { DOCUMENT_LIST, DocumentListParamsSchema, documentListCommand } from "./document-list.js";
 import { LAYER_GET, LayerGetParamsSchema, layerGetCommand } from "./layer-get.js";
+import {
+  LAYER_SELECT_MULTIPLE,
+  LayerSelectMultipleParamsSchema,
+  layerSelectMultipleCommand,
+} from "./layer-select-multiple.js";
 import { FILTER_GAUSSIAN_BLUR, GaussianBlurParamsSchema, gaussianBlurCommand } from "./filter.js";
 import {
   ADJUSTMENT_HUE_SATURATION,
@@ -313,6 +318,10 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_GET, layerGetCommand, {
     permission: "read",
     schema: LayerGetParamsSchema,
+  });
+  registry.register(LAYER_SELECT_MULTIPLE, layerSelectMultipleCommand, {
+    permission: "edit",
+    schema: LayerSelectMultipleParamsSchema,
   });
   registry.register(LAYER_GET_ACTIVE, layerGetActiveCommand, { permission: "read" });
   registry.register(SELECTION_SKY, selectionSkyCommand, { permission: "edit" });

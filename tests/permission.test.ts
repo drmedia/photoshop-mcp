@@ -251,6 +251,7 @@ describe("Core Tool 분류", () => {
        * 않는다. `document.crop` 이 `edit` 인 근거가 "픽셀은 버리지 않는다"
        * 이므로 이쪽은 갈린다. (ROADMAP §33) */
       "CANVAS_RESIZE",
+      "DOCUMENT_TRIM",
       "IMAGE_RESIZE",
       "DOCUMENT_FLATTEN",
       "DOCUMENT_CLOSE",
@@ -306,6 +307,8 @@ describe("Core Tool 분류", () => {
            * 은 배경을 승격시켜 남기므로 `edit` 이고 이쪽은 갈린다 — 실기에서
            * 같은 왕복을 돌려 재서 갈랐다. (ROADMAP §36) */
           type === "CANVAS_RESIZE" ||
+          /* 재단도 같은 자리다. 잘린 픽셀이 배경 레이어에서 사라진다. */
+          type === "DOCUMENT_TRIM" ||
           type === "ACTION_PLAY",
       ),
     ).toBe(true);

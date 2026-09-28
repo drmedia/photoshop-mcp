@@ -1299,6 +1299,21 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        *
        * Mock 에는 픽셀이 없으므로 무엇이 잘렸는지는 흉내내지 않는다.
        */
+      /**
+       * 재단. (CORE_API §5)
+       *
+       * **Mock 은 실패한다.** 무엇을 여백으로 볼지는 **픽셀을 봐야** 정해지는데
+       * Mock 에는 픽셀이 없다. 그럴듯한 크기를 돌려주면 그것을 보고 짠 워크플로가
+       * 실기에서 다르게 돈다 — `MEASURE_TILT` 가 각도를 지어내지 않는 것과 같다.
+       */
+      case "DOCUMENT_TRIM":
+        this.#requireDocument();
+        throw new PhotoshopMcpError(
+          ErrorCode.COMMAND_FAILED,
+          "Mock Bridge 는 픽셀을 모르므로 여백을 판별할 수 없습니다. " +
+            "실제 Photoshop 연결이 필요합니다.",
+          { recoverable: false },
+        );
       case "CANVAS_RESIZE": {
         const document = this.#requireDocument();
         const params = command.params as {

@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 93개만
+기본            Extension 0개. Core Tool 94개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -6957,3 +6957,62 @@ canvas.resize     44.245% → 2.584%    142.18 → 248.41 픽셀 소멸
 - [x] Permission 을 실기 측정으로 `DESTRUCTIVE` 로 정했다
 - [x] 실기: 일반 레이어 왕복 · 배경 소멸 · `crop` 대조군
 - [x] `anchor` 아홉 가지, 모르는 값은 거절
+
+# 37. 재단 (`photoshop.document.trim`)
+
+캔버스를 줄이는 셋째 길이다. **무엇을 남길지 정하는 주체가 다르다.**
+
+```text
+document.crop     호출자가 좌표로 정한다
+canvas.resize     호출자가 크기와 기준점으로 정한다
+document.trim     Photoshop 이 픽셀을 보고 정한다
+```
+
+그래서 이것만 **얼마나 잘릴지 미리 알 수 없다.** `before` · `after` · `removed`
+로 알린다. 다만 **어느 면이 얼마나 잘렸는지는 알 수 없다** — 가로·세로 총량뿐이다.
+지어내지 않고 그렇게 적었다.
+
+## 실기에서 잰 것
+
+```text
+투명 둘레, 반지름 200 얼룩   800×600 → 400×400   정확히 얼룩 경계
+같은 문서에서 한 번 더       400×400 그대로       changed: false, 오류 아님
+topLeft, left·right false    800×600 → 800×400   너비는 손대지 않았다
+```
+
+면 선택이 정확히 동작한다. `changed: false` 는 오류가 아니다 — `layer.reorder`
+가 맨 위에서 `moved: false` 를 주는 것과 같다.
+
+## `canvas.resize` 보다 위험하다
+
+§36 에서 `canvas.resize` 가 **일반 레이어의 캔버스 밖 픽셀을 남긴다**는 것을
+확인했다. 재단은 다르다.
+
+```text
+canvas.resize   일반 레이어 유지 (배경만 잘린다)
+document.trim   일반 레이어도 잘린다
+```
+
+**숨긴 레이어가 가장 위험하다.** 자를 범위는 **보이는 것**으로 정해지는데, 숨긴
+레이어에 그 밖의 내용이 있으면 조용히 사라진다. 실기에서 코너에 찍어 둔 파란
+얼룩(640–760, 440–560)을 숨기고 재단했더니 `bounds` 가 0 이 되었다 — 레이어는
+남고 내용만 없어진다.
+
+`document.flatten` 이 숨긴 레이어를 버리는 것과 같은 종류의 놀라움이다. 그래서
+`DESTRUCTIVE` 이고, Tool 설명에 "숨긴 레이어가 있으면 `layer.list` 로 먼저
+확인하라" 고 적었다.
+
+배경 레이어는 숨겨져 있어도 잘린다 — 캔버스와 같은 크기가 강제되기 때문이다.
+
+## Mock 은 실패한다
+
+무엇을 여백으로 볼지는 **픽셀을 봐야** 정해지는데 Mock 에는 픽셀이 없다.
+그럴듯한 크기를 돌려주면 그것을 보고 짠 워크플로가 실기에서 다르게 돈다 —
+`MEASURE_TILT` 가 각도를 지어내지 않는 것과 같다.
+
+## 체크리스트
+
+- [x] `photoshop.document.trim` — `before` · `after` · `removed` · `changed`
+- [x] 실기: `transparent` · `topLeft` · 면 선택 · `changed: false`
+- [x] 실기: 숨긴 일반 레이어의 내용이 사라지는 것
+- [x] Mock 은 한 척하지 않고 실패한다

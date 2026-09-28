@@ -123,6 +123,7 @@ import { LAYER_GET_ACTIVE, layerGetActiveCommand } from "./layer-active.js";
 import { DOCUMENT_CROP, DocumentCropParamsSchema, documentCropCommand } from "./document-crop.js";
 import { IMAGE_RESIZE, ImageResizeParamsSchema, imageResizeCommand } from "./image-resize.js";
 import { CANVAS_RESIZE, CanvasResizeParamsSchema, canvasResizeCommand } from "./canvas-resize.js";
+import { DOCUMENT_TRIM, DocumentTrimParamsSchema, documentTrimCommand } from "./document-trim.js";
 import { DOCUMENT_OPEN, DocumentOpenParamsSchema, documentOpenCommand } from "./document-open.js";
 import {
   DOCUMENT_CLOSE,
@@ -288,6 +289,7 @@ export * from "./document-crop.js";
 export * from "./document-duplicate.js";
 export * from "./image-resize.js";
 export * from "./canvas-resize.js";
+export * from "./document-trim.js";
 export * from "./document-rotate.js";
 export * from "./measure-tilt.js";
 export * from "./layer-reorder.js";
@@ -385,6 +387,12 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(CANVAS_RESIZE, canvasResizeCommand, {
     permission: "destructive",
     schema: CanvasResizeParamsSchema,
+  });
+  /* **`canvas.resize` 와 같은 등급이다.** 배경 레이어의 잘린 픽셀이 사라지는
+   * 것이 같다 — 실기에서 확인한다. (ROADMAP §37) */
+  registry.register(DOCUMENT_TRIM, documentTrimCommand, {
+    permission: "destructive",
+    schema: DocumentTrimParamsSchema,
   });
   registry.register(IMAGE_RESIZE, imageResizeCommand, {
     /* **`crop` 과 갈리는 자리다.** 축소는 픽셀을 다시 표본화하고 버려진

@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 105개만
+기본            Extension 0개. Core Tool 107개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -7592,3 +7592,63 @@ rotate      edit         `document.rotate` 가 edit 인 것과 같다
 - [x] `layer.translate` · `layer.scale` · `layer.rotate`
 - [x] `options.interpolation` 여섯 가지
 - [x] 실기: 단위 셋 · 기준점 둘 · 회전 부호
+
+# 48. 레이어 연결 (`layer.link` · `layer.unlink`)
+
+연결된 레이어들은 **함께 움직이고 함께 변형된다.** 그룹과 다르다 — 트리 구조가
+바뀌지 않고 순서도 그대로다.
+
+## `link` 만 `async` 가 아니다
+
+Adobe 레퍼런스가 `link(targetLayer) → Layer[]` 로 적고 "Async: No" 라고
+명시한다. 나머지가 전부 `Promise` 인데 이것만 배열을 바로 준다. **`await` 는
+둘 다 받으므로** 그대로 기다린다 — 런타임이 문서와 달라도 깨지지 않는다.
+
+## 반환값과 속성이 다르다
+
+레퍼런스의 예제가 **자기 자신을 포함한** 목록을 찍는다.
+
+```js
+const linkedLayers = strokes.link(fillLayer)
+> "strokes"     // 자기 자신
+> "fillLayer"
+```
+
+그런데 **`linkedLayers` 속성에는 자기 자신이 없다.** 실기에서 확인했다.
+
+```text
+2와 3을 연결  →  layer 2 의 linkedLayers = [3]
+```
+
+출처가 다르다는 뜻이다. 이 Command 는 **반환값을 쓰지 않고 속성을 읽는다** —
+`layer.get` 과 같은 출처라 두 Tool 이 다른 말을 하지 않는다. 이 프로젝트가
+반환값을 믿지 않는 규칙(`duplicate()` 의 `id: undefined`)과도 맞는다.
+
+## 대칭이고 전이적이다
+
+```text
+2-3 연결 후 2-4 연결   →  layer 2: [3,4] · layer 3: [2,4]
+layer 2 unlink         →  layer 2: [] · layer 3: [4]
+```
+
+`unlink` 는 **그 레이어만** 집합에서 뺀다. 나머지는 서로 연결된 채로 남는다.
+
+## 연결이 실제로 동작한다
+
+L-B 만 60px 내렸는데 **손대지 않은 L-C 가 똑같이 60px 내려갔다.**
+
+```text
+L-B  top 50 → 110   (translate 로 옮긴 것)
+L-C  top 50 → 110   (연결되어 따라온 것)
+```
+
+## Mock 의 세 가정이 다 맞았다
+
+자기 자신 제외 · 전이성 · `unlink` 가 그 레이어만 빼는 것. 짐작이 맞은 것은
+**처음이 아니지만 드문 일**이라 적어 둔다 — 그동안 틀린 쪽이 더 많았다.
+
+## 체크리스트
+
+- [x] `photoshop.layer.link` · `photoshop.layer.unlink`
+- [x] `photoshop.layer.get` 이 `linkedLayerIds` 를 준다
+- [x] 실기: 자기 자신 제외 · 전이성 · 부분 해제 · 함께 이동

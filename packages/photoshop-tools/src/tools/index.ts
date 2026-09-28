@@ -102,6 +102,7 @@ import { createLayerSetLockTool } from "./layer-lock.js";
 import { createLayerFlipTool } from "./layer-flip.js";
 import { createLayerRasterizeTool } from "./layer-rasterize.js";
 import { createLayerMergeTool } from "./layer-merge.js";
+import { createLayerLinkTool, createLayerUnlinkTool } from "./layer-link.js";
 import {
   createLayerRotateTool,
   createLayerScaleTool,
@@ -164,6 +165,7 @@ export * from "./layer-flip.js";
 export * from "./layer-rasterize.js";
 export * from "./layer-merge.js";
 export * from "./layer-transform.js";
+export * from "./layer-link.js";
 export { PingInputSchema, createPingTool, type PingToolResult } from "./ping.js";
 
 /** Photoshop Core Tool 을 레지스트리에 등록한다. (ROADMAP §5.6, §7.1) */
@@ -184,6 +186,8 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createLayerTranslateTool(engine));
   registry.register(createLayerScaleTool(engine));
   registry.register(createLayerRotateTool(engine));
+  registry.register(createLayerLinkTool(engine));
+  registry.register(createLayerUnlinkTool(engine));
   registry.register(createLayerSelectMultipleTool(engine));
   registry.register(createLayerGetActiveTool(engine));
   registry.register(createSelectionSkyTool(engine));

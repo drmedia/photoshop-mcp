@@ -134,6 +134,15 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
    * `LayerInfo` 에 없는 값이라 따로 들고 있는다. **넷이 배타적이다** —
    * 하나를 쓰면 나머지가 지워진다(ROADMAP §43).
    */
+  /**
+   * 레이어 연결. (`LAYER_LINK` · `LAYER_UNLINK`)
+   *
+   * **집합으로 들고 있는다.** 연결은 대칭이고 전이적이라 "A-B 링크" 목록이
+   * 아니라 묶음이다 — `unlink` 가 **그 레이어만 빼는 것**을 흉내내려면 이
+   * 모양이어야 한다.
+   */
+  readonly #links = new Map<number, Set<number>>();
+
   readonly #locks = new Map<
     number,
     { all: boolean; pixels: boolean; position: boolean; transparentPixels: boolean }
@@ -321,6 +330,7 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
           positionLocked: lock?.position ?? null,
           transparentPixelsLocked: lock?.transparentPixels ?? null,
           isClippingMask: null,
+          linkedLayerIds: [...(this.#links.get(shown.id) ?? [])],
           // 쓴 적이 있으면 그 값을, 없으면 null. Mock 이 지어내지 않는다.
           fillOpacity: this.#fillOpacity.get((this.#layers[index] as LayerInfo).id) ?? null,
         } as TResult;
@@ -378,6 +388,60 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        *
        * 쓴 기준점은 그대로 돌려준다. 그것은 지어낸 값이 아니라 요청이다.
        */
+      /**
+       * 레이어 연결. (CORE_API §5)
+       *
+       * **`linked` 는 자기 자신을 뺀 목록이다.** 실기에서 `linkedLayers` 가
+       * 무엇을 담는지 확인하고 맞췄다(ROADMAP §48).
+       */
+      case "LAYER_LINK": {
+        const p = command.params as { layerId?: number; targetId: number };
+        const index = this.#requireLayerIndex(p.layerId);
+        const layer = this.#layers[index] as LayerInfo;
+        if (layer.id === p.targetId) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `레이어 ${String(p.targetId)} 를 자기 자신과 연결할 수 없습니다.`,
+            { recoverable: true, details: { layerId: layer.id } },
+          );
+        }
+        if (!this.#layers.some((entry) => entry.id === p.targetId)) {
+          throw new PhotoshopMcpError(
+            ErrorCode.LAYER_NOT_FOUND,
+            `연결 대상 레이어 ${String(p.targetId)} 를 찾을 수 없습니다.`,
+            { recoverable: true, details: { targetId: p.targetId } },
+          );
+        }
+        this.#snapshot("Link layers");
+        /* 연결은 전이적이다 — 양쪽이 이미 가진 것을 합쳐 하나의 묶음으로 만든다. */
+        const group = new Set<number>([
+          layer.id,
+          p.targetId,
+          ...(this.#links.get(layer.id) ?? []),
+          ...(this.#links.get(p.targetId) ?? []),
+        ]);
+        for (const id of group) {
+          this.#links.set(id, new Set([...group].filter((other) => other !== id)));
+        }
+        return {
+          layer: { ...layer },
+          linked: [...(this.#links.get(layer.id) ?? [])],
+        } as TResult;
+      }
+      case "LAYER_UNLINK": {
+        const p = command.params as { layerId?: number };
+        const index = this.#requireLayerIndex(p.layerId);
+        const layer = this.#layers[index] as LayerInfo;
+        this.#snapshot("Unlink layer");
+        /* **그 레이어만 뺀다.** 나머지는 서로 연결된 채로 남는다. */
+        for (const [id, set] of this.#links) {
+          if (id !== layer.id) {
+            set.delete(layer.id);
+          }
+        }
+        this.#links.delete(layer.id);
+        return { layer: { ...layer }, linked: [] } as TResult;
+      }
       case "LAYER_TRANSLATE":
       case "LAYER_SCALE":
       case "LAYER_ROTATE": {

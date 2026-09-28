@@ -24,6 +24,7 @@ import { layerFlip } from "./dom/layer-flip.js";
 import { layerRasterize } from "./dom/layer-rasterize.js";
 import { layerMerge } from "./dom/layer-merge.js";
 import { layerRotate, layerScale, layerTranslate } from "./dom/layer-transform.js";
+import { layerLink, layerUnlink } from "./dom/layer-link.js";
 import { layerSelectMultiple } from "./dom/layer-select-multiple.js";
 import { documentGet, documentList } from "./dom/document.js";
 import { gaussianBlur, highPass, minimumMaximum } from "./dom/filter.js";
@@ -218,6 +219,10 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("DOCUMENT_LIST", async () => documentList());
   dispatcher.register("LAYER_GET", async (p) => layerGet(p as { layerId?: number }));
   dispatcher.register("LAYER_FLIP", async (p) => layerFlip(p as Parameters<typeof layerFlip>[0]));
+  dispatcher.register("LAYER_LINK", async (p) => layerLink(p as Parameters<typeof layerLink>[0]));
+  dispatcher.register("LAYER_UNLINK", async (p) =>
+    layerUnlink(p as Parameters<typeof layerUnlink>[0]),
+  );
   dispatcher.register("LAYER_TRANSLATE", async (p) =>
     layerTranslate(p as Parameters<typeof layerTranslate>[0]),
   );

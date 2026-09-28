@@ -52,6 +52,8 @@ export const LayerDetailSchema = z.object({
   /** 투명 영역 편집이 막혔는지. */
   transparentPixelsLocked: z.boolean().nullable(),
   isClippingMask: z.boolean().nullable(),
+  /** 연결된 레이어의 id. 없으면 빈 배열. (`layer.link`) */
+  linkedLayerIds: z.array(z.number()),
   /** 0–100. `opacity` 와 다르다 — 효과는 남기고 픽셀만 투명해진다. */
   fillOpacity: z.number().nullable(),
 });

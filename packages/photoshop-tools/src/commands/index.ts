@@ -27,6 +27,14 @@ import { LAYER_SET_LOCK, LayerSetLockParamsSchema, layerSetLockCommand } from ".
 import { LAYER_FLIP, LayerFlipParamsSchema, layerFlipCommand } from "./layer-flip.js";
 import { LAYER_MERGE, LayerMergeParamsSchema, layerMergeCommand } from "./layer-merge.js";
 import {
+  LAYER_LINK,
+  LAYER_UNLINK,
+  LayerLinkParamsSchema,
+  LayerUnlinkParamsSchema,
+  layerLinkCommand,
+  layerUnlinkCommand,
+} from "./layer-link.js";
+import {
   LAYER_ROTATE,
   LAYER_SCALE,
   LAYER_TRANSLATE,
@@ -321,6 +329,7 @@ export * from "./layer-flip.js";
 export * from "./layer-rasterize.js";
 export * from "./layer-merge.js";
 export * from "./layer-transform.js";
+export * from "./layer-link.js";
 export {
   LAYER_GET_ACTIVE,
   LayerGetActiveParams,
@@ -434,6 +443,15 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(LAYER_ROTATE, layerRotateCommand, {
     permission: "edit",
     schema: LayerRotateParamsSchema,
+  });
+  // 연결은 픽셀을 건드리지 않는다. 끊으면 그대로 돌아온다.
+  registry.register(LAYER_LINK, layerLinkCommand, {
+    permission: "edit",
+    schema: LayerLinkParamsSchema,
+  });
+  registry.register(LAYER_UNLINK, layerUnlinkCommand, {
+    permission: "edit",
+    schema: LayerUnlinkParamsSchema,
   });
   registry.register(LAYER_SELECT_MULTIPLE, layerSelectMultipleCommand, {
     permission: "edit",

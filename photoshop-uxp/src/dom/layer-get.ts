@@ -3,6 +3,7 @@ import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
 import { findLayerById } from "./layer-edit.js";
+import { readLinkedIds } from "./layer-link.js";
 import { toLayerInfo } from "./layers.js";
 import { withMaskStateAsync } from "./mask-state.js";
 import { runModal } from "./modal.js";
@@ -50,6 +51,8 @@ export interface LayerDetail {
   positionLocked: boolean | null;
   transparentPixelsLocked: boolean | null;
   isClippingMask: boolean | null;
+  /** 연결된 레이어의 id. 없으면 빈 배열이다. (`layer.link`) */
+  linkedLayerIds: number[];
   /** 0–100. `opacity` 와 다르다 — 효과는 남기고 픽셀만 투명해진다. */
   fillOpacity: number | null;
 }
@@ -124,6 +127,9 @@ export async function layerGet(params: { layerId?: number }): Promise<LayerDetai
       positionLocked: flag(raw["positionLocked"]),
       transparentPixelsLocked: flag(raw["transparentPixelsLocked"]),
       isClippingMask: flag(raw["isClippingMask"]),
+      /* 쓰는 쪽(`layer.link`)과 같은 출처를 읽는다 — 두 Tool 이 다른 말을
+       * 하지 않게 한다. `set_lock` 과 잠금을 맞춘 것과 같은 자리다(§43). */
+      linkedLayerIds: readLinkedIds(layer as PhotoshopLayer),
       fillOpacity: num(raw["fillOpacity"]),
     };
   });

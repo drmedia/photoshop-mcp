@@ -118,3 +118,76 @@ describe("mask.delete — 마스크를 버린다", () => {
     ).rejects.toThrow();
   });
 });
+
+/**
+ * `photoshop.mask.link` · `photoshop.mask.unlink` — 마스크 연결. (ROADMAP §51)
+ *
+ * descriptor 는 `["all"]` 알림으로 잡았다 — 사람이 레이어 패널의 사슬 아이콘을
+ * 누르는 동안 받은 `set { userMaskLinked: false }` 가 그것이다. **`true` 방향은
+ * 잡히지 않아 짐작하지 않고 걸고 나서 다시 읽어 확인한다.**
+ */
+describe("mask.link · mask.unlink — 마스크 연결", () => {
+  it("**둘 다 edit 다** — 사라지는 것이 없다", () => {
+    const mcp = setup();
+    expect(mcp.commands.permissionOf("MASK_LINK")).toBe("edit");
+    expect(mcp.commands.permissionOf("MASK_UNLINK")).toBe("edit");
+    /* 같은 마스크를 다루지만 이쪽은 없애지 않는다. */
+    expect(mcp.commands.permissionOf("MASK_DELETE")).toBe("destructive");
+  });
+
+  it("**기본 권한으로 돈다**", async () => {
+    const mcp = setup(["read", "edit"]);
+    const id = await layerWithMask(mcp);
+    await expect(invoke(mcp, "photoshop.mask.unlink", { layerId: id })).resolves.toBeTruthy();
+  });
+
+  it("**요청한 값이 들어갔는지 결과가 말한다**", async () => {
+    const mcp = setup();
+    const id = await layerWithMask(mcp);
+
+    const unlinked = (await invoke(mcp, "photoshop.mask.unlink", { layerId: id })) as {
+      linked: boolean | null;
+      applied: boolean | null;
+      layer: { id: number };
+    };
+    expect(unlinked.linked).toBe(false);
+    expect(unlinked.applied).toBe(true);
+    expect(unlinked.layer.id).toBe(id);
+
+    const linked = (await invoke(mcp, "photoshop.mask.link", { layerId: id })) as {
+      linked: boolean | null;
+      applied: boolean | null;
+    };
+    expect(linked.linked).toBe(true);
+    expect(linked.applied).toBe(true);
+  });
+
+  /** 마스크가 없으면 연결할 것이 없다. */
+  it("**마스크 없는 레이어는 거절한다**", async () => {
+    const mcp = setup();
+    const layer = (await invoke(mcp, "photoshop.layer.create", { name: "N" })) as { id: number };
+    await expect(invoke(mcp, "photoshop.mask.link", { layerId: layer.id })).rejects.toThrow();
+    await expect(invoke(mcp, "photoshop.mask.unlink", { layerId: layer.id })).rejects.toThrow();
+  });
+
+  /**
+   * **연결을 끊어도 마스크는 남는다.** `delete` 와 헷갈리면 되돌릴 수 없는 쪽을
+   * 고르게 된다.
+   */
+  it("**연결을 끊어도 마스크는 남는다** — delete 와 가르는 축", async () => {
+    const mcp = setup();
+    const id = await layerWithMask(mcp);
+    const result = (await invoke(mcp, "photoshop.mask.unlink", { layerId: id })) as {
+      layer: { hasMask?: boolean };
+    };
+    expect(result.layer.hasMask).toBe(true);
+  });
+
+  it("**모르는 파라미터는 거절한다**", async () => {
+    const mcp = setup();
+    const id = await layerWithMask(mcp);
+    await expect(
+      invoke(mcp, "photoshop.mask.link", { layerId: id, linked: true }),
+    ).rejects.toThrow();
+  });
+});

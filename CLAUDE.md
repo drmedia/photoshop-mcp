@@ -14,11 +14,11 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **112개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **114개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 118). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 120). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -68,6 +68,11 @@ Tool 까지 더한 수다(지금 118). 한동안 이 값을 Core 개수로 옮�
   `edit` 이다** — 재서 확인했다. DOM 이름은 `resizeBoundary` 이고 **25.0 부터**다.
   회전 부호는 **기준점을 모서리로 둬야** 가려진다 (ROADMAP §49)
 - 마스크 굽기: `mask.apply` — **destructive 다.** 가려 둔 픽셀이 실제로 없어진다
+- 마스크 연결: `mask.link` · `mask.unlink` — 연결이면 레이어를 옮길 때 마스크가
+  **함께** 온다. **마스크는 연결된 채로 생긴다.** descriptor 는 `["all"]` 로 잡았고
+  (`userMaskLinked`) **`true` 방향은 안 잡혀서 걸고 다시 읽어 `applied` 로 답한다**.
+  `unlink`(남음) · `disable`(남음·효과 없음) · `delete`(사라짐) 셋이 다른 축이다
+  (ROADMAP §51)
 - 마스크 버리기: `mask.delete` — `apply` 와 **descriptor 의 플래그 하나 차이**다.
   이쪽은 **가린 픽셀이 되살아나고 마스크만 사라진다**. **둘 다 `hasMask:false` 를
   돌려줘 반환값으로는 못 가른다** — 고를 때 알고 있어야 한다. `destructive` 인
@@ -878,7 +883,7 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 112개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 114개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져

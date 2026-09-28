@@ -816,6 +816,32 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        *
        * 마스크가 없으면 거절하는 것은 `#setMask` 가 이미 갖고 있다.
        */
+      /**
+       * 마스크 연결. (ROADMAP §51)
+       *
+       * **Mock 이 흉내낼 수 있는 것은 계약뿐이다** — 마스크가 있어야 한다는
+       * 것과 결과 모양. "연결하면 함께 움직인다" 는 좌표라 Mock 이 모른다.
+       *
+       * `applied` 는 언제나 `true` 다. 실기에서 **들어가지 않는 경우를 아직 못
+       * 봤기 때문**이고, 봤다면 그것을 흉내냈을 것이다(배경 `set_opacity` 처럼).
+       * 지어낸 실패를 넣으면 그 거짓이 테스트에 굳는다.
+       */
+      case "MASK_LINK":
+      case "MASK_UNLINK": {
+        this.#snapshot(command.type === "MASK_LINK" ? "Link Mask" : "Unlink Mask");
+        const params = command.params as { layerId?: number };
+        const at = this.#requireLayerIndex(params.layerId);
+        const layer = this.#layers[at] as LayerInfo;
+        if (layer.hasMask !== true) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `레이어 ${String(layer.id)} 에 마스크가 없습니다.`,
+            { recoverable: true, details: { layerId: layer.id } },
+          );
+        }
+        const linked = command.type === "MASK_LINK";
+        return { layer: { ...layer }, linked, applied: true } as TResult;
+      }
       case "MASK_DELETE": {
         this.#snapshot("Delete mask");
         this.#setMask(command.params as { layerId?: number }, true);

@@ -5,7 +5,7 @@ import { requireActiveDocument } from "./document.js";
 import { findLayerById } from "./layer-edit.js";
 import { flattenLayers } from "./layers.js";
 import { runModal } from "./modal.js";
-import { readMaskState, withMaskStateAsync } from "./mask-state.js";
+import { readMaskLinked, readMaskState, withMaskStateAsync } from "./mask-state.js";
 import { resolveMutatedLayer } from "./mutation-result.js";
 
 /**
@@ -543,4 +543,100 @@ export async function maskInvert(params: { layerId?: number }): Promise<MaskInve
       editTarget: wasOnMask ? "mask" : "pixels",
     };
   });
+}
+
+/** `mask.link` · `mask.unlink` 의 결과. */
+export interface MaskLinkResult {
+  layer: LayerInfo;
+  /** 걸고 나서 **다시 읽은** 값. 읽지 못하면 `null`. */
+  linked: boolean | null;
+  /** 요청한 값이 실제로 들어갔는지. 확인하지 못했으면 `null`. */
+  applied: boolean | null;
+}
+
+/**
+ * 마스크와 레이어의 **연결**을 켜고 끈다. (ROADMAP §51)
+ *
+ * 연결되어 있으면 레이어를 옮길 때 마스크가 **함께** 움직인다. 끊으면 따로
+ * 논다 — 마스크는 그 자리에 두고 안쪽 그림만 옮기고 싶을 때 쓴다.
+ *
+ * ## descriptor 는 잡아서 확인했다
+ *
+ * DOM 에 없다. Adobe Layer 레퍼런스의 마스크 멤버는 `layerMaskDensity` ·
+ * `layerMaskFeather` 같은 속성뿐이고 연결을 다루는 것이 하나도 없다.
+ * `["all"]` 알림으로 잡았다(§17.17) — 사람이 레이어 패널의 사슬 아이콘을
+ * 누르는 동안 받은 것이 이것이다.
+ *
+ * ```text
+ * historyStateChanged  name: "Unlink Mask"
+ * set  to: { _obj: "layer", userMaskLinked: false }
+ * ```
+ *
+ * **`true` 방향은 잡히지 않았다**(한 번만 눌렀다). 대칭이라고 짐작하지 않고
+ * **걸고 나서 다시 읽어** 확인한다 — 그것이 `applied` 다.
+ *
+ * `setMaskEnabled` 와 descriptor 모양이 같고 **속성 이름만 다르다.**
+ * `_target` 이 `targetEnum` 이라 활성 레이어에 걸린다 — 그래서 `activate` 가 먼저다.
+ */
+async function setMaskLinked(
+  commandName: string,
+  layerId: number | undefined,
+  linked: boolean,
+): Promise<MaskLinkResult> {
+  return runModal(commandName, async () => {
+    const document = requireActiveDocument();
+    const targetId = activate(document, layerId);
+
+    const state = (await readMaskState([targetId])).get(targetId);
+    if (state !== undefined && !state.hasMask) {
+      throw new DispatchError("INVALID_PARAMETER", `레이어 ${targetId} 에 마스크가 없습니다.`, {
+        recoverable: true,
+        details: { layerId: targetId },
+      });
+    }
+
+    const before = flattenLayers(document.layers).map((entry) => entry.id);
+
+    try {
+      await play(commandName, [
+        {
+          _obj: "set",
+          _target: [{ _ref: "layer", _enum: "ordinal", _value: "targetEnum" }],
+          to: { _obj: "layer", userMaskLinked: linked },
+        },
+      ]);
+    } catch (error) {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        `마스크 연결을 바꾸지 못했습니다. (Photoshop: ${String(
+          (error as { message?: unknown })?.message ?? error,
+        )})`,
+        { recoverable: true, details: { layerId: targetId, linked } },
+      );
+    }
+
+    const resolved = resolveMutatedLayer(before, flattenLayers(document.layers), targetId);
+    if (resolved === null) {
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        "마스크 연결은 바뀌었지만 결과 레이어를 확인하지 못했습니다. layer.list 로 확인하세요.",
+        { recoverable: true, details: { layerId: targetId } },
+      );
+    }
+
+    const after = await readMaskLinked(resolved.id);
+    return {
+      layer: (await withMaskStateAsync([resolved]))[0] as LayerInfo,
+      linked: after,
+      applied: after === null ? null : after === linked,
+    };
+  });
+}
+
+export async function maskLink(params: { layerId?: number }): Promise<MaskLinkResult> {
+  return setMaskLinked("Link Mask", params.layerId, true);
+}
+
+export async function maskUnlink(params: { layerId?: number }): Promise<MaskLinkResult> {
+  return setMaskLinked("Unlink Mask", params.layerId, false);
 }

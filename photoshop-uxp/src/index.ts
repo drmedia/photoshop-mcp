@@ -41,6 +41,8 @@ import {
   maskDisable,
   maskApply,
   maskDelete,
+  maskLink,
+  maskUnlink,
   maskInvert,
   maskSelect,
   maskEnable,
@@ -352,6 +354,8 @@ export function createDispatcher(): CommandDispatcher {
    * GraXpert 하늘 경로는 지상부에 우리가 만든 가짜 평면을 담고 있다. */
   dispatcher.register("MASK_APPLY", async (p) => maskApply(p as { layerId?: number }));
   dispatcher.register("MASK_DELETE", async (p) => maskDelete(p as { layerId?: number }));
+  dispatcher.register("MASK_LINK", async (p) => maskLink(p as { layerId?: number }));
+  dispatcher.register("MASK_UNLINK", async (p) => maskUnlink(p as { layerId?: number }));
   dispatcher.register("MASK_INVERT", async (p) => maskInvert(p as { layerId?: number }));
   dispatcher.register("MASK_SELECT", async (p) =>
     maskSelect(p as { layerId?: number; target?: "mask" | "pixels" }),

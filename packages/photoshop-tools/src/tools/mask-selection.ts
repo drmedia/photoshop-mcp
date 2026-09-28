@@ -5,6 +5,8 @@ import {
   MASK_DISABLE,
   MASK_APPLY,
   MASK_DELETE,
+  MASK_LINK,
+  MASK_UNLINK,
   MASK_INVERT,
   MASK_SELECT,
   MASK_ENABLE,
@@ -18,6 +20,7 @@ import {
   type MaskSelectParams,
   type MaskInvertResult,
   type MaskSelectResult,
+  type MaskLinkResult,
   type MaskToggleParams,
   type SelectionParams,
   type SelectionResult,
@@ -89,6 +92,52 @@ export function createMaskDeleteTool(
     handler: async (input, context) =>
       engine.execute<LayerInfo>(
         { type: MASK_DELETE, params: input },
+        { requestId: context.requestId },
+      ),
+  };
+}
+
+/**
+ * 연결 셋 공유 문장. (ROADMAP §51)
+ */
+const LINK_NOTE =
+  "마스크가 레이어에 연결되어 있으면 **레이어를 옮길 때 마스크도 함께 움직인다**. " +
+  "끊으면 따로 논다 — 마스크는 그 자리에 두고 안쪽 그림만 옮기고 싶을 때다. " +
+  "layerId 를 생략하면 활성 레이어. 마스크가 없는 레이어는 거절한다. " +
+  "**결과의 linked 는 걸고 나서 다시 읽은 값이고 applied 가 실제로 들어갔는지 말한다** — " +
+  "읽지 못하면 둘 다 null 이다. 마스크를 없애는 것이 아니므로 photoshop.mask.delete · " +
+  "photoshop.mask.disable 과 다른 축이다. ";
+
+export function createMaskLinkTool(
+  engine: CommandEngine,
+): ToolDefinition<MaskToggleParams, MaskLinkResult> {
+  return {
+    name: "photoshop.mask.link",
+    description: "레이어 마스크를 레이어에 연결한다. " + LINK_NOTE,
+    permission: "edit",
+    inputSchema: MaskToggleParamsSchema,
+    handler: async (input, context) =>
+      engine.execute<MaskLinkResult>(
+        { type: MASK_LINK, params: input },
+        { requestId: context.requestId },
+      ),
+  };
+}
+
+export function createMaskUnlinkTool(
+  engine: CommandEngine,
+): ToolDefinition<MaskToggleParams, MaskLinkResult> {
+  return {
+    name: "photoshop.mask.unlink",
+    description:
+      "레이어 마스크의 연결을 끊는다. " +
+      LINK_NOTE +
+      "photoshop.layer.translate 로 레이어만 옮기려면 먼저 이것을 부른다.",
+    permission: "edit",
+    inputSchema: MaskToggleParamsSchema,
+    handler: async (input, context) =>
+      engine.execute<MaskLinkResult>(
+        { type: MASK_UNLINK, params: input },
         { requestId: context.requestId },
       ),
   };

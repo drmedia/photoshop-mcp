@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (112개)
+## 4. 구현된 Core API (114개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -338,6 +338,8 @@ Photoshop UI 는 그룹 끝에서 한 번 더 누르면 밖으로 나간다. 그
 | `photoshop.mask.invert` | EDIT | 마스크 반전. `selection.invert` 와 다른 물건이다 |
 | `photoshop.mask.apply` | DESTRUCTIVE | 마스크를 픽셀에 굽고 없앤다. **가려 둔 것이 사라진다** |
 | `photoshop.mask.delete` | DESTRUCTIVE | 마스크를 버린다. **가린 픽셀은 되살아나고 마스크만 사라진다** |
+| `photoshop.mask.link` | EDIT | 마스크를 레이어에 연결. **연결되면 함께 움직인다** |
+| `photoshop.mask.unlink` | EDIT | 연결을 끊는다. 마스크는 두고 그림만 옮길 때 |
 | `photoshop.selection.set` | EDIT | `shape`: rectangle · ellipse · **canvas** · layerTransparency |
 | `photoshop.selection.sky` | EDIT | Photoshop 의 `선택 > 하늘` |
 | `photoshop.selection.subject` | EDIT | Photoshop 의 `선택 > 피사체`. **형태**로 잡는다 |
@@ -475,8 +477,6 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 | API | 우선순위 | Permission | 비고 |
 |---|---|---|---|
-| `photoshop.mask.link` | P2 | EDIT | |
-| `photoshop.mask.unlink` | P2 | EDIT | |
 
 ### 5.4 Selection
 
@@ -759,7 +759,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **112** |
+| 구현됨 | **114** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

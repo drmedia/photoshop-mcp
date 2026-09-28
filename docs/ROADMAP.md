@@ -5628,7 +5628,7 @@ StarNet2 와 BXT 가 실제로 깔려 있어** 격리된 것처럼 보이지만 
 흐린다. §18.2 에서 끄는 스위치를 만들었지만 **기본이 "들어 있음" 인 것이 틀렸다.**
 
 ```text
-기본            Extension 0개. Core Tool 112개만
+기본            Extension 0개. Core Tool 114개만
 GraXpert 설치   패널 설치 관리자가 extension 폴더를 함께 놓는다
 등록            PhotoshopMCP 패널에서 사용자가 고른다
 패널 제거       Tool 도 함께 사라진다 — 짝이 맞는다
@@ -7814,3 +7814,83 @@ Photoshop 이 무엇을 지울지 알 수 없다. 다만 **상태를 못 읽으�
 - [x] 지운 뒤 다시 읽어 확인 (조용한 실패 차단)
 - [x] 실기: 기준값 복귀 · `apply` 와 갈림 · 잠긴 레이어에서도 지워짐
 - [x] `mask.apply` 소스 주석의 `edit` 표기를 `destructive` 로 정정
+
+# 51. 마스크 연결 (`mask.link` · `mask.unlink`)
+
+연결되어 있으면 레이어를 옮길 때 마스크가 **함께** 움직인다. 끊으면 마스크는
+그 자리에 두고 안쪽 그림만 옮길 수 있다.
+
+## DOM 에 없어서 잡았다
+
+Adobe Layer 레퍼런스의 마스크 멤버는 **밀도와 페더뿐이다** — `layerMaskDensity`
+· `layerMaskFeather` · `vectorMask*` · `filterMask*`. 연결·삭제·활성화를 다루는
+메서드가 하나도 없다. **먼저 확인했기 때문에** batchPlay 로 간 것이 짐작이 아니다.
+
+`["all"]` 알림으로 잡았다(§17.17). 사람이 레이어 패널의 사슬 아이콘을 누르는
+동안 받은 것이 이것이다.
+
+```text
+historyStateChanged   name: "Unlink Mask"  commandID: 5085
+set  _target: [{_ref:"layer", _enum:"ordinal", _value:"targetEnum"}]
+     to: { _obj: "layer", userMaskLinked: false }
+```
+
+`setMaskEnabled` 와 **descriptor 모양이 같고 속성 이름만 다르다**
+(`userMaskEnabled` → `userMaskLinked`). `_target` 이 `targetEnum` 이라 활성
+레이어에 걸린다 — `activate` 가 먼저다.
+
+## 잡히지 않은 방향을 짐작하지 않았다
+
+한 번만 눌러서 **`false` 만 잡혔다.** 대칭이라고 못 박지 않고 **걸고 나서 다시
+읽어** 확인한다 — 그것이 `applied` 다. 실기에서 `true` 도 들어갔다.
+
+읽는 쪽은 `readMaskLinked` 이고 **`readMaskState` 에 합치지 않았다.** 그쪽은
+`layer.list` 가 문서 전체에 부르는 경로라 속성을 하나 더하면 왕복이 레이어 수만큼
+늘어난다. 연결 여부는 `link`·`unlink` 를 부를 때만 필요하다.
+
+읽지 못하면 `linked` 도 `applied` 도 **`null` 이다.** `false` 로 덮으면
+"연결되어 있지 않다" 는 틀린 사실을 말하게 된다.
+
+## 연결이 실제로 동작한다
+
+폭 130 의 얼룩에 왼쪽 절반만 보이는 마스크를 걸고 100px 씩 옮겨 쟀다.
+
+```text
+                       레이어 경계        얼룩 비율
+기준 (연결, 이동 전)    70-200 (폭 130)    22.123%
+연결 + 100px 이동      170-300 (폭 130)    22.123%   ← 마스크가 따라왔다
+끊음 + 100px 이동      170-200 (폭  30)     2.842%   ← 마스크가 남았다
+```
+
+**연결일 때 수치가 안 변하는 것이 증거다.** 보이는 면적이 같은 채로 통째로
+옮겨졌다는 뜻이고, 레이어 경계가 `70-200` → `170-300` 으로 바뀐 것이 "안 움직인
+것" 과 가른다. 끊었을 때는 폭이 130 에서 30 으로 줄었다 — 그림이 마스크 밖으로
+빠져나갔다.
+
+**마스크가 레이어 경계를 자른다.** 얼룩 자체는 폭 260 인데 경계가 130 으로
+보고된다.
+
+## 마스크는 연결된 채로 생긴다
+
+사람이 처음 누른 것이 `Unlink Mask` 였다 — 그 전이 연결 상태였다는 뜻이다.
+그래서 `mask.create` 뒤에 `mask.link` 를 부를 이유는 없다. 끊은 것을 되돌릴
+때만 쓴다.
+
+## 없애는 것이 아니라 축이 다르다
+
+```text
+mask.unlink    마스크 남음 · 함께 안 움직임
+mask.disable   마스크 남음 · 효과 없음      · 다시 켤 수 있다
+mask.delete    마스크 사라짐                · destructive
+```
+
+그래서 `edit` 이다. 셋이 헷갈리면 되돌릴 수 없는 쪽을 고르게 되므로 Tool 설명이
+서로를 가리킨다.
+
+## 체크리스트
+
+- [x] `photoshop.mask.link` · `photoshop.mask.unlink` (EDIT)
+- [x] descriptor 를 `["all"]` 알림으로 잡았다 — 문서에서 가져오지 않았다
+- [x] 걸고 나서 다시 읽어 `applied` 로 확인 (`true` 방향은 캡처되지 않았다)
+- [x] 마스크 없는 레이어 거절 · 상태를 못 읽으면 막지 않는다
+- [x] 실기: 양방향 적용 · 연결/해제가 이동에 실제로 반영됨

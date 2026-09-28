@@ -15,6 +15,8 @@ import { z } from "zod";
 export const MASK_CREATE = "MASK_CREATE";
 export const MASK_APPLY = "MASK_APPLY";
 export const MASK_DELETE = "MASK_DELETE";
+export const MASK_LINK = "MASK_LINK";
+export const MASK_UNLINK = "MASK_UNLINK";
 export const MASK_SELECT = "MASK_SELECT";
 export const MASK_INVERT = "MASK_INVERT";
 export const MASK_ENABLE = "MASK_ENABLE";
@@ -120,6 +122,39 @@ function forwardSelection<TParams>(): CommandHandler<TParams, SelectionResult> {
 export const maskCreateCommand = forwardLayer<MaskCreateParams>();
 export const maskApplyCommand = forwardLayer<MaskToggleParams>();
 export const maskDeleteCommand = forwardLayer<MaskToggleParams>();
+
+/**
+ * `mask.link` · `mask.unlink` 의 결과. (ROADMAP §51)
+ *
+ * **`linked` 는 걸고 나서 다시 읽은 값이다.** descriptor 캡처에서 `false`
+ * 방향만 잡혀서 `true` 를 짐작하지 않고 확인한다 — `applied` 가 그 판정이다.
+ * 읽지 못하면 둘 다 `null` 이다.
+ */
+export const MaskLinkResultSchema = z.object({
+  layer: LayerInfoSchema,
+  linked: z.boolean().nullable(),
+  applied: z.boolean().nullable(),
+});
+
+export type MaskLinkResult = { layer: LayerInfo; linked: boolean | null; applied: boolean | null };
+
+function forwardMaskLink(): CommandHandler<MaskToggleParams, MaskLinkResult> {
+  return async (command, context) => {
+    const raw = await context.bridge.executeCommand<unknown>(command);
+    const parsed = MaskLinkResultSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new PhotoshopMcpError(
+        ErrorCode.PROTOCOL_ERROR,
+        `Plugin 응답이 스키마를 만족하지 않습니다: ${command.type}`,
+        { details: { command: command.type, issues: parsed.error.issues, received: raw } },
+      );
+    }
+    return parsed.data as MaskLinkResult;
+  };
+}
+
+export const maskLinkCommand = forwardMaskLink();
+export const maskUnlinkCommand = forwardMaskLink();
 export const maskEnableCommand = forwardLayer<MaskToggleParams>();
 export const maskDisableCommand = forwardLayer<MaskToggleParams>();
 export const selectionClearCommand = forwardSelection<SelectionParams>();

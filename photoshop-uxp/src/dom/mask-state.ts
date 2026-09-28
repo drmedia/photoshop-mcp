@@ -153,3 +153,27 @@ export async function withMaskStateAsync(layers: readonly LayerInfo[]): Promise<
     await readAdjustmentKinds(adjustments.map((entry) => entry.id)),
   );
 }
+
+/**
+ * 마스크가 레이어에 **연결되어 있는지** 읽는다. (ROADMAP §51)
+ *
+ * `readMaskState` 에 합치지 않았다. 그쪽은 `layer.list` 가 레이어마다 부르는
+ * 경로라 속성을 하나 더하면 문서 전체에서 왕복이 레이어 수만큼 늘어난다.
+ * **연결 여부는 link · unlink 를 부를 때만 필요하다** — 필요한 곳에서만 묻는다.
+ *
+ * **읽지 못하면 `null` 이다.** `false` 로 덮으면 "연결되어 있지 않다" 는 틀린
+ * 사실을 말하게 된다 — `isBackground` · `rawBitDepth` 와 같은 원칙이다.
+ */
+export async function readMaskLinked(id: number): Promise<boolean | null> {
+  let results: Record<string, unknown>[];
+  try {
+    results = await action.batchPlay(
+      [{ _obj: "get", _target: [{ _property: "userMaskLinked" }, { _ref: "layer", _id: id }] }],
+      {},
+    );
+  } catch {
+    return null;
+  }
+  const value = results[0]?.["userMaskLinked"];
+  return typeof value === "boolean" ? value : null;
+}

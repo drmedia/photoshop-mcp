@@ -75,6 +75,8 @@ import {
   MASK_DISABLE,
   MASK_APPLY,
   MASK_DELETE,
+  MASK_LINK,
+  MASK_UNLINK,
   MASK_INVERT,
   MASK_SELECT,
   MASK_ENABLE,
@@ -88,6 +90,8 @@ import {
   maskDisableCommand,
   maskApplyCommand,
   maskDeleteCommand,
+  maskLinkCommand,
+  maskUnlinkCommand,
   maskInvertCommand,
   maskSelectCommand,
   maskEnableCommand,
@@ -796,6 +800,15 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
    * `mask.dab` · `mask.gradient` 로 쌓아 둔 마스크가 한 번에 사라진다. */
   registry.register(MASK_DELETE, maskDeleteCommand, {
     permission: "destructive",
+    schema: MaskToggleParamsSchema,
+  });
+  /* **`edit` 다.** 마스크도 픽셀도 사라지지 않고 함께 움직일지만 정한다. */
+  registry.register(MASK_LINK, maskLinkCommand, {
+    permission: edit,
+    schema: MaskToggleParamsSchema,
+  });
+  registry.register(MASK_UNLINK, maskUnlinkCommand, {
+    permission: edit,
     schema: MaskToggleParamsSchema,
   });
   /* **`edit` 다.** 픽셀을 바꾸지 않고 편집 대상만 옮긴다. 다만 옮겨 둔 채로

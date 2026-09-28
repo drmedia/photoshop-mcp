@@ -174,11 +174,13 @@ import {
   createPathStrokeTool,
   createPathToSelectionTool,
 } from "./path.js";
+import { createGuideCreateTool, createGuideDeleteTool, createGuideListTool } from "./guide.js";
 export * from "./adjustment.js";
 export * from "./adjustment-extra.js";
 export * from "./channel.js";
 export * from "./layer-comp.js";
 export * from "./path.js";
+export * from "./guide.js";
 export * from "./filter.js";
 export * from "./filter-dom.js";
 export * from "./capability.js";
@@ -290,6 +292,9 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createPathFillTool(engine));
   registry.register(createPathStrokeTool(engine));
   registry.register(createPathDeleteTool(engine));
+  registry.register(createGuideListTool(engine));
+  registry.register(createGuideCreateTool(engine));
+  registry.register(createGuideDeleteTool(engine));
   registry.register(createDodgeBurnDabTool(engine));
   registry.register(createActionListTool(engine));
   registry.register(createActionDeclaredTool(engine));

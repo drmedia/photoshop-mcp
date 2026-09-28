@@ -301,6 +301,8 @@ declare module "photoshop" {
     readonly SelectionType?: Readonly<Record<string, unknown>>;
     /** 패스 긋기용 도구. 값은 실기에서 확인한다. (ROADMAP §58) */
     readonly ToolType?: Readonly<Record<string, unknown>>;
+    /** 가이드 방향. HORIZONTAL · VERTICAL. (ROADMAP §59) */
+    readonly Direction?: Readonly<Record<string, unknown>>;
   };
 }
 

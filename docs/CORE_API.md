@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (146개)
+## 4. 구현된 Core API (149개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -306,6 +306,9 @@ RAW 의 현상 설정은 슬라이더를 보며 정하는 일이라 사람이 �
 | `photoshop.path.fill` | EDIT | 활성 레이어에 칠한다 |
 | `photoshop.path.stroke` | EDIT | **굵기·색은 도구의 현재 설정을 따른다** |
 | `photoshop.path.delete` | DESTRUCTIVE | 윤곽만 사라진다 |
+| `photoshop.guide.list` | READ | 눈금자 원점 기준 좌표 |
+| `photoshop.guide.create` | EDIT | horizontal · vertical |
+| `photoshop.guide.delete` | EDIT | **색인으로만.** 지우는 것이 좌표 하나뿐이다 |
 | `photoshop.layer.delete` | DESTRUCTIVE | **id 를 명시한다.** 패턴을 받지 않는다 |
 
 `layerId` 를 생략하면 활성 레이어를 대상으로 한다. 그것이 무엇인지는
@@ -588,7 +591,7 @@ photoshop.shape.rectangle · ellipse · line · set_fill · set_stroke
 
    (path.* 여덟은 §4 에서 열었다 — ROADMAP §58. fill · stroke 가 더해졌다)
 
-photoshop.guide.list · create · delete(DESTRUCTIVE)
+   (guide.* 셋은 §4 에서 열었다 — delete 는 EDIT 로 갔다. ROADMAP §59)
 photoshop.ruler.get_units · set_units
 
 photoshop.metadata.get · set
@@ -772,7 +775,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **146** |
+| 구현됨 | **149** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

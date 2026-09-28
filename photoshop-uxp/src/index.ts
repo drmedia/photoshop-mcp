@@ -160,6 +160,7 @@ import {
   pathStroke,
   pathToSelection,
 } from "./dom/path.js";
+import { guideCreate, guideDelete, guideList } from "./dom/guide.js";
 
 const PLUGIN = { name: "photoshop-mcp-uxp", version: "0.1.0" };
 
@@ -309,6 +310,11 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("PATH_DELETE", async (p) =>
     pathDelete(p as { name?: string; index?: number }),
   );
+  dispatcher.register("GUIDE_LIST", async () => guideList());
+  dispatcher.register("GUIDE_CREATE", async (p) =>
+    guideCreate(p as Parameters<typeof guideCreate>[0]),
+  );
+  dispatcher.register("GUIDE_DELETE", async (p) => guideDelete(p as { index: number }));
   dispatcher.register("DOCUMENT_FLATTEN", async () => documentFlatten());
   dispatcher.register("DOCUMENT_CLOSE", async (p) =>
     documentClose(p as Parameters<typeof documentClose>[0]),

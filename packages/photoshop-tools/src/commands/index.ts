@@ -354,6 +354,7 @@ export * from "./adjustment-extra.js";
 export * from "./channel.js";
 export * from "./layer-comp.js";
 export * from "./path.js";
+export * from "./guide.js";
 export * from "./filter.js";
 export * from "./filter-dom.js";
 export * from "./gap-tools.js";
@@ -500,6 +501,17 @@ import {
   pathStrokeCommand,
   pathToSelectionCommand,
 } from "./path.js";
+import {
+  GUIDE_CREATE,
+  GUIDE_DELETE,
+  GUIDE_LIST,
+  GuideCreateParamsSchema,
+  GuideDeleteParamsSchema,
+  GuideListParamsSchema,
+  guideCreateCommand,
+  guideDeleteCommand,
+  guideListCommand,
+} from "./guide.js";
 export { PING, pingCommand, type PingResult } from "./ping.js";
 
 /**
@@ -783,6 +795,23 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(PATH_DELETE, pathDeleteCommand, {
     permission: "destructive",
     schema: PathDeleteParamsSchema,
+  });
+
+  // ROADMAP §59 — 가이드. 전부 DOM 이다.
+  registry.register(GUIDE_LIST, guideListCommand, {
+    permission: "read",
+    schema: GuideListParamsSchema,
+  });
+  registry.register(GUIDE_CREATE, guideCreateCommand, {
+    permission: "edit",
+    schema: GuideCreateParamsSchema,
+  });
+  /* **`edit` 다.** §5.12 는 DESTRUCTIVE 를 예정값으로 적어 두었지만 지우는
+   * 것이 좌표 하나뿐이다 — 쌓아 둔 작업이 없고 같은 값으로 다시 만들면 된다.
+   * §5 의 Permission 은 "구현 시점의 예정값" 이고 §2 의 경계 규칙이 최종이다. */
+  registry.register(GUIDE_DELETE, guideDeleteCommand, {
+    permission: "edit",
+    schema: GuideDeleteParamsSchema,
   });
   registry.register(DODGE_BURN_DAB, dodgeBurnDabCommand, {
     // 배경을 거절하므로 바뀌는 것은 사용자가 이 용도로 만든 레이어뿐이다.

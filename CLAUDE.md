@@ -14,11 +14,11 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **146개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **149개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
-Tool 까지 더한 수다(지금 152). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
+Tool 까지 더한 수다(지금 155). 한동안 이 값을 Core 개수로 옮겨 적어 "Core Tool 46개"
 라는 틀린 문장이 문서 세 곳에 남아 있었다. **Core 목록의 기준은 `docs/CORE_API.md` §4** 이고
 `tests/core-api-doc.test.ts` 가 레지스트리와 대조한다.
 
@@ -111,6 +111,10 @@ Tool 까지 더한 수다(지금 152). 한동안 이 값을 Core 개수로 옮�
 - 파일 저장: `workspace.status` · `document.save_as` · `document.export` · `document.save`
 - 캡처: `document.capture` · `layer.capture` · `selection.capture` · `window.capture`
 - 구도: `document.crop` — 캔버스만 줄이고 **픽셀은 버리지 않는다**. 그래서 `edit` 이다
+- 가이드: `guide.list` · `create` · `delete` — **전부 DOM**. 좌표는 **눈금자 원점**
+  기준이라 원점을 옮겼으면 어긋난다. **색인은 지울 때마다 밀리고 `id` 는 안 밀린다** —
+  그래서 `id` 선택자를 뒀다. `delete` 는 지우는 것이 좌표 하나뿐이라 **`edit`** 다
+  (§5.12 의 예정값 DESTRUCTIVE 를 바꿨다) (ROADMAP §59)
 - 크기: `image.resize` — 다시 표본화한다. 축소는 되돌릴 수 없어 **`destructive`** 다.
   **`resolution` 만 줘도 픽셀이 함께 줄어든다** — 300→72 가 0.24배다 (ROADMAP §33)
 - 캔버스: `canvas.resize` — 종이 크기만. **배경의 바깥 픽셀이 사라져 `destructive`** 다.
@@ -916,7 +920,7 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 146개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 149개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져

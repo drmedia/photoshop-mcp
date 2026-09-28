@@ -50,6 +50,18 @@ interface MockLayerComp {
  * `kind` 는 실기 값을 모르므로 `null` 이고, `fill` · `stroke` 는 픽셀이라
  * 그리지 않는다(필터와 같은 자리).
  */
+/**
+ * Mock 이 흉내내는 가이드.
+ *
+ * 방향과 좌표뿐이라 **전부 흉내낼 수 있다** — 이 저장소에서 드문 경우다.
+ * 다만 `id` 는 Photoshop 이 주는 값이라 Mock 이 자기 번호를 쓴다.
+ */
+interface MockGuide {
+  id: number;
+  direction: "horizontal" | "vertical";
+  coordinate: number;
+}
+
 interface MockPathInfo {
   index: number;
   id: number;
@@ -210,6 +222,8 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   readonly #channels = new Set<string>();
   readonly #layerComps: MockLayerComp[] = [];
   readonly #paths: MockPath[] = [];
+  readonly #guides: MockGuide[] = [];
+  #nextGuideId = 1;
   #nextPathId = 1;
   #nextLayerCompId = 1;
   #nextLayerId: number;
@@ -2249,6 +2263,64 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        * 선택을 만드는 것까지 흉내내 둘이 왕복하는 계약이 테스트에 나온다.
        * `fill` · `stroke` 는 픽셀이라 그리지 않는다.
        */
+      /**
+       * 가이드. (ROADMAP §59)
+       *
+       * **방향과 좌표뿐이라 전부 흉내낸다.** 지어낼 것이 없다.
+       */
+      case "GUIDE_LIST":
+        this.#requireDocument();
+        return {
+          guides: this.#guides.map((entry, index) => ({
+            ...entry,
+            index,
+            rawDirection: undefined,
+          })),
+        } as TResult;
+      case "GUIDE_CREATE": {
+        this.#requireDocument();
+        this.#snapshot("Create guide");
+        const params = command.params as {
+          direction: "horizontal" | "vertical";
+          coordinate: number;
+        };
+        const made: MockGuide = {
+          id: this.#nextGuideId++,
+          direction: params.direction,
+          coordinate: params.coordinate,
+        };
+        this.#guides.push(made);
+        return { ...made, index: this.#guides.length - 1 } as TResult;
+      }
+      case "GUIDE_DELETE": {
+        this.#requireDocument();
+        this.#snapshot("Delete guide");
+        const params = command.params as { index?: number; id?: number };
+        /* **`id` 는 색인과 달리 안 밀린다** — 실기에서 확인한 계약이라 Mock 도
+         * 흉내낸다. (ROADMAP §59) */
+        const at =
+          params.id === undefined
+            ? (params.index as number)
+            : this.#guides.findIndex((entry) => entry.id === params.id);
+        if (params.id !== undefined && at < 0) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `가이드 id ${String(params.id)} 를 찾을 수 없습니다.`,
+            { recoverable: true, details: { id: params.id } },
+          );
+        }
+        const found = this.#guides[at];
+        if (found === undefined) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `가이드 색인 ${String(at)} 가 범위를 벗어납니다. 가이드는 ${String(this.#guides.length)}개입니다.`,
+            { recoverable: true, details: { index: at, count: this.#guides.length } },
+          );
+        }
+        this.#guides.splice(at, 1);
+        return { deleted: { ...found, index: at }, remaining: this.#guides.length } as TResult;
+      }
+
       case "PATH_LIST":
         this.#requireDocument();
         return {

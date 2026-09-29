@@ -151,11 +151,15 @@ export function createLoadChannelTool(
     SELECTION_LOAD_CHANNEL,
     "저장해 둔 알파 채널에서 선택 영역을 불러온다. invert: true 를 주면 불러오면서 " +
       "반전하므로 하늘 채널 하나로 전경 선택까지 얻을 수 있다 — 채널을 둘 만들지 않아도 된다. " +
-      "mode: 'intersect' 는 **기존 선택과 교차해 더 좁은 마스크**를 만든다. 광도 마스크 " +
-      "관례의 Darks 2 가 이것이다 — selection.luminosity{invert} 로 어두운 쪽을 골라 " +
-      "채널에 저장해 두고, 그 채널을 자기 자신과 교차한다. " +
-      "밝은 쪽(Lights 2)은 selection.luminosity 의 mode 로 바로 된다. " +
-      "교집합할 선택이 없으면 실패한다.",
+      "**mode 로 기존 선택과 합친다** — replace(기본) · add · subtract · intersect. " +
+      "**이것이 선택을 조합하는 통로다** — 다른 선택 Tool 에 mode 가 없거나 모자라면 " +
+      "photoshop.selection.save_channel 로 저장해 두고 여기서 합친다. " +
+      "예를 들어 '하늘에서 은하수를 뺀다' 는 하늘을 채널에 저장하고 은하수를 선택한 뒤 " +
+      "그 채널을 subtract 하는 식이 아니라, 하늘을 부른 다음 은하수 채널을 subtract 한다. " +
+      "mode: 'intersect' 는 **더 좁은 마스크**를 만든다. 광도 마스크 관례의 Darks 2 가 " +
+      "이것이다 — selection.luminosity{invert} 로 어두운 쪽을 골라 채널에 저장해 두고 " +
+      "그 채널을 자기 자신과 교차한다. 밝은 쪽(Lights 2)은 selection.luminosity 의 mode 다. " +
+      "**replace 가 아니면 바탕이 될 선택이 있어야 하고 없으면 실패한다.**",
     LoadChannelParams,
   );
 }

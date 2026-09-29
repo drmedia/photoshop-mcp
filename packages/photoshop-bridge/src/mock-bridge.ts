@@ -1164,13 +1164,13 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       }
       case "SELECTION_LOAD_CHANNEL": {
         const { name, mode } = command.params as { name: string; mode?: string };
-        /* 교집합은 기존 선택을 요구한다. Mock 이 안 막으면 그 거절 경로가
-         * 테스트에 영원히 안 나온다. */
-        if (mode === "intersect" && !this.#hasSelection) {
+        /* **`replace` 가 아니면 바탕이 될 선택이 필요하다.** Mock 이 안 막으면
+         * 그 거절 경로가 테스트에 영원히 안 나온다. (ROADMAP §70) */
+        if (mode !== undefined && mode !== "replace" && !this.#hasSelection) {
           throw new PhotoshopMcpError(
             ErrorCode.INVALID_PARAMETER,
-            "교집합을 낼 선택 영역이 없습니다. mode 를 빼거나 선택을 먼저 만드세요.",
-            { recoverable: true },
+            `${mode} 할 선택 영역이 없습니다. mode 를 빼거나 선택을 먼저 만드세요.`,
+            { recoverable: true, details: { mode } },
           );
         }
         if (!this.#channels.has(name)) {

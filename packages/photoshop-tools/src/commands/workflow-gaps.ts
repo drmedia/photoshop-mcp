@@ -2,6 +2,7 @@ import type { CommandHandler } from "@photoshop-mcp/command-engine";
 import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { z } from "zod";
 // 선택 영역 상태는 이미 정의되어 있다. 같은 모양을 두 번 적지 않는다.
+import { SelectionModeSchema } from "./selection-dom.js";
 import type { SelectionState } from "./state-read.js";
 
 /**
@@ -101,13 +102,20 @@ export const LoadChannelParams = z
     /** 불러오면서 반전한다. 하늘 채널 하나로 전경까지 얻을 수 있다. */
     invert: z.boolean().optional(),
     /**
-     * 기존 선택과 어떻게 합칠지. 생략하면 덮어쓴다(`new`).
+     * 기존 선택과 어떻게 합칠지. 생략하면 덮어쓴다(`replace`). (ROADMAP §70)
+     *
+     * **네 가지가 다 된다.** 한동안 `new` · `intersect` 둘뿐이라 "하늘에서
+     * 은하수를 뺀다" 같은 것을 `invert` + `intersect` 두 번으로 우회해야 했다.
+     * DOM `selection.load` 가 네 가지를 다 받는다 — 능력이 없던 게 아니라
+     * 안 열어 둔 것이었다.
      *
      * `intersect` 는 **더 좁은 마스크**를 만든다. 광도 마스크 관례의
      * `Darks 2` 가 이것이다 — 반전한 휘도를 채널에 저장해 두고 자기 자신과
-     * 교차한다. 교집합할 선택이 없으면 실패한다.
+     * 교차한다.
+     *
+     * `replace` 가 아니면 바탕이 될 선택이 있어야 하고, 없으면 실패한다.
      */
-    mode: z.enum(["new", "intersect"]).optional(),
+    mode: SelectionModeSchema.optional(),
   })
   .strict();
 
@@ -121,13 +129,20 @@ export const SelectionLuminosityParams = z
   .object({
     invert: z.boolean().optional(),
     /**
-     * 기존 선택과 어떻게 합칠지. 생략하면 덮어쓴다(`new`).
+     * 기존 선택과 어떻게 합칠지. 생략하면 덮어쓴다(`replace`).
+     *
+     * **여기는 둘뿐이다.** `load_channel` 과 달리 합성 휘도는
+     * `document.channels` 에 없어 DOM `selection.load` 로 못 부른다 —
+     * batchPlay 로 잡아 둔 descriptor 가 이 둘밖에 없다. (ROADMAP §70)
+     *
+     * **더하거나 빼려면 채널을 거친다** — `selection.save_channel` 로 저장한 뒤
+     * `selection.load_channel` 의 `add` · `subtract` 를 쓴다.
      *
      * `intersect` 는 **더 좁은 광도 마스크**를 만든다 — 휘도를 자기 자신과
      * 교차하면 가장 밝은 쪽만 남는다. 광도 마스크 관례의 `Lights 2` 가 이것이다.
      * 교집합할 선택이 없으면 실패한다.
      */
-    mode: z.enum(["new", "intersect"]).optional(),
+    mode: z.enum(["replace", "intersect"]).optional(),
   })
   .strict();
 

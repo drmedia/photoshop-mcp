@@ -45,7 +45,7 @@ export interface ChannelDetail extends ChannelInfo {
 type ChannelLike = Record<string, unknown>;
 
 /** `document.channels` 를 배열로 편다. 컬렉션이라 `length` + 색인으로 읽는다. */
-function allChannels(document: ReturnType<typeof requireActiveDocument>): ChannelLike[] {
+export function allChannels(document: ReturnType<typeof requireActiveDocument>): ChannelLike[] {
   const channels = (document as unknown as ChannelLike)["channels"] as ChannelLike | undefined;
   if (channels === undefined || channels === null) {
     throw new DispatchError(

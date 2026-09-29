@@ -9846,3 +9846,81 @@ R clippedLow    0.002%    62.1%
 - [x] 실기: 되읽기 일치 · 픽셀이 물든다
 - [x] 국소 `hue`(±180)와 색 보정 `hue`(0–359)를 스키마가 가른다
 - [ ] 음수 값 — 못 재 봤다
+
+# 70. 선택 조합 — `subtract` 가 없던 것은 능력이 아니라 통로였다
+
+`selection.load_channel` 이 `replace` · `add` · `subtract` · `intersect` 넷을
+받는다. Tool 은 늘지 않는다.
+
+## 왜 이제야 되는가
+
+한동안 `new` · `intersect` 둘뿐이었고, 그 `intersect` 조차 알림으로 잡은
+`interfaceIconFrameDimmed` 였다 — **이름이 하는 일과 전혀 상관없는 descriptor**
+라 `add` · `subtract` 도 같은 방법으로 또 잡아야 한다고 생각했다.
+
+**DOM 에 있었다.**
+
+```text
+selection.load(from: ComponentChannel | AlphaChannel | Layer,
+               mode?: SelectionType, invert?: boolean)
+```
+
+레퍼런스를 보면 끝날 일이었다. §15 의 규칙이 이것이다 — **batchPlay 이름은
+캡처하고 DOM 은 문서를 본다.** 한쪽 규칙을 다른 쪽에 쓰면 있는 API 를 두고
+descriptor 를 캡처하러 간다.
+
+## 런타임 값은 짐작하지 않았다
+
+레퍼런스가 `SelectionType` 의 **멤버 이름만** 적고 문자열은 안 적는다 —
+`DialogModes`(§63) · `AnchorPosition`(§36) · `FlipAxis`(§44) 와 같은 자리다.
+게다가 적혀 있는 것은 `REPLACE` · `EXTEND` · `INTERSECT` 셋뿐이고 **빼기 쪽은
+아예 없다.**
+
+`constants` 에서 읽고 **없으면 거절한다.** 조용히 `replace` 로 떨어뜨리면
+선택이 통째로 갈아치워지는데 호출자는 뺀 줄 안다.
+
+실기에서 `DIMINISH` 가 맞았다. 틀렸으면 오류가 났을 것이고, 그게 의도다.
+
+## `new` 를 `replace` 로 바꿨다
+
+**`selection.polygon` 과 `path.to_selection` 은 이미 `replace` 였다.** 둘만
+`new` 였던 것이 틀린 쪽이라 고쳤다. 깨지는 변경이지만 같은 낱말이 같은 뜻을
+갖는 편이 낫다.
+
+## 실기
+
+```text
+big   = 1000–3000       right = 2000–3000
+
+replace(big)              → 1000–3000
+  subtract(right)         → 1000–2000     오른쪽 절반이 빠졌다
+  add(right)              → 1000–3000     다시 합쳐졌다
+  intersect(right)        → 2000–3000     겹치는 부분만
+replace(right, invert)    → 0–4032        옛 경로도 그대로다
+```
+
+## `luminosity` 는 둘뿐이다
+
+합성 휘도는 `document.channels` 에 없어 DOM `load` 로 부를 수 없다. batchPlay 로
+잡아 둔 descriptor 가 `replace` · `intersect` 둘뿐이라 그대로 두었다.
+
+**더하거나 빼려면 채널을 거친다** — `save_channel` 로 저장한 뒤
+`load_channel` 의 `add` · `subtract` 를 쓴다. 오늘 하늘−은하수를 그렇게 풀었다.
+
+## 남은 통로
+
+`selection.set` · `subject` · `sky` · `color_range` 에는 여전히 `mode` 가 없다.
+**막히지는 않는다** — `save_channel` → `load_channel{mode}` 로 무엇이든 조합된다.
+`selection.set` 은 DOM `selectRectangle`/`selectEllipse` 가 `mode` 를 받으므로
+열 수 있고, 나머지 셋은 batchPlay 라 선택 후 합성으로 얹어야 한다.
+
+## 체크리스트
+
+- [x] `load_channel` 이 네 가지를 다 받는다 — DOM `selection.load`
+- [x] `constants.SelectionType` 을 읽고 없으면 거절한다
+- [x] `new` → `replace` 로 통일
+- [x] 실기: 네 가지 경계가 전부 맞는다
+- [x] 실기: `invert` 경로가 그대로다
+- [x] Mock 이 `replace` 아닌 조합의 거절을 흉내낸다
+- [ ] `selection.set` 의 `mode` — DOM 에 있으나 안 열었다
+- [ ] `subject` · `sky` · `color_range` 의 `mode` — batchPlay 라 합성이 필요하다

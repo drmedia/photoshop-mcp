@@ -90,7 +90,14 @@ Tool 까지 더한 수다(지금 167). 한동안 이 값을 Core 개수로 옮�
   `document.statistics` 다. `load_as_selection` 은 `selection.load_channel` 이
   이미 해서 안 만들었다 (ROADMAP §56)
 - 광도 마스크: `selection.luminosity` — **`color_range` 는 광도 마스크가 아니다.**
-  그쪽은 임계 기반 구간 선택이라 거의 이진이고 구조를 못 따라간다
+  그쪽은 임계 기반 구간 선택이라 거의 이진이고 구조를 못 따라간다.
+  `mode` 는 `replace` · `intersect` **둘뿐**이다 — 합성 휘도가
+  `document.channels` 에 없어 DOM 으로 못 부른다 (ROADMAP §70)
+- 선택 조합: **`selection.load_channel` 이 통로다** — `replace` · `add` ·
+  `subtract` · `intersect` 넷을 받는다. DOM `selection.load` 가 원래 받고 있었고
+  **안 열어 둔 것**이었다. 다른 선택 Tool 에 `mode` 가 없으면
+  `save_channel` → `load_channel{mode}` 로 조합한다. `constants.SelectionType` 의
+  런타임 값은 레퍼런스에 없어 **읽고 없으면 거절한다** (ROADMAP §70)
 - 다각형 선택: `selection.polygon` — 사각형·타원으로 못 만드는 모양. 점 셋 이상.
   `replace` · `add` · `subtract` · `intersect`. **같은 모양을 그대로 빼도 경계가
   안 줄어든다** — 안티앨리어싱 가장자리가 남는다 (ROADMAP §49)

@@ -128,3 +128,89 @@ describe("selection.luminosity", () => {
     expect(mcp.commands.list()).toContain("SELECTION_COLOR_RANGE");
   });
 });
+
+/**
+ * 선택 조합. (ROADMAP §70)
+ *
+ * **`load_channel` 이 선택을 조합하는 통로다.** 한동안 `new` · `intersect` 둘뿐
+ * 이라 "하늘에서 은하수를 뺀다" 를 `invert` + `intersect` 두 번으로 우회했다.
+ */
+describe("selection.load_channel 의 mode", () => {
+  const rect = { shape: "rectangle", bounds: { left: 10, top: 10, right: 100, bottom: 100 } };
+
+  async function withChannel(
+    mcp: ReturnType<typeof createPhotoshopMcp>,
+    name: string,
+  ): Promise<void> {
+    await invoke(mcp, "photoshop.selection.set", rect);
+    await invoke(mcp, "photoshop.selection.save_channel", { name });
+  }
+
+  it("**네 가지를 다 받는다**", () => {
+    const tool = setup()
+      .tools.list()
+      .find((entry) => entry.name === "photoshop.selection.load_channel");
+    const mode = (
+      tool?.inputSchema as unknown as { shape: { mode: { unwrap: () => { options: string[] } } } }
+    ).shape.mode.unwrap().options;
+    expect(mode).toEqual(["replace", "add", "subtract", "intersect"]);
+  });
+
+  it("**`new` 는 더 이상 받지 않는다** — `replace` 로 통일했다", async () => {
+    // selection.polygon · path.to_selection 이 이미 replace 였다.
+    // 둘만 new 였던 것이 틀린 쪽이다.
+    const mcp = setup();
+    await withChannel(mcp, "sky");
+    await expect(
+      invoke(mcp, "photoshop.selection.load_channel", { name: "sky", mode: "new" }),
+    ).rejects.toThrow();
+  });
+
+  it("subtract 가 돈다", async () => {
+    const mcp = setup();
+    await withChannel(mcp, "sky");
+    const result = await invoke(mcp, "photoshop.selection.load_channel", {
+      name: "sky",
+      mode: "subtract",
+    });
+    expect(result["hasSelection"]).toBe(true);
+  });
+
+  /**
+   * **`replace` 가 아니면 바탕이 있어야 한다.** Mock 이 안 막으면 그 거절
+   * 경로가 테스트에 영원히 안 나온다 — 배경 승격 때와 같다.
+   */
+  it("**바탕 선택이 없으면 replace 말고는 거절한다**", async () => {
+    for (const mode of ["add", "subtract", "intersect"]) {
+      const mcp = setup();
+      await invoke(mcp, "photoshop.selection.set", rect);
+      await invoke(mcp, "photoshop.selection.save_channel", { name: "sky" });
+      await invoke(mcp, "photoshop.selection.clear");
+      await expect(
+        invoke(mcp, "photoshop.selection.load_channel", { name: "sky", mode }),
+      ).rejects.toThrow(/선택 영역이 없습니다/u);
+    }
+  });
+
+  it("replace 는 바탕이 없어도 된다", async () => {
+    const mcp = setup();
+    await withChannel(mcp, "sky");
+    await invoke(mcp, "photoshop.selection.clear");
+    const result = await invoke(mcp, "photoshop.selection.load_channel", {
+      name: "sky",
+      mode: "replace",
+    });
+    expect(result["hasSelection"]).toBe(true);
+  });
+
+  /** 합성 휘도는 `document.channels` 에 없어 DOM 으로 못 부른다. */
+  it("**luminosity 는 둘뿐이다** — 더하려면 채널을 거친다", () => {
+    const tool = setup()
+      .tools.list()
+      .find((entry) => entry.name === "photoshop.selection.luminosity");
+    const mode = (
+      tool?.inputSchema as unknown as { shape: { mode: { unwrap: () => { options: string[] } } } }
+    ).shape.mode.unwrap().options;
+    expect(mode).toEqual(["replace", "intersect"]);
+  });
+});

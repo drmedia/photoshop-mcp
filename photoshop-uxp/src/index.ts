@@ -416,7 +416,7 @@ export function createDispatcher(): CommandDispatcher {
     documentDuplicate(p as Parameters<typeof documentDuplicate>[0]),
   );
   dispatcher.register("SELECTION_LOAD_CHANNEL", async (p) =>
-    selectionLoadChannel(p as { name: string; invert?: boolean; mode?: "new" | "intersect" }),
+    selectionLoadChannel(p as Parameters<typeof selectionLoadChannel>[0]),
   );
   /* 합성 휘도를 선택으로. color_range 와 달리 연속 계조라 구조를 따라간다. */
   dispatcher.register("SELECTION_LUMINOSITY", async (p) =>

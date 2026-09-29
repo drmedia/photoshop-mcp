@@ -1,6 +1,7 @@
-import { action } from "photoshop";
+import { action, constants } from "photoshop";
 import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
+import { allChannels } from "./channel.js";
 import { requireActiveDocument } from "./document.js";
 import { flattenLayers } from "./layers.js";
 import { hasSelection } from "./mask-selection.js";
@@ -65,6 +66,60 @@ export async function selectionSaveChannel(params: { name: string }): Promise<{ 
 }
 
 /**
+ * 선택 조합. (ROADMAP §70)
+ *
+ * ## batchPlay 가 아니라 DOM 이다
+ *
+ * `selection.load(from, mode, invert)` 가 레퍼런스에 있다 — 네 가지 조합을
+ * 전부 받는다. **능력이 없던 게 아니라 안 열어 둔 것**이었다.
+ *
+ * 한동안 `intersect` 만 있었고 그것도 알림으로 잡은
+ * `interfaceIconFrameDimmed` 였다. 이름이 하는 일과 전혀 상관없는 descriptor 라
+ * `add` · `subtract` 는 같은 방법으로 또 잡아야 했는데, **DOM 에 있으니 잡을
+ * 필요가 없다.**
+ *
+ * ## 런타임 값을 짐작하지 않는다
+ *
+ * 레퍼런스가 `SelectionType` 의 **멤버 이름만** 적고 문자열은 안 적는다 —
+ * `DialogModes`(§63) · `AnchorPosition`(§36) 과 같은 자리다. `constants` 에서
+ * 읽고 **없으면 거절한다.** 조용히 `replace` 로 떨어뜨리면 선택이 통째로
+ * 갈아치워지는데 호출자는 뺀 줄 안다.
+ */
+const SELECTION_TYPE_KEYS = {
+  replace: "REPLACE",
+  add: "EXTEND",
+  subtract: "DIMINISH",
+  intersect: "INTERSECT",
+} as const;
+
+export type SelectionCombine = keyof typeof SELECTION_TYPE_KEYS;
+
+function selectionType(mode: SelectionCombine): unknown {
+  const key = SELECTION_TYPE_KEYS[mode];
+  const value = (constants.SelectionType as unknown as Record<string, unknown> | undefined)?.[key];
+  if (value === undefined) {
+    throw new DispatchError(
+      "COMMAND_NOT_SUPPORTED",
+      `이 Photoshop 에서 선택 조합 ${mode}(constants.SelectionType.${key}) 를 찾을 수 없습니다.`,
+      { recoverable: false, details: { mode, key } },
+    );
+  }
+  return value;
+}
+
+/** `replace` 가 아닌 조합은 바탕이 될 선택이 있어야 한다. */
+function requireBaseSelection(mode: SelectionCombine): void {
+  if (mode === "replace" || hasSelection()) {
+    return;
+  }
+  throw new DispatchError(
+    "INVALID_PARAMETER",
+    `${mode} 할 선택 영역이 없습니다. mode 를 빼거나 선택을 먼저 만드세요.`,
+    { recoverable: true, details: { mode } },
+  );
+}
+
+/**
  * 저장해 둔 알파 채널에서 선택을 불러온다.
  *
  * `invert` 는 불러오면서 반전한다. 하늘 채널 하나로 전경까지 얻을 수 있어
@@ -73,48 +128,37 @@ export async function selectionSaveChannel(params: { name: string }): Promise<{ 
 export async function selectionLoadChannel(params: {
   name: string;
   invert?: boolean;
-  mode?: "new" | "intersect";
+  mode?: SelectionCombine;
 }): Promise<SelectionResult> {
   return runModal("Load selection from channel", async () => {
-    requireActiveDocument();
-    if (params.mode === "intersect" && !hasSelection()) {
-      throw new DispatchError(
-        "INVALID_PARAMETER",
-        "교집합을 낼 선택 영역이 없습니다. mode 를 빼거나 선택을 먼저 만드세요.",
-        { recoverable: true },
-      );
-    }
-    try {
-      if (params.mode === "intersect") {
-        /* 이름이 하는 일과 상관없다 — 실기에서 잡은 값이다. RGB 합성 채널과
-         * 교차할 때와 같은 `_obj` 이고 `_target` 의 참조 형태만 다르다. */
-        await play("Intersect channel", {
-          _obj: "interfaceIconFrameDimmed",
-          _target: [{ _ref: "channel", _name: params.name }],
-          with: { _ref: "channel", _property: "selection" },
-        });
-        if (params.invert === true) {
-          await play("Invert selection", { _obj: "inverse" });
-        }
-        return describeSelection();
-      }
-      await play("Load selection", {
-        _obj: "set",
-        _target: [{ _ref: "channel", _property: "selection" }],
-        to: { _ref: "channel", _name: params.name },
-        ...(params.invert === true ? { invert: true } : {}),
-      });
-    } catch {
-      // 없는 채널이면 Photoshop 이 `"설정" 명령은 현재 사용할 수 없습니다` 라고
-      // 답한다. 원문으로는 이름이 틀렸는지조차 알 수 없다. 실기에서 저장이 실패해
-      // 채널이 없는 상태로 불러오다 이 벽을 만났다.
+    const document = requireActiveDocument();
+    const mode = params.mode ?? "replace";
+    requireBaseSelection(mode);
+
+    /* **채널을 이름으로 찾는다.** 없는 이름을 그대로 DOM 에 넘기면 Photoshop 이
+     * 무엇이 틀렸는지 말해 주지 않는다 — batchPlay 시절에는 «"설정" 명령은 현재
+     * 사용할 수 없습니다» 만 돌아왔다. */
+    const channel = allChannels(document).find((entry) => entry["name"] === params.name);
+    if (channel === undefined) {
       throw new DispatchError(
         "COMMAND_FAILED",
-        `채널 '${params.name}' 을 불러올 수 없습니다. ` +
-          "selection.save_channel 로 저장한 이름인지 확인하세요.",
+        `채널 '${params.name}' 을 찾을 수 없습니다. ` +
+          "photoshop.channel.list 로 이름을 확인하세요.",
         { recoverable: true, details: { name: params.name } },
       );
     }
+
+    const selection = (document as unknown as Record<string, unknown>)["selection"] as
+      { load?: (from: unknown, mode?: unknown, invert?: boolean) => Promise<void> } | undefined;
+    if (typeof selection?.load !== "function") {
+      throw new DispatchError(
+        "COMMAND_NOT_SUPPORTED",
+        "이 Photoshop 에는 document.selection.load 가 없습니다.",
+        { recoverable: false },
+      );
+    }
+
+    await selection.load(channel, selectionType(mode), params.invert === true);
     return describeSelection();
   });
 }
@@ -149,7 +193,7 @@ export async function selectionLoadChannel(params: {
  */
 export async function selectionLuminosity(params: {
   invert?: boolean;
-  mode?: "new" | "intersect";
+  mode?: "replace" | "intersect";
 }): Promise<SelectionResult> {
   return runModal("Load luminosity selection", async () => {
     requireActiveDocument();

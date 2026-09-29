@@ -9420,8 +9420,33 @@ UI 화면으로 대응을 확정했다 — 추론이 아니다.
 저장값은 `"+53"` 이다. 직렬화 규칙이므로 **만들 때 `53` 으로 써도 되는지는
 모른다** — 넣어 보고 되읽어 확인해야 한다.
 
-색상 휠 여덟(`Shadow`·`Midtone`·`Highlight`·`Global` × `Hue`·`Sat`)은
-전부 0 이라 **눈금을 모른다.**
+색상 휠 여덟도 **원시값**이다.
+
+```text
+탭            H     S      키                            저장값
+어두운 영역   27    16     LocalColorGradeShadowHue/Sat   "+27" / "+16"
+중간 영역      2    21     LocalColorGradeMidtoneHue/Sat  "+2"  / "+21"
+밝은 영역    355    32     LocalColorGradeHighlightHue/Sat "+355" / "+32"
+전체          15   100     LocalColorGradeGlobalHue/Sat   "+15" / "+100"
+```
+
+이것으로 `LocalColorGrade*` 열넷이 **전부 찼다.**
+
+### **"색조" 가 두 종류다**
+
+같은 보정 블록 안에 이름이 겹치는데 인코딩이 완전히 다르다.
+
+```text
+LocalHue                     0.5      ÷180,  ±180      점 색상
+LocalColorGradeHighlightHue  "+355"   원시,  0–359     색 보정 휠
+```
+
+`+355` 가 결정적이다 — **0–359 한 바퀴이고 음수로 접히지 않는다.** ±180
+이었다면 `-5` 로 저장됐을 것이다.
+
+한쪽 규칙을 다른 쪽에 쓰면 90 을 넣었는데 0.5 가 되거나, 355 가 범위 밖으로
+잘린다. **이름이 같다고 같은 물건이 아니다** — `saturation` · `curve` ·
+`sharpen` 이 `$` 규칙의 예외였던 것과 같은 종류의 함정이다.
 
 ### 점 곡선은 좌표 문자열이다
 
@@ -9527,7 +9552,8 @@ XML 이 통째로 Camera Raw 에 들어간다. 플러그인이 검증된 파라�
 - [x] **`LocalColorGrade*` 는 정규화 안 함** — 부호 붙은 원시 문자열
 - [x] 색 보정 여섯의 UI 대응을 화면으로 확정 — 혼합·균형은 공통 하나
 - [ ] `+` 없이 써도 되는지 — 직렬화 규칙이라 넣어 보고 되읽어야 안다
-- [ ] 색상 휠 여덟(`*Hue` · `*Sat`)의 눈금 — 전부 0 이라 미측정
+- [x] 색상 휠 여덟도 원시값 — `LocalColorGrade*` 열넷이 전부 찼다
+- [x] **색조가 두 종류다** — `LocalHue` 는 ÷180 ±180, 휠은 원시 0–359
 - [x] `MainCurve` 는 `"x,y"` 문자열 Seq (0–255)
 - [x] `LocalPointColors` 는 19칸 평탄 배열 — 뒤 열두 칸 미해석
 - [x] **양방향을 켜면 `FullX·FullY` 가 `Zero2*`·`FullPointDistance` 로 바뀐다**

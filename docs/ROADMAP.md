@@ -9338,29 +9338,111 @@ UI            값       키                       저장값      나누는 수
 
 열다섯을 쟀고 전부 **나누는 수 = UI 범위**로 설명된다.
 
-### 죽은 키가 섞여 있다
+### **"안 움직였다" 를 "죽었다" 로 읽어서 틀렸다**
 
-한 번도 움직이지 않은 것이 일곱이다.
+한 번도 움직이지 않은 키 일곱을 "죽은 키" 로 분류해 커밋했다. 그 중
+**`LocalSharpness` 는 죽지 않았다** — 세부 패널의 '선명도' 다. 그 패널을
+열어 보지 않았을 뿐인데 없는 것으로 단정했다.
 
 ```text
-LocalExposure · LocalContrast · LocalClarity · LocalSharpness ·
-LocalBrightness · LocalToningHue · LocalToningSaturation
+선명도 +9  →  LocalSharpness = 0.09
 ```
 
-규칙은 이렇다.
+**안 본 것과 없는 것을 가르지 않은 오류다.** 이 프로젝트에서 반복된
+유형이다 — §17.9(캡처) · §61(`displayDialogs`) · §63(마스크 대체재).
+
+지금도 안 움직인 것이 남아 있지만, 같은 실수를 하지 않도록 **"아직 안 본
+패널이 있다" 로 적는다.**
 
 ```text
-2012 짝이 있는 것   2012 쪽이 현역, 접미사 없는 동명 키는 죽어 있다
-                    (Exposure · Contrast · Clarity …)
+2012 짝이 있는 것   2012 쪽이 현역이고 접미사 없는 동명 키는 0 이다
+                    (Exposure · Contrast · Clarity)
 짝이 없는 것        그것이 현역
-                    (Texture · Dehaze · Grain · Glow · Temperature · Tint)
-Toning*             죽은 키. 점 색상은 LocalHue · LocalSaturation 이다
+                    (Texture · Dehaze · Grain · Glow · Temperature · Tint ·
+                     Sharpness · LuminanceNoise · Moire · Defringe)
+미확인              LocalBrightness · LocalToningHue · LocalToningSaturation ·
+                    LocalCorrectedDepth — 대응 UI 를 아직 못 찾았다
 ```
 
-**이름으로 짐작하면 두 번 틀린다.** `Toning` 이 색상 휠일 것 같은데 아니고,
-`2012` 없는 `LocalHue` 가 구형일 것 같은데 현역이다. 하나씩 움직여 보고
-무엇이 변하는지 본다 — 그래서 **쓰지 않는 키를 descriptor 에 넣으면 안 된다.**
-조용히 무시되고 왜 안 먹는지 알 수 없다.
+**이름으로 짐작하면 틀린다.** `Toning` 이 색상 휠일 것 같은데 아니고,
+`2012` 없는 `LocalHue` 가 구형일 것 같은데 현역이다.
+
+### 세부 패널 넷
+
+```text
+UI            값       키                       저장값      나누는 수
+선명도       +9        LocalSharpness           0.09         ÷100
+노이즈 감소 +15        LocalLuminanceNoise      0.15         ÷100
+모아레 감소 +13        LocalMoire               0.13         ÷100
+언저리 제거 +12        LocalDefringe            0.12         ÷100
+```
+
+### 보정 전체의 배율
+
+```text
+마스크 '양'  112  →  CorrectionAmount = 1.12     ÷100
+```
+
+**1 을 넘을 수 있다.** 보정 전체에 곱해진다.
+
+### **색 보정은 정규화하지 않는다** — 두 번째 부류
+
+```text
+LocalColorGradeGlobalLum    = "+8"     UI +8 그대로
+LocalColorGradeShadowLum    = "+10"
+LocalColorGradeMidtoneLum   = "+8"
+LocalColorGradeHighlightLum = "+14"
+LocalColorGradeBalance      = "+24"
+LocalColorGradeBlending     = "+53"
+```
+
+**원시값이고 `+` 부호가 붙은 문자열이다.** `LocalCurveRefineSaturation="100"`
+이 같은 부류이고, 이제 한 점이 아니라 여러 점으로 확인됐다.
+
+**국소 보정 안에서 정규화되는 것과 안 되는 것이 섞여 있다.** `Local` 로
+시작한다고 다 ±1 이 아니다.
+
+### 점 곡선은 좌표 문자열이다
+
+```xml
+<crs:MainCurve><rdf:Seq>
+  <rdf:li>0,0</rdf:li>   <rdf:li>32,22</rdf:li>   <rdf:li>64,56</rdf:li>
+  <rdf:li>128,128</rdf:li> <rdf:li>192,196</rdf:li> <rdf:li>255,255</rdf:li>
+</rdf:Seq></crs:MainCurve>
+```
+
+0–255 로 전역 `curveRgb` 와 같은 좌표계다. 위는 '중간 대비' 프리셋을 고른
+결과이고, **프리셋 이름이 아니라 펼쳐진 점으로 저장된다.**
+
+### 포인트 색상은 19칸 평탄 배열이다
+
+```text
+[0..2]  2.993309, 0.056814, 0.242850   집은 색
+[3]     0.027559   색조 +5    ÷180   (표시가 반올림된 값이다)
+[4]     0.050000   채도 +5    ÷100
+[5]     0.040000   광도 +4    ÷100
+[6]     0.540000   범위 +54   ÷100
+[7..18] 0, 0.333333, 0.666667, 1, 0, 0, 0.236814, 0.786814,
+        0, 0.349983, 0.709983, 1
+```
+
+**위치로 뜻이 정해지고 뒤 열두 칸은 무엇인지 모른다.** 이런 것은 짐작으로
+만들지 않는다 — 한 칸만 어긋나도 조용히 다른 색이 된다.
+
+'분산' 은 여기 없고 **별도 `LocalColorVariance`** 다 (+6 → 0.060000).
+
+### **양방향을 켜면 속성 집합이 바뀐다**
+
+더해지는 것이 아니라 **갈린다.**
+
+```text
+끄면   ZeroX ZeroY FullX FullY
+켜면   ZeroX ZeroY Bidirectional Zero2X Zero2Y FullPointDistance
+                   ↑ FullX · FullY 가 사라진다
+```
+
+`Zero2Y = -0.707237` — **좌표가 음수다.** 정규화 좌표지만 0–1 에 갇히지
+않고 캔버스 밖으로 나간다. 범위를 0–1 로 검증하면 멀쩡한 값을 막는다.
 
 ### 예외 후보
 
@@ -9418,7 +9500,14 @@ XML 이 통째로 Camera Raw 에 들어간다. 플러그인이 검증된 파라�
 - [x] 색 패널 넷 — 온도·색조·채도 ÷100, 색조(휠)은 **÷180 확정**
 - [x] 점 색상은 `LocalHue`·`LocalSaturation` 이다 — `Toning*` 이 아니다
 - [x] 효과 패널 다섯 (텍스처·명료도·디헤이즈·그레인·광선) 전부 ÷100
-- [x] 죽은 키 일곱을 가려냈다 — `2012` 짝과 `Toning*`
-- [ ] 남은 다섯 — `LuminanceNoise` · `Moire` · `Defringe` · `CorrectedDepth` · `CurveRefineSaturation`
+- [x] ~~죽은 키 일곱~~ — **틀렸다.** `LocalSharpness` 는 세부 패널의 선명도다
+- [x] 세부 넷 (선명도·노이즈·모아레·언저리) 전부 ÷100
+- [x] `CorrectionAmount` 는 ÷100 이고 **1 을 넘는다**
+- [x] **`LocalColorGrade*` 는 정규화 안 함** — 부호 붙은 원시 문자열
+- [x] `MainCurve` 는 `"x,y"` 문자열 Seq (0–255)
+- [x] `LocalPointColors` 는 19칸 평탄 배열 — 뒤 열두 칸 미해석
+- [x] **양방향을 켜면 `FullX·FullY` 가 `Zero2*`·`FullPointDistance` 로 바뀐다**
+- [x] 마스크 좌표가 **음수일 수 있다** (`Zero2Y = -0.707`)
+- [ ] `LocalBrightness` · `LocalToningHue` · `LocalToningSaturation` · `LocalCorrectedDepth` — 대응 UI 미확인
 - [ ] `LocalCurveRefineSaturation` 이 원시값인지 — 기본값 한 점뿐
 - [ ] 구현 — 아직 안 했다

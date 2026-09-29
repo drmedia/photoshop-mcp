@@ -1,0 +1,120 @@
+<!-- Camera Raw 국소 보정 XMP 실기 샘플. (ROADMAP §66)
+
+     Photoshop 27.8 / Camera Raw 18.6 에서 사람이 손으로 만든 것을
+     `smart_object.get_info` 의 raw.filterFX[0].filter["$LCs"] 로 읽었다.
+     캡처에 패널 여러 개를 손으로 조작해야 해서 다시 만들기가 비싸다.
+
+     XMP 생성기를 만들 때 **바이트 수준 참조**로 쓴다 - 들여쓰기 · 속성 순서 ·
+     `+` 부호 같은 직렬화 관습이 여기 담겨 있다. **그것들이 필수인지는 모른다.**
+     넣어 보고 되읽어 확인해야 한다.
+
+     UI 값과의 대응은 ROADMAP §66 의 눈금 표에 있다. 요약하면 -
+       LocalExposure2012        ÷4     (UI +3.00 EV)
+       Local* 톤·색·효과·세부    ÷100
+       LocalHue                 ÷180   (UI 90)
+       LocalColorGrade* 열넷     원시, 부호 붙은 문자열, 색조는 0-359
+       CorrectionAmount         ÷100   (UI 112 → 1.12, 1 을 넘는다)
+
+     **한 벌의 예시이지 규격이 아니다.** 모르는 칸이 남아 있다 -
+     LocalPointColors 19칸 중 뒤 열두 칸.
+-->
+
+<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 7.0-c000 1.000000, 0000/00/00-00:00:00        ">
+ <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description rdf:about=""
+    xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/">
+   <crs:MaskGroupBasedCorrections>
+    <rdf:Seq>
+     <rdf:li>
+      <rdf:Description
+       crs:What="Correction"
+       crs:CorrectionAmount="1.12"
+       crs:CorrectionActive="true"
+       crs:CorrectionName="마스크 1"
+       crs:CorrectionSyncID="ABEC1B6E51EC2740BBA4E22EE3F9B7B0"
+       crs:LocalExposure="0"
+       crs:LocalHue="0.5"
+       crs:LocalSaturation="0.5"
+       crs:LocalContrast="0"
+       crs:LocalClarity="0"
+       crs:LocalSharpness="0.09"
+       crs:LocalBrightness="0"
+       crs:LocalToningHue="0"
+       crs:LocalToningSaturation="0"
+       crs:LocalExposure2012="0.75"
+       crs:LocalContrast2012="0.09"
+       crs:LocalHighlights2012="0.09"
+       crs:LocalShadows2012="0.11"
+       crs:LocalWhites2012="0.09"
+       crs:LocalBlacks2012="0.09"
+       crs:LocalClarity2012="0.07"
+       crs:LocalDehaze="0.12"
+       crs:LocalLuminanceNoise="0.15"
+       crs:LocalMoire="0.13"
+       crs:LocalDefringe="0.12"
+       crs:LocalTemperature="0.08"
+       crs:LocalTint="0.09"
+       crs:LocalTexture="0.06"
+       crs:LocalGrain="0.12"
+       crs:LocalCorrectedDepth="0"
+       crs:LocalGlow="0.13"
+       crs:LocalCurveRefineSaturation="100"
+       crs:LocalColorGradeShadowHue="+27"
+       crs:LocalColorGradeShadowSat="+16"
+       crs:LocalColorGradeHighlightHue="+355"
+       crs:LocalColorGradeHighlightSat="+32"
+       crs:LocalColorGradeBalance="+24"
+       crs:LocalColorGradeMidtoneHue="+2"
+       crs:LocalColorGradeMidtoneSat="+21"
+       crs:LocalColorGradeShadowLum="+10"
+       crs:LocalColorGradeMidtoneLum="+35"
+       crs:LocalColorGradeHighlightLum="+14"
+       crs:LocalColorGradeBlending="+53"
+       crs:LocalColorGradeGlobalHue="+15"
+       crs:LocalColorGradeGlobalSat="+100"
+       crs:LocalColorGradeGlobalLum="+8">
+      <crs:MainCurve>
+       <rdf:Seq>
+        <rdf:li>0,0</rdf:li>
+        <rdf:li>32,22</rdf:li>
+        <rdf:li>64,56</rdf:li>
+        <rdf:li>128,128</rdf:li>
+        <rdf:li>192,196</rdf:li>
+        <rdf:li>255,255</rdf:li>
+       </rdf:Seq>
+      </crs:MainCurve>
+      <crs:LocalPointColors>
+       <rdf:Seq>
+        <rdf:li>2.993309, 0.056814, 0.242850, 0.027559, 0.050000, 0.040000, 0.540000, 0.000000, 0.333333, 0.666667, 1.000000, 0.000000, 0.000000, 0.236814, 0.786814, 0.000000, 0.349983, 0.709983, 1.000000</rdf:li>
+       </rdf:Seq>
+      </crs:LocalPointColors>
+      <crs:LocalColorVariance>
+       <rdf:Seq>
+        <rdf:li>0.060000</rdf:li>
+       </rdf:Seq>
+      </crs:LocalColorVariance>
+      <crs:CorrectionMasks>
+       <rdf:Seq>
+        <rdf:li
+         crs:What="Mask/Gradient"
+         crs:MaskActive="true"
+         crs:MaskName="선형 그레이디언트 1"
+         crs:MaskBlendMode="0"
+         crs:MaskInverted="false"
+         crs:MaskSyncID="EC018046CC14E74497D8E69F74F59203"
+         crs:MaskValue="1"
+         crs:ZeroX="0.480487"
+         crs:ZeroY="0.711423"
+         crs:Bidirectional="true"
+         crs:Zero2X="0.476899"
+         crs:Zero2Y="-0.707237"
+         crs:FullPointDistance="0.5"/>
+       </rdf:Seq>
+      </crs:CorrectionMasks>
+      </rdf:Description>
+     </rdf:li>
+    </rdf:Seq>
+   </crs:MaskGroupBasedCorrections>
+  </rdf:Description>
+ </rdf:RDF>
+</x:xmpmeta>

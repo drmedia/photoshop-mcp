@@ -9402,6 +9402,27 @@ LocalColorGradeBlending     = "+53"
 **국소 보정 안에서 정규화되는 것과 안 되는 것이 섞여 있다.** `Local` 로
 시작한다고 다 ±1 이 아니다.
 
+UI 화면으로 대응을 확정했다 — 추론이 아니다.
+
+```text
+탭              슬라이더   값     키
+어두운 영역     광도      +10    LocalColorGradeShadowLum
+중간 영역       광도       +8    LocalColorGradeMidtoneLum
+밝은 영역       광도      +14    LocalColorGradeHighlightLum
+전체            광도       +8    LocalColorGradeGlobalLum
+(공통)          혼합       53    LocalColorGradeBlending   = "+53"
+(공통)          균형      +24    LocalColorGradeBalance    = "+24"
+```
+
+혼합·균형은 네 탭에 모두 보이지만 값이 같다 — **공통 하나**라서 키도 하나다.
+
+**`+` 는 UI 를 따라가지 않는다.** 혼합은 화면에 부호 없이 `53` 으로 나오는데
+저장값은 `"+53"` 이다. 직렬화 규칙이므로 **만들 때 `53` 으로 써도 되는지는
+모른다** — 넣어 보고 되읽어 확인해야 한다.
+
+색상 휠 여덟(`Shadow`·`Midtone`·`Highlight`·`Global` × `Hue`·`Sat`)은
+전부 0 이라 **눈금을 모른다.**
+
 ### 점 곡선은 좌표 문자열이다
 
 ```xml
@@ -9504,6 +9525,9 @@ XML 이 통째로 Camera Raw 에 들어간다. 플러그인이 검증된 파라�
 - [x] 세부 넷 (선명도·노이즈·모아레·언저리) 전부 ÷100
 - [x] `CorrectionAmount` 는 ÷100 이고 **1 을 넘는다**
 - [x] **`LocalColorGrade*` 는 정규화 안 함** — 부호 붙은 원시 문자열
+- [x] 색 보정 여섯의 UI 대응을 화면으로 확정 — 혼합·균형은 공통 하나
+- [ ] `+` 없이 써도 되는지 — 직렬화 규칙이라 넣어 보고 되읽어야 안다
+- [ ] 색상 휠 여덟(`*Hue` · `*Sat`)의 눈금 — 전부 0 이라 미측정
 - [x] `MainCurve` 는 `"x,y"` 문자열 Seq (0–255)
 - [x] `LocalPointColors` 는 19칸 평탄 배열 — 뒤 열두 칸 미해석
 - [x] **양방향을 켜면 `FullX·FullY` 가 `Zero2*`·`FullPointDistance` 로 바뀐다**

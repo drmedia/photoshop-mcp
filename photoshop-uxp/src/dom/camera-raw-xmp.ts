@@ -67,6 +67,20 @@ export interface RadialGradientMask {
 export type LocalMask = LinearGradientMask | RadialGradientMask;
 
 /**
+ * 바탕 마스크에서 빼는 마스크. (ROADMAP §73)
+ *
+ * **`add` · `intersect` 는 없다.** 실기에서 `빼기` 만 잡았고, 교차 값은
+ * `2` 일 것 같지만 **짐작이라 넣지 않았다** — 조용히 틀린 마스크가 되면
+ * 그림은 그럴듯한데 어디가 잘못됐는지 알 수 없다.
+ *
+ * `mode` 를 남겨 둔 것은 나중에 재고 나서 **깨지 않고 넓히기** 위함이다.
+ */
+export interface MaskCombine {
+  mode: "subtract";
+  mask: LocalMask;
+}
+
+/**
  * 색 보정 한 구간. (ROADMAP §69)
  *
  * **UI 값 그대로 받는다.** 슬라이더와 달리 **정규화하지 않으므로** 나누지
@@ -103,7 +117,10 @@ export interface ColorGrade {
 
 /** 보정 하나. 슬라이더는 **UI 단위 그대로** 받는다. */
 export interface LocalCorrection {
+  /** 바탕 마스크. */
   mask: LocalMask;
+  /** 바탕에서 빼는 마스크들. */
+  combine?: readonly MaskCombine[];
   name?: string;
   /** 색 보정. 주면 열넷이 전부 나간다. */
   colorGrade?: ColorGrade;
@@ -257,7 +274,12 @@ const FOOTER =
   " </rdf:RDF>\n" +
   "</x:xmpmeta>\n";
 
-function linearXml(mask: LinearGradientMask, index: number, syncId: string): string {
+function linearXml(
+  mask: LinearGradientMask,
+  index: number,
+  syncId: string,
+  blend: MaskBlend,
+): string {
   const name = mask.name ?? `선형 그레이디언트 ${String(index + 1)}`;
   return [
     "        <rdf:li",
@@ -265,10 +287,10 @@ function linearXml(mask: LinearGradientMask, index: number, syncId: string): str
     '         crs:MaskActive="true"',
     `         crs:MaskName="${escapeXml(name)}"`,
     /* 0 은 '더하기' 다. 빼기·교차의 값은 아직 모른다 (ROADMAP §66). */
-    '         crs:MaskBlendMode="0"',
+    `         crs:MaskBlendMode="${blend.blendMode}"`,
     `         crs:MaskInverted="${mask.inverted === true ? "true" : "false"}"`,
     `         crs:MaskSyncID="${syncId}"`,
-    '         crs:MaskValue="1"',
+    `         crs:MaskValue="${blend.maskValue}"`,
     `         crs:ZeroX="${formatXmpNumber(mask.from.x)}"`,
     `         crs:ZeroY="${formatXmpNumber(mask.from.y)}"`,
     `         crs:FullX="${formatXmpNumber(mask.to.x)}"`,
@@ -285,17 +307,22 @@ function linearXml(mask: LinearGradientMask, index: number, syncId: string): str
  * `Version="2"` 는 실기 캡처에 있던 것이다. 필수인지는 모르지만 빼서 얻는
  * 것이 없다.
  */
-function radialXml(mask: RadialGradientMask, index: number, syncId: string): string {
+function radialXml(
+  mask: RadialGradientMask,
+  index: number,
+  syncId: string,
+  blend: MaskBlend,
+): string {
   const name = mask.name ?? `방사형 그레이디언트 ${String(index + 1)}`;
   return [
     "        <rdf:li",
     '         crs:What="Mask/CircularGradient"',
     '         crs:MaskActive="true"',
     `         crs:MaskName="${escapeXml(name)}"`,
-    '         crs:MaskBlendMode="0"',
+    `         crs:MaskBlendMode="${blend.blendMode}"`,
     `         crs:MaskInverted="${mask.inverted === true ? "true" : "false"}"`,
     `         crs:MaskSyncID="${syncId}"`,
-    '         crs:MaskValue="1"',
+    `         crs:MaskValue="${blend.maskValue}"`,
     `         crs:Top="${formatXmpNumber(mask.bounds.top)}"`,
     `         crs:Left="${formatXmpNumber(mask.bounds.left)}"`,
     `         crs:Bottom="${formatXmpNumber(mask.bounds.bottom)}"`,
@@ -309,10 +336,25 @@ function radialXml(mask: RadialGradientMask, index: number, syncId: string): str
   ].join("\n");
 }
 
-function maskXml(mask: LocalMask, index: number, syncId: string): string {
+/**
+ * 마스크가 바탕인지 빼는 것인지. (ROADMAP §73)
+ *
+ * **둘이 함께 바뀐다.** 실기에서 `빼기` 를 걸었더니 `MaskBlendMode` 가
+ * `0 → 1` 로 가면서 `MaskValue` 도 `1 → 0` 으로 갔다. **어느 쪽이 일을 하는지,
+ * 둘 다 필요한지는 모른다** — 한 점뿐이라 Photoshop 이 낸 짝을 그대로 쓴다.
+ */
+interface MaskBlend {
+  blendMode: string;
+  maskValue: string;
+}
+
+const BASE_BLEND: MaskBlend = { blendMode: "0", maskValue: "1" };
+const SUBTRACT_BLEND: MaskBlend = { blendMode: "1", maskValue: "0" };
+
+function maskXml(mask: LocalMask, index: number, syncId: string, blend: MaskBlend): string {
   return mask.type === "radialGradient"
-    ? radialXml(mask, index, syncId)
-    : linearXml(mask, index, syncId);
+    ? radialXml(mask, index, syncId, blend)
+    : linearXml(mask, index, syncId, blend);
 }
 
 /**
@@ -397,7 +439,10 @@ function correctionXml(correction: LocalCorrection, index: number, newId: () => 
     `${attributes.join("\n")}>`,
     "      <crs:CorrectionMasks>",
     "       <rdf:Seq>",
-    maskXml(correction.mask, index, newId()),
+    maskXml(correction.mask, index, newId(), BASE_BLEND),
+    ...(correction.combine ?? []).map((entry) =>
+      maskXml(entry.mask, index, newId(), SUBTRACT_BLEND),
+    ),
     "       </rdf:Seq>",
     "      </crs:CorrectionMasks>",
     "      </rdf:Description>",

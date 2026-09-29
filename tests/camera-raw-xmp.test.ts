@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { CameraRawParamsSchema } from "@photoshop-mcp/photoshop-tools";
 import {
   buildLocalCorrectionsXmp,
   escapeXml,
@@ -397,6 +398,85 @@ describe("Camera Raw 국소 보정 XMP", () => {
       );
       expect(xmp).toContain('crs:LocalHue="0.5"');
       expect(xmp).toContain('crs:LocalColorGradeGlobalHue="+90"');
+    });
+  });
+
+  /** ROADMAP 73 — 마스크 빼기. */
+  describe("마스크 빼기", () => {
+    const linear = {
+      type: "linearGradient" as const,
+      from: { x: 0.5, y: 0.6 },
+      to: { x: 0.5, y: 0 },
+    };
+    const radial = {
+      type: "radialGradient" as const,
+      bounds: { top: 0.03, left: 0.21, bottom: 0.49, right: 0.69 },
+      feather: 83,
+    };
+
+    it("**한 보정에 마스크 둘이 들어간다**", () => {
+      const xmp = buildLocalCorrectionsXmp(
+        [{ mask: linear, combine: [{ mode: "subtract", mask: radial }] }],
+        fixedIds(),
+      );
+      expect([...xmp.matchAll(/crs:What="Mask\//gu)]).toHaveLength(2);
+      // 보정은 하나다 — 마스크만 둘이다.
+      expect([...xmp.matchAll(/crs:What="Correction"/gu)]).toHaveLength(1);
+    });
+
+    /**
+     * **실기에서 둘이 함께 바뀌었다.** `빼기` 를 걸었더니 `MaskBlendMode` 가
+     * `0 → 1`, `MaskValue` 가 `1 → 0` 으로 갔다. 어느 쪽이 일을 하는지 모르니
+     * Photoshop 이 낸 짝을 그대로 쓴다.
+     */
+    it("**바탕은 (0,1) 빼기는 (1,0) 이다**", () => {
+      const xmp = buildLocalCorrectionsXmp(
+        [{ mask: linear, combine: [{ mode: "subtract", mask: radial }] }],
+        fixedIds(),
+      );
+      const blends = [...xmp.matchAll(/crs:MaskBlendMode="(\d)"/gu)].map((m) => m[1]);
+      const values = [...xmp.matchAll(/crs:MaskValue="(\d)"/gu)].map((m) => m[1]);
+      expect(blends).toEqual(["0", "1"]);
+      expect(values).toEqual(["1", "0"]);
+    });
+
+    it("빼는 마스크가 없으면 바탕만 나간다", () => {
+      const xmp = buildLocalCorrectionsXmp([{ mask: linear }], fixedIds());
+      expect([...xmp.matchAll(/crs:MaskBlendMode="(\d)"/gu)].map((m) => m[1])).toEqual(["0"]);
+    });
+
+    it("여러 개를 뺀다", () => {
+      const xmp = buildLocalCorrectionsXmp(
+        [
+          {
+            mask: linear,
+            combine: [
+              { mode: "subtract", mask: radial },
+              { mode: "subtract", mask: linear },
+            ],
+          },
+        ],
+        fixedIds(),
+      );
+      expect([...xmp.matchAll(/crs:MaskBlendMode="(\d)"/gu)].map((m) => m[1])).toEqual([
+        "0",
+        "1",
+        "1",
+      ]);
+    });
+
+    /** **짐작해서 넓히지 않는다.** 교차 값은 안 쟀다. */
+    it("**`intersect` 는 받지 않는다** — 안 쟀다", () => {
+      expect(
+        CameraRawParamsSchema.safeParse({
+          localCorrections: [{ mask: linear, combine: [{ mode: "intersect", mask: radial }] }],
+        }).success,
+      ).toBe(false);
+      expect(
+        CameraRawParamsSchema.safeParse({
+          localCorrections: [{ mask: linear, combine: [{ mode: "add", mask: radial }] }],
+        }).success,
+      ).toBe(false);
     });
   });
 

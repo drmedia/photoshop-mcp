@@ -214,15 +214,20 @@ const LocalCorrectionSchema = z
     /**
      * 바탕 마스크와 합치는 마스크들. (ROADMAP §73 · §74)
      *
-     * `subtract` 는 빼고 `add` 는 더한다. **교차(`intersect`)는 없다** —
-     * 어떻게 부호화되는지 아직 모른다(§74). 교차가 필요하면 지금은 빼기로
-     * 바꿔 표현하거나 Photoshop 마스크 쪽으로 간다.
+     * `subtract` 는 빼고 `add` 는 더하고 `intersect` 는 교차한다.
+     *
+     * **교차는 Camera Raw 안에서 "뒤집은 것을 빼기" 다** — `A ∩ B = A − ¬B`
+     * (ROADMAP §78). 그래서 교차에 `inverted: true` 를 걸면 빼기와 같아진다.
      *
      * 하늘 마스크에서 은하수를 빼는 식이다. **레이어 마스크와 다르다** —
      * 이쪽은 Camera Raw 안에서 계산되므로 굽는 횟수가 늘지 않는다.
      */
     combine: z
-      .array(z.object({ mode: z.enum(["subtract", "add"]), mask: LocalMaskSchema }).strict())
+      .array(
+        z
+          .object({ mode: z.enum(["subtract", "add", "intersect"]), mask: LocalMaskSchema })
+          .strict(),
+      )
       .min(1)
       .max(8)
       .optional(),

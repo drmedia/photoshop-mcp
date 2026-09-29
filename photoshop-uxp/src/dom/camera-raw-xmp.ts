@@ -103,7 +103,7 @@ export type LocalMask = LinearGradientMask | RadialGradientMask | LuminanceRange
  * 짐작으로 열지 않는다.
  */
 export interface MaskCombine {
-  mode: "subtract" | "add";
+  mode: "subtract" | "add" | "intersect";
   mask: LocalMask;
 }
 
@@ -306,6 +306,7 @@ function linearXml(
   index: number,
   syncId: string,
   blend: MaskBlend,
+  inverted: boolean,
 ): string {
   const name = mask.name ?? `선형 그레이디언트 ${String(index + 1)}`;
   return [
@@ -315,7 +316,7 @@ function linearXml(
     `         crs:MaskName="${escapeXml(name)}"`,
     /* 0 은 '더하기' 다. 빼기는 1 이고 교차는 아직 모른다 (ROADMAP §74). */
     `         crs:MaskBlendMode="${blend.blendMode}"`,
-    `         crs:MaskInverted="${mask.inverted === true ? "true" : "false"}"`,
+    `         crs:MaskInverted="${inverted ? "true" : "false"}"`,
     `         crs:MaskSyncID="${syncId}"`,
     `         crs:MaskValue="${blend.maskValue}"`,
     `         crs:ZeroX="${formatXmpNumber(mask.from.x)}"`,
@@ -339,6 +340,7 @@ function radialXml(
   index: number,
   syncId: string,
   blend: MaskBlend,
+  inverted: boolean,
 ): string {
   const name = mask.name ?? `방사형 그레이디언트 ${String(index + 1)}`;
   return [
@@ -347,7 +349,7 @@ function radialXml(
     '         crs:MaskActive="true"',
     `         crs:MaskName="${escapeXml(name)}"`,
     `         crs:MaskBlendMode="${blend.blendMode}"`,
-    `         crs:MaskInverted="${mask.inverted === true ? "true" : "false"}"`,
+    `         crs:MaskInverted="${inverted ? "true" : "false"}"`,
     `         crs:MaskSyncID="${syncId}"`,
     `         crs:MaskValue="${blend.maskValue}"`,
     `         crs:Top="${formatXmpNumber(mask.bounds.top)}"`,
@@ -406,6 +408,7 @@ function rangeXml(
   index: number,
   syncId: string,
   blend: MaskBlend,
+  inverted: boolean,
 ): string {
   const name = mask.name ?? `광도 범위 ${String(index + 1)}`;
   const low = (mask.range.min / 100).toFixed(6);
@@ -417,7 +420,7 @@ function rangeXml(
     '          crs:MaskActive="true"',
     `          crs:MaskName="${escapeXml(name)}"`,
     `          crs:MaskBlendMode="${blend.blendMode}"`,
-    `          crs:MaskInverted="${mask.inverted === true ? "true" : "false"}"`,
+    `          crs:MaskInverted="${inverted ? "true" : "false"}"`,
     `          crs:MaskSyncID="${syncId}"`,
     `          crs:MaskValue="${blend.maskValue}">`,
     "         <crs:CorrectionRangeMask",
@@ -436,14 +439,44 @@ function rangeXml(
   ].join("\n");
 }
 
-function maskXml(mask: LocalMask, index: number, syncId: string, blend: MaskBlend): string {
+/**
+ * **`inverted` 를 마스크에서 읽지 않고 받는다.** 교차가 반전을 뒤집기
+ * 때문이다 — 아래 `combineXml` 참조. (ROADMAP §78)
+ */
+function maskXml(
+  mask: LocalMask,
+  index: number,
+  syncId: string,
+  blend: MaskBlend,
+  inverted: boolean,
+): string {
   if (mask.type === "radialGradient") {
-    return radialXml(mask, index, syncId, blend);
+    return radialXml(mask, index, syncId, blend, inverted);
   }
   if (mask.type === "luminanceRange") {
-    return rangeXml(mask, index, syncId, blend);
+    return rangeXml(mask, index, syncId, blend, inverted);
   }
-  return linearXml(mask, index, syncId, blend);
+  return linearXml(mask, index, syncId, blend, inverted);
+}
+
+/**
+ * 합치는 마스크 하나. (ROADMAP §78)
+ *
+ * **교차는 따로 있는 모드가 아니라 "뒤집은 것을 빼기" 다** — `A ∩ B = A − ¬B`.
+ * 실기 캡처에서 교차 마스크가 빼기와 **같은 `(1,0)`** 을 쓰면서
+ * `MaskInverted` 만 `true` 였다. §77 에서 "두 속성 공간이 닫혔다" 고 본 것이
+ * 맞았고, 없던 것은 세 번째 모드가 아니라 반전이었다.
+ *
+ * 그래서 **호출자가 준 `inverted` 를 한 번 더 뒤집는다.** 교차에 반전을
+ * 걸면 `A − ¬¬B = A − B` 가 되어 빼기와 같아진다 — 수학이 그렇게 접힌다.
+ */
+function combineXml(entry: MaskCombine, index: number, syncId: string): string {
+  const asked = entry.mask.inverted === true;
+  if (entry.mode === "intersect") {
+    return maskXml(entry.mask, index, syncId, SUBTRACT_BLEND, !asked);
+  }
+  const blend = entry.mode === "subtract" ? SUBTRACT_BLEND : ADD_BLEND;
+  return maskXml(entry.mask, index, syncId, blend, asked);
 }
 
 /**
@@ -528,10 +561,8 @@ function correctionXml(correction: LocalCorrection, index: number, newId: () => 
     `${attributes.join("\n")}>`,
     "      <crs:CorrectionMasks>",
     "       <rdf:Seq>",
-    maskXml(correction.mask, index, newId(), BASE_BLEND),
-    ...(correction.combine ?? []).map((entry) =>
-      maskXml(entry.mask, index, newId(), entry.mode === "subtract" ? SUBTRACT_BLEND : ADD_BLEND),
-    ),
+    maskXml(correction.mask, index, newId(), BASE_BLEND, correction.mask.inverted === true),
+    ...(correction.combine ?? []).map((entry) => combineXml(entry, index, newId())),
     "       </rdf:Seq>",
     "      </crs:CorrectionMasks>",
     "      </rdf:Description>",

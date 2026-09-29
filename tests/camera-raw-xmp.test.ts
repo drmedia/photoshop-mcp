@@ -501,13 +501,69 @@ describe("Camera Raw 국소 보정 XMP", () => {
       ]);
     });
 
-    /** **짐작해서 넓히지 않는다.** 교차의 부호화는 아직 모른다. */
-    it("**`intersect` 는 받지 않는다** — 부호화를 모른다", () => {
-      expect(
-        CameraRawParamsSchema.safeParse({
-          localCorrections: [{ mask: linear, combine: [{ mode: "intersect", mask: radial }] }],
-        }).success,
-      ).toBe(false);
+    /**
+     * **교차는 따로 있는 모드가 아니다.** (ROADMAP §78)
+     *
+     * 실기 캡처에서 교차 마스크가 빼기와 **같은 `(1,0)`** 을 쓰면서
+     * `MaskInverted` 만 `true` 였다 — `A ∩ B = A − ¬B`.
+     */
+    it("**교차는 빼기 + 반전이다**", () => {
+      const xmp = buildLocalCorrectionsXmp(
+        [{ mask: linear, combine: [{ mode: "intersect", mask: radial }] }],
+        fixedIds(),
+      );
+      expect([...xmp.matchAll(/crs:MaskBlendMode="(\d)"/gu)].map((m) => m[1])).toEqual(["0", "1"]);
+      expect([...xmp.matchAll(/crs:MaskValue="(\d)"/gu)].map((m) => m[1])).toEqual(["1", "0"]);
+      expect([...xmp.matchAll(/crs:MaskInverted="(\w+)"/gu)].map((m) => m[1])).toEqual([
+        "false",
+        "true",
+      ]);
+    });
+
+    /**
+     * **교차에 반전을 걸면 빼기와 같아진다.** `A − ¬¬B = A − B`.
+     * 수학이 그렇게 접히는 것이라 막지 않고 그대로 낸다.
+     */
+    it("교차 + inverted 는 빼기로 접힌다", () => {
+      const folded = buildLocalCorrectionsXmp(
+        [{ mask: linear, combine: [{ mode: "intersect", mask: { ...radial, inverted: true } }] }],
+        fixedIds(),
+      );
+      const plain = buildLocalCorrectionsXmp(
+        [{ mask: linear, combine: [{ mode: "subtract", mask: radial }] }],
+        fixedIds(),
+      );
+      expect(folded).toBe(plain);
+    });
+
+    /** **실기는 이 동치로 쟀다** — 서버가 `intersect` 를 모르던 때였다. */
+    it("교차와 '빼기 + 반전' 이 같은 XML 이다", () => {
+      const asIntersect = buildLocalCorrectionsXmp(
+        [{ mask: linear, combine: [{ mode: "intersect", mask: radial }] }],
+        fixedIds(),
+      );
+      const asSubtract = buildLocalCorrectionsXmp(
+        [{ mask: linear, combine: [{ mode: "subtract", mask: { ...radial, inverted: true } }] }],
+        fixedIds(),
+      );
+      expect(asIntersect).toBe(asSubtract);
+    });
+
+    /** 바탕 마스크의 반전은 그대로 간다 — 뒤집는 것은 교차뿐이다. */
+    it("바탕의 inverted 는 건드리지 않는다", () => {
+      const xmp = buildLocalCorrectionsXmp(
+        [
+          {
+            mask: { ...linear, inverted: true },
+            combine: [{ mode: "add", mask: radial }],
+          },
+        ],
+        fixedIds(),
+      );
+      expect([...xmp.matchAll(/crs:MaskInverted="(\w+)"/gu)].map((m) => m[1])).toEqual([
+        "true",
+        "false",
+      ]);
     });
   });
 

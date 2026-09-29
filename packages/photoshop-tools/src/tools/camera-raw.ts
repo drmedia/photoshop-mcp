@@ -48,9 +48,13 @@ export function createCameraRawApplyTool(
       "건 뒤에는 photoshop.document.statistics 의 noise 로 확인한다 — " +
       "샤픈은 σ 를 올리고 노이즈 감소는 내리므로 숫자로 갈린다. " +
       "**국소 보정**은 localCorrections 로 준다 — 마스크를 씌운 보정을 전역 설정과 " +
-      "**한 번에** 건다. 지금은 마스크가 선형 그레이디언트뿐이고 " +
-      "{type, from:{x,y}, to:{x,y}} 로 주며 좌표는 0-1 정규화다(왼쪽 위가 0,0 이고 " +
-      "캔버스 밖 음수도 된다). from 이 효과 0, to 가 효과 100% 쪽이다. " +
+      "**한 번에** 건다. 마스크는 선형(linearGradient)과 방사형(radialGradient) 둘이다. " +
+      "좌표는 0-1 정규화이고 왼쪽 위가 0,0 이며 **캔버스 밖 음수도 된다.** " +
+      "선형은 {from:{x,y}, to:{x,y}} 로 from 이 효과 0, to 가 효과 100% 쪽이다. " +
+      "**방사형은 중심·반지름이 아니라 경계 상자다** — {bounds:{top,left,bottom,right}} 이고 " +
+      "효과는 타원 **안**에 들어간다. angle(도) · feather(0-100) · roundness 는 원시값이다. " +
+      "**inverted: true 로 안팎을 뒤집는다** — 방사형이면 효과가 타원 밖으로, " +
+      "선형이면 방향이 반대로 간다. " +
       "**슬라이더는 Camera Raw UI 에 보이는 값 그대로 준다** — exposure 는 EV(±4)이고 " +
       "hue 는 각도(±180), 나머지는 ±100 이다. amount 는 보정 전체의 배율로 " +
       "100 이 기본이고 200 까지 올릴 수 있다. " +

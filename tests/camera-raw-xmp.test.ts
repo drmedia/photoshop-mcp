@@ -232,6 +232,78 @@ describe("Camera Raw 국소 보정 XMP", () => {
     });
   });
 
+  /** ROADMAP 68 — 방사형. */
+  describe("방사형", () => {
+    const radial = {
+      type: "radialGradient" as const,
+      bounds: { top: 0.3, left: 0.3, bottom: 0.7, right: 0.7 },
+    };
+
+    it("**`Mask/CircularGradient` 다** — Radial 이 아니다", () => {
+      const xmp = buildLocalCorrectionsXmp([{ mask: radial }], fixedIds());
+      expect(xmp).toContain('crs:What="Mask/CircularGradient"');
+      expect(xmp).not.toContain("Mask/Radial");
+    });
+
+    it("**중심·반지름이 아니라 경계 상자다**", () => {
+      const xmp = buildLocalCorrectionsXmp([{ mask: radial }], fixedIds());
+      expect(xmp).toContain('crs:Top="0.3"');
+      expect(xmp).toContain('crs:Left="0.3"');
+      expect(xmp).toContain('crs:Bottom="0.7"');
+      expect(xmp).toContain('crs:Right="0.7"');
+      // 선형의 좌표가 섞이면 안 된다.
+      expect(xmp).not.toContain("crs:ZeroX");
+      expect(xmp).not.toContain("crs:FullX");
+    });
+
+    it("페더·각도·둥글기는 원시값이다", () => {
+      // 실기에서 UI 83 → Feather="83" 이었다.
+      const xmp = buildLocalCorrectionsXmp(
+        [{ mask: { ...radial, feather: 83, angle: 44.436428, roundness: 20 } }],
+        fixedIds(),
+      );
+      expect(xmp).toContain('crs:Feather="83"');
+      expect(xmp).toContain('crs:Angle="44.436428"');
+      expect(xmp).toContain('crs:Roundness="20"');
+    });
+
+    /**
+     * **`Flipped` 는 렌더링에 영향이 없다.** (ROADMAP §68)
+     *
+     * 처음에 `inverted` 를 `Flipped` 로 보냈더니 `true` 와 `false` 가 **같은
+     * 그림**을 냈다 — 조용히 아무 일도 안 하는 그 경로다. 픽셀로 재서
+     * `MaskInverted` 가 진짜임을 확인했다.
+     */
+    it("**inverted 는 `MaskInverted` 로 간다** — `Flipped` 가 아니다", () => {
+      const on = buildLocalCorrectionsXmp([{ mask: { ...radial, inverted: true } }], fixedIds());
+      expect(on).toContain('crs:MaskInverted="true"');
+      // Flipped 는 고정이다. 여기에 실으면 조용히 무시된다.
+      expect(on).toContain('crs:Flipped="false"');
+
+      const off = buildLocalCorrectionsXmp([{ mask: radial }], fixedIds());
+      expect(off).toContain('crs:MaskInverted="false"');
+      expect(off).toContain('crs:Flipped="false"');
+    });
+
+    it("선형과 방사형을 한 번에 담는다", () => {
+      const xmp = buildLocalCorrectionsXmp(
+        [
+          { mask: { type: "linearGradient", from: { x: 0, y: 0 }, to: { x: 0, y: 1 } } },
+          { mask: radial },
+        ],
+        fixedIds(),
+      );
+      expect(xmp).toContain('crs:What="Mask/Gradient"');
+      expect(xmp).toContain('crs:What="Mask/CircularGradient"');
+    });
+
+    it('방사형에도 `Version="2"` 를 붙인다', () => {
+      // 실기 캡처에 있던 것이다. 필수인지는 모르지만 빼서 얻는 것이 없다.
+      const xmp = buildLocalCorrectionsXmp([{ mask: radial }], fixedIds());
+      expect(xmp).toContain('crs:Version="2"');
+    });
+  });
+
   describe("계약", () => {
     it("보정이 없으면 거절한다", () => {
       // 빈 XMP 를 보내면 기존 보정이 조용히 지워진다.

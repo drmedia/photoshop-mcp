@@ -43,7 +43,28 @@ export interface LinearGradientMask {
   name?: string;
 }
 
-export type LocalMask = LinearGradientMask;
+/**
+ * 방사형 그레이디언트 마스크. (ROADMAP §68)
+ *
+ * **중심과 반지름이 아니라 경계 상자다.** `mask.gradient` 의 `radial` 과
+ * 모양이 다르므로 그쪽 인터페이스를 그대로 쓸 수 없다. 좌표는 0–1
+ * 정규화이고 **음수일 수 있다** — 실기에서 `Top` 이 −0.0247 이었다.
+ */
+export interface RadialGradientMask {
+  type: "radialGradient";
+  /** 타원의 경계 상자. */
+  bounds: { top: number; left: number; bottom: number; right: number };
+  /** 타원의 회전. 도 단위 원시값. */
+  angle?: number;
+  /** 가장자리 부드러움. 0–100 원시값. 실기에서 UI 83 → `Feather="83"`. */
+  feather?: number;
+  /** 모서리 둥글기. 0–100 원시값. */
+  roundness?: number;
+  inverted?: boolean;
+  name?: string;
+}
+
+export type LocalMask = LinearGradientMask | RadialGradientMask;
 
 /** 보정 하나. 슬라이더는 **UI 단위 그대로** 받는다. */
 export interface LocalCorrection {
@@ -199,7 +220,7 @@ const FOOTER =
   " </rdf:RDF>\n" +
   "</x:xmpmeta>\n";
 
-function maskXml(mask: LocalMask, index: number, syncId: string): string {
+function linearXml(mask: LinearGradientMask, index: number, syncId: string): string {
   const name = mask.name ?? `선형 그레이디언트 ${String(index + 1)}`;
   return [
     "        <rdf:li",
@@ -216,6 +237,45 @@ function maskXml(mask: LocalMask, index: number, syncId: string): string {
     `         crs:FullX="${formatXmpNumber(mask.to.x)}"`,
     `         crs:FullY="${formatXmpNumber(mask.to.y)}"/>`,
   ].join("\n");
+}
+
+/**
+ * 방사형.
+ *
+ * **`Flipped` 와 `MaskInverted` 가 둘 다 있다.** 어느 쪽이 UI 의 '반전' 인지
+ * 데이터만으로는 갈리지 않아 **픽셀로 재서 정했다** (ROADMAP §68).
+ *
+ * `Version="2"` 는 실기 캡처에 있던 것이다. 필수인지는 모르지만 빼서 얻는
+ * 것이 없다.
+ */
+function radialXml(mask: RadialGradientMask, index: number, syncId: string): string {
+  const name = mask.name ?? `방사형 그레이디언트 ${String(index + 1)}`;
+  return [
+    "        <rdf:li",
+    '         crs:What="Mask/CircularGradient"',
+    '         crs:MaskActive="true"',
+    `         crs:MaskName="${escapeXml(name)}"`,
+    '         crs:MaskBlendMode="0"',
+    `         crs:MaskInverted="${mask.inverted === true ? "true" : "false"}"`,
+    `         crs:MaskSyncID="${syncId}"`,
+    '         crs:MaskValue="1"',
+    `         crs:Top="${formatXmpNumber(mask.bounds.top)}"`,
+    `         crs:Left="${formatXmpNumber(mask.bounds.left)}"`,
+    `         crs:Bottom="${formatXmpNumber(mask.bounds.bottom)}"`,
+    `         crs:Right="${formatXmpNumber(mask.bounds.right)}"`,
+    `         crs:Angle="${formatXmpNumber(mask.angle ?? 0)}"`,
+    '         crs:Midpoint="50"',
+    `         crs:Roundness="${formatXmpNumber(mask.roundness ?? 0)}"`,
+    `         crs:Feather="${formatXmpNumber(mask.feather ?? 50)}"`,
+    '         crs:Flipped="false"',
+    '         crs:Version="2"/>',
+  ].join("\n");
+}
+
+function maskXml(mask: LocalMask, index: number, syncId: string): string {
+  return mask.type === "radialGradient"
+    ? radialXml(mask, index, syncId)
+    : linearXml(mask, index, syncId);
 }
 
 function correctionXml(correction: LocalCorrection, index: number, newId: () => string): string {

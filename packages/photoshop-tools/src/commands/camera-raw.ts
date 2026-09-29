@@ -89,18 +89,44 @@ const Amount = z.number().int().min(0).max(100);
  * 나갈 수 있어 **음수를 막지 않는다** — 실기에서 −0.707 을 봤다.
  * 범위 제한은 잰 값이 아니라 **터무니없는 입력을 막는 울타리**다.
  */
-const LocalMaskSchema = z
+const Coord = z.number().min(-10).max(10);
+
+/** 선형. 두 점으로 방향과 길이를 정한다. */
+const LinearMaskSchema = z
   .object({
-    /** 지금은 선형 그레이디언트뿐이다. 방사형·범위·AI 는 아직 안 쟀다. */
     type: z.literal("linearGradient"),
     /** 효과가 0 인 쪽. */
-    from: z.object({ x: z.number().min(-10).max(10), y: z.number().min(-10).max(10) }).strict(),
+    from: z.object({ x: Coord, y: Coord }).strict(),
     /** 효과가 100% 인 쪽. */
-    to: z.object({ x: z.number().min(-10).max(10), y: z.number().min(-10).max(10) }).strict(),
+    to: z.object({ x: Coord, y: Coord }).strict(),
     inverted: z.boolean().optional(),
     name: z.string().min(1).max(255).optional(),
   })
   .strict();
+
+/**
+ * 방사형. (ROADMAP §68)
+ *
+ * **중심과 반지름이 아니라 경계 상자다** — `photoshop.mask.gradient` 의
+ * `radial` 과 모양이 다르다. 그쪽은 중심에서 반지름으로 준다.
+ */
+const RadialMaskSchema = z
+  .object({
+    type: z.literal("radialGradient"),
+    bounds: z.object({ top: Coord, left: Coord, bottom: Coord, right: Coord }).strict(),
+    /** 타원의 회전. 도. */
+    angle: z.number().min(-360).max(360).optional(),
+    /** 가장자리 부드러움. 0–100. 생략하면 50. */
+    feather: z.number().int().min(0).max(100).optional(),
+    /** 모서리 둥글기. −100~100. 생략하면 0. */
+    roundness: z.number().int().min(-100).max(100).optional(),
+    inverted: z.boolean().optional(),
+    name: z.string().min(1).max(255).optional(),
+  })
+  .strict();
+
+/** 범위·AI 마스크는 아직 안 쟀다. **모르는 종류를 조용히 떨어뜨리지 않는다.** */
+const LocalMaskSchema = z.discriminatedUnion("type", [LinearMaskSchema, RadialMaskSchema]);
 
 /** ±100 국소 슬라이더. */
 const Local = z.number().int().min(-100).max(100);

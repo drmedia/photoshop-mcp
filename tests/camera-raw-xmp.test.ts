@@ -465,16 +465,47 @@ describe("Camera Raw 국소 보정 XMP", () => {
       ]);
     });
 
-    /** **짐작해서 넓히지 않는다.** 교차 값은 안 쟀다. */
-    it("**`intersect` 는 받지 않는다** — 안 쟀다", () => {
+    /**
+     * **합집합은 바탕과 같은 짝이다.** (ROADMAP §74)
+     *
+     * §74 에서 이것을 "교차" 로 고쳤다가 **다시 틀린 것이 드러났다.** 캡처
+     * 한 장을 눈으로 읽고 정했는데, 재서 보니 바탕 밖의 타원 안쪽이 그대로
+     * 밝아졌다 — 합집합이다.
+     */
+    it("**합집합은 (0,1) 이다** — 바탕과 같다", () => {
+      const xmp = buildLocalCorrectionsXmp(
+        [{ mask: linear, combine: [{ mode: "add", mask: radial }] }],
+        fixedIds(),
+      );
+      expect([...xmp.matchAll(/crs:MaskBlendMode="(\d)"/gu)].map((m) => m[1])).toEqual(["0", "0"]);
+      expect([...xmp.matchAll(/crs:MaskValue="(\d)"/gu)].map((m) => m[1])).toEqual(["1", "1"]);
+    });
+
+    it("빼기와 합집합을 섞는다", () => {
+      const xmp = buildLocalCorrectionsXmp(
+        [
+          {
+            mask: linear,
+            combine: [
+              { mode: "add", mask: radial },
+              { mode: "subtract", mask: linear },
+            ],
+          },
+        ],
+        fixedIds(),
+      );
+      expect([...xmp.matchAll(/crs:MaskBlendMode="(\d)"/gu)].map((m) => m[1])).toEqual([
+        "0",
+        "0",
+        "1",
+      ]);
+    });
+
+    /** **짐작해서 넓히지 않는다.** 교차의 부호화는 아직 모른다. */
+    it("**`intersect` 는 받지 않는다** — 부호화를 모른다", () => {
       expect(
         CameraRawParamsSchema.safeParse({
           localCorrections: [{ mask: linear, combine: [{ mode: "intersect", mask: radial }] }],
-        }).success,
-      ).toBe(false);
-      expect(
-        CameraRawParamsSchema.safeParse({
-          localCorrections: [{ mask: linear, combine: [{ mode: "add", mask: radial }] }],
         }).success,
       ).toBe(false);
     });

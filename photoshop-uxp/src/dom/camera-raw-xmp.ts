@@ -67,16 +67,21 @@ export interface RadialGradientMask {
 export type LocalMask = LinearGradientMask | RadialGradientMask;
 
 /**
- * 바탕 마스크에서 빼는 마스크. (ROADMAP §73)
+ * 바탕 마스크와 합치는 마스크. (ROADMAP §73 · §74)
  *
- * **`add` · `intersect` 는 없다.** 실기에서 `빼기` 만 잡았고, 교차 값은
- * `2` 일 것 같지만 **짐작이라 넣지 않았다** — 조용히 틀린 마스크가 되면
- * 그림은 그럴듯한데 어디가 잘못됐는지 알 수 없다.
+ * **`intersect`(교차)는 없다.** 실기에서 빼기와 합집합만 쟀다.
  *
- * `mode` 를 남겨 둔 것은 나중에 재고 나서 **깨지 않고 넓히기** 위함이다.
+ * §74 에서 `(0,1)` 을 교차로 고쳤다가 **다시 틀린 것이 드러났다.** 그때는
+ * 캡처 한 장을 눈으로 읽고 정했는데, 재서 보니 합집합이었다 — 바탕 마스크
+ * 밖의 타원 안쪽이 그대로 밝아졌고 겹치는 곳은 더 밝아지지 않았다
+ * (겹침 210.88 = 바탕만 210.88).
+ *
+ * **교차의 부호화는 아직 모른다.** Camera Raw UI 에는 있지만 잡은 캡처의
+ * 교차 마스크도 `(0,1)` 로 보였다 — 어딘가 다른 곳에 있다는 뜻이다.
+ * 짐작으로 열지 않는다.
  */
 export interface MaskCombine {
-  mode: "subtract";
+  mode: "subtract" | "add";
   mask: LocalMask;
 }
 
@@ -119,7 +124,7 @@ export interface ColorGrade {
 export interface LocalCorrection {
   /** 바탕 마스크. */
   mask: LocalMask;
-  /** 바탕에서 빼는 마스크들. */
+  /** 바탕과 합치는 마스크들. */
   combine?: readonly MaskCombine[];
   name?: string;
   /** 색 보정. 주면 열넷이 전부 나간다. */
@@ -286,7 +291,7 @@ function linearXml(
     '         crs:What="Mask/Gradient"',
     '         crs:MaskActive="true"',
     `         crs:MaskName="${escapeXml(name)}"`,
-    /* 0 은 '더하기' 다. 빼기·교차의 값은 아직 모른다 (ROADMAP §66). */
+    /* 0 은 '더하기' 다. 빼기는 1 이고 교차는 아직 모른다 (ROADMAP §74). */
     `         crs:MaskBlendMode="${blend.blendMode}"`,
     `         crs:MaskInverted="${mask.inverted === true ? "true" : "false"}"`,
     `         crs:MaskSyncID="${syncId}"`,
@@ -337,7 +342,7 @@ function radialXml(
 }
 
 /**
- * 마스크가 바탕인지 빼는 것인지. (ROADMAP §73)
+ * 마스크가 바탕인지 빼는 것인지. (ROADMAP §73 · §74)
  *
  * **둘이 함께 바뀐다.** 실기에서 `빼기` 를 걸었더니 `MaskBlendMode` 가
  * `0 → 1` 로 가면서 `MaskValue` 도 `1 → 0` 으로 갔다. **어느 쪽이 일을 하는지,
@@ -350,6 +355,8 @@ interface MaskBlend {
 
 const BASE_BLEND: MaskBlend = { blendMode: "0", maskValue: "1" };
 const SUBTRACT_BLEND: MaskBlend = { blendMode: "1", maskValue: "0" };
+/* **바탕과 같은 짝이 합집합이다.** 픽셀로 쟀다 (ROADMAP §74). */
+const ADD_BLEND: MaskBlend = { blendMode: "0", maskValue: "1" };
 
 function maskXml(mask: LocalMask, index: number, syncId: string, blend: MaskBlend): string {
   return mask.type === "radialGradient"
@@ -441,7 +448,7 @@ function correctionXml(correction: LocalCorrection, index: number, newId: () => 
     "       <rdf:Seq>",
     maskXml(correction.mask, index, newId(), BASE_BLEND),
     ...(correction.combine ?? []).map((entry) =>
-      maskXml(entry.mask, index, newId(), SUBTRACT_BLEND),
+      maskXml(entry.mask, index, newId(), entry.mode === "subtract" ? SUBTRACT_BLEND : ADD_BLEND),
     ),
     "       </rdf:Seq>",
     "      </crs:CorrectionMasks>",

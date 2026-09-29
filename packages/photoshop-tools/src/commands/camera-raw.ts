@@ -181,17 +181,17 @@ const LocalCorrectionSchema = z
   .object({
     mask: LocalMaskSchema,
     /**
-     * 바탕 마스크에서 빼는 마스크들. (ROADMAP §73)
+     * 바탕 마스크와 합치는 마스크들. (ROADMAP §73 · §74)
      *
-     * **`subtract` 뿐이다.** 실기에서 그것만 쟀다 — 교차는 값이 `2` 일 것
-     * 같지만 짐작이라 넣지 않았다. 조용히 틀린 마스크가 되면 그림은
-     * 그럴듯한데 어디가 잘못됐는지 알 수 없다.
+     * `subtract` 는 빼고 `add` 는 더한다. **교차(`intersect`)는 없다** —
+     * 어떻게 부호화되는지 아직 모른다(§74). 교차가 필요하면 지금은 빼기로
+     * 바꿔 표현하거나 Photoshop 마스크 쪽으로 간다.
      *
      * 하늘 마스크에서 은하수를 빼는 식이다. **레이어 마스크와 다르다** —
      * 이쪽은 Camera Raw 안에서 계산되므로 굽는 횟수가 늘지 않는다.
      */
     combine: z
-      .array(z.object({ mode: z.literal("subtract"), mask: LocalMaskSchema }).strict())
+      .array(z.object({ mode: z.enum(["subtract", "add"]), mask: LocalMaskSchema }).strict())
       .min(1)
       .max(8)
       .optional(),

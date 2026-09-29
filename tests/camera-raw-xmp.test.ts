@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildLocalCorrectionsXmp,
   escapeXml,
+  formatColorGrade,
   formatXmpNumber,
   randomSyncId,
 } from "../photoshop-uxp/src/dom/camera-raw-xmp.js";
@@ -301,6 +302,101 @@ describe("Camera Raw 국소 보정 XMP", () => {
       // 실기 캡처에 있던 것이다. 필수인지는 모르지만 빼서 얻는 것이 없다.
       const xmp = buildLocalCorrectionsXmp([{ mask: radial }], fixedIds());
       expect(xmp).toContain('crs:Version="2"');
+    });
+  });
+
+  /** ROADMAP 69 — 색 보정 열넷. */
+  describe("색 보정", () => {
+    const mask = {
+      type: "linearGradient" as const,
+      from: { x: 0, y: 0 },
+      to: { x: 0, y: 1 },
+    };
+
+    it("**안 주면 키가 아예 없다**", () => {
+      // 캡처 둘을 견주어 확인했다 — 쓸 때만 나타난다.
+      const xmp = buildLocalCorrectionsXmp([{ mask }], fixedIds());
+      expect(xmp).not.toContain("LocalColorGrade");
+    });
+
+    it("**하나만 줘도 열넷이 전부 나간다**", () => {
+      const xmp = buildLocalCorrectionsXmp(
+        [{ mask, colorGrade: { global: { luminance: 8 } } }],
+        fixedIds(),
+      );
+      expect([...xmp.matchAll(/crs:LocalColorGrade[A-Za-z]+=/gu)]).toHaveLength(14);
+    });
+
+    /**
+     * **정규화하지 않는다.** 다른 국소 슬라이더가 ±1 로 들어가는 것과 다르다.
+     * `Local` 로 시작한다고 다 같은 규칙이 아니다 (ROADMAP §66).
+     */
+    it("**UI 값이 그대로, 부호를 붙여 나간다**", () => {
+      const xmp = buildLocalCorrectionsXmp(
+        [
+          {
+            mask,
+            colorGrade: {
+              shadows: { hue: 27, saturation: 16, luminance: 10 },
+              midtones: { hue: 2, saturation: 21, luminance: 35 },
+              highlights: { hue: 355, saturation: 32, luminance: 14 },
+              global: { hue: 15, saturation: 100, luminance: 8 },
+              blending: 53,
+              balance: 24,
+            },
+          },
+        ],
+        fixedIds(),
+      );
+      // 실기 샘플과 같은 값이다.
+      expect(xmp).toContain('crs:LocalColorGradeShadowHue="+27"');
+      expect(xmp).toContain('crs:LocalColorGradeShadowSat="+16"');
+      expect(xmp).toContain('crs:LocalColorGradeShadowLum="+10"');
+      expect(xmp).toContain('crs:LocalColorGradeMidtoneLum="+35"');
+      // 색조는 0-359 이고 음수로 접히지 않는다.
+      expect(xmp).toContain('crs:LocalColorGradeHighlightHue="+355"');
+      expect(xmp).toContain('crs:LocalColorGradeGlobalSat="+100"');
+      expect(xmp).toContain('crs:LocalColorGradeBlending="+53"');
+      expect(xmp).toContain('crs:LocalColorGradeBalance="+24"');
+    });
+
+    it("**순서가 샘플과 같다** — UI 순서가 아니다", () => {
+      const xmp = buildLocalCorrectionsXmp(
+        [{ mask, colorGrade: { global: { luminance: 8 } } }],
+        fixedIds(),
+      );
+      const ours = [...xmp.matchAll(/crs:LocalColorGrade([A-Za-z]+)=/gu)].map((m) => m[1]);
+      const sample = [...SAMPLE.matchAll(/crs:LocalColorGrade([A-Za-z]+)=/gu)].map((m) => m[1]);
+      expect(ours).toEqual(sample);
+      // Balance 가 다섯 번째에 끼어 있다. 지어낸 순서가 아니라는 증거다.
+      expect(ours[4]).toBe("Balance");
+    });
+
+    it("**혼합은 생략하면 50 이다** — 0 이 아니다", () => {
+      // 0 이면 구간이 섞이지 않아 호출자가 의도하지 않은 결과가 된다.
+      const xmp = buildLocalCorrectionsXmp(
+        [{ mask, colorGrade: { shadows: { hue: 200, saturation: 30 } } }],
+        fixedIds(),
+      );
+      expect(xmp).toContain('crs:LocalColorGradeBlending="+50"');
+      expect(xmp).toContain('crs:LocalColorGradeBalance="+0"');
+    });
+
+    it("음수는 부호 그대로 간다", () => {
+      // 실기에서 음수는 못 봤다. "-24" 가 자연스럽지만 확인은 아니다.
+      expect(formatColorGrade(-24)).toBe("-24");
+      expect(formatColorGrade(0)).toBe("+0");
+      expect(formatColorGrade(24)).toBe("+24");
+    });
+
+    it("**국소 hue 와 색 보정 hue 는 다른 규칙이다**", () => {
+      // 같은 "색조" 인데 하나는 ÷180, 하나는 원시 0-359 다.
+      const xmp = buildLocalCorrectionsXmp(
+        [{ mask, hue: 90, colorGrade: { global: { hue: 90 } } }],
+        fixedIds(),
+      );
+      expect(xmp).toContain('crs:LocalHue="0.5"');
+      expect(xmp).toContain('crs:LocalColorGradeGlobalHue="+90"');
     });
   });
 

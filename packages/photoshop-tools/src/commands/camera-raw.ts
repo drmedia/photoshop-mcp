@@ -128,6 +128,45 @@ const RadialMaskSchema = z
 /** 범위·AI 마스크는 아직 안 쟀다. **모르는 종류를 조용히 떨어뜨리지 않는다.** */
 const LocalMaskSchema = z.discriminatedUnion("type", [LinearMaskSchema, RadialMaskSchema]);
 
+/**
+ * 색 보정 한 구간. (ROADMAP §69)
+ *
+ * **여기는 정규화하지 않는다.** 다른 국소 슬라이더가 ±1 로 저장되는 것과
+ * 달리 UI 값이 그대로 들어간다 — `Local` 로 시작한다고 다 같지 않다.
+ */
+const ColorGradeZoneSchema = z
+  .object({
+    /**
+     * 색상 휠의 각도. **0–359 한 바퀴다.**
+     *
+     * 국소 슬라이더의 hue(±180)와 **다른 물건이다** — 실기에서 355 가
+     * `-5` 로 접히지 않고 그대로 저장됐다.
+     */
+    hue: z.number().int().min(0).max(359).optional(),
+    saturation: z.number().int().min(0).max(100).optional(),
+    luminance: z.number().int().min(-100).max(100).optional(),
+  })
+  .strict();
+
+/**
+ * 색 보정. (ROADMAP §69)
+ *
+ * 네 구간과 공통 둘이다. **혼합·균형은 탭마다가 아니라 하나씩**이고,
+ * **하나라도 주면 열넷이 전부 나간다.**
+ */
+const ColorGradeSchema = z
+  .object({
+    shadows: ColorGradeZoneSchema.optional(),
+    midtones: ColorGradeZoneSchema.optional(),
+    highlights: ColorGradeZoneSchema.optional(),
+    global: ColorGradeZoneSchema.optional(),
+    /** 구간이 섞이는 정도. 0–100. **생략하면 50** (Camera Raw UI 기본값). */
+    blending: z.number().int().min(0).max(100).optional(),
+    /** 어두운 쪽과 밝은 쪽의 무게. ±100. 생략하면 0. */
+    balance: z.number().int().min(-100).max(100).optional(),
+  })
+  .strict();
+
 /** ±100 국소 슬라이더. */
 const Local = z.number().int().min(-100).max(100);
 
@@ -142,6 +181,13 @@ const LocalCorrectionSchema = z
   .object({
     mask: LocalMaskSchema,
     name: z.string().min(1).max(255).optional(),
+    /**
+     * 색 보정. 어두운·중간·밝은·전체 구간에 색을 입힌다.
+     *
+     * **전역 색상 혼합(HSL)과 다르다** — 저쪽은 이미 있는 색을 골라 바꾸고,
+     * 이쪽은 밝기 구간에 색을 얹는다. 야경 토닝에서 쓰는 것이 이쪽이다.
+     */
+    colorGrade: ColorGradeSchema.optional(),
     /**
      * 보정 전체의 배율. **100 이 기본이고 100 을 넘을 수 있다.**
      * 슬라이더를 하나씩 올리는 대신 이것으로 세기를 한꺼번에 조절한다.

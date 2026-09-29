@@ -64,7 +64,14 @@ export function createCameraRawApplyTool(
       "걸었더니 노출 +3 이 두 번 먹어 하이라이트 19.7% 가 날아갔다. " +
       "**결과의 smartFilterCount 가 몇 개 쌓였는지 말한다** — 2 이상이면 " +
       "photoshop.history.undo 로 되돌린 뒤 전부 한 번에 다시 건다. " +
-      "여러 마스크가 필요하면 **배열에 전부 담아 한 번에 건다.**",
+      "여러 마스크가 필요하면 **배열에 전부 담아 한 번에 건다.** " +
+      "**색 보정**은 colorGrade 로 준다 — shadows · midtones · highlights · global 에 " +
+      "각각 {hue, saturation, luminance} 를 주고 blending · balance 는 공통 하나씩이다. " +
+      "**전역 색상 혼합(HSL)과 다르다** — 저쪽은 이미 있는 색을 골라 바꾸고 이쪽은 " +
+      "밝기 구간에 색을 얹는다. 야경 토닝은 이쪽이다. " +
+      "**여기의 hue 는 0-359 한 바퀴다** — 같은 보정 안의 슬라이더 hue(±180)와 " +
+      "다른 물건이라 355 를 -5 로 바꿔 주지 않는다. " +
+      "blending 을 생략하면 50(Camera Raw 기본값)이고 0 이 아니다.",
     permission: "edit",
     inputSchema: CameraRawParamsSchema,
     handler: async (input, context) =>

@@ -66,10 +66,47 @@ export interface RadialGradientMask {
 
 export type LocalMask = LinearGradientMask | RadialGradientMask;
 
+/**
+ * 색 보정 한 구간. (ROADMAP §69)
+ *
+ * **UI 값 그대로 받는다.** 슬라이더와 달리 **정규화하지 않으므로** 나누지
+ * 않고 그대로 나간다 — `Local` 로 시작한다고 다 ±1 이 아니다(§66).
+ */
+export interface ColorGradeZone {
+  /** 색상 휠의 각도. **0–359 한 바퀴이고 음수로 접히지 않는다.** */
+  hue?: number;
+  /** 색상 휠의 채도. 0–100. */
+  saturation?: number;
+  /** 광도. ±100. */
+  luminance?: number;
+}
+
+/**
+ * 색 보정. (ROADMAP §69)
+ *
+ * 네 구간(어두운·중간·밝은·전체)과 공통 둘(혼합·균형)이다. **혼합·균형은
+ * 탭마다가 아니라 하나씩**이다 — UI 에는 네 탭에 모두 보이지만 값이 같다.
+ *
+ * **하나라도 주면 열넷이 전부 나간다.** Camera Raw 가 그렇게 낸다 — 안 쓰면
+ * 키가 아예 없고, 쓰면 전부 있다. 캡처 둘을 견주어 확인했다.
+ */
+export interface ColorGrade {
+  shadows?: ColorGradeZone;
+  midtones?: ColorGradeZone;
+  highlights?: ColorGradeZone;
+  global?: ColorGradeZone;
+  /** 구간이 섞이는 정도. 0–100. **생략하면 50** — Camera Raw UI 의 기본값이다. */
+  blending?: number;
+  /** 어두운 쪽과 밝은 쪽의 무게. ±100. 생략하면 0. */
+  balance?: number;
+}
+
 /** 보정 하나. 슬라이더는 **UI 단위 그대로** 받는다. */
 export interface LocalCorrection {
   mask: LocalMask;
   name?: string;
+  /** 색 보정. 주면 열넷이 전부 나간다. */
+  colorGrade?: ColorGrade;
   /** 보정 전체의 배율. UI 0–200. **100 이 기본이고 100 을 넘을 수 있다.** */
   amount?: number;
 
@@ -278,6 +315,48 @@ function maskXml(mask: LocalMask, index: number, syncId: string): string {
     : linearXml(mask, index, syncId);
 }
 
+/**
+ * 색 보정 값의 직렬화. **부호를 붙인다.**
+ *
+ * 실기 캡처가 `"+27"` · `"+53"` 이었다. UI 는 혼합을 부호 없이 `53` 으로
+ * 보여 주므로 **UI 를 따라가는 것이 아니라 직렬화 규칙**이다.
+ * 음수는 재 보지 않았다 — `"-24"` 로 나가는 것이 자연스럽지만 확인은 아니다.
+ */
+export function formatColorGrade(value: number): string {
+  const rounded = Math.round(value);
+  return rounded >= 0 ? `+${String(rounded)}` : String(rounded);
+}
+
+/**
+ * 색 보정 열넷. **순서는 샘플 그대로다** — UI 순서와 전혀 다르고
+ * `Balance` 가 다섯 번째에 끼어 있다. 중요한지는 모르지만 따르는 쪽이 싸다.
+ */
+function colorGradeAttributes(grade: ColorGrade): string[] {
+  const zone = (z: ColorGradeZone | undefined, key: "hue" | "saturation" | "luminance"): number =>
+    z?.[key] ?? 0;
+  const entries: [string, number][] = [
+    ["ShadowHue", zone(grade.shadows, "hue")],
+    ["ShadowSat", zone(grade.shadows, "saturation")],
+    ["HighlightHue", zone(grade.highlights, "hue")],
+    ["HighlightSat", zone(grade.highlights, "saturation")],
+    ["Balance", grade.balance ?? 0],
+    ["MidtoneHue", zone(grade.midtones, "hue")],
+    ["MidtoneSat", zone(grade.midtones, "saturation")],
+    ["ShadowLum", zone(grade.shadows, "luminance")],
+    ["MidtoneLum", zone(grade.midtones, "luminance")],
+    ["HighlightLum", zone(grade.highlights, "luminance")],
+    /* **생략하면 50 이다.** Camera Raw UI 의 기본값이고 0 으로 두면 구간이
+     * 섞이지 않아 호출자가 의도하지 않은 결과가 된다. 우리가 잰 값은 아니다. */
+    ["Blending", grade.blending ?? 50],
+    ["GlobalHue", zone(grade.global, "hue")],
+    ["GlobalSat", zone(grade.global, "saturation")],
+    ["GlobalLum", zone(grade.global, "luminance")],
+  ];
+  return entries.map(
+    ([name, value]) => `       crs:LocalColorGrade${name}="${formatColorGrade(value)}"`,
+  );
+}
+
 function correctionXml(correction: LocalCorrection, index: number, newId: () => string): string {
   const amount = (correction.amount ?? 100) / 100;
   const name = correction.name ?? `마스크 ${String(index + 1)}`;
@@ -305,6 +384,11 @@ function correctionXml(correction: LocalCorrection, index: number, newId: () => 
     const raw = (correction as unknown as Record<string, unknown>)[slot];
     const value = typeof raw === "number" ? raw / divisor : 0;
     attributes.push(`       crs:${key}="${formatXmpNumber(value)}"`);
+  }
+
+  /* **하나라도 주면 열넷이 전부 나간다.** 안 주면 키가 아예 없다. */
+  if (correction.colorGrade !== undefined) {
+    attributes.push(...colorGradeAttributes(correction.colorGrade));
   }
 
   return [

@@ -82,6 +82,16 @@ export interface LuminanceRangeMask {
   type: "luminanceRange";
   /** 범위. **UI 값 그대로 0–100** 이고 플러그인이 ÷100 한다. */
   range: { min: number; max: number };
+  /**
+   * 가장자리 부드러움. 0–100, 생략하면 0(딱 끊긴다). (ROADMAP §79)
+   *
+   * **`LumRange` 의 칸이 넷인 이유다.** 깊이 범위 캡처에서 앞 두 칸이
+   * 달랐고(`0.684275 0.890000 1.0 1.0`), 그래서 넷은 중복이 아니라
+   * `(바깥 시작, 안쪽 시작, 안쪽 끝, 바깥 끝)` **사다리꼴**이다.
+   * §75 에서 "경계가 부드럽지 않다" 고 본 것은 우리가 넷을 둘로 채워
+   * 사다리꼴을 직사각형으로 만들었기 때문이었다.
+   */
+  softness?: number;
   inverted?: boolean;
   name?: string;
 }
@@ -385,10 +395,13 @@ const ADD_BLEND: MaskBlend = { blendMode: "0", maskValue: "1" };
 /**
  * 광도 범위. (ROADMAP §75)
  *
- * **`LumRange` 는 칸이 넷인데 값은 둘이다** — 실기에서 UI `20~80` 이
- * `"0.200000 0.200000 0.800733 0.800733"` 으로 나왔다. `(min, min, max, max)`
- * 이고 ÷100 이다. 가운데 둘이 페더 폭이라면 바깥과 달라야 하는데 같으므로
- * **무엇이 둘을 갈라놓는지는 모른다** — 같게 두는 것이 캡처를 따르는 쪽이다.
+ * **`LumRange` 의 칸 넷은 사다리꼴이다** (ROADMAP §79) —
+ * `(바깥 시작, 안쪽 시작, 안쪽 끝, 바깥 끝)`. 안쪽이 효과 100% 이고
+ * 바깥까지 비스듬히 줄어든다. 전부 ÷100 이다.
+ *
+ * §75 에서는 `0.2 0.2 0.8 0.8` 만 보고 "값은 둘" 이라고 읽었다. **같은 값이
+ * 두 번 온 것은 그 마스크에 부드러움이 없었기 때문**이고, 깊이 범위 캡처에서
+ * 앞 두 칸이 다른 것(`0.684275 0.890000 …`)을 보고 갈렸다.
  *
  * **`SampleType` 이 필수다.** 없으면 오류 없이 **아무 일도 안 한다** — 실기에서
  * 노출 +3 을 걸었는데 세 영역이 소수점까지 그대로였다. `0` 도 마찬가지다.
@@ -411,8 +424,15 @@ function rangeXml(
   inverted: boolean,
 ): string {
   const name = mask.name ?? `광도 범위 ${String(index + 1)}`;
-  const low = (mask.range.min / 100).toFixed(6);
-  const high = (mask.range.max / 100).toFixed(6);
+  const low = mask.range.min / 100;
+  const high = mask.range.max / 100;
+  /* 부드러움은 **양쪽으로 같은 폭**이다. 캡처는 한쪽만 보여 줬지만(위가
+   * 1.0 에 붙어 있었다) 한쪽만 벌리는 UI 를 본 적이 없다. 캔버스 밖으로
+   * 나가지 않게 0–1 로 자른다. */
+  const soft = Math.max(0, mask.softness ?? 0) / 100;
+  const slots = [Math.max(0, low - soft), low, high, Math.min(1, high + soft)].map((value) =>
+    value.toFixed(6),
+  );
   return [
     "        <rdf:li>",
     "         <rdf:Description",
@@ -433,7 +453,7 @@ function rangeXml(
     '          crs:Invert="false"',
     /* **없으면 조용히 아무 일도 안 한다.** `0` 도 마찬가지고 `2` 여야 듣는다. */
     '          crs:SampleType="2"',
-    `          crs:LumRange="${low} ${low} ${high} ${high}"/>`,
+    `          crs:LumRange="${slots.join(" ")}"/>`,
     "         </rdf:Description>",
     "        </rdf:li>",
   ].join("\n");

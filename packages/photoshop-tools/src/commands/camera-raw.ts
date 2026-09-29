@@ -147,6 +147,14 @@ const LuminanceRangeMaskSchema = z
       .refine((value) => value.min < value.max, {
         message: "range.min 이 range.max 보다 작아야 합니다.",
       }),
+    /**
+     * 가장자리 부드러움. 0–100, 생략하면 0. (ROADMAP §79)
+     *
+     * **0 이면 딱 끊긴다** — 구간 밖 픽셀이 원래 자리에 그대로 남아
+     * 히스토그램이 둘로 갈라진다. 그레이디언트 마스크처럼 번지게 하려면
+     * 값을 준다.
+     */
+    softness: z.number().min(0).max(100).optional(),
     inverted: z.boolean().optional(),
     name: z.string().min(1).max(255).optional(),
   })

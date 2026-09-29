@@ -639,10 +639,29 @@ describe("Camera Raw 국소 보정 XMP", () => {
       expect(xmp).toContain("        <rdf:li>");
     });
 
-    /** **÷100 이고 칸 넷은 `(min, min, max, max)` 다.** 실기 캡처와 같다. */
+    /** 부드러움이 없으면 네 칸이 두 값으로 겹친다 — 사다리꼴이 직사각형이 된다. */
     it("**LumRange 는 UI 값의 ÷100 을 네 칸에 넣는다**", () => {
       const xmp = buildLocalCorrectionsXmp([{ mask: range }], fixedIds());
       expect(xmp).toContain('crs:LumRange="0.200000 0.200000 0.800000 0.800000"');
+    });
+
+    /**
+     * **네 칸은 사다리꼴이다** — `(바깥 시작, 안쪽 시작, 안쪽 끝, 바깥 끝)`.
+     * (ROADMAP §79) 깊이 범위 캡처에서 앞 두 칸이 달라(`0.684275 0.890000 …`)
+     * 갈렸다.
+     */
+    it("**softness 가 바깥 두 칸을 벌린다**", () => {
+      const xmp = buildLocalCorrectionsXmp([{ mask: { ...range, softness: 10 } }], fixedIds());
+      expect(xmp).toContain('crs:LumRange="0.100000 0.200000 0.800000 0.900000"');
+    });
+
+    /** **0–1 밖으로 나가지 않는다.** 끝에 붙은 범위에 부드러움을 줘도 잘린다. */
+    it("범위를 0-1 로 자른다", () => {
+      const xmp = buildLocalCorrectionsXmp(
+        [{ mask: { type: "luminanceRange", range: { min: 5, max: 95 }, softness: 30 } }],
+        fixedIds(),
+      );
+      expect(xmp).toContain('crs:LumRange="0.000000 0.050000 0.950000 1.000000"');
     });
 
     /** **자릿수를 고정한다** — 다른 값과 달리 뒤 0 을 떼지 않는다. */

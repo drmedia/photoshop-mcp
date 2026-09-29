@@ -9,7 +9,8 @@
  *
  * `action.addNotificationListener(["all"])` 를 걸어 두고 사람이 Camera Raw 를 한 번
  * 돌리면, 움직인 슬라이더가 **한 descriptor 에 모여** 알림으로 온다. 그것을 그대로
- * 옮겼다. 규칙성을 가정하면 안 된다 — `saturation` 만 `$` 가 없다.
+ * 옮겼다. 규칙성을 가정하면 안 된다 — **`$` 가 없는 것이 셋** 있다
+ * (`saturation` · `curve` · `sharpen`).
  *
  * ## 버전 키는 넣지 않는다
  *
@@ -44,6 +45,15 @@ const KEYS: Record<string, string> = {
   vibrance: "$Vibr",
   // **`$` 가 없다.** 규칙성을 가정하면 이 하나가 조용히 빠진다.
   saturation: "saturation",
+
+  // ── 세부: 샤픈. (ROADMAP §64) ──
+  //
+  // **`sharpen` 에 `$` 가 없다** — `saturation` · `curve` 에 이은 세 번째
+  // 예외다. `$Shpn` 같은 것을 짐작했으면 조용히 무시당했다.
+  sharpenAmount: "sharpen",
+  sharpenRadius: "$ShpR",
+  sharpenDetail: "$ShpD",
+  sharpenMasking: "$ShpM",
 
   noiseReduction: "$LNR",
   noiseDetail: "$LNRD",
@@ -137,7 +147,7 @@ export function flattenCurve(points: readonly CurvePoint[]): number[] {
 }
 
 /**
- * `$Ex12` 는 실수여야 한다. 정수면 조용히 무시된다.
+ * 실수로 만든다. `$Ex12` 는 정수면 조용히 무시된다.
  *
  * 순수 함수로 떼어 둔 것은 테스트 때문이다. 실기 없이도 이 규칙은 고정할 수 있다.
  */
@@ -150,6 +160,16 @@ export function asDouble(value: number): number {
  *
  * 호출자가 descriptor 를 넘기는 통로를 만들지 않는다. (ARCHITECTURE §23)
  */
+/**
+ * 실수로 보내야 하는 것들.
+ *
+ * `exposure` 는 정수가 조용히 무시되는 것을 실기에서 확인했다. `sharpenRadius`
+ * 는 Camera Raw 가 낸 descriptor 에 `2.4` 로 실려 있었고 UI 범위가 0.5–3.0 이라
+ * **정수도 유효한 값**이다 — 그래서 같은 취급으로 둔다. 정수가 무시되는지는
+ * 확인하지 않았고, 확인 전까지 안전한 쪽을 고른다. (ROADMAP §64)
+ */
+const DOUBLE_KEYS = new Set(["exposure", "sharpenRadius"]);
+
 export function buildCameraRawDescriptor(params: CameraRawParams): {
   descriptor: Record<string, unknown>;
   applied: string[];
@@ -162,7 +182,7 @@ export function buildCameraRawDescriptor(params: CameraRawParams): {
     if (typeof value !== "number") {
       continue;
     }
-    descriptor[key] = name === "exposure" ? asDouble(value) : value;
+    descriptor[key] = DOUBLE_KEYS.has(name) ? asDouble(value) : value;
     applied.push(name);
   }
 

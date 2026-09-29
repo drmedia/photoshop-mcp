@@ -36,13 +36,53 @@ async function pixelLayer(mcp: ReturnType<typeof createPhotoshopMcp>): Promise<n
 
 describe("Camera Raw", () => {
   describe("descriptor 빌더", () => {
-    it("**노출만 실수로 민다**", () => {
+    it("**정수를 실수로 민다**", () => {
       // 정수로 나가면 Photoshop 이 조용히 무시한다 — 성공을 돌려주면서 아무것도
       // 하지 않는다. 실기에서 $Ex12=2 는 무동작, 2.000001 은 적용이었다.
       expect(asDouble(2)).not.toBe(2);
       expect(asDouble(2)).toBeCloseTo(2, 3);
       // 이미 실수면 건드리지 않는다.
       expect(asDouble(1.5)).toBe(1.5);
+    });
+
+    it("**노출과 샤픈 반경만 실수로 나간다** (ROADMAP 64)", () => {
+      // sharpenRadius 는 Camera Raw 가 2.4 로 냈고 범위가 0.5-3.0 이라
+      // 정수도 유효한 값이다. 무시되는지 확인하지 않았으므로 안전한 쪽을 쓴다.
+      const { descriptor } = buildCameraRawDescriptor({
+        exposure: 1,
+        sharpenRadius: 2,
+        sharpenAmount: 73,
+        sharpenDetail: 61,
+        sharpenMasking: 38,
+      });
+      expect(descriptor["$Ex12"]).not.toBe(1);
+      expect(descriptor["$ShpR"]).not.toBe(2);
+      expect(descriptor["$ShpR"]).toBeCloseTo(2, 3);
+      // 나머지는 정수 그대로다.
+      expect(descriptor["sharpen"]).toBe(73);
+      expect(descriptor["$ShpD"]).toBe(61);
+      expect(descriptor["$ShpM"]).toBe(38);
+    });
+
+    it("**`sharpen` 에도 `$` 가 없다** — 세 번째 예외", () => {
+      // 규칙성을 가정하면 `$Shpn` 을 넣고 조용히 무시당한다.
+      const { descriptor } = buildCameraRawDescriptor({ sharpenAmount: 50 });
+      expect(descriptor["sharpen"]).toBe(50);
+      expect(descriptor["$Shpn"]).toBeUndefined();
+      // 실기 캡처(seq 28)의 나머지 셋은 `$` 가 있다.
+      const all = buildCameraRawDescriptor({
+        sharpenRadius: 2.4,
+        sharpenDetail: 61,
+        sharpenMasking: 38,
+      }).descriptor;
+      expect(all["$ShpR"]).toBe(2.4);
+      expect(all["$ShpD"]).toBe(61);
+      expect(all["$ShpM"]).toBe(38);
+    });
+
+    it("샤픈은 화이트밸런스를 건드리지 않는다", () => {
+      const { descriptor } = buildCameraRawDescriptor({ sharpenAmount: 73 });
+      expect(descriptor["$WBal"]).toBeUndefined();
     });
 
     it("잡아낸 키로 옮긴다", () => {

@@ -109,6 +109,33 @@ export const CameraRawParamsSchema = z
     vibrance: Slider.optional(),
     saturation: Slider.optional(),
 
+    // ── 세부: 샤픈. (ROADMAP §64) ─────────────────────────
+    //
+    // **descriptor 키 `sharpen` 에 `$` 가 없다** — `saturation` · `curve` 에
+    // 이은 세 번째 예외다. 캡처로 확인했고 짐작한 것이 아니다.
+    //
+    // 노이즈 감소와 **같은 패널이고 서로를 상쇄한다** — 노이즈를 줄이면
+    // 디테일이 뭉개지고 샤픈은 노이즈까지 키운다. 한 번에 함께 거는 것이
+    // 이 Tool 이 하나인 이유다.
+    /** 샤픈 양. 0–150. Camera Raw UI 의 '양'. */
+    sharpenAmount: z.number().int().min(0).max(150).optional(),
+    /**
+     * 샤픈 반경. **0.5–3.0 실수.**
+     *
+     * 정수를 줘도 받지만 빌더가 실수로 밀어 보낸다 — `exposure` 가 정수면
+     * 조용히 무시되는 것을 겪었고, 확인 전까지 안전한 쪽을 고른다.
+     */
+    sharpenRadius: z.number().min(0.5).max(3).optional(),
+    /** 샤픈 세부. 0–100. 높을수록 미세한 질감까지 세운다. */
+    sharpenDetail: z.number().int().min(0).max(100).optional(),
+    /**
+     * 샤픈 마스킹. 0–100.
+     *
+     * **가장자리가 아닌 평탄한 영역을 샤픈에서 뺀다.** 하늘처럼 고른 면의
+     * 노이즈가 같이 서는 것을 막는다 — 천체사진에서 이것이 핵심이다.
+     */
+    sharpenMasking: z.number().int().min(0).max(100).optional(),
+
     // ── 세부: 노이즈 ──────────────────────────────────────
     /** 휘도 노이즈 감소. 실기에서 σ 6.722 → 3.418 (49%). */
     noiseReduction: Amount.optional(),

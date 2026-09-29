@@ -35,7 +35,15 @@ export function createCameraRawApplyTool(
       "포인트(curveRgb·curveRed·curveGreen·curveBlue)를 모두 받는다. " +
       "포인트 곡선은 [{x,y}, …] 점 목록이며 0-255 이고 x 가 엄격히 증가해야 한다. " +
       "curveHighlights 는 기본 패널의 highlights 와 **다른 것이다** — " +
-      "저쪽은 톤 범위를 직접 밀고 이쪽은 곡선의 해당 구간을 구부린다.",
+      "저쪽은 톤 범위를 직접 밀고 이쪽은 곡선의 해당 구간을 구부린다. " +
+      "**샤픈**은 sharpenAmount(0-150) · sharpenRadius(0.5-3.0 실수) · " +
+      "sharpenDetail(0-100) · sharpenMasking(0-100) 이다. " +
+      "노이즈 감소와 같은 패널이고 **서로를 상쇄한다** — 노이즈를 줄이면 디테일이 " +
+      "뭉개지고 샤픈은 노이즈까지 세운다. 그래서 둘을 한 호출에 함께 담는다. " +
+      "**sharpenMasking 이 평탄한 영역을 샤픈에서 뺀다** — 하늘처럼 고른 면의 " +
+      "노이즈가 같이 서는 것을 막으므로 천체사진에서는 이것부터 올린다. " +
+      "건 뒤에는 photoshop.document.statistics 의 noise 로 확인한다 — " +
+      "샤픈은 σ 를 올리고 노이즈 감소는 내리므로 숫자로 갈린다.",
     permission: "edit",
     inputSchema: CameraRawParamsSchema,
     handler: async (input, context) =>

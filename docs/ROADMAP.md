@@ -9195,3 +9195,118 @@ descriptor 에 실려 나간 값은 볼 수 있다. 다만 **Photoshop 이 그�
 - [x] 우리가 건 값(`$Ex12` · `sharpen` · `$ShpM`)이 그대로 되읽힌다
 - [x] 서버 재시작과 무관하다 — 문서에 저장된다
 - [ ] 마스크 descriptor 구조 — 이 방법으로 잡는다
+
+# 66. Camera Raw 마스크는 descriptor 가 아니라 XMP 문자열이다
+
+§65 의 방법으로 잡았다. **아직 구현하지 않았다** — 무엇인지 알아낸 기록이다.
+
+## 짐작이 종류부터 틀렸다
+
+§63 리뷰에서 "CR 마스크는 중첩 배열 구조라 급이 다르다" 고 적었다. 실제로는
+**XMP XML 문자열 하나**다.
+
+```text
+filter["$LCs"] = "<x:xmpmeta …>…</x:xmpmeta>"
+```
+
+descriptor 의 키 하나에 XML 문서가 통째로 들어간다. "비싸다" 는 결론은 맞았고
+**이유는 틀렸다.** 짐작으로 순위를 매겼던 것이라 근거가 없었다.
+
+## 구조
+
+```text
+crs:MaskGroupBasedCorrections
+└ rdf:Seq / rdf:li                          보정 하나
+   crs:What="Correction"
+   crs:CorrectionAmount="1"  CorrectionActive="true"
+   crs:CorrectionName="마스크 1"
+   crs:CorrectionSyncID="ABEC…B0"           GUID
+   crs:LocalExposure2012="0.75"             ← 이 보정의 슬라이더
+   crs:LocalContrast2012 · LocalHighlights2012 · LocalShadows2012 ·
+   LocalWhites2012 · LocalBlacks2012 · LocalClarity2012 · LocalDehaze ·
+   LocalLuminanceNoise · LocalMoire · LocalDefringe · LocalTemperature ·
+   LocalTint · LocalTexture · LocalGrain · LocalGlow ·
+   LocalCorrectedDepth · LocalCurveRefineSaturation="100"
+   (+ 2012 이전 이름 9개가 함께 있다 — LocalExposure · LocalBrightness …)
+   └ crs:CorrectionMasks / rdf:Seq / rdf:li  이 보정이 쓰는 마스크들
+      crs:What="Mask/Gradient"
+      crs:MaskActive="true"   MaskInverted="false"
+      crs:MaskBlendMode="0"                 ← add · subtract · intersect
+      crs:MaskValue="1"
+      crs:ZeroX="0.480487"  ZeroY="0.711423"   시작점 (0–1 정규화)
+      crs:FullX="0.478693"  FullY="0.002093"   끝점
+```
+
+선형 그레이디언트는 **정규화 좌표 두 점**이다. `mask.gradient` 와 같은 모양이라
+호출자 쪽 인터페이스는 이미 있는 것을 쓸 수 있다.
+
+`MaskBlendMode` 가 있다 — §63 의 표가 "Mask Intersect/Subtract 높음" 으로
+적었던 것이 여기다. 마스크마다 붙으므로 **한 보정 안에서 여러 마스크를
+합칠 수 있다.**
+
+## **전역과 국소의 눈금이 다르다**
+
+두 점으로 확정했다.
+
+```text
+UI +1.50 EV  →  LocalExposure2012 = 0.375
+UI +3.00 EV  →  LocalExposure2012 = 0.75
+```
+
+±4 EV 를 ±1 로 정규화한다. **그대로 1.5 를 넣으면 +6 EV 가 된다.**
+
+같은 레이어에 둘이 나란히 있어 덫이 드러났다.
+
+```text
+$Ex12             = 0.75   전역 →  +0.75 EV
+LocalExposure2012 = 0.75   국소 →  +3.00 EV
+```
+
+**같은 숫자가 네 배 다른 뜻이다.** 국소 슬라이더마다 눈금을 따로 재야 하고,
+전역의 것을 옮겨 쓰면 안 된다.
+
+## 대화상자를 열었다 닫으면 descriptor 가 정규화된다
+
+사람이 확인을 누르면 **안 보낸 키가 채워진다.**
+
+```text
+우리가 보낸 것   $Ex12 · sharpen · $ShpM
+되읽은 것        + $ShpR=1 · $ShpD=25 · $CrVe · $PrVN · $PrVe
+```
+
+§52 의 "기본값인 키는 descriptor 에 안 담긴다" 와 **반대 방향**이다. 알림으로
+잡을 때는 움직인 것만 오고, 스마트 필터를 되읽으면 전부 온다. 어느 쪽을 보고
+있는지 알아야 "이 키가 필요한가" 를 잘못 판단하지 않는다.
+
+## 만들 때의 제약
+
+**호출자가 XMP 문자열을 넘기는 통로를 만들지 않는다.** descriptor 보다 위험하다 —
+XML 이 통째로 Camera Raw 에 들어간다. 플러그인이 검증된 파라미터로 조립해야
+한다. (ARCHITECTURE §23)
+
+`$LCs` 는 덩어리 하나이므로 마스크를 **더하려면 기존 것을 읽어 합쳐 다시
+써야 한다.** 그것이 가능한 것은 §65 덕분이다 — 읽는 길이 없었으면 손댈 수
+없었다.
+
+## 점진적으로 낼 수 있다
+
+그릇(`MaskGroupBasedCorrections` → `Correction` → `CorrectionMasks`)이 같으므로
+마스크 종류는 `What` 값과 좌표 몇 개 차이다.
+
+```text
+1단계   Mask/Gradient (선형) + Local 슬라이더 넷    구조 검증
+2단계   방사형 · MaskBlendMode
+3단계   Mask/Image 계열 (피사체 · 하늘)            별도 캡처 필요
+```
+
+## 체크리스트
+
+- [x] `$LCs` 가 XMP XML 문자열임을 확인 — 짐작이 종류부터 틀렸다
+- [x] 보정·마스크 계층 구조 확인
+- [x] 선형 그레이디언트는 정규화 좌표 두 점
+- [x] `MaskBlendMode` 가 마스크마다 붙는다
+- [x] **국소 노출 눈금 4:1 을 두 점으로 확정**
+- [x] 대화상자가 기본값을 채워 넣는다
+- [ ] 방사형 · 범위 · AI 마스크의 `What` 값과 좌표 — 미캡처
+- [ ] 국소 슬라이더 나머지의 눈금 — 노출 말고는 안 쟀다
+- [ ] 구현 — 아직 안 했다

@@ -629,9 +629,11 @@ photoshop://extensions
 
 그래서 후보 목록에 `selection.get` · `history.get` 이 없다. **이미 있고, Resource 다.**
 
-Photoshop 쪽 변경 알림(`photoshop.*` 이벤트)은 이 환경에서 동작하지 않는다. API 는
-있고 등록도 성공하는데 알림이 오지 않는다. 원인을 찾지 못했고 추측으로 코드를
-더 넣지 않았다. `command.*` 만 신뢰할 수 있다.
+Photoshop 쪽 변경 알림(`photoshop.*` 이벤트)은 **동작한다.** 한동안 여기에
+"이 환경에서 동작하지 않는다" 고 적어 두었는데 **틀렸다** — 이름 있는 이벤트로만
+등록해서 하나도 안 왔던 것이고, `startNotifications(["all"])` 로 고치니 들어온다
+(ROADMAP §17.28). `photoshop.event.recent` 로 조회한다. 아는 액션만 이름을 붙이고
+나머지는 `photoshop.unknown` 으로 원본과 함께 나간다.
 
 ---
 

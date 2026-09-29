@@ -893,7 +893,9 @@ UXP 의 실기 제약은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 에 
 바꾸기 전에 그 문서를 먼저 읽는다.
 
 **플러그인 적재는 UXP DevTools CLI 로 자동화할 수 있다.** 사람에게 Reload 를 부탁하지
-않아도 된다. 설치에 Adobe 패키징 버그 우회가 필요하며 저장소 의존성에는 넣지 않았다 —
+않아도 된다. **`npm run check` 는 실기 반영 확인이 아니다** — `dist` 를 다시 만들어도
+Photoshop 은 `uxp plugin reload` 전까지 옛 사본을 돌린다. 실기 측정 하나가 이것으로
+틀렸다(ROADMAP §79). **서로 달라야 할 두 입력이 같은 값을 내면 빌드를 의심한다.** 설치에 Adobe 패키징 버그 우회가 필요하며 저장소 의존성에는 넣지 않았다 —
 설치법과 `load` → `reload` 순서는 위 README 에 있다.
 
 **Extension.** 서버는 기동 시 `extensions/` 를 한 단계 훑어 `<name>/extension.json` 을 적재한다.

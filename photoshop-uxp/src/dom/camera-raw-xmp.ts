@@ -64,7 +64,29 @@ export interface RadialGradientMask {
   name?: string;
 }
 
-export type LocalMask = LinearGradientMask | RadialGradientMask;
+/**
+ * 광도 범위 마스크. (ROADMAP §75)
+ *
+ * **XML 모양이 그레이디언트와 다르다** — 저쪽은 속성만 있는 빈 `<rdf:li …/>`
+ * 인데 이쪽은 `<crs:CorrectionRangeMask>` 자식을 가진 `<rdf:Description>`
+ * 이다. 실기 캡처에서 그렇게 나왔다.
+ *
+ * Camera Raw 의 범위 마스크는 광도·색상·심도 셋인데 **광도만 연다** —
+ * `Type="2"` 가 광도이고(캡처의 이름이 `광도 범위 1` 이었다) 나머지 둘의
+ * 값은 안 봤다. 짐작으로 열지 않는다.
+ *
+ * `selection.luminosity` 와 하는 일이 겹치지만 **한 번만 굽는다** — 저쪽은
+ * 선택 → 마스크 → 별도 레이어를 거친다.
+ */
+export interface LuminanceRangeMask {
+  type: "luminanceRange";
+  /** 범위. **UI 값 그대로 0–100** 이고 플러그인이 ÷100 한다. */
+  range: { min: number; max: number };
+  inverted?: boolean;
+  name?: string;
+}
+
+export type LocalMask = LinearGradientMask | RadialGradientMask | LuminanceRangeMask;
 
 /**
  * 바탕 마스크와 합치는 마스크. (ROADMAP §73 · §74)
@@ -358,10 +380,70 @@ const SUBTRACT_BLEND: MaskBlend = { blendMode: "1", maskValue: "0" };
 /* **바탕과 같은 짝이 합집합이다.** 픽셀로 쟀다 (ROADMAP §74). */
 const ADD_BLEND: MaskBlend = { blendMode: "0", maskValue: "1" };
 
+/**
+ * 광도 범위. (ROADMAP §75)
+ *
+ * **`LumRange` 는 칸이 넷인데 값은 둘이다** — 실기에서 UI `20~80` 이
+ * `"0.200000 0.200000 0.800733 0.800733"` 으로 나왔다. `(min, min, max, max)`
+ * 이고 ÷100 이다. 가운데 둘이 페더 폭이라면 바깥과 달라야 하는데 같으므로
+ * **무엇이 둘을 갈라놓는지는 모른다** — 같게 두는 것이 캡처를 따르는 쪽이다.
+ *
+ * **`SampleType` 이 필수다.** 없으면 오류 없이 **아무 일도 안 한다** — 실기에서
+ * 노출 +3 을 걸었는데 세 영역이 소수점까지 그대로였다. `0` 도 마찬가지다.
+ * `2` 여야 듣는다. 그래서 `0` 은 "표본 없음" 이고 `2` 가 광도 표본이다 —
+ * §73 에서 "두 읽기 사이에 `2 → 0` 으로 혼자 바뀐다" 고 적었던 것의 답이다.
+ * 그때 `0` 이었던 캡처는 범위가 기본값(0 0 1 1)이라 애초에 하는 일이 없었다.
+ *
+ * **`LuminanceDepthSampleInfo` 는 필수가 아니다.** 빼고 걸어서 확인했다 —
+ * `0.906158` 이 UI 어디에도 없던 값이라 산출물로 보였는데, 없어도 듣는다.
+ * 이 프로젝트의 "조용한 실패" 에 하나가 더 붙었다.
+ *
+ * 자릿수를 고정한다. 캡처가 소수점 여섯 자리였고, 이 값만은
+ * `formatXmpNumber` 처럼 뒤 0 을 떼지 않는다.
+ */
+function rangeXml(
+  mask: LuminanceRangeMask,
+  index: number,
+  syncId: string,
+  blend: MaskBlend,
+): string {
+  const name = mask.name ?? `광도 범위 ${String(index + 1)}`;
+  const low = (mask.range.min / 100).toFixed(6);
+  const high = (mask.range.max / 100).toFixed(6);
+  return [
+    "        <rdf:li>",
+    "         <rdf:Description",
+    '          crs:What="Mask/RangeMask"',
+    '          crs:MaskActive="true"',
+    `          crs:MaskName="${escapeXml(name)}"`,
+    `          crs:MaskBlendMode="${blend.blendMode}"`,
+    `          crs:MaskInverted="${mask.inverted === true ? "true" : "false"}"`,
+    `          crs:MaskSyncID="${syncId}"`,
+    `          crs:MaskValue="${blend.maskValue}">`,
+    "         <crs:CorrectionRangeMask",
+    '          crs:Version="4"',
+    /* 2 가 광도다. 캡처의 이름이 `광도 범위 1` 이었다. */
+    '          crs:Type="2"',
+    /* **반전은 위쪽 `MaskInverted` 가 한다.** 재서 확인했다 — 구간 안이 아니라
+     * 밖이 올라갔다. 이쪽 `Invert` 는 §68 의 `Flipped` 처럼 짐작하지 않고
+     * 고정으로 둔다. 둘을 함께 쓰면 무엇이 일을 했는지 못 가른다. */
+    '          crs:Invert="false"',
+    /* **없으면 조용히 아무 일도 안 한다.** `0` 도 마찬가지고 `2` 여야 듣는다. */
+    '          crs:SampleType="2"',
+    `          crs:LumRange="${low} ${low} ${high} ${high}"/>`,
+    "         </rdf:Description>",
+    "        </rdf:li>",
+  ].join("\n");
+}
+
 function maskXml(mask: LocalMask, index: number, syncId: string, blend: MaskBlend): string {
-  return mask.type === "radialGradient"
-    ? radialXml(mask, index, syncId, blend)
-    : linearXml(mask, index, syncId, blend);
+  if (mask.type === "radialGradient") {
+    return radialXml(mask, index, syncId, blend);
+  }
+  if (mask.type === "luminanceRange") {
+    return rangeXml(mask, index, syncId, blend);
+  }
+  return linearXml(mask, index, syncId, blend);
 }
 
 /**

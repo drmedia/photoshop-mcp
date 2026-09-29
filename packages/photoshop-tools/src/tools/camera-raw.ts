@@ -48,13 +48,22 @@ export function createCameraRawApplyTool(
       "건 뒤에는 photoshop.document.statistics 의 noise 로 확인한다 — " +
       "샤픈은 σ 를 올리고 노이즈 감소는 내리므로 숫자로 갈린다. " +
       "**국소 보정**은 localCorrections 로 준다 — 마스크를 씌운 보정을 전역 설정과 " +
-      "**한 번에** 건다. 마스크는 선형(linearGradient)과 방사형(radialGradient) 둘이다. " +
+      "**한 번에** 건다. 마스크는 선형(linearGradient) · 방사형(radialGradient) · " +
+      "광도 범위(luminanceRange) 셋이다. " +
       "좌표는 0-1 정규화이고 왼쪽 위가 0,0 이며 **캔버스 밖 음수도 된다.** " +
       "선형은 {from:{x,y}, to:{x,y}} 로 from 이 효과 0, to 가 효과 100% 쪽이다. " +
       "**방사형은 중심·반지름이 아니라 경계 상자다** — {bounds:{top,left,bottom,right}} 이고 " +
       "효과는 타원 **안**에 들어간다. angle(도) · feather(0-100) · roundness 는 원시값이다. " +
       "**inverted: true 로 안팎을 뒤집는다** — 방사형이면 효과가 타원 밖으로, " +
       "선형이면 방향이 반대로 간다. " +
+      "**광도 범위는 위치가 아니라 밝기로 고른다** — {range:{min,max}} 이고 0-100 이다. " +
+      "하늘의 밝은 부분만, 또는 어두운 부분만 골라 거는 데 쓴다. " +
+      "photoshop.selection.luminosity + mask.create 와 결과는 비슷하지만 " +
+      "**이쪽은 굽는 횟수가 늘지 않고 레이어도 안 는다.** " +
+      "**경계가 부드럽지 않다** — 구간 밖 픽셀은 그대로 남아 실기에서 히스토그램이 " +
+      "둘로 갈라졌다. 부드러운 전환이 필요하면 그레이디언트 마스크 쪽이다. " +
+      "**구간은 Camera Raw 의 눈금이라 document.statistics 의 0-255 와 정확히 " +
+      "맞지 않는다** — 걸고 나서 재서 확인한다. " +
       "**combine 으로 바탕 마스크와 합친다** — [{mode:'subtract'|'add', mask:{...}}] " +
       "형태다. 하늘에서 은하수를 빼거나, 하늘에 지평선 부근을 더하는 식이다. " +
       "**레이어 마스크와 다르다** — Camera Raw 안에서 계산되므로 굽는 횟수가 늘지 않는다. " +

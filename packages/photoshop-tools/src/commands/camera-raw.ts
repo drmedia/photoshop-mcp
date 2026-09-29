@@ -125,8 +125,39 @@ const RadialMaskSchema = z
   })
   .strict();
 
-/** 범위·AI 마스크는 아직 안 쟀다. **모르는 종류를 조용히 떨어뜨리지 않는다.** */
-const LocalMaskSchema = z.discriminatedUnion("type", [LinearMaskSchema, RadialMaskSchema]);
+/**
+ * 광도 범위. (ROADMAP §75)
+ *
+ * **밝기로 고른다** — 그레이디언트 둘이 위치로 고르는 것과 다른 축이다.
+ * `min` 과 `max` 는 UI 값 그대로 0–100 이고 플러그인이 ÷100 한다.
+ *
+ * 색상·심도 범위는 안 열었다 — `Type` 값을 안 봤다.
+ */
+const LuminanceRangeMaskSchema = z
+  .object({
+    type: z.literal("luminanceRange"),
+    range: z
+      .object({
+        min: z.number().min(0).max(100),
+        max: z.number().min(0).max(100),
+      })
+      .strict()
+      /* **뒤집힌 범위는 거절한다.** Camera Raw 가 어떻게 받는지 안 쟀고,
+       * 조용히 맞바꾸면 호출자는 자기가 준 값이 들어간 줄 안다. */
+      .refine((value) => value.min < value.max, {
+        message: "range.min 이 range.max 보다 작아야 합니다.",
+      }),
+    inverted: z.boolean().optional(),
+    name: z.string().min(1).max(255).optional(),
+  })
+  .strict();
+
+/** AI 마스크(피사체·하늘)는 만들 수 없다 — 해시가 모델의 산출물이다 (§73). */
+const LocalMaskSchema = z.discriminatedUnion("type", [
+  LinearMaskSchema,
+  RadialMaskSchema,
+  LuminanceRangeMaskSchema,
+]);
 
 /**
  * 색 보정 한 구간. (ROADMAP §69)

@@ -564,4 +564,106 @@ describe("Camera Raw 국소 보정 XMP", () => {
       expect(on).toContain('crs:MaskInverted="true"');
     });
   });
+  /** ROADMAP 75 — 광도 범위 마스크. */
+  describe("광도 범위 마스크", () => {
+    const range = {
+      type: "luminanceRange" as const,
+      range: { min: 20, max: 80 },
+    };
+
+    /**
+     * **모양이 그레이디언트와 다르다.** 저쪽은 속성만 있는 빈 `<rdf:li …/>`
+     * 인데 이쪽은 자식을 가진 `<rdf:Description>` 이다.
+     */
+    it("**자식을 가진 `<rdf:Description>` 으로 나간다**", () => {
+      const xmp = buildLocalCorrectionsXmp([{ mask: range }], fixedIds());
+      expect(xmp).toContain('crs:What="Mask/RangeMask"');
+      expect(xmp).toContain("<crs:CorrectionRangeMask");
+      // 그레이디언트의 빈 요소 형태가 아니다 — `<rdf:li>` 가 혼자 열린다.
+      expect(xmp).toContain("        <rdf:li>");
+    });
+
+    /** **÷100 이고 칸 넷은 `(min, min, max, max)` 다.** 실기 캡처와 같다. */
+    it("**LumRange 는 UI 값의 ÷100 을 네 칸에 넣는다**", () => {
+      const xmp = buildLocalCorrectionsXmp([{ mask: range }], fixedIds());
+      expect(xmp).toContain('crs:LumRange="0.200000 0.200000 0.800000 0.800000"');
+    });
+
+    /** **자릿수를 고정한다** — 다른 값과 달리 뒤 0 을 떼지 않는다. */
+    it("여섯 자리로 채운다", () => {
+      const xmp = buildLocalCorrectionsXmp(
+        [{ mask: { type: "luminanceRange", range: { min: 0, max: 100 } } }],
+        fixedIds(),
+      );
+      expect(xmp).toContain('crs:LumRange="0.000000 0.000000 1.000000 1.000000"');
+    });
+
+    /** 2 가 광도다. 캡처의 이름이 `광도 범위 1` 이었다. */
+    it("Type 은 2 다", () => {
+      const xmp = buildLocalCorrectionsXmp([{ mask: range }], fixedIds());
+      expect(xmp).toContain('crs:Type="2"');
+      expect(xmp).toContain('crs:Version="4"');
+    });
+
+    /**
+     * **`SampleType` 이 없으면 조용히 아무 일도 안 한다.** (ROADMAP §75)
+     *
+     * 실기에서 빼고 걸었더니 노출 +3 이 세 영역 모두 소수점까지 그대로였다.
+     * `0` 도 같았고 `2` 여야 들었다. 그래서 반드시 나가야 한다.
+     */
+    it("**SampleType 2 가 반드시 나간다**", () => {
+      const xmp = buildLocalCorrectionsXmp([{ mask: range }], fixedIds());
+      expect(xmp).toContain('crs:SampleType="2"');
+    });
+
+    /** **`LuminanceDepthSampleInfo` 는 필수가 아니다** — 빼고 걸어 확인했다. */
+    it("LuminanceDepthSampleInfo 는 안 낸다", () => {
+      const xmp = buildLocalCorrectionsXmp([{ mask: range }], fixedIds());
+      expect(xmp).not.toContain("crs:LuminanceDepthSampleInfo");
+    });
+
+    /**
+     * **반전은 위쪽 `MaskInverted` 가 한다.** 실기에서 재서 확인했다 —
+     * 구간 안이 아니라 밖의 픽셀이 올라갔다. 아래 `Invert` 는 고정이다.
+     */
+    it("반전은 MaskInverted 로 간다", () => {
+      const xmp = buildLocalCorrectionsXmp([{ mask: { ...range, inverted: true } }], fixedIds());
+      expect(xmp).toContain('crs:MaskInverted="true"');
+      expect(xmp).toContain('crs:Invert="false"');
+    });
+
+    /** 그레이디언트와 섞어 `combine` 에 넣을 수 있다. */
+    it("combine 에도 들어간다", () => {
+      const xmp = buildLocalCorrectionsXmp(
+        [
+          {
+            mask: { type: "linearGradient", from: { x: 0.5, y: 1 }, to: { x: 0.5, y: 0 } },
+            combine: [{ mode: "subtract", mask: range }],
+          },
+        ],
+        fixedIds(),
+      );
+      expect(xmp).toContain('crs:What="Mask/Gradient"');
+      expect(xmp).toContain('crs:What="Mask/RangeMask"');
+      expect([...xmp.matchAll(/crs:MaskBlendMode="(\d)"/gu)].map((m) => m[1])).toEqual(["0", "1"]);
+    });
+
+    /** **뒤집힌 범위는 거절한다.** 조용히 맞바꾸면 준 값이 들어간 줄 안다. */
+    it("**min >= max 를 거절한다**", () => {
+      expect(
+        CameraRawParamsSchema.safeParse({
+          localCorrections: [{ mask: { type: "luminanceRange", range: { min: 80, max: 20 } } }],
+        }).success,
+      ).toBe(false);
+    });
+
+    /** 색상·심도 범위는 `Type` 값을 안 봤다. */
+    it("**colorRange 는 받지 않는다** — Type 을 모른다", () => {
+      expect(
+        CameraRawParamsSchema.safeParse({
+          localCorrections: [{ mask: { type: "colorRange", range: { min: 20, max: 80 } } }],
+        }).success,
+      ).toBe(false);
+    });
+  });
 });

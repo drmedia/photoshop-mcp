@@ -265,6 +265,16 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   readonly #channels = new Set<string>();
   readonly #layerComps: MockLayerComp[] = [];
   readonly #paths: MockPath[] = [];
+  /**
+   * ROADMAP 67 — 레이어별 Camera Raw 스마트 필터 개수.
+   *
+   * **스마트 오브젝트에서는 필터가 덮이지 않고 쌓인다.** Mock 이 언제나 0 을
+   * 돌려주면 그 경로는 테스트에 영영 나오지 않는다 — 배경 승격 때와 같다.
+   *
+   * 지어내는 것이 아니다. 자기가 몇 번 불렸는지는 Mock 이 실제로 안다.
+   */
+  readonly #cameraRawFilters = new Map<number, number>();
+
   /** ROADMAP 62 — 전경·배경색. **처음에는 모른다.** 넣어 준 값만 안다. */
   #foreground: { red: number; green: number; blue: number } | null = null;
   #background: { red: number; green: number; blue: number } | null = null;
@@ -1358,7 +1368,13 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         }
         this.#snapshot("Camera Raw Filter");
         const applied = Object.keys(params).filter((key) => key !== "layerId");
-        return { layer: { ...layer }, applied } as TResult;
+        /* 픽셀 레이어는 구워지므로 쌓이지 않는다. 스마트 오브젝트만 쌓인다. */
+        let smartFilterCount = 0;
+        if (layer.type === "smartObject") {
+          smartFilterCount = (this.#cameraRawFilters.get(layer.id) ?? 0) + 1;
+          this.#cameraRawFilters.set(layer.id, smartFilterCount);
+        }
+        return { layer: { ...layer }, applied, smartFilterCount } as TResult;
       }
 
       // 결함 제거. 실제 픽셀이 없으므로 **거절 규칙만** 실기와 같게 흉내 낸다.

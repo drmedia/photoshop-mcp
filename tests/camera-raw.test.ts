@@ -5,6 +5,7 @@ import {
 } from "../photoshop-uxp/src/dom/camera-raw-keys.js";
 import { createPhotoshopMcp, createSilentLogger } from "@photoshop-mcp/mcp-core";
 import { MockPhotoshopBridge } from "@photoshop-mcp/photoshop-bridge";
+import { CameraRawParamsSchema } from "@photoshop-mcp/photoshop-tools";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -371,6 +372,102 @@ describe("Camera Raw", () => {
       const layerId = await pixelLayer(mcp);
       const result = await apply(mcp, { layerId, exposure: 1.5, noiseReduction: 25 });
       expect(result["applied"]).toEqual(expect.arrayContaining(["exposure", "noiseReduction"]));
+    });
+  });
+
+  /** ROADMAP 67 — 국소 보정. */
+  describe("국소 보정", () => {
+    const mask = {
+      type: "linearGradient" as const,
+      from: { x: 0.5, y: 0.8 },
+      to: { x: 0.5, y: 0.1 },
+    };
+
+    it("**국소 보정만으로도 통과한다**", async () => {
+      // 전역 설정 없이 마스크만 거는 것이 정상적인 쓰임이다.
+      const mcp = setup();
+      const layerId = await pixelLayer(mcp);
+      const result = await apply(mcp, {
+        layerId,
+        localCorrections: [{ mask, exposure: 1.5 }],
+      });
+      expect(result["applied"]).toEqual(["localCorrections"]);
+    });
+
+    it("빈 배열은 거절한다", () => {
+      // 빈 XMP 를 보내면 기존 보정이 조용히 지워진다.
+      expect(CameraRawParamsSchema.safeParse({ localCorrections: [] }).success).toBe(false);
+    });
+
+    it("마스크 없는 보정은 거절한다", () => {
+      expect(CameraRawParamsSchema.safeParse({ localCorrections: [{ exposure: 1 }] }).success).toBe(
+        false,
+      );
+    });
+
+    it("**모르는 마스크 종류를 조용히 통과시키지 않는다**", () => {
+      // 방사형·범위·AI 는 아직 안 쟀다. linearGradient 로 떨어뜨리면 엉뚱한
+      // 곳에 걸리고 호출자는 모른다.
+      expect(
+        CameraRawParamsSchema.safeParse({
+          localCorrections: [{ mask: { ...mask, type: "radialGradient" } }],
+        }).success,
+      ).toBe(false);
+    });
+
+    it("**국소 노출은 ±4 다** — 전역(±5)과 다르다", () => {
+      const ok = (exposure: number): boolean =>
+        CameraRawParamsSchema.safeParse({ localCorrections: [{ mask, exposure }] }).success;
+      expect(ok(4)).toBe(true);
+      expect(ok(4.5)).toBe(false);
+      // 전역은 5 까지 받는다.
+      expect(CameraRawParamsSchema.safeParse({ exposure: 4.5 }).success).toBe(true);
+    });
+
+    it("**국소 색조는 ±180 이다** — 전역 색상 혼합(±100)과 다르다", () => {
+      const ok = (hue: number): boolean =>
+        CameraRawParamsSchema.safeParse({ localCorrections: [{ mask, hue }] }).success;
+      expect(ok(180)).toBe(true);
+      expect(ok(181)).toBe(false);
+      expect(CameraRawParamsSchema.safeParse({ hueRed: 180 }).success).toBe(false);
+    });
+
+    it("**마스크 좌표의 음수를 막지 않는다**", () => {
+      // 실기에서 Zero2Y 가 -0.707 이었다. 캔버스 밖으로 나간다.
+      expect(
+        CameraRawParamsSchema.safeParse({
+          localCorrections: [{ mask: { ...mask, to: { x: 0.5, y: -0.7 } } }],
+        }).success,
+      ).toBe(true);
+    });
+
+    /**
+     * **스마트 오브젝트에서는 필터가 쌓인다.** (ROADMAP §67)
+     *
+     * 실기에서 같은 보정을 두 번 걸었더니 노출 +3 이 두 번 먹어 하이라이트
+     * 19.7% 가 날아갔다. 재지 않으면 모르는 종류라 결과에 개수를 담는다.
+     */
+    it("**두 번 걸면 smartFilterCount 가 2 다**", async () => {
+      const mcp = setup();
+      const layerId = await pixelLayer(mcp);
+      const converted = (await mcp.tools.invoke(
+        "photoshop.smart_object.convert",
+        { layerId },
+        { requestId: "so" },
+      )) as { layer: { id: number } };
+      const soId = converted.layer.id;
+
+      const first = await apply(mcp, { layerId: soId, localCorrections: [{ mask, exposure: 1 }] });
+      expect(first["smartFilterCount"]).toBe(1);
+      const second = await apply(mcp, { layerId: soId, localCorrections: [{ mask, exposure: 1 }] });
+      expect(second["smartFilterCount"]).toBe(2);
+    });
+
+    it("픽셀 레이어는 구워지므로 쌓이지 않는다", async () => {
+      const mcp = setup();
+      const layerId = await pixelLayer(mcp);
+      const result = await apply(mcp, { layerId, localCorrections: [{ mask, exposure: 1 }] });
+      expect(result["smartFilterCount"]).toBe(0);
     });
   });
 });

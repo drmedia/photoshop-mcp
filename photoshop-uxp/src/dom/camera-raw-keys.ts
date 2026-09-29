@@ -18,6 +18,10 @@
  * 실기에서 확인했다. 박아 넣으면 다른 Camera Raw 버전에서 깨진다.
  */
 
+import { buildLocalCorrectionsXmp, type LocalCorrection } from "./camera-raw-xmp.js";
+
+export type { LocalCorrection, LinearGradientMask } from "./camera-raw-xmp.js";
+
 /** 포인트 곡선의 한 점. 0–255. */
 export interface CurvePoint {
   x: number;
@@ -26,7 +30,9 @@ export interface CurvePoint {
 
 export interface CameraRawParams {
   layerId?: number;
-  [key: string]: number | CurvePoint[] | undefined;
+  /** 국소 보정. `$LCs` 로 나간다 (ROADMAP §67). */
+  localCorrections?: readonly LocalCorrection[];
+  [key: string]: number | CurvePoint[] | readonly LocalCorrection[] | undefined;
 }
 
 /** MCP 이름 → Camera Raw descriptor 키. 실기에서 잡아낸 그대로다. */
@@ -214,6 +220,16 @@ export function buildCameraRawDescriptor(params: CameraRawParams): {
         descriptor[key] = fallback;
       }
     }
+  }
+
+  // **국소 보정은 XML 문자열로 나간다.** (ROADMAP §66 · §67)
+  //
+  // descriptor 의 다른 키들과 달리 `$LCs` 는 XMP 문서 하나다. 호출자가
+  // 문자열을 넘기는 통로는 없고, 검증된 파라미터로 여기서 조립한다.
+  const local = params["localCorrections"];
+  if (Array.isArray(local) && local.length > 0) {
+    descriptor["$LCs"] = buildLocalCorrectionsXmp(local as readonly LocalCorrection[]);
+    applied.push("localCorrections");
   }
 
   // 색온도·색조를 주면 화이트밸런스가 '사용자 정의' 여야 한다.

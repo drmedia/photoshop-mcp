@@ -29,7 +29,10 @@ export function createCameraRawApplyTool(
       "전역 vibrance·saturation 과 달리 **특정 색만** 건드리므로, 야경에서 조명색만 " +
       "살리고 하늘은 그대로 두는 식의 조정에 쓴다. " +
       "레이어를 photoshop.smart_object.convert 로 먼저 감싸면 스마트 필터로 남아 " +
-      "나중에 값만 고칠 수 있다 — 그러면 '한 번에 담아라' 제약도 완화된다. " +
+      "**사람이 Photoshop 대화상자에서 값을 고칠 수 있고**, " +
+      "photoshop.smart_object.get_info 의 raw.filterFX 로 무엇이 들어갔는지 되읽을 수 있다. " +
+      "**다만 이 Tool 을 다시 불러도 고쳐지지 않는다 — 필터가 하나 더 쌓인다.** " +
+      "그래서 '한 번에 담아라' 는 스마트 오브젝트에서도 그대로다. " +
       "**곡선**은 파라메트릭(curveHighlights·curveLights·curveDarks·curveShadows 와 " +
       "구간 경계 curveShadowSplit·curveMidtoneSplit·curveHighlightSplit)과 " +
       "포인트(curveRgb·curveRed·curveGreen·curveBlue)를 모두 받는다. " +
@@ -43,7 +46,21 @@ export function createCameraRawApplyTool(
       "**sharpenMasking 이 평탄한 영역을 샤픈에서 뺀다** — 하늘처럼 고른 면의 " +
       "노이즈가 같이 서는 것을 막으므로 천체사진에서는 이것부터 올린다. " +
       "건 뒤에는 photoshop.document.statistics 의 noise 로 확인한다 — " +
-      "샤픈은 σ 를 올리고 노이즈 감소는 내리므로 숫자로 갈린다.",
+      "샤픈은 σ 를 올리고 노이즈 감소는 내리므로 숫자로 갈린다. " +
+      "**국소 보정**은 localCorrections 로 준다 — 마스크를 씌운 보정을 전역 설정과 " +
+      "**한 번에** 건다. 지금은 마스크가 선형 그레이디언트뿐이고 " +
+      "{type, from:{x,y}, to:{x,y}} 로 주며 좌표는 0-1 정규화다(왼쪽 위가 0,0 이고 " +
+      "캔버스 밖 음수도 된다). from 이 효과 0, to 가 효과 100% 쪽이다. " +
+      "**슬라이더는 Camera Raw UI 에 보이는 값 그대로 준다** — exposure 는 EV(±4)이고 " +
+      "hue 는 각도(±180), 나머지는 ±100 이다. amount 는 보정 전체의 배율로 " +
+      "100 이 기본이고 200 까지 올릴 수 있다. " +
+      "**레이어를 따로 만들어 거는 것과 결과가 다르다** — 이쪽은 한 번만 굽는다. " +
+      "**앞서 건 것이 사라지지 않고 쌓인다** — 픽셀 레이어면 구워진 위에 다시 굽고, " +
+      "스마트 오브젝트면 스마트 필터가 하나 더 붙는다. 실기에서 같은 보정을 두 번 " +
+      "걸었더니 노출 +3 이 두 번 먹어 하이라이트 19.7% 가 날아갔다. " +
+      "**결과의 smartFilterCount 가 몇 개 쌓였는지 말한다** — 2 이상이면 " +
+      "photoshop.history.undo 로 되돌린 뒤 전부 한 번에 다시 건다. " +
+      "여러 마스크가 필요하면 **배열에 전부 담아 한 번에 건다.**",
     permission: "edit",
     inputSchema: CameraRawParamsSchema,
     handler: async (input, context) =>

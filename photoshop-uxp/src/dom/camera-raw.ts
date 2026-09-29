@@ -17,9 +17,46 @@ import { buildCameraRawDescriptor, type CameraRawParams } from "./camera-raw-key
  * 여기서는 **대상 검사**만 한다. 특히 숨긴 레이어를 미리 막는다.
  */
 
+/**
+ * 이 레이어에 걸린 Camera Raw 스마트 필터의 개수.
+ *
+ * **스마트 오브젝트에서는 필터가 덮이지 않고 쌓인다** (ROADMAP §67). 실기에서
+ * 같은 국소 보정을 두 번 걸었더니 노출 +3 이 두 번 먹어 하이라이트 19.7% 가
+ * 날아갔다 — **재지 않으면 모르는 종류다.**
+ *
+ * 읽지 못하면 `null` 이다. 스마트 오브젝트가 아니면 0 이다.
+ */
+async function countCameraRawFilters(layerId: number): Promise<number | null> {
+  try {
+    const results = await action.batchPlay(
+      [
+        {
+          _obj: "get",
+          _target: [{ _property: "smartObject" }, { _ref: "layer", _id: layerId }],
+        },
+      ],
+      {},
+    );
+    const bag = results[0]?.["smartObject"] as Record<string, unknown> | undefined;
+    const filters = bag?.["filterFX"];
+    if (!Array.isArray(filters)) {
+      return 0;
+    }
+    return filters.filter(
+      (entry) =>
+        (entry as Record<string, unknown>)?.["filter"] !== undefined &&
+        ((entry as Record<string, Record<string, unknown>>)["filter"]?.["_obj"] ?? "") ===
+          "Adobe Camera Raw Filter",
+    ).length;
+  } catch {
+    /* 스마트 오브젝트가 아니면 batchPlay 가 실패한다. 지어내지 않는다. */
+    return null;
+  }
+}
+
 export async function cameraRawApply(
   params: CameraRawParams,
-): Promise<{ layer: LayerInfo; applied: string[] }> {
+): Promise<{ layer: LayerInfo; applied: string[]; smartFilterCount: number | null }> {
   return runModal("Camera Raw", async () => {
     const document = requireActiveDocument();
 
@@ -71,6 +108,10 @@ export async function cameraRawApply(
       });
     }
 
-    return { layer: toLayerInfo(layer), applied };
+    return {
+      layer: toLayerInfo(layer),
+      applied,
+      smartFilterCount: await countCameraRawFilters(layer.id),
+    };
   });
 }

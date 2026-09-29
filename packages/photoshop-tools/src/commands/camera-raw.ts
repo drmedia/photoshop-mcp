@@ -82,6 +82,70 @@ const Curve = z
 /** 0–100 슬라이더. */
 const Amount = z.number().int().min(0).max(100);
 
+/**
+ * 국소 보정의 마스크. (ROADMAP §67)
+ *
+ * **좌표는 0–1 정규화**이고 문서 왼쪽 위가 (0,0) 이다. 캔버스 밖으로
+ * 나갈 수 있어 **음수를 막지 않는다** — 실기에서 −0.707 을 봤다.
+ * 범위 제한은 잰 값이 아니라 **터무니없는 입력을 막는 울타리**다.
+ */
+const LocalMaskSchema = z
+  .object({
+    /** 지금은 선형 그레이디언트뿐이다. 방사형·범위·AI 는 아직 안 쟀다. */
+    type: z.literal("linearGradient"),
+    /** 효과가 0 인 쪽. */
+    from: z.object({ x: z.number().min(-10).max(10), y: z.number().min(-10).max(10) }).strict(),
+    /** 효과가 100% 인 쪽. */
+    to: z.object({ x: z.number().min(-10).max(10), y: z.number().min(-10).max(10) }).strict(),
+    inverted: z.boolean().optional(),
+    name: z.string().min(1).max(255).optional(),
+  })
+  .strict();
+
+/** ±100 국소 슬라이더. */
+const Local = z.number().int().min(-100).max(100);
+
+/**
+ * 국소 보정 하나.
+ *
+ * **슬라이더는 Camera Raw UI 에 보이는 값 그대로 준다.** 저장은 ±1 로
+ * 정규화되지만 나누는 수가 슬라이더마다 달라(노출 ÷4 · 색조 ÷180 · 나머지
+ * ÷100) 플러그인이 변환한다. 호출자가 그 눈금을 알 필요가 없다.
+ */
+const LocalCorrectionSchema = z
+  .object({
+    mask: LocalMaskSchema,
+    name: z.string().min(1).max(255).optional(),
+    /**
+     * 보정 전체의 배율. **100 이 기본이고 100 을 넘을 수 있다.**
+     * 슬라이더를 하나씩 올리는 대신 이것으로 세기를 한꺼번에 조절한다.
+     */
+    amount: z.number().int().min(0).max(200).optional(),
+
+    /** **EV 다.** 전역 exposure 와 범위가 다르다 — 이쪽은 ±4 다. */
+    exposure: z.number().min(-4).max(4).optional(),
+    contrast: Local.optional(),
+    highlights: Local.optional(),
+    shadows: Local.optional(),
+    whites: Local.optional(),
+    blacks: Local.optional(),
+    clarity: Local.optional(),
+    texture: Local.optional(),
+    dehaze: Local.optional(),
+    grain: Local.optional(),
+    glow: Local.optional(),
+    sharpness: Local.optional(),
+    luminanceNoise: Local.optional(),
+    moire: Local.optional(),
+    defringe: Local.optional(),
+    temperature: Local.optional(),
+    tint: Local.optional(),
+    saturation: Local.optional(),
+    /** **각도다.** ±180 이고 전역 색상 혼합의 hue* 와 다른 물건이다. */
+    hue: z.number().int().min(-180).max(180).optional(),
+  })
+  .strict();
+
 export const CameraRawParamsSchema = z
   .object({
     /** 대상 레이어. 생략하면 활성 레이어. **숨긴 레이어는 거절한다.** */
@@ -108,6 +172,21 @@ export const CameraRawParamsSchema = z
     dehaze: Slider.optional(),
     vibrance: Slider.optional(),
     saturation: Slider.optional(),
+
+    /**
+     * 국소 보정. (ROADMAP §67)
+     *
+     * **마스크를 씌운 보정을 전역 설정과 한 번에 건다.** Camera Raw 안에서
+     * 함께 계산되므로 레이어를 따로 만들어 거는 것과 결과가 다르다 —
+     * 그쪽은 굽는 횟수가 늘어난다.
+     *
+     * **부를 때마다 통째로 바뀐다.** `$LCs` 가 덩어리 하나여서 앞서 건
+     * 국소 보정은 사라진다. 전역 설정과 같은 규칙이다.
+     *
+     * 스마트 오브젝트에 걸면 나중에 값만 고칠 수 있고,
+     * photoshop.smart_object.get_info 의 raw.filterFX 로 되읽을 수 있다.
+     */
+    localCorrections: z.array(LocalCorrectionSchema).min(1).max(10).optional(),
 
     // ── 세부: 샤픈. (ROADMAP §64) ─────────────────────────
     //
@@ -248,6 +327,16 @@ export const CameraRawResultSchema = z.object({
    * 이것을 돌려준다.
    */
   applied: z.array(z.string()),
+  /**
+   * 이 레이어에 쌓인 Camera Raw 스마트 필터의 개수. (ROADMAP §67)
+   *
+   * **스마트 오브젝트에서는 필터가 덮이지 않고 쌓인다.** 2 이상이면 같은
+   * 보정이 여러 번 먹고 있다는 뜻이다 — 실기에서 노출 +3 이 두 번 걸려
+   * 하이라이트 19.7% 가 날아갔다.
+   *
+   * 스마트 오브젝트가 아니면 0 이고, 읽지 못하면 `null` 이다.
+   */
+  smartFilterCount: z.number().int().nullable(),
 });
 
 export type CameraRawResult = z.infer<typeof CameraRawResultSchema>;
@@ -264,5 +353,9 @@ export const cameraRawApplyCommand: CommandHandler<CameraRawParams, CameraRawRes
       cause: parsed.error,
     });
   }
-  return parsed.data as { layer: LayerInfo; applied: string[] };
+  return parsed.data as {
+    layer: LayerInfo;
+    applied: string[];
+    smartFilterCount: number | null;
+  };
 };

@@ -503,7 +503,10 @@ camera_raw.apply            → 스마트 필터로 남아 값만 고칠 수 있
 않는다. 빠뜨리면 전부 흰 마스크가 되어 국소 보정이 조용히 전역에 걸린다.
 
 `smart_object.convert` 하면 **마스크가 SO 안으로 흡수되고 SO 가 그 범위로 잘린다.**
-`hasMask` 가 `false` 가 되는 것이 그 증거다. 그리고 **id 가 바뀐다** — 옛 id 는
+`hasMask` 가 `false` 가 되는 것은 흡수의 증거일 뿐이고 **잘리는 것은 따로 쟀다** —
+2000×2000 마스크가 4032×6048 레이어를 정확히 그 크기로 만들었다(ROADMAP §82).
+**레이어 경계는 `selection.set{layerTransparency}` + `document.statistics` 의
+`source` 문자열로 읽는다** — 경계를 주는 Tool 이 따로 없다. 그리고 **id 가 바뀐다** — 옛 id 는
 사라지므로 결과의 `layer.id` 를 이어 쓴다. `previousId` 가 옛 값을 담는다.
 
 이미 스마트 오브젝트면 `converted: false` 로 답하고 아무것도 하지 않는다. 겹치면

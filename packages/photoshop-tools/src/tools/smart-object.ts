@@ -34,6 +34,10 @@ export function createSmartObjectConvertTool(
       "변환하지 않은 레이어에 걸면 픽셀에 구워져 되돌리려면 History 뿐이다. " +
       "국소 보정은 layer.duplicate(또는 stamp_visible) → 선택 → mask.create → 이 Tool → " +
       "camera_raw.apply 순서로 한다. 마스크를 먼저 씌워야 변환된 결과에 함께 들어간다. " +
+      "**마스크가 있으면 스마트 오브젝트가 그 경계로 잘린다** — 실기에서 2000×2000 " +
+      "마스크가 4032×6048 레이어를 정확히 그 크기로 만들었다(ROADMAP §82). " +
+      "hasMask 가 false 가 되는 것이 흡수됐다는 뜻이다. **다만 Camera Raw 국소 마스크의 " +
+      "0-1 좌표는 잘린 SO 가 아니라 여전히 문서 기준이다**(§72) — 두 가지가 다르다. " +
       "**변환하면 레이어 id 가 바뀐다** — 결과의 layer.id 를 이어서 쓴다. previousId 에 옛 id 가 있다. " +
       "이미 스마트 오브젝트면 아무것도 하지 않고 converted: false 로 답한다(오류가 아니다). " +
       "스마트 오브젝트 안에 스마트 오브젝트를 만들지 않기 위함이다.",

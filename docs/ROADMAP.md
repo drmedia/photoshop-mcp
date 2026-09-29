@@ -9312,20 +9312,55 @@ UI            값       키                       저장값      나누는 수
 **처음에 다섯을 같은 값으로 뒀으면 갈리지 않았다.** 하나를 다르게 두는 것이
 "같은 눈금인가" 를 묻는 방법이다.
 
-### 이름이 직관과 반대다
-
-점 색상(색상 휠)이 쓰는 것은 `LocalHue` · `LocalSaturation` 이다.
+효과 패널 다섯도 전부 ÷100 이었다.
 
 ```text
-움직였다      LocalHue = 0.012483      LocalSaturation = 0.1
-안 움직였다   LocalToningHue = 0       LocalToningSaturation = 0
+UI            값       키                       저장값      나누는 수
+텍스처       +6        LocalTexture             0.06         ÷100
+명료도       +7        LocalClarity2012         0.07         ÷100
+디헤이즈    +12        LocalDehaze              0.12         ÷100
+그레인      +12        LocalGrain               0.12         ÷100
+광선        +13        LocalGlow                0.13         ÷100
 ```
 
-이름만 보면 `Toning` 쪽이 색상 휠일 것 같은데 **반대다.** `2012` 접미사도
-오해를 부른다 — **톤 쪽은 `2012` 가 붙은 것이 현역**(`LocalExposure2012` 이
-살아 있고 `LocalExposure` 은 0)인데 **색 쪽은 안 붙은 것이 현역**이다.
+### 확정된 눈금 표
 
-접미사와 이름으로 짐작하면 틀린다. 하나씩 움직여 보고 무엇이 변하는지 본다.
+```text
+÷4      LocalExposure2012
+÷180    LocalHue
+÷100    LocalContrast2012 · LocalHighlights2012 · LocalShadows2012 ·
+        LocalWhites2012 · LocalBlacks2012 · LocalClarity2012 ·
+        LocalTemperature · LocalTint · LocalSaturation ·
+        LocalTexture · LocalDehaze · LocalGrain · LocalGlow
+미측정  LocalLuminanceNoise · LocalMoire · LocalDefringe ·
+        LocalCorrectedDepth · LocalCurveRefineSaturation
+```
+
+열다섯을 쟀고 전부 **나누는 수 = UI 범위**로 설명된다.
+
+### 죽은 키가 섞여 있다
+
+한 번도 움직이지 않은 것이 일곱이다.
+
+```text
+LocalExposure · LocalContrast · LocalClarity · LocalSharpness ·
+LocalBrightness · LocalToningHue · LocalToningSaturation
+```
+
+규칙은 이렇다.
+
+```text
+2012 짝이 있는 것   2012 쪽이 현역, 접미사 없는 동명 키는 죽어 있다
+                    (Exposure · Contrast · Clarity …)
+짝이 없는 것        그것이 현역
+                    (Texture · Dehaze · Grain · Glow · Temperature · Tint)
+Toning*             죽은 키. 점 색상은 LocalHue · LocalSaturation 이다
+```
+
+**이름으로 짐작하면 두 번 틀린다.** `Toning` 이 색상 휠일 것 같은데 아니고,
+`2012` 없는 `LocalHue` 가 구형일 것 같은데 현역이다. 하나씩 움직여 보고
+무엇이 변하는지 본다 — 그래서 **쓰지 않는 키를 descriptor 에 넣으면 안 된다.**
+조용히 무시되고 왜 안 먹는지 알 수 없다.
 
 ### 예외 후보
 
@@ -9382,6 +9417,8 @@ XML 이 통째로 Camera Raw 에 들어간다. 플러그인이 검증된 파라�
 - [x] 톤 다섯의 눈금 ÷100 확인 — 하나를 다른 값으로 둬서 갈랐다
 - [x] 색 패널 넷 — 온도·색조·채도 ÷100, 색조(휠)은 **÷180 확정**
 - [x] 점 색상은 `LocalHue`·`LocalSaturation` 이다 — `Toning*` 이 아니다
-- [ ] 나머지 Local* 눈금 (질감 · 디헤이즈 · 노이즈 · 그레인 …) — 미측정
+- [x] 효과 패널 다섯 (텍스처·명료도·디헤이즈·그레인·광선) 전부 ÷100
+- [x] 죽은 키 일곱을 가려냈다 — `2012` 짝과 `Toning*`
+- [ ] 남은 다섯 — `LuminanceNoise` · `Moire` · `Defringe` · `CorrectedDepth` · `CurveRefineSaturation`
 - [ ] `LocalCurveRefineSaturation` 이 원시값인지 — 기본값 한 점뿐
 - [ ] 구현 — 아직 안 했다

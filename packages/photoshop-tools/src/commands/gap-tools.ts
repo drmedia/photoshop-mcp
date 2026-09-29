@@ -7,6 +7,7 @@ import {
 } from "@photoshop-mcp/photoshop-bridge";
 import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { z } from "zod";
+import { SelectionModeSchema } from "./selection-dom.js";
 
 /**
  * ROADMAP §8.6 — 실기에서 드러난 공백을 메우는 Command.
@@ -64,9 +65,32 @@ export const SelectionSetParamsSchema = z
     layerId: TargetLayer,
     /** 가장자리 페더(px). */
     feather: z.number().min(0).max(1000).optional(),
+    /**
+     * 가장자리 안티앨리어싱. 기본 `true`. (ROADMAP §71)
+     *
+     * batchPlay 시절에는 넘길 방법을 몰라 아예 없었다. DOM 으로 옮기면서
+     * 인자로 붙었다.
+     */
+    antiAlias: z.boolean().optional(),
+    /**
+     * 기존 선택과 어떻게 합칠지. 생략하면 덮어쓴다(`replace`). (ROADMAP §71)
+     *
+     * **`canvas` 에는 쓸 수 없다** — 문서 전체라 합칠 것이 없고, DOM
+     * `selectAll()` 도 인자를 받지 않는다. 조용히 무시하지 않고 거절한다.
+     *
+     * `replace` 가 아니면 바탕이 될 선택이 있어야 한다.
+     */
+    mode: SelectionModeSchema.optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
+    if (value.shape === "canvas" && value.mode !== undefined && value.mode !== "replace") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["mode"],
+        message: "canvas 에는 mode 를 쓸 수 없습니다. 문서 전체라 합칠 것이 없습니다.",
+      });
+    }
     const needsBounds = value.shape === "rectangle" || value.shape === "ellipse";
     if (needsBounds && value.bounds === undefined) {
       ctx.addIssue({

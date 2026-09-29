@@ -1,7 +1,8 @@
-import { action, constants } from "photoshop";
+import { action } from "photoshop";
 import type { LayerInfo } from "@photoshop-mcp/photoshop-bridge";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { allChannels } from "./channel.js";
+import { modeOf, type SelectionModeName } from "./selection-dom.js";
 import { requireActiveDocument } from "./document.js";
 import { flattenLayers } from "./layers.js";
 import { hasSelection } from "./mask-selection.js";
@@ -85,30 +86,8 @@ export async function selectionSaveChannel(params: { name: string }): Promise<{ 
  * 읽고 **없으면 거절한다.** 조용히 `replace` 로 떨어뜨리면 선택이 통째로
  * 갈아치워지는데 호출자는 뺀 줄 안다.
  */
-const SELECTION_TYPE_KEYS = {
-  replace: "REPLACE",
-  add: "EXTEND",
-  subtract: "DIMINISH",
-  intersect: "INTERSECT",
-} as const;
-
-export type SelectionCombine = keyof typeof SELECTION_TYPE_KEYS;
-
-function selectionType(mode: SelectionCombine): unknown {
-  const key = SELECTION_TYPE_KEYS[mode];
-  const value = (constants.SelectionType as unknown as Record<string, unknown> | undefined)?.[key];
-  if (value === undefined) {
-    throw new DispatchError(
-      "COMMAND_NOT_SUPPORTED",
-      `이 Photoshop 에서 선택 조합 ${mode}(constants.SelectionType.${key}) 를 찾을 수 없습니다.`,
-      { recoverable: false, details: { mode, key } },
-    );
-  }
-  return value;
-}
-
 /** `replace` 가 아닌 조합은 바탕이 될 선택이 있어야 한다. */
-function requireBaseSelection(mode: SelectionCombine): void {
+function requireBaseSelection(mode: SelectionModeName): void {
   if (mode === "replace" || hasSelection()) {
     return;
   }
@@ -128,7 +107,7 @@ function requireBaseSelection(mode: SelectionCombine): void {
 export async function selectionLoadChannel(params: {
   name: string;
   invert?: boolean;
-  mode?: SelectionCombine;
+  mode?: SelectionModeName;
 }): Promise<SelectionResult> {
   return runModal("Load selection from channel", async () => {
     const document = requireActiveDocument();
@@ -158,7 +137,7 @@ export async function selectionLoadChannel(params: {
       );
     }
 
-    await selection.load(channel, selectionType(mode), params.invert === true);
+    await selection.load(channel, modeOf(mode), params.invert === true);
     return describeSelection();
   });
 }

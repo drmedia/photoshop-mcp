@@ -129,7 +129,13 @@ const interpolationOf = (name: InterpolationName | undefined): unknown =>
         name,
       );
 
-const modeOf = (name: SelectionModeName | undefined): unknown =>
+/**
+ * `constants.SelectionType` 값. **표가 여기 하나만 있어야 한다.**
+ *
+ * §70 에서 `selection-ops.ts` 에 같은 표를 또 만들었다가 합쳤다 — 두 벌이면
+ * 한쪽만 고쳐지는 날이 온다.
+ */
+export const modeOf = (name: SelectionModeName | undefined): unknown =>
   name === undefined
     ? undefined
     : fromTable(

@@ -28,7 +28,14 @@ export function createSelectionSetTool(
       "layerTransparency (레이어의 불투명한 픽셀). bounds 는 픽셀 좌표 {left, top, right, bottom}. " +
       "feather 로 가장자리를 부드럽게 할 수 있다. 만든 선택은 mask.create 의 fromSelection 으로 쓸 수 있다. 다만 **조정 레이어를 만들면 Photoshop 이 선택 영역을 마스크로 소비**하므로 그 뒤에는 남아 있지 않다. " +
       "**레이어에서 선택을 만드는 길이 layerTransparency 다** — 따로 Tool 이 있지 않다. " +
-      "사각형·타원으로 만들 수 없는 모양은 photoshop.selection.polygon 이다.",
+      "사각형·타원으로 만들 수 없는 모양은 photoshop.selection.polygon 이다. " +
+      "**mode 로 기존 선택과 합친다** — replace(기본) · add · subtract · intersect. " +
+      "replace 가 아니면 바탕이 될 선택이 있어야 하고 없으면 실패한다. " +
+      "**canvas 에는 mode 를 쓸 수 없다** — 문서 전체라 합칠 것이 없다. " +
+      "antiAlias 는 기본 true 다. " +
+      "선택을 여러 번 조합해야 하면 photoshop.selection.save_channel 로 저장해 두고 " +
+      "photoshop.selection.load_channel 의 mode 로 합치는 길도 있다 — " +
+      "selection.subject · sky · color_range 처럼 mode 가 없는 Tool 은 그쪽을 쓴다.",
     permission: "edit",
     inputSchema: SelectionSetParamsSchema,
     handler: async (input, context) =>

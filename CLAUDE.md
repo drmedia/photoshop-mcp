@@ -93,8 +93,10 @@ Tool 까지 더한 수다(지금 167). 한동안 이 값을 Core 개수로 옮�
   그쪽은 임계 기반 구간 선택이라 거의 이진이고 구조를 못 따라간다.
   `mode` 는 `replace` · `intersect` **둘뿐**이다 — 합성 휘도가
   `document.channels` 에 없어 DOM 으로 못 부른다 (ROADMAP §70)
-- 선택 조합: **`selection.load_channel` 이 통로다** — `replace` · `add` ·
-  `subtract` · `intersect` 넷을 받는다. DOM `selection.load` 가 원래 받고 있었고
+- 선택 조합: **`selection.set` 과 `selection.load_channel` 이 넷을 받는다** —
+  `replace` · `add` · `subtract` · `intersect`. `set` 은 §71 에서 batchPlay 에서
+  DOM 으로 옮기며 **`antiAlias` 도 생겼다**. **`canvas` 에는 `mode` 를 쓸 수 없다**
+  (문서 전체라 합칠 것이 없다). DOM `selection.load` 가 원래 받고 있었고
   **안 열어 둔 것**이었다. 다른 선택 Tool 에 `mode` 가 없으면
   `save_channel` → `load_channel{mode}` 로 조합한다. `constants.SelectionType` 의
   런타임 값은 레퍼런스에 없어 **읽고 없으면 거절한다** (ROADMAP §70)

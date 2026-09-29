@@ -2168,10 +2168,22 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         return this.#setBlendMode(
           command.params as { layerId?: number; blendMode: LayerInfo["blendMode"] },
         ) as TResult;
-      case "SELECTION_SET":
+      case "SELECTION_SET": {
         this.#requireDocument();
+        /* **`replace` 가 아니면 바탕이 될 선택이 필요하다.** (ROADMAP §71)
+         * load_channel 과 같은 규칙이고, Mock 이 안 막으면 그 거절 경로가
+         * 테스트에 영원히 안 나온다. */
+        const { mode } = command.params as { mode?: string };
+        if (mode !== undefined && mode !== "replace" && !this.#hasSelection) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `${mode} 할 선택 영역이 없습니다. mode 를 빼거나 선택을 먼저 만드세요.`,
+            { recoverable: true, details: { mode } },
+          );
+        }
         this.#hasSelection = true;
         return { hasSelection: true } as TResult;
+      }
       case "ADJUSTMENT_HUE_SATURATION":
         this.#snapshot("Hue/Saturation");
         return this.#adjustment("Hue/Saturation", "hueSaturation", command.params) as TResult;

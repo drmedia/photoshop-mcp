@@ -9922,5 +9922,73 @@ replace(right, invert)    → 0–4032        옛 경로도 그대로다
 - [x] 실기: 네 가지 경계가 전부 맞는다
 - [x] 실기: `invert` 경로가 그대로다
 - [x] Mock 이 `replace` 아닌 조합의 거절을 흉내낸다
-- [ ] `selection.set` 의 `mode` — DOM 에 있으나 안 열었다
+- [x] `selection.set` 의 `mode` — §71 에서 열었다
 - [ ] `subject` · `sky` · `color_range` 의 `mode` — batchPlay 라 합성이 필요하다
+
+# 71. `selection.set` 도 조합한다 — batchPlay 에서 DOM 으로
+
+§70 이 `load_channel` 을 열었고, 남은 자리 중 **가장 많이 쓰는 것**이 이것이다.
+Tool 은 늘지 않는다.
+
+## 옮긴 이유는 `mode` 와 `antiAlias` 다
+
+```text
+selectRectangle(bounds, mode, feather, antiAlias)
+selectEllipse(bounds, mode, feather, antiAlias)
+selectAll()
+load(layer, mode, invert)                 ← layerTransparency
+```
+
+batchPlay descriptor 로 `mode` 와 `antiAlias` 를 어떻게 넘기는지 몰라 캡처가
+필요했는데, **DOM 은 레퍼런스에 적혀 있다.** §70 과 같은 교훈이다.
+
+**`antiAlias` 는 아예 없던 파라미터다.** 옮기면서 생겼다. `feather` 도 인자가
+되어 **별도 호출이 하나 줄었다** — 전에는 선택을 만든 뒤 `feather` descriptor 를
+한 번 더 쳤다.
+
+## `canvas` 에는 `mode` 가 없다
+
+`selectAll()` 이 인자를 받지 않는다. 문서 전체라 합칠 것이 없다 — **조용히
+무시하지 않고 거절한다.** 스키마와 플러그인 양쪽에서 막는다.
+
+## 중복 표를 합쳤다
+
+§70 에서 `selection-ops.ts` 에 `SELECTION_TYPE_KEYS` 를 만들었는데
+**`selection-dom.ts` 에 `MODE_KEYS` 가 이미 있었다.** 게다가 그쪽 `fromTable` 은
+없을 때 **무엇이 있는지 함께** 담아 거절한다 — 내가 만든 쪽보다 낫다.
+
+`modeOf` 를 내보내 한 벌로 합쳤다. **두 벌이면 한쪽만 고쳐지는 날이 온다.**
+
+## 실기
+
+```text
+rectangle(1000–3000)
+  subtract(2000–3000)   → selection:1000,1000,2000,3000   200만 픽셀
+canvas + mode:add       → 거절
+```
+
+**`load(layer)` 가 투명도를 준다** — 이것이 마지막 미확인이었다. 빈 레이어
+가운데에 반지름 400 을 칠하고 불러오니 —
+
+```text
+selection:1600,2600,2400,3400        중심 (2000,3000) ± 400
+선택 안의 78.5% 가 순수 빨강          π/4 = 0.785 — 원이 맞다
+```
+
+옛 batchPlay 의 `transparencyEnum` 과 같은 결과다.
+
+## 남은 자리
+
+`subject` · `sky` · `color_range` 는 batchPlay 라 여전히 `mode` 가 없다.
+**막히지는 않는다** — `save_channel` → `load_channel{mode}` 로 조합한다.
+
+## 체크리스트
+
+- [x] `rectangle` · `ellipse` · `layerTransparency` 가 네 조합을 받는다
+- [x] `antiAlias` 를 받는다 — 옮기면서 생겼다
+- [x] `feather` 가 인자가 되어 호출이 하나 줄었다
+- [x] `canvas` 의 `mode` 를 거절한다 (스키마 · 플러그인 양쪽)
+- [x] `modeOf` 를 한 벌로 합쳤다 — §70 이 만든 중복을 지웠다
+- [x] 실기: 사각형 빼기 · canvas 거절 · **`load(layer)` 가 투명도를 준다**
+- [x] Mock 이 `replace` 아닌 조합의 거절을 흉내낸다
+- [ ] `subject` · `sky` · `color_range` — batchPlay 라 합성이 필요하다

@@ -203,6 +203,44 @@ describe("selection.load_channel 의 mode", () => {
     expect(result["hasSelection"]).toBe(true);
   });
 
+  /** ROADMAP 71 — `selection.set` 도 네 가지를 받는다. */
+  it("**selection.set 도 네 가지를 받는다**", () => {
+    const tool = setup()
+      .tools.list()
+      .find((entry) => entry.name === "photoshop.selection.set");
+    const shape = (tool?.inputSchema as unknown as { _def: { schema: { shape: unknown } } })._def
+      .schema.shape as { mode: { unwrap: () => { options: string[] } } };
+    expect(shape.mode.unwrap().options).toEqual(["replace", "add", "subtract", "intersect"]);
+  });
+
+  it("**canvas 에는 mode 를 쓸 수 없다**", async () => {
+    // 문서 전체라 합칠 것이 없다. 조용히 무시하지 않고 거절한다.
+    const mcp = setup();
+    await invoke(mcp, "photoshop.selection.set", rect);
+    await expect(
+      invoke(mcp, "photoshop.selection.set", { shape: "canvas", mode: "add" }),
+    ).rejects.toThrow(/canvas 에는 mode/u);
+    // replace 는 된다 — 기본값과 같은 뜻이다.
+    await expect(
+      invoke(mcp, "photoshop.selection.set", { shape: "canvas", mode: "replace" }),
+    ).resolves.toBeTruthy();
+  });
+
+  it("**바탕 선택이 없으면 replace 말고는 거절한다**", async () => {
+    const mcp = setup();
+    await expect(
+      invoke(mcp, "photoshop.selection.set", { ...rect, mode: "subtract" }),
+    ).rejects.toThrow(/선택 영역이 없습니다/u);
+  });
+
+  it("antiAlias 를 받는다", async () => {
+    // batchPlay 시절에는 넘길 방법을 몰라 아예 없었다.
+    const mcp = setup();
+    await expect(
+      invoke(mcp, "photoshop.selection.set", { ...rect, antiAlias: false }),
+    ).resolves.toBeTruthy();
+  });
+
   /** 합성 휘도는 `document.channels` 에 없어 DOM 으로 못 부른다. */
   it("**luminosity 는 둘뿐이다** — 더하려면 채널을 거친다", () => {
     const tool = setup()

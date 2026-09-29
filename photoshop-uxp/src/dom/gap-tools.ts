@@ -8,6 +8,7 @@ import { flattenLayers } from "./layers.js";
 import { resolveMutatedLayer } from "./mutation-result.js";
 import { hasSelection } from "./mask-selection.js";
 import { runModal } from "./modal.js";
+import { modeOf, type SelectionModeName } from "./selection-dom.js";
 
 /**
  * ROADMAP §8.6 — 실기에서 드러난 공백.
@@ -34,60 +35,124 @@ export interface Bounds {
   bottom: number;
 }
 
+/**
+ * 선택 영역 만들기. (ROADMAP §71)
+ *
+ * ## batchPlay 에서 DOM 으로 옮겼다
+ *
+ * `document.selection` 의 `selectRectangle` · `selectEllipse` · `selectAll` ·
+ * `load` 가 전부 있다(25.0+). 옮긴 이유는 **`mode` 와 `antiAlias` 가 인자로
+ * 붙어 있어서**다 — batchPlay descriptor 로는 그 둘을 어떻게 넘기는지 몰라
+ * 캡처가 필요했는데, DOM 은 레퍼런스에 적혀 있다.
+ *
+ * `feather` 도 인자가 되어 **별도 호출이 하나 줄었다.** 전에는 선택을 만든 뒤
+ * `feather` descriptor 를 한 번 더 쳤다.
+ *
+ * ## `canvas` 에는 `mode` 가 없다
+ *
+ * `selectAll()` 이 인자를 받지 않는다. 문서 전체를 고르는 것이라 합칠 것이
+ * 없다 — **모르는 값을 조용히 무시하지 않고** 거절한다.
+ */
 export async function selectionSet(params: {
   shape: "rectangle" | "ellipse" | "canvas" | "layerTransparency";
   bounds?: Bounds;
   layerId?: number;
   feather?: number;
+  antiAlias?: boolean;
+  mode?: SelectionModeName;
 }): Promise<{ hasSelection: boolean }> {
   return runModal("Set selection", async () => {
     const document = requireActiveDocument();
+    const mode = params.mode ?? "replace";
 
-    if (params.shape === "layerTransparency") {
-      if (params.layerId !== undefined) {
-        const layer = findLayerById(document.layers, params.layerId);
-        if (layer === null) {
-          throw new DispatchError(
-            "LAYER_NOT_FOUND",
-            `레이어 ${params.layerId} 를 찾을 수 없습니다.`,
-            { recoverable: true, details: { layerId: params.layerId } },
-          );
+    const selection = (document as unknown as Record<string, unknown>)["selection"] as
+      | {
+          selectRectangle?: (b: Bounds, m?: unknown, f?: number, a?: boolean) => Promise<void>;
+          selectEllipse?: (b: Bounds, m?: unknown, f?: number, a?: boolean) => Promise<void>;
+          selectAll?: () => Promise<void>;
+          load?: (from: unknown, m?: unknown, invert?: boolean) => Promise<void>;
         }
-        document.activeLayers = [layer];
+      | undefined;
+    if (selection === undefined) {
+      throw new DispatchError(
+        "COMMAND_NOT_SUPPORTED",
+        "이 Photoshop 에는 document.selection 이 없습니다(25.0 이상이 필요합니다).",
+        { recoverable: false },
+      );
+    }
+
+    /* **`replace` 가 아니면 바탕이 될 선택이 있어야 한다.** load_channel 과 같은
+     * 규칙이다 — 없는데 빼면 결과가 비고 호출자는 뺐다고 믿는다. */
+    if (mode !== "replace" && !hasSelection()) {
+      throw new DispatchError(
+        "INVALID_PARAMETER",
+        `${mode} 할 선택 영역이 없습니다. mode 를 빼거나 선택을 먼저 만드세요.`,
+        { recoverable: true, details: { mode } },
+      );
+    }
+
+    if (params.shape === "canvas") {
+      if (params.mode !== undefined && params.mode !== "replace") {
+        throw new DispatchError(
+          "INVALID_PARAMETER",
+          "canvas 에는 mode 를 쓸 수 없습니다. 문서 전체라 합칠 것이 없습니다.",
+          { recoverable: true, details: { mode: params.mode } },
+        );
       }
-      await play("Select layer transparency", {
-        _obj: "set",
-        _target: [{ _ref: "channel", _property: "selection" }],
-        to: { _ref: "channel", _enum: "channel", _value: "transparencyEnum" },
-      });
-    } else if (params.shape === "canvas") {
-      await play("Select all", {
-        _obj: "set",
-        _target: [{ _ref: "channel", _property: "selection" }],
-        to: { _enum: "ordinal", _value: "allEnum" },
-      });
+      if (typeof selection.selectAll !== "function") {
+        throw new DispatchError("COMMAND_NOT_SUPPORTED", "selectAll 이 없습니다.", {
+          recoverable: false,
+        });
+      }
+      await selection.selectAll();
+    } else if (params.shape === "layerTransparency") {
+      const layer =
+        params.layerId === undefined
+          ? document.activeLayers[0]
+          : findLayerById(document.layers, params.layerId);
+      if (layer === undefined || layer === null) {
+        throw new DispatchError(
+          "LAYER_NOT_FOUND",
+          params.layerId === undefined
+            ? "활성 레이어가 없습니다."
+            : `레이어 ${String(params.layerId)} 를 찾을 수 없습니다.`,
+          { recoverable: true, details: { layerId: params.layerId } },
+        );
+      }
+      if (typeof selection.load !== "function") {
+        throw new DispatchError("COMMAND_NOT_SUPPORTED", "selection.load 가 없습니다.", {
+          recoverable: false,
+        });
+      }
+      /* **레이어를 그대로 넘긴다.** `load` 가 Layer 를 받으면 그 레이어의
+       * 불투명 영역이 선택된다 — 옛 batchPlay 의 `transparencyEnum` 과 같다. */
+      await selection.load(layer, modeOf(mode), false);
     } else {
       const bounds = params.bounds;
       if (bounds === undefined) {
         throw new DispatchError("INVALID_PARAMETER", `${params.shape} 에는 bounds 가 필요합니다.`);
       }
-      await play(`Select ${params.shape}`, {
-        _obj: "set",
-        _target: [{ _ref: "channel", _property: "selection" }],
-        to: {
-          _obj: params.shape,
-          top: px(bounds.top),
-          left: px(bounds.left),
-          bottom: px(bounds.bottom),
-          right: px(bounds.right),
-        },
-      });
+      const call =
+        params.shape === "rectangle" ? selection.selectRectangle : selection.selectEllipse;
+      if (typeof call !== "function") {
+        throw new DispatchError("COMMAND_NOT_SUPPORTED", `select${params.shape} 가 없습니다.`, {
+          recoverable: false,
+        });
+      }
+      await call.call(
+        selection,
+        bounds,
+        modeOf(mode),
+        params.feather ?? 0,
+        params.antiAlias ?? true,
+      );
+      return { hasSelection: hasSelection() };
     }
 
+    /* 사각형·타원은 위에서 인자로 넘겼다. 나머지 둘은 따로 건다. */
     if (params.feather !== undefined && params.feather > 0) {
       await play("Feather selection", { _obj: "feather", radius: px(params.feather) });
     }
-
     return { hasSelection: hasSelection() };
   });
 }

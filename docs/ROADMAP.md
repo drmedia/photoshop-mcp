@@ -10309,3 +10309,80 @@ SampleType="2"                       215.73              51.73     ← 듣는다
 - [ ] 색상·심도 범위 — `Type` 값을 안 봤다
 - [ ] 구간 경계가 어느 눈금인지 — 0.30 인데 0.328 이 안 움직였다
 - [ ] `LumRange` 의 가운데 두 칸이 바깥과 달라지는 조건
+
+# 76. `metadata.get` — 픽셀이 "지금 어떤가" 라면 EXIF 는 "왜 그런가"
+
+`document.statistics` 가 σ 를 주지만 그것이 **ISO 6400 의 노이즈인지 ISO 200
+의 것인지** 말하지 않았다. 보정을 얼마나 밀어도 되는지가 거기서 갈린다.
+초점 거리를 모르면 별이 흐른 것인지 초점이 나간 것인지도 못 가른다.
+
+호출자가 자기가 무엇을 보고 있는지 **모르는 채로** 판단하고 있었다.
+
+## DOM 에 없어서 batchPlay — 다만 물어볼 수 있는 쪽이다
+
+Adobe `Document` 레퍼런스의 속성 목록에 `metadata` 가 없다. 그래서 batchPlay
+인데 **`get` 은 읽기라 알림 캡처가 필요 없다**(§54 와 같은 길). 키는
+`XMPMetadataAsUTF8` 이다.
+
+**레퍼런스를 보다가 다른 것도 걸렸다** — 목록에 `histogram (R, v23.0)` 이
+있는데 실기 `host.get` 은 `documentHistogram: false` 다. §17.13 의 "재 보고
+알았다" 가 그대로 유효하다. **레퍼런스는 있는지 물어볼 곳이지 답이 아니다.**
+
+## 파싱을 정규식으로 하지 않았다
+
+XMP 는 같은 값이 속성으로도 자식 요소로도 오고 배열은 `rdf:Alt`/`rdf:Seq` 로
+감싸인다. 직접 긁으면 **어떤 파일에서 조용히 빈 값이 된다.**
+`require("uxp").xmp` 가 Adobe XMP Core 를 그대로 준다.
+
+**Photoshop 25.0(UXP 7.2) 부터**이고 manifest 의 최소 호스트는 24.0 이다.
+없으면 지어내지 않고 `COMMAND_NOT_SUPPORTED` 로 이유를 말한다.
+
+## 위치와 이름은 담지 않는다
+
+EXIF 에는 GPS 좌표가 있다. **촬영 정보를 물었을 뿐인데 집 좌표가 대화에
+올라가는 것**이 기본값이면 안 된다. 있는지만 `hasLocation` 으로 알리고 값은
+읽지 않는다 — 읽지 않으므로 결과에 실릴 길이 없다. `dc:creator` 도 뺐다.
+`window.capture` 를 `external` 로 둔 것과 같은 판단이다.
+
+XMP 전체(15–33KB)를 `raw` 로 내지 않는 이유도 절반은 이것이다. 나머지 절반은
+토큰이다 — Camera Raw 설정과 편집 이력까지 들어 있다. `xmpBytes` 가 얼마나
+더 있는지 말한다.
+
+## 실기 — 두 파일이 서로를 보완했다
+
+```text
+TIFF(Camera Raw 거친 것)  Z5_2 · 230s · f/2.2 · ISO 3200 · 35mm  · lens null
+NEF(카메라에서 바로)      Z5_2 · 1/2s · f/8   · ISO 800  · 300mm · VR 200-500mm f/5.6E
+```
+
+첫 파일은 `lens` 가 `null` 이라 **없는 것인지 키가 틀린 것인지 가릴 수
+없었다.** 사용자가 NEF 를 열어 주어서 갈렸다 — `aux:Lens` 가 맞고 TIFF 에는
+그 값이 없다.
+
+`1/2s` 와 `230s` 가 `formatExposureTime` 의 두 갈래를 다 지나갔다.
+
+## **안 돌아 본 경로를 둘 지웠다**
+
+처음에 ISO 를 `exifEX:PhotographicSensitivity` 와 `exif:ISOSpeedRatings` 두
+곳에서 찾고, 렌즈를 `aux:Lens` 와 `exifEX:LensModel` 두 곳에서 찾게 했다.
+"어느 쪽이 올지 모르니 둘 다" 라는 이유였다.
+
+**한 쪽씩 떼어 재서 둘 다 필요 없다는 것을 확인하고 지웠다.** §17.19 에서
+`document.rotate` 의 batchPlay 대안을 지운 것과 같다 — 짐작으로 남겨 두면
+그 경로가 처음 실행되는 날 그것이 맞는지 아무도 모른다.
+
+측정을 한 번 섞어서 헛돌았다. 렌즈 대안과 ISO 대안을 **같은 빌드에서** 바꾸고
+쟀는데, 하필 그 사이 문서가 바뀌어 렌즈가 어느 키에서 왔는지 못 가렸다.
+빌드 하나에 실험 하나다.
+
+## 체크리스트
+
+- [x] `photoshop.metadata.get` — READ, 162번째 Core Tool
+- [x] 키는 `XMPMetadataAsUTF8`, 파싱은 UXP XMP 모듈
+- [x] 25.0 미만이면 `COMMAND_NOT_SUPPORTED`
+- [x] GPS·촬영자를 담지 않고 `hasLocation` 만
+- [x] 실기 두 파일 — TIFF · NEF
+- [x] `aux:Lens` · `exif:ISOSpeedRatings[1]` 하나씩으로 확정, 대안 경로 삭제
+- [x] Mock 은 전부 `null` — 가짜 EXIF 를 지어내지 않는다
+- [ ] `metadata.set` — 안 만들었다. 쓰기는 무엇이 지워지는지 알아야 한다
+- [ ] 렌즈가 없는 파일에서 `exifEX:LensModel` 이 채우는지 — 그런 파일을 만나면

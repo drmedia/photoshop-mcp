@@ -393,4 +393,29 @@ declare module "uxp" {
   }
 
   export const storage: { readonly localFileSystem: LocalFileSystem };
+
+  /**
+   * XMP 속성 하나. 없으면 `getProperty` 가 `undefined` 를 준다.
+   *
+   * Adobe XMPScript 의 `XMPProperty` 다 — `value` 말고도 `path` · `options`
+   * 가 있지만 쓰지 않아 적지 않는다.
+   */
+  export interface XmpProperty {
+    readonly value?: unknown;
+  }
+
+  export interface XmpMeta {
+    /** 배열은 1부터 센다 — `"ISOSpeedRatings[1]"`. */
+    getProperty(namespace: string, path: string): XmpProperty | undefined;
+    doesPropertyExist(namespace: string, path: string): boolean;
+  }
+
+  /**
+   * XMP Core. **Photoshop 25.0(UXP 7.2) 부터다.**
+   *
+   * manifest 의 최소 호스트가 24.0 이라 **없을 수 있다.** 그래서 타입도
+   * 없을 수 있는 것으로 둔다 — 있다고 적어 두면 없는 환경에서 조용히
+   * `undefined` 를 부르게 된다.
+   */
+  export const xmp: { readonly XMPMeta?: new (serialized: string) => XmpMeta } | undefined;
 }

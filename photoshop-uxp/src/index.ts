@@ -89,6 +89,7 @@ import {
   smartObjectRelink,
   smartObjectUpdate,
 } from "./dom/smart-object.js";
+import { metadataGet } from "./dom/metadata.js";
 import { dodgeBurnDab } from "./dom/dodge-burn.js";
 import { maskDab, paintDab } from "./dom/paint.js";
 import { fontList, textCreate, textSet } from "./dom/text.js";
@@ -267,6 +268,8 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("FONT_LIST", async () => fontList());
   dispatcher.register("PAINT_DAB", async (p) => paintDab(p as Parameters<typeof paintDab>[0]));
   dispatcher.register("MASK_DAB", async (p) => maskDab(p as Parameters<typeof maskDab>[0]));
+  /* 촬영 정보. 받을 것이 없다 — 활성 문서를 읽는다. (ROADMAP §76) */
+  dispatcher.register("METADATA_GET", async () => metadataGet());
   dispatcher.register("SMART_OBJECT_CONVERT", async (p) =>
     smartObjectConvert(p as Parameters<typeof smartObjectConvert>[0]),
   );

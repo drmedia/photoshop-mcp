@@ -395,6 +395,29 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       }
       case "DOCUMENT_GET":
         return (await this.getDocumentInfo()) as TResult;
+      /* 촬영 정보. **가짜 EXIF 를 지어내지 않는다** — 카메라 이름을 채워 두면
+       * 그것을 보고 짠 판단이 실기에서 다르게 돈다. Mock 문서는 찍은 것이
+       * 아니므로 전부 `null` 인 것이 사실이고, 실기에서도 새로 만든 문서는
+       * 이 모양이다. (ROADMAP §76) */
+      case "METADATA_GET": {
+        const info = await this.getDocumentInfo();
+        return {
+          document: { id: info.id, name: info.name },
+          camera: { make: null, model: null, lens: null },
+          exposure: {
+            exposureTime: null,
+            exposureSeconds: null,
+            fNumber: null,
+            iso: null,
+            focalLength: null,
+            exposureBias: null,
+          },
+          capturedAt: null,
+          software: null,
+          hasLocation: false,
+          xmpBytes: 0,
+        } as TResult;
+      }
       /* **문서가 없으면 빈 배열이다. 던지지 않는다.** `DOCUMENT_GET` 과
        * 다른 점이고, Mock 이 여기서 던지면 그 차이가 테스트에 안 나온다. */
       /* **`bitDepth` 는 반영한다.** `documents.add` 가 그 키를 무시하는 것을

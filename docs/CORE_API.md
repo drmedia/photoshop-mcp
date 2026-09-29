@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (161개)
+## 4. 구현된 Core API (162개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -109,6 +109,7 @@ P3  확장 기능
 | `photoshop.document.create` | EDIT | 새 문서. **`applied` 로 요청값이 들어갔는지 확인한다** |
 | `photoshop.document.duplicate` | EDIT | 복제. **되돌릴 수 없는 작업 앞의 안전망** |
 | `photoshop.document.get` | READ | 활성 문서 정보 |
+| `photoshop.metadata.get` | READ | **촬영 정보(EXIF)**. 카메라·노출·ISO·초점 거리. **GPS 와 촬영자는 담지 않는다** — 있는지만 알린다 |
 | `photoshop.layer.list` | READ | 활성 문서의 레이어 목록 |
 | `photoshop.layer.get` | READ | 한 레이어의 상세. **`bounds` 를 준다** — 목록에는 없다 |
 | `photoshop.layer.set_lock` | EDIT | **잠금은 넷이다.** `all` 을 켜면 나머지도 켜진다 |
@@ -604,7 +605,7 @@ photoshop.shape.rectangle · ellipse · line · set_fill · set_stroke
    (guide.* 셋은 §4 에서 열었다 — delete 는 EDIT 로 갔다. ROADMAP §59)
 photoshop.ruler.get_units · set_units
 
-photoshop.metadata.get · set
+photoshop.metadata.set   (get 은 §4 에서 열었다 — ROADMAP §76)
 photoshop.file.reveal
 ```
 

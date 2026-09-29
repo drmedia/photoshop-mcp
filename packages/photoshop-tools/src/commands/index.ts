@@ -248,6 +248,7 @@ import {
 } from "./document-rotate.js";
 import { CAMERA_RAW_APPLY, CameraRawParamsSchema, cameraRawApplyCommand } from "./camera-raw.js";
 import { HOST_GET, HostGetParamsSchema, hostGetCommand } from "./host.js";
+import { METADATA_GET, MetadataGetParamsSchema, metadataGetCommand } from "./metadata.js";
 import { LAYER_DELETE, LayerDeleteParamsSchema, layerDeleteCommand } from "./layer-delete.js";
 import {
   RETOUCH_REMOVE_SPOTS,
@@ -355,6 +356,7 @@ export * from "./channel.js";
 export * from "./layer-comp.js";
 export * from "./path.js";
 export * from "./guide.js";
+export * from "./metadata.js";
 export * from "./text-style.js";
 export * from "./app-info.js";
 export * from "./filter.js";
@@ -570,6 +572,11 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(HOST_GET, hostGetCommand, {
     permission: "read",
     schema: HostGetParamsSchema,
+  });
+  /* 촬영 정보. 픽셀이 "지금 어떤가" 라면 이쪽은 "왜 그런가" 다. (ROADMAP §76) */
+  registry.register(METADATA_GET, metadataGetCommand, {
+    permission: "read",
+    schema: MetadataGetParamsSchema,
   });
   registry.register(DOCUMENT_GET, documentGetCommand, { permission: "read" });
   registry.register(DOCUMENT_LIST, documentListCommand, {

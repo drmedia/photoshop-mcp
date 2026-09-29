@@ -112,6 +112,7 @@ import { createDocumentCreateTool } from "./document-create.js";
 import { createDocumentDuplicateTool } from "./document-duplicate.js";
 import { createDocumentListTool } from "./document-list.js";
 import { createHostGetTool } from "./host.js";
+import { createMetadataGetTool } from "./metadata.js";
 import { createLayerGetTool } from "./layer-get.js";
 import { createLayerSetLockTool } from "./layer-lock.js";
 import { createLayerFlipTool } from "./layer-flip.js";
@@ -197,6 +198,7 @@ export * from "./channel.js";
 export * from "./layer-comp.js";
 export * from "./path.js";
 export * from "./guide.js";
+export * from "./metadata.js";
 export * from "./text-style.js";
 export * from "./app-info.js";
 export * from "./filter.js";
@@ -252,6 +254,7 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   // Phase 1 — 조회
   registry.register(createPingTool(engine));
   registry.register(createHostGetTool(engine));
+  registry.register(createMetadataGetTool(engine));
   registry.register(createDocumentGetTool(engine));
   registry.register(createDocumentListTool(engine));
   registry.register(createDocumentCreateTool(engine));

@@ -10,6 +10,7 @@ export const EXPECTED_TOOLS = [
   // Phase 1 — 조회
   "photoshop.ping",
   "photoshop.host.get",
+  "photoshop.metadata.get",
   "photoshop.document.get",
   "photoshop.document.list",
   "photoshop.document.create",
@@ -200,6 +201,7 @@ export const EXPECTED_TOOLS = [
 export const EXPECTED_COMMANDS = [
   "PING",
   "HOST_GET",
+  "METADATA_GET",
   "DOCUMENT_GET",
   "DOCUMENT_LIST",
   "DOCUMENT_CREATE",

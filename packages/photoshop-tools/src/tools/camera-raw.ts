@@ -66,8 +66,10 @@ export function createCameraRawApplyTool(
       "softness 20 에서 p5 143.7 로 그 덩어리가 경사로 퍼졌다. " +
       "**효과는 평균보다 p5 로 본다** — 올라간 쪽은 이미 천장에 붙어 있어 " +
       "평균은 215.73 → 224.76 으로 조금밖에 안 움직인다. " +
-      "**구간은 Camera Raw 의 눈금이라 document.statistics 의 0-255 와 정확히 " +
-      "맞지 않는다** — 걸고 나서 재서 확인한다. " +
+      "**구간은 Camera Raw 의 눈금이고 document.statistics 의 0-255 로 환산하는 " +
+      "식은 없다** — 문서마다 다르다. 실기에서 무채색 램프는 min 40 이 경계 91 " +
+      "이었는데 같은 값이 사진에서는 약 40 이었다(비트 심도 탓도, 휘도 가중 탓도 " +
+      "아니다). **걸고 나서 document.statistics 로 재서 확인한다.** " +
       "**combine 으로 바탕 마스크와 합친다** — " +
       "[{mode:'subtract'|'add'|'intersect', mask:{...}}] 형태다. " +
       "하늘에서 은하수를 빼거나, 하늘과 밝은 영역을 교차하는 식이다. " +

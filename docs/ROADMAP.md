@@ -9194,7 +9194,7 @@ descriptor 에 실려 나간 값은 볼 수 있다. 다만 **Photoshop 이 그�
 - [x] `smart_object.get_info` 의 `raw.filterFX` 로 Camera Raw 설정이 읽힌다
 - [x] 우리가 건 값(`$Ex12` · `sharpen` · `$ShpM`)이 그대로 되읽힌다
 - [x] 서버 재시작과 무관하다 — 문서에 저장된다
-- [ ] 마스크 descriptor 구조 — 이 방법으로 잡는다
+- [x] 마스크 descriptor 구조 — §66 이 이 방법으로 잡았다
 
 # 66. Camera Raw 마스크는 descriptor 가 아니라 XMP 문자열이다
 
@@ -9552,7 +9552,8 @@ XML 이 통째로 Camera Raw 에 들어간다. 플러그인이 검증된 파라�
 - [x] `MaskBlendMode` 가 마스크마다 붙는다
 - [x] **국소 노출 눈금 4:1 을 두 점으로 확정**
 - [x] 대화상자가 기본값을 채워 넣는다
-- [ ] 방사형 · 범위 · AI 마스크의 `What` 값과 좌표 — 미캡처
+- [x] 방사형의 `What` 값과 좌표 — §68 에서 캡처했다
+- [ ] 범위 · AI 마스크 — 미캡처
 - [x] 톤 다섯의 눈금 ÷100 확인 — 하나를 다른 값으로 둬서 갈랐다
 - [x] 색 패널 넷 — 온도·색조·채도 ÷100, 색조(휠)은 **÷180 확정**
 - [x] 점 색상은 `LocalHue`·`LocalSaturation` 이다 — `Toning*` 이 아니다
@@ -9571,7 +9572,7 @@ XML 이 통째로 Camera Raw 에 들어간다. 플러그인이 검증된 파라�
 - [x] 마스크 좌표가 **음수일 수 있다** (`Zero2Y = -0.707`)
 - [ ] `LocalBrightness` · `LocalToningHue` · `LocalToningSaturation` · `LocalCorrectedDepth` — 대응 UI 미확인
 - [ ] `LocalCurveRefineSaturation` 이 원시값인지 — 기본값 한 점뿐
-- [ ] 구현 — 아직 안 했다
+- [x] 구현 — §67 에서 했다 (선형 · 슬라이더) · §68 (방사형)
 
 # 67. Camera Raw 국소 보정 — XMP 생성기
 
@@ -9692,7 +9693,8 @@ L 평균        89.90     136.51
 - [x] `smartFilterCount` 로 쌓임을 드러낸다
 - [x] Mock 이 쌓임을 흉내낸다 — 0 만 주면 그 경로가 테스트에 안 나온다
 - [x] 틀린 Tool 설명 둘을 고쳤다
-- [ ] 방사형 · 범위 · AI 마스크 — 캡처 필요
+- [x] 방사형 — §68 에서 냈다
+- [ ] 범위 · AI 마스크 — 캡처 필요
 - [ ] `LocalColorGrade*` — 쟀지만 아직 안 냈다
 - [ ] `MaskBlendMode` 빼기 · 교차 — 값 미확인
 

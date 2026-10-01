@@ -11031,4 +11031,63 @@ Sonnet 은 "`history.undo` 가 스마트 필터를 제거하지 않고 가시성
 - [x] `document.statistics` 설명에 단위를 명시했다 (퍼센트 · 0–255 · σ)
 - [x] 설명에서 단위가 빠지면 실패하는 테스트, 값 범위 테스트
 - [x] `history.undo` 가 스마트 필터를 걷어내는 것을 재서 확인했다
-- [ ] 다른 설명에도 단위가 숨은 곳이 없는지 — 필드 이름만으로 단위를 못 읽는 것을 훑는다
+- [x] 다른 설명에도 단위가 숨은 곳이 없는지 훑었다 — §87
+
+---
+# 87. 다른 Tool 도 훑었다 — 같은 이름 `quality` 가 두 눈금이었다
+
+§86 의 마지막 항목이다. 숫자 파라미터 **381개**(Tool 162개)를 자동으로 훑어
+"설명 어디에도 단위 단서가 없는 것" 249개를 뽑았다. 대부분은 잡음이었다 — `layerId` ·
+색인 같은 ID, 범위가 명시된 Camera Raw 슬라이더. **직접 읽어 진짜 위험만 추렸다.**
+
+**파라미터의 `.describe()` 는 전부 비어 있다.** 단위를 LLM 에게 전하는 길은 Tool
+설명 문장 하나뿐이고, 소스 주석에 단위가 있어도(예: dab 의 "반지름(픽셀)") 닿지 않는다.
+
+## 높음 — 같은 이름이 다른 눈금
+
+```text
+document.export     quality 1–12    JPEG, Photoshop 눈금, 기본 10
+*.capture (셋)      quality 1–100   JPEG, 기본 80
+```
+
+**어느 설명에도 눈금이 없었다.** export 에 90 을 주면 스키마가 거절하지만 **capture 에
+10 을 주면 조용히 통과해 극단적으로 낮은 화질**이 나온다. 한쪽 방향만 소리 없이
+틀린다 — §86 의 100 배와 같은 종류다. 양쪽 설명에 눈금을 적고 **서로를 가리키게** 했다.
+
+## 중간 — 단위가 적혀 있지 않았다
+
+소스에서 확인한 값만 적었다 — 추측으로 적지 않았다.
+
+```text
+dodge_burn.dab · paint.dab · mask.dab   x · y · radius 문서 픽셀(왼쪽 위 0,0) · strength 1–100(%) · hardness 0–100
+measure.tilt                            bounds 문서 픽셀 좌표 · minContrast 0–255 눈금(기본 20)
+selection.modify                        radius 픽셀 (feather 0.1–1000 · 나머지 1–500)
+canvas.resize                           width · height 픽셀
+```
+
+`measure.tilt` 의 bounds 가 문서 좌표인 것은 플러그인이 `document.width/height` 와 견주는
+코드로 확인했다.
+
+## 안 쓴 것 — 근거를 못 찾았다
+
+- **`text.create` · `text.set` 의 `size`** (0.1–1296) — pt 인지 px 인지 소스 어디에도
+  없다. 실기에서 재야 정해진다.
+- **`path.fill` · `path.to_selection` 의 `feather`** — 소스에 단위 주석이 없다.
+
+**모르는 단위를 그럴듯하게 적는 것이 안 적는 것보다 나쁘다.** 틀린 단위는 호출자가
+믿고 쓴다.
+
+## 고정했다
+
+`tests/tool-units.test.ts` 가 위 단서가 설명에 **있는지** 본다(문구를 한 글자까지
+고정하지 않는다). `quality` 는 두 눈금이 다르다는 것을 양쪽이 아는지도 따로 본다.
+capture 의 `quality` 문장을 지우자 5개가 정확히 실패했고 복구하니 통과했다.
+
+## 체크리스트
+
+- [x] 숫자 파라미터 381개를 훑어 진짜 위험을 추렸다
+- [x] `quality` 두 눈금을 양쪽에 적고 서로를 가리키게 했다
+- [x] dab 셋 · `measure.tilt` · `selection.modify` · `canvas.resize` 의 단위를 적었다
+- [x] 설명에서 단위가 빠지면 실패하는 테스트
+- [ ] `text` 의 `size` 단위 — 실기에서 재야 한다
+- [ ] `path.fill` · `path.to_selection` 의 `feather` 단위 — 근거가 없다

@@ -13,6 +13,8 @@ import {
 const COMMON =
   " 결과는 그림으로 돌아온다. longEdge 로 크기를 정하며 기본 1024px, 최대 2048px 다 — " +
   "원본 해상도를 받을 이유가 없고 크면 토큰만 먹는다. " +
+  "**quality 는 JPEG 압축 품질 1–100(기본 80)이다** — photoshop.document.export 의 " +
+  "quality(1–12 눈금)와 눈금이 다르다. 10 은 극단적으로 낮은 화질이다. " +
   "문서를 바꾸지 않고 파일도 쓰지 않으므로 read 권한이면 된다.";
 
 function tool<TSchema extends z.ZodTypeAny>(

@@ -15,7 +15,9 @@ export function createMeasureTiltTool(
     name: "photoshop.measure.tilt",
     description:
       "수평선·기둥 같은 경계선의 기울기를 잰다. photoshop.document.rotate 의 입력을 만드는 Tool 이다. " +
-      "bounds 는 **경계선 하나만 들어오게** 잡는다 — 섬·건물이 섞이면 잔차가 커진다. " +
+      "bounds 는 **문서 픽셀 좌표** {left, top, right, bottom}(왼쪽 위가 0,0)이고 " +
+      "**경계선 하나만 들어오게** 잡는다 — 섬·건물이 섞이면 잔차가 커진다. " +
+      "minContrast 는 경계로 인정할 최소 대비(0–255 눈금, 기본 20)다. " +
       "angleDegrees 는 시계 방향이 양수이고 rotate 와 같은 규약이라 **부호를 뒤집어 넘긴다** " +
       "(−1.87° 로 나왔으면 rotate 에 1.87). " +
       "**각도만 보고 돌리지 않는다.** residualIqr 이 직선성을 말한다 — " +

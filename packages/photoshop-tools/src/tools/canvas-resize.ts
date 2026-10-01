@@ -18,7 +18,7 @@ export function createCanvasResizeTool(
       "늘리면 빈 자리가 생기고 줄이면 바깥이 캔버스 밖으로 나간다. " +
       "**photoshop.image.resize 와 다르다** — 그쪽은 픽셀을 다시 표본화해 그림이 통째로 " +
       "커지거나 작아진다. 여백을 더하거나 덜어낼 때가 이쪽이다. " +
-      "width · height 중 최소 하나가 있어야 하고 **생략한 쪽은 지금 값 그대로다** — " +
+      "width · height 는 **픽셀**이고 최소 하나가 있어야 하며 **생략한 쪽은 지금 값 그대로다** — " +
       "image.resize 에서 한쪽을 생략하면 비율을 맞추는 것과 다르다. " +
       "anchor 는 기존 그림을 새 캔버스 어디에 둘지다(topLeft · middleCenter · bottomRight 등 9가지). " +
       "**줄일 때 어느 쪽이 잘리는지가 anchor 로 결정된다** — 생략하면 Photoshop 기본값이고 " +

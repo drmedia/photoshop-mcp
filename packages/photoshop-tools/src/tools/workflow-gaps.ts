@@ -174,6 +174,7 @@ export function createSelectionModifyTool(
     "이미 만든 선택 영역을 다듬는다. feather(경계를 부드럽게) · expand(확장) · " +
       "contract(축소) · smooth(요철 정리). selection.set 의 feather 는 만들 때만 " +
       "쓸 수 있으므로, 만들어 둔 선택의 경계를 나중에 조정하려면 이것을 쓴다. " +
+      "radius 는 **픽셀**이다(feather 는 0.1–1000, 나머지는 1–500). " +
       "선택 영역이 없으면 실패한다.",
     SelectionModifyParams,
   );

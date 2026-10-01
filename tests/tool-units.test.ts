@@ -80,6 +80,14 @@ const MUST_STATE: [string, RegExp][] = [
   ["document.compare", /판정은 없다/u],
   ["document.compare", /sRGB 가정/u],
   ["document.compare", /JPEG \*\*1–100\*\*/u],
+
+  // adjustment.get — 해석 범위 · 단위 · 초록 채널 이름의 함정 (§96).
+  ["adjustment.get", /곡선\(curves\)과 색조·채도\(hueSaturation\)만 해석/u],
+  ["adjustment.get", /둘 다 0–255/u],
+  ["adjustment.get", /초록 채널을 'grain' 으로 돌려주는데/u],
+  ["adjustment.get", /hue −180~180, saturation −100~100, lightness −100~100/u],
+  ["adjustment.get", /전부 아니면 null/u],
+  ["adjustment.get", /raw 는 Photoshop 이 준 원본 descriptor/u],
 ];
 
 describe("Tool 설명의 단위", () => {

@@ -1130,6 +1130,22 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        * `fileReference` 를 `null` 로 둔다. 흉내낼 수 있는 것은
        * `isSmartObject` 뿐이고 그것은 정확히 흉내낸다.
        */
+      /**
+       * 조정 레이어 읽기. (ROADMAP §96)
+       *
+       * **Mock 은 조정 레이어의 값을 모른다.** 만들 때 받은 파라미터를 보관하지 않으므로 `raw` 를
+       * `null` 로 둔다 — 지어내면 Mock 으로 돌린 워크플로가 있지도 않은 값으로 판단한다. 흉내낼 수
+       * 있는 것은 조정 레이어인가 뿐이고 그것은 정확히 흉내낸다.
+       */
+      case "ADJUSTMENT_GET": {
+        const at = this.#requireLayerIndex((command.params as { layerId?: number }).layerId);
+        const layer = this.#layers[at] as LayerInfo;
+        return {
+          layer: { ...layer },
+          isAdjustment: layer.type === "adjustment",
+          raw: null,
+        } as TResult;
+      }
       case "SMART_OBJECT_GET_INFO": {
         const at = this.#requireLayerIndex((command.params as { layerId?: number }).layerId);
         const layer = this.#layers[at] as LayerInfo;

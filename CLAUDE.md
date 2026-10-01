@@ -14,7 +14,7 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **164개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **165개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
@@ -166,6 +166,12 @@ Tool 까지 더한 수다(지금 168). 한동안 이 값을 Core 개수로 옮�
   한 응답이라 이미지를 못 받는 클라이언트도 수치로 판단한다. **그림에는 글자가 없어 `panels` 순서가
   유일한 표식**이다. 보정 전은 `beforeLayerId`(필수 — 비파괴라 원본이 아래에 있다), 후는 생략하면
   합성. 수치는 전체 해상도, 그림은 축소. **판정이 없다** (ROADMAP §91)
+- 조정 읽기: `adjustment.get` — **이미 걸린 보정이 무엇을 하는지.** 보정 루프의 첫 단계가 이것을
+  필요로 한다(§95 에서 마스크로 짐작해야 했다). **곡선과 색조·채도만 해석**(`settings`)하고
+  나머지 종류는 `null` + 원본(`raw`)이다 — 실기에서 모양을 확인한 것만 옮긴다.
+  **Photoshop 은 곡선의 초록 채널을 `grain` 으로 준다**(`RGBColor` 의 녹색 키와 같은 함정) — 짐작으로
+  `green` 이라 썼다면 놓쳤다. 해석은 **전부 아니면 `null`** 이고, 해석은 서버가 한다(Plugin 은 원본만)
+  (ROADMAP §96)
 - 측정: `document.statistics` — **전체 해상도 원본**에서 히스토그램·채널 통계
 - 촬영 정보: `metadata.get` — 카메라·렌즈·노출·ISO·초점 거리. **`statistics` 와
   짝이다** — 저쪽은 "지금 어떤가" 이고 이쪽은 "왜 그런가" 다. DOM 에 없어
@@ -1073,7 +1079,7 @@ Plugin 이 서버를 못 찾는다.
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 164개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 165개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져

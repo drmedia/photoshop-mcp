@@ -105,6 +105,7 @@ import { layerReorder } from "./dom/layer-reorder.js";
 import { documentStatistics } from "./dom/document-statistics.js";
 import { documentAnalyze } from "./dom/document-analyze.js";
 import { documentCompare } from "./dom/document-compare.js";
+import { adjustmentGet } from "./dom/adjustment-get.js";
 import { cameraRawApply } from "./dom/camera-raw.js";
 import { layerDelete } from "./dom/layer-delete.js";
 import { retouchRemoveSpots } from "./dom/retouch.js";
@@ -220,6 +221,7 @@ export function createDispatcher(): CommandDispatcher {
   dispatcher.register("DOCUMENT_ANALYZE", async (p) =>
     documentAnalyze(p as Parameters<typeof documentAnalyze>[0]),
   );
+  dispatcher.register("ADJUSTMENT_GET", async (p) => adjustmentGet(p as { layerId?: number }));
   dispatcher.register("DOCUMENT_COMPARE", async (p) =>
     documentCompare(p as unknown as Parameters<typeof documentCompare>[0]),
   );

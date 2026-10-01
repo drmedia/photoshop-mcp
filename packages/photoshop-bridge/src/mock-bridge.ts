@@ -1760,6 +1760,39 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
           { recoverable: false, details: { bounds } },
         );
       }
+      case "DOCUMENT_ANALYZE": {
+        const params = command.params as {
+          region?: string;
+          layerId?: number;
+          target?: string;
+          analyses?: string[];
+          grid?: number;
+        };
+        // 대상 해석(레이어 · 마스크 · 선택)은 statistics 와 규칙이 같다. 그쪽 검사를 그대로 거쳐
+        // Mock 이 실기보다 너그러워지지 않게 한다 — 너그러우면 그 오류 경로가 테스트에 안 나온다.
+        const base = (await this.executeCommand({
+          type: "DOCUMENT_STATISTICS",
+          params: { region: params.region, layerId: params.layerId, target: params.target },
+        })) as { source: string; pixels: number };
+        const document = this.#requireDocument();
+        const selected = params.region === "selection";
+        const width = selected ? 100 : document.width;
+        const height = selected ? 100 : document.height;
+        return {
+          source: base.source,
+          area: { width, height },
+          pixels: base.pixels,
+          bitDepth: 8,
+          ...flatAnalysis(
+            params.analyses ?? ["histogram", "clipping", "gradient", "noise", "colorCast"],
+            params.grid ?? 8,
+            width,
+            height,
+          ),
+          method: "mock",
+          elapsedMs: 0,
+        } as TResult;
+      }
       case "DOCUMENT_STATISTICS": {
         const document = this.#requireDocument();
         const params = command.params as { region?: string; layerId?: number; target?: string };
@@ -3698,4 +3731,135 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     }
     return this.#document;
   }
+}
+
+/**
+ * `DOCUMENT_ANALYZE` 의 Mock 결과. **Mock 의 문서는 평평한 회색 한 장이다**(`DOCUMENT_STATISTICS` 와
+ * 같은 모델) — 기울기 · 클리핑 · 노이즈가 전부 0 이고 색은 중립이다. 그럴듯한 값을 지어내면 테스트가
+ * 거짓을 고정한다.
+ *
+ * 같은 이미지를 `imaging-analysis.ts` 에 넣은 결과와 **같아야 한다** — `tests/document-analyze.test.ts`
+ * 가 두 쪽을 견준다. 8비트 값은 구간마다 정수가 하나라 128 이 128 로 정확히 나온다(16비트는 구간 가운데).
+ */
+function flatAnalysis(
+  analyses: readonly string[],
+  tiles: number,
+  width: number,
+  height: number,
+): Record<string, unknown> {
+  const short = Math.max(1, Math.min(width, height));
+  const long = Math.max(width, height);
+  const small = Math.max(1, Math.min(tiles, short));
+  const large = Math.max(1, Math.min(32, Math.round((small * long) / short)));
+  const cols = width <= height ? small : large;
+  const rows = width <= height ? large : small;
+  const level = 128;
+  const wanted = new Set(analyses);
+
+  const out: Record<string, unknown> = { grid: { cols, rows } };
+  const zeros = (): number[][] =>
+    Array.from({ length: rows }, () => new Array<number>(cols).fill(0));
+  const spike = (): number[] => {
+    const bins = new Array<number>(64).fill(0);
+    bins[32] = 100;
+    return bins;
+  };
+  const plane = (mean: number): Record<string, unknown> => ({
+    meanLevel: mean,
+    acrossX: 0,
+    acrossY: 0,
+    magnitude: 0,
+    directionDegrees: null,
+    higherToward: null,
+    residualRms: 0,
+  });
+  const emptyCast = {
+    pixelsPercent: 0,
+    median: null,
+    ratios: { redOverGreen: null, blueOverGreen: null },
+    lab: null,
+    chroma: null,
+    hueDegrees: null,
+    direction: null,
+  };
+  const grayCast = {
+    pixelsPercent: 100,
+    median: { red: level, green: level, blue: level },
+    ratios: { redOverGreen: 1, blueOverGreen: 1 },
+    lab: { L: 53.59, a: 0, b: 0 },
+    chroma: 0,
+    hueDegrees: null,
+    direction: null,
+  };
+
+  if (wanted.has("histogram")) {
+    out["histogram"] = {
+      bins: 64,
+      red: spike(),
+      green: spike(),
+      blue: spike(),
+      luminance: spike(),
+      zones: { shadows: 0, midtones: 100, highlights: 0 },
+      peak: { bin: 32, level: 129.5, percent: 100 },
+      usedRange: { low: 128, high: 128, span: 0, headroom: 127 },
+    };
+  }
+  if (wanted.has("clipping")) {
+    const side = (): Record<string, unknown> => ({
+      percent: 0,
+      blobs: {
+        count: 0,
+        largestPixels: 0,
+        bySize: { px1: 0, px2to9: 0, px10to99: 0, px100to999: 0, px1000plus: 0 },
+      },
+      blownTiles: 0,
+      bounds: null,
+      tiles: zeros(),
+    });
+    out["clipping"] = { high: side(), low: side() };
+  }
+  if (wanted.has("gradient")) {
+    out["gradient"] = {
+      usedTiles: cols * rows,
+      totalTiles: cols * rows,
+      luminance: plane(level),
+      red: plane(level),
+      green: plane(level),
+      blue: plane(level),
+      colorDrift: { redMinusGreen: plane(0), blueMinusGreen: plane(0) },
+      vignette: { center: level, corners: level, centerMinusCorners: 0 },
+    };
+  }
+  if (wanted.has("noise")) {
+    out["noise"] = {
+      luminance: 0,
+      byZone: {
+        shadows: { sigma: null, pairsPercent: 0 },
+        midtones: { sigma: 0, pairsPercent: 100 },
+        highlights: { sigma: null, pairsPercent: 0 },
+      },
+      chroma: { redMinusGreen: 0, blueMinusGreen: 0 },
+      flat: {
+        tiles: cols * rows,
+        usable: cols * rows,
+        sigmaMin: 0,
+        sigmaP10: 0,
+        sigmaMedian: 0,
+        flattest: {
+          left: 0,
+          top: 0,
+          right: Math.floor(width / cols),
+          bottom: Math.floor(height / rows),
+          sigma: 0,
+        },
+      },
+    };
+  }
+  if (wanted.has("colorCast")) {
+    out["colorCast"] = {
+      colorSpace: "sRGB 가정 (문서 프로파일은 적용하지 않는다)",
+      zones: { shadows: emptyCast, midtones: grayCast, highlights: emptyCast, all: grayCast },
+    };
+  }
+  return out;
 }

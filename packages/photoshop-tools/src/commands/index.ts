@@ -261,6 +261,11 @@ import {
   documentStatisticsCommand,
 } from "./document-statistics.js";
 import {
+  DOCUMENT_ANALYZE,
+  DocumentAnalyzeParamsSchema,
+  documentAnalyzeCommand,
+} from "./document-analyze.js";
+import {
   CAPTURE_DOCUMENT,
   CAPTURE_LAYER,
   CAPTURE_SELECTION,
@@ -401,6 +406,7 @@ export * from "./paint.js";
 export * from "./text.js";
 export * from "./action.js";
 export * from "./document-statistics.js";
+export * from "./document-analyze.js";
 export * from "./retouch.js";
 export * from "./camera-raw.js";
 export * from "./layer-delete.js";
@@ -666,6 +672,10 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(DOCUMENT_STATISTICS, documentStatisticsCommand, {
     permission: "read",
     schema: DocumentStatisticsParamsSchema,
+  });
+  registry.register(DOCUMENT_ANALYZE, documentAnalyzeCommand, {
+    permission: "read",
+    schema: DocumentAnalyzeParamsSchema,
   });
   registry.register(DOCUMENT_CROP, documentCropCommand, {
     // 픽셀을 버리지 않는다. 캔버스만 줄이므로 되돌릴 수 있다.

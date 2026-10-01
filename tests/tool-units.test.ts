@@ -62,6 +62,15 @@ const MUST_STATE: [string, RegExp][] = [
 
   // §86 에서 고친 것도 함께 묶는다.
   ["document.statistics", /clippedLow[^.]*퍼센트/u],
+
+  // analyze — 단위 · 원점 · 판정 없음 · 근사의 전제를 설명이 말한다 (§90).
+  ["document.analyze", /퍼센트\(0–100\)이고 비율\(0–1\)이/u],
+  ["document.analyze", /0–255 눈금/u],
+  ["document.analyze", /왼쪽 위가 원점/u],
+  ["document.analyze", /판정은 없다/u],
+  ["document.analyze", /별은 몇~수십 픽셀 덩어리에/u],
+  ["document.analyze", /sRGB 를 가정한 근사/u],
+  ["document.analyze", /8비트 문서의 σ 는 정수 단위로 거칠다/u],
 ];
 
 describe("Tool 설명의 단위", () => {

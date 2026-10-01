@@ -1,11 +1,5 @@
-import { imaging } from "photoshop";
-import { DispatchError } from "../dispatcher/dispatcher.js";
-import { requireActiveDocument } from "./document.js";
-import { toLayerType } from "./mappings.js";
-import { findLayerById } from "./layer-edit.js";
-import { hasSelection } from "./mask-selection.js";
 import { runModal } from "./modal.js";
-import { selectionBounds } from "./state-read.js";
+import { readPixels, type PixelSourceParams } from "./pixel-source.js";
 
 /**
  * 문서 통계. (ROADMAP §17.13)
@@ -120,125 +114,15 @@ function describe(
   };
 }
 
-export async function documentStatistics(params: {
-  region?: "document" | "selection";
-  layerId?: number;
-  target?: "layer" | "mask";
-}): Promise<unknown> {
+export async function documentStatistics(params: PixelSourceParams): Promise<unknown> {
   return runModal("Document statistics", async () => {
-    const api = imaging;
-    if (api === undefined || typeof api.getPixels !== "function") {
-      throw new DispatchError(
-        "COMMAND_NOT_SUPPORTED",
-        "이 Photoshop 버전에는 Imaging API 가 없어 통계를 낼 수 없습니다.",
-        { recoverable: false },
-      );
-    }
-
-    const document = requireActiveDocument();
-    const request: Record<string, unknown> = { documentID: document.id };
-    let source = "document";
-
-    if (params.layerId !== undefined) {
-      const layer = findLayerById(document.layers, params.layerId);
-      if (layer === undefined || layer === null) {
-        throw new DispatchError(
-          "LAYER_NOT_FOUND",
-          `레이어 ${params.layerId} 를 찾을 수 없습니다.`,
-          { recoverable: true, details: { layerId: params.layerId } },
-        );
-      }
-      /* **마스크를 잴 때는 조정 레이어를 막지 않는다.** 조정 레이어는 자기
-       * 픽셀이 없어 막아 둔 것인데, 마스크는 있다. 광도 마스크가 의도한
-       * 구조를 담았는지 확인하는 유일한 길이다. */
-      if (params.target === "mask") {
-        if (typeof api.getLayerMask !== "function") {
-          throw new DispatchError(
-            "COMMAND_NOT_SUPPORTED",
-            "이 Photoshop 의 Imaging API 에 getLayerMask 가 없어 마스크를 읽을 수 없습니다.",
-            { recoverable: false },
-          );
-        }
-        request["layerID"] = layer.id;
-        source = `mask:${String(layer.id)}`;
-      } else {
-        // **조정 레이어와 그룹은 막는다.**
-        //
-        // 실기에서 조정 레이어를 재 보니 모든 채널 평균이 255 로 나왔다. 픽셀이
-        // 아니라 마스크 영역을 잰 것이다. 숫자 자체는 돌아오므로 호출자는 "이
-        // 레이어는 순백" 이라고 읽는다 — 아무 값도 안 주는 것보다 나쁘다.
-        const kind = toLayerType(layer.kind).type;
-        if (kind === "adjustment" || kind === "group") {
-          throw new DispatchError(
-            "INVALID_PARAMETER",
-            `${kind === "group" ? "그룹" : "조정 레이어"}에는 잴 픽셀이 없습니다. ` +
-              "layerId 를 빼면 조정이 반영된 합성 결과를 잽니다.",
-            { recoverable: true, details: { layerId: layer.id, type: kind } },
-          );
-        }
-
-        request["layerID"] = layer.id;
-        source = `layer:${layer.id}`;
-      }
-    }
-
-    if (params.region === "selection") {
-      if (!hasSelection()) {
-        throw new DispatchError("INVALID_PARAMETER", "잴 선택 영역이 없습니다.", {
-          recoverable: true,
-        });
-      }
-      const bounds = selectionBounds();
-      if (bounds === null) {
-        throw new DispatchError("COMMAND_FAILED", "선택 영역의 경계를 읽지 못했습니다.", {
-          recoverable: true,
-        });
-      }
-      request["sourceBounds"] = bounds;
-      source = `selection:${bounds.left},${bounds.top},${bounds.right},${bounds.bottom}`;
-    }
-
     const started = Date.now();
-
-    // **targetSize 를 주지 않는다.** 축소하면 클리핑이 사라진다.
-    let pixelData;
-    try {
-      pixelData =
-        params.target === "mask"
-          ? await (api.getLayerMask as NonNullable<typeof api.getLayerMask>)(request)
-          : await api.getPixels(request);
-    } catch (error) {
-      throw new DispatchError(
-        "COMMAND_FAILED",
-        `픽셀을 읽지 못했습니다: ${String((error as { message?: unknown })?.message ?? error)}`,
-        { recoverable: true, details: { source } },
-      );
-    }
+    // 대상 해석(레이어 · 마스크 · 선택)과 전체 해상도 읽기는 `document.analyze` 와 공유한다.
+    const pixelData = await readPixels(params);
 
     try {
-      const raw = pixelData.imageData as {
-        componentSize?: number;
-        components?: number;
-        width?: number;
-        height?: number;
-        getData?: (options?: unknown) => Promise<ArrayBufferView>;
-      };
-      if (typeof raw.getData !== "function") {
-        throw new DispatchError("COMMAND_NOT_SUPPORTED", "픽셀 버퍼를 읽을 수 없습니다.", {
-          recoverable: false,
-        });
-      }
-
-      const componentSize = raw.componentSize ?? 8;
-      const components = raw.components ?? 3;
-      // 16비트 문서의 최대값은 32768 이다. 65535 로 두면 모든 값이 절반으로 보인다.
-      const maxValue = componentSize > 8 ? 32768 : 255;
-
-      const buffer = (await raw.getData({ chunky: true })) as unknown as {
-        length: number;
-        [index: number]: number;
-      };
-      const pixels = Math.floor(buffer.length / components);
+      const { source, components, componentSize, maxValue, pixels } = pixelData;
+      const buffer = pixelData.data;
 
       const red = new Uint32Array(maxValue + 1);
       const green = new Uint32Array(maxValue + 1);
@@ -252,8 +136,7 @@ export async function documentStatistics(params: {
 
       // 폭을 모르면 이웃이 누구인지 알 수 없다. 그때는 노이즈를 재지 않는다 —
       // 0 을 돌려주면 "노이즈가 없다" 는 틀린 사실이 된다.
-      const width = raw.width ?? 0;
-      const height = width > 0 ? Math.floor(pixels / width) : 0;
+      const { width, height } = pixelData;
       let diffTotal = 0;
 
       const clamp = (value: number): number =>
@@ -333,7 +216,7 @@ export async function documentStatistics(params: {
         elapsedMs,
       };
     } finally {
-      pixelData.imageData?.dispose?.();
+      pixelData.dispose();
     }
   });
 }

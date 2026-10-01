@@ -61,6 +61,7 @@ import { createActionDeclaredTool, createActionListTool, createActionRunTool } f
 import { createLayerReorderTool } from "./layer-reorder.js";
 import { createMeasureTiltTool } from "./measure-tilt.js";
 import { createDocumentStatisticsTool } from "./document-statistics.js";
+import { createDocumentAnalyzeTool } from "./document-analyze.js";
 import { createCameraRawApplyTool } from "./camera-raw.js";
 import { createLayerDeleteTool } from "./layer-delete.js";
 import { createRemoveSpotsTool } from "./retouch.js";
@@ -225,6 +226,7 @@ export * from "./paint.js";
 export * from "./text.js";
 export * from "./action.js";
 export * from "./document-statistics.js";
+export * from "./document-analyze.js";
 export * from "./retouch.js";
 export * from "./camera-raw.js";
 export * from "./layer-delete.js";
@@ -275,6 +277,7 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createSelectionSkyTool(engine));
   registry.register(createSelectionSubjectTool(engine));
   registry.register(createDocumentStatisticsTool(engine));
+  registry.register(createDocumentAnalyzeTool(engine));
   registry.register(createRemoveSpotsTool(engine));
   registry.register(createCameraRawApplyTool(engine));
   registry.register(createLayerDeleteTool(engine));

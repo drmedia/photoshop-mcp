@@ -103,6 +103,7 @@ import { openExtensionPicker } from "./panel/extension-picker.js";
 import { documentOpen } from "./dom/document-open.js";
 import { layerReorder } from "./dom/layer-reorder.js";
 import { documentStatistics } from "./dom/document-statistics.js";
+import { documentAnalyze } from "./dom/document-analyze.js";
 import { cameraRawApply } from "./dom/camera-raw.js";
 import { layerDelete } from "./dom/layer-delete.js";
 import { retouchRemoveSpots } from "./dom/retouch.js";
@@ -213,6 +214,9 @@ export function createDispatcher(): CommandDispatcher {
   );
   dispatcher.register("DOCUMENT_STATISTICS", async (p) =>
     documentStatistics(p as Parameters<typeof documentStatistics>[0]),
+  );
+  dispatcher.register("DOCUMENT_ANALYZE", async (p) =>
+    documentAnalyze(p as Parameters<typeof documentAnalyze>[0]),
   );
   dispatcher.register("DOCUMENT_CROP", async (p) =>
     documentCrop(p as Parameters<typeof documentCrop>[0]),

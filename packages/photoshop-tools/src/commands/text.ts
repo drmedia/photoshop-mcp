@@ -46,6 +46,9 @@ const StyleShape = {
    * 똑같이 72px 높이였다(Arial 대문자 높이 ≈ 0.716 × size). 포인트였다면 300ppi 에서
    * 약 4.17배인 300px 가 나와야 한다. 두 번째 문서가 실제로 300ppi 였는지도
    * `image.resize` 의 `before.resolution` 으로 확인했다.
+   *
+   * **Photoshop 문자 패널의 pt 는 `size × 72 ÷ ppi` 다.** 창 캡처로 패널을 읽었다 —
+   * 300ppi 에서 size 100 → 24pt, 150ppi 에서 → 48pt.
    */
   size: z.number().min(0.1).max(1296).optional(),
   color: ColorSchema.optional(),

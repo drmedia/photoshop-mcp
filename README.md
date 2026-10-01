@@ -10,7 +10,7 @@ Photoshop UXP plugin that acts as the bridge, and an extension system.
 
 |             |                                                                                          |
 | ----------- | ---------------------------------------------------------------------------------------- |
-| Photoshop   | 24.0 or later. **Verified against 27.8**                                                   |
+| Photoshop   | 25.0 or later. **Verified against 27.8 only**                                              |
 | Node        | 22.12+ (the runtime works on 18+, but the dev and test tooling requires 22.12)              |
 | OS          | Windows. On macOS only `window.capture` is known to be unsupported; the rest is unverified  |
 | Plugin      | The UXP plugin must be loaded into Photoshop ([Connecting](#connecting-photoshop))          |

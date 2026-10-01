@@ -26,8 +26,8 @@ import { cleanText, formatExposureTime, parseRational, round, toInteger } from "
  * 배열은 `rdf:Alt` 로 감싸여 있어 **직접 긁으면 어떤 파일에서 조용히 빈
  * 값이 된다.** `require("uxp").xmp` 가 Adobe 의 XMP Core 를 그대로 준다.
  *
- * **Photoshop 25.0(UXP 7.2) 부터다.** manifest 의 최소 버전은 24.0 이라
- * 없을 수 있고, 그때는 지어내지 않고 실패한다.
+ * **Photoshop 25.0(UXP 7.2) 부터다.** manifest 의 최소 버전도 25.0 이라 보통은
+ * 있지만, 없으면 지어내지 않고 실패한다.
  *
  * ## 실기에서 두 파일로 확인했다
  *

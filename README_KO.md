@@ -8,7 +8,7 @@ Photoshop를 MCP(Model Context Protocol)로 제어하기 위한 모노레포입�
 
 | | |
 |---|---|
-| Photoshop | 24.0 이상. **27.8 에서 실기 검증** |
+| Photoshop | 25.0 이상. **실기 검증은 27.8 에서만** |
 | Node | 22.12 이상 (런타임 자체는 18+ 로 돌지만 개발·테스트 도구가 요구) |
 | OS | Windows. macOS 는 `window.capture` 만 미지원이고 나머지는 미검증 |
 | 플러그인 | UXP 플러그인을 Photoshop 에 적재해야 합니다 ([연결](#photoshop-연결)) |

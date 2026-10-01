@@ -10333,8 +10333,8 @@ XMP 는 같은 값이 속성으로도 자식 요소로도 오고 배열은 `rdf:
 감싸인다. 직접 긁으면 **어떤 파일에서 조용히 빈 값이 된다.**
 `require("uxp").xmp` 가 Adobe XMP Core 를 그대로 준다.
 
-**Photoshop 25.0(UXP 7.2) 부터**이고 manifest 의 최소 호스트는 24.0 이다.
-없으면 지어내지 않고 `COMMAND_NOT_SUPPORTED` 로 이유를 말한다.
+**Photoshop 25.0(UXP 7.2) 부터**이고 manifest 의 최소 호스트도 25.0 이다(§85 에서
+24.0 에서 올렸다). 없으면 지어내지 않고 `COMMAND_NOT_SUPPORTED` 로 이유를 말한다.
 
 ## 위치와 이름은 담지 않는다
 
@@ -10925,3 +10925,62 @@ descriptor 키로 나가는 두 이름과 두 표가 이름을 나눠 갖는 것
 
 - [x] 스키마 ↔ 키 표 이름 집합을 양방향으로 고정했다 (일부러 어긋내 실패를 확인)
 - [x] 서버가 요청 이름과 `applied` 를 비교한다 — 빠지면 `PROTOCOL_ERROR`
+
+---
+# 85. manifest 의 최소 호스트를 24.0 에서 25.0 으로 올린다
+
+Camera Raw 의 XMP 출처를 찾다가 "국소 보정은 최소 버전이 얼마여야 하나" 를 따졌다.
+**Camera Raw 쪽은 문제가 아니었고 문제는 manifest 의 선언 자체였다.**
+
+## Camera Raw 는 문제 없다
+
+ExifTool 의 `crs` 표에서 `MaskGroupBasedCorrections` 와 범위 마스크의 `Invert` ·
+`SampleType` · `LumRange` 에 "new in LR 11.0" 주석이 붙어 있다. Adobe 공지로는
+Lightroom Classic 11.0 과 **Camera Raw 14.0**(2021-10)이 새 마스킹을 냈고, 커뮤니티
+보고로는 Photoshop 23 이 Camera Raw 14.0 과 함께 왔다. 최소 24.0 이 이보다 높다.
+(Photoshop ↔ Camera Raw 대응표는 Adobe 공식 표에서 못 찾고 커뮤니티 글로 확인했다.)
+
+**Adobe 의 공식 `crs` 문서는 40개 속성뿐이고 2012 이후 이름이 없다** —
+`Exposure2012` · `MaskGroupBasedCorrections` · `LocalExposure2012` · `LumRange` 가 전부
+없다. 이 프로젝트가 키를 실기 캡처로만 잡은 것이 맞았다. ExifTool 이 선형·방사형
+마스크 속성과 `MaskActive` · `MaskBlendMode` · `MaskInverted` · `MaskValue` 를 모두
+갖고 있어 **실기 값을 독립 출처로 다시 확인했다.** `LocalGlow` · `LocalGrain` ·
+`LocalColorGrade*` · `DepthRange` 는 ExifTool 에 없다 — 우리 캡처만 근거다.
+
+## 문제는 manifest 였다
+
+코드에 "이 Photoshop 에는 X 가 없습니다(N 이상이 필요합니다)" 거절이 있고 그 N 이
+manifest 최소 24.0 을 넘는 곳이 있었다.
+
+```text
+25.0   selection.set · load_channel · translate/scale/rotate_boundary · polygon
+       path.create · metadata.get
+24.1   text.get · set_tracking · set_leading · set_paragraph · warp · convert_to_*
+```
+
+24.0 에 설치하면 **설치는 되는데 Tool 약 15개가 호출할 때마다 실패한다.**
+`selection.set` 은 선택에서 시작하는 작업의 첫 단계다. 코드는 알고 있었다
+(`metadata.ts` 주석) — 사용자가 설치 전에 알 길이 없었을 뿐이다.
+
+## 25.0 으로 올렸다
+
+설치 단계에서 막는 쪽이 낫다. 25.0 은 **API 가 있다고 알려진 하한**이지 동작을 확인한
+하한이 아니다 — **실기 검증은 Photoshop 27.8.0 / UXP 9.3.0 / Camera Raw 18.6 하나뿐**
+이다(`host.get` 으로 다시 확인했다). 25.0~27.7 에서 문제가 보고되면 그때 하한을 올린다.
+**올리는 쪽은 언제든 쉽고 낮추는 쪽이 검증을 요구한다.**
+
+README 두 벌에 "25.0 이상, 실기 검증은 27.8 에서만" 으로 적었다.
+
+## 다시 어긋나지 않게 한다
+
+`tests/manifest-min-version.test.ts` 가 **소스가 스스로 밝힌 요구 버전을 훑어**
+manifest 의 `minVersion` 이 그보다 낮지 않은지 본다. 24.0 으로 되돌리자
+`25.0 ← 5곳` · `24.1 ← 3곳` 으로 실패했고 복구하니 통과했다. 정규식이 아무것도
+못 찾으면 검사가 헛통과하므로 찾은 개수가 0 이 아닌 것도 함께 본다.
+
+## 체크리스트
+
+- [x] manifest 최소 호스트 24.0.0 → 25.0.0 (패키징 검증 통과, 플러그인 재적재 확인)
+- [x] README 두 벌에 25.0 · "27.8 에서만 검증" 반영
+- [x] 소스의 요구 버전보다 낮아지면 실패하는 테스트
+- [ ] 25.0 ~ 27.7 에서의 실제 동작 — 해당 버전이 설치된 환경이 필요하다

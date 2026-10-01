@@ -252,31 +252,31 @@ describe("등록", () => {
     const names = s.mcp.tools
       .list()
       .map((tool) => tool.name)
-      .filter((name) => name.startsWith("gx."));
+      .filter((name) => name.startsWith("graxpert."));
 
-    expect(names.sort()).toEqual(["gx.run_denoise", "gx.run_gradient"]);
+    expect(names.sort()).toEqual(["graxpert.run_denoise", "graxpert.run_gradient"]);
   });
 
   it("둘 다 external 이다", async () => {
     const s = await setup();
-    for (const name of ["gx.run_gradient", "gx.run_denoise"]) {
+    for (const name of ["graxpert.run_gradient", "graxpert.run_denoise"]) {
       expect(s.mcp.tools.get(name)?.permission, name).toBe("external");
     }
   });
 
   it("**즉시 jobId 를 반환한다**", async () => {
     const s = await setup();
-    const started = await call<{ jobId?: string }>(s, "gx.run_gradient");
+    const started = await call<{ jobId?: string }>(s, "graxpert.run_gradient");
 
     expect(started.jobId).toEqual(expect.any(String));
-    expect(s.mcp.tools.get("gx.run_gradient")?.description).toMatch(/jobId/u);
+    expect(s.mcp.tools.get("graxpert.run_gradient")?.description).toMatch(/jobId/u);
   });
 });
 
 describe("결과", () => {
   it("**픽셀 레이어 한 장을 만든다**", async () => {
     const s = await setup();
-    const result = await run<{ layer: { id: number; name: string } }>(s, "gx.run_gradient");
+    const result = await run<{ layer: { id: number; name: string } }>(s, "graxpert.run_gradient");
 
     expect(result.layer.name).toBe("GraXpert 01");
 
@@ -290,7 +290,7 @@ describe("결과", () => {
   it("노이즈 감소는 이름이 다르다", async () => {
     // 한 카운터를 쓰면 어느 것이 무엇인지 알 수 없다.
     const s = await setup();
-    const result = await run<{ layer: { name: string } }>(s, "gx.run_denoise");
+    const result = await run<{ layer: { name: string } }>(s, "graxpert.run_denoise");
 
     expect(result.layer.name).toBe("GraXpert NR 01");
   });
@@ -298,7 +298,7 @@ describe("결과", () => {
   it("중간 파일을 알려준다", async () => {
     // 한 번 돌 때마다 140MB 가 둘 생긴다. 알려주지 않으면 쌓인 줄 모른다.
     const s = await setup();
-    const result = await run<{ files: string[] }>(s, "gx.run_gradient");
+    const result = await run<{ files: string[] }>(s, "graxpert.run_gradient");
 
     expect(result.files).toHaveLength(2);
   });
@@ -307,7 +307,7 @@ describe("결과", () => {
     /* `noiseReduction` 은 rcastro.nxt 도 제공한다. 결과만 보고 구분되지
      * 않으면 설정에 따라 다른 것이 돌면서 호출자는 모른다. */
     const s = await setup();
-    const result = await run<{ provider: string }>(s, "gx.run_denoise");
+    const result = await run<{ provider: string }>(s, "graxpert.run_denoise");
 
     expect(result.provider).toBe("graxpert-denoise");
   });
@@ -316,7 +316,7 @@ describe("결과", () => {
 describe("인자", () => {
   it("**준 값을 그대로 넘긴다**", async () => {
     const s = await setup();
-    await run(s, "gx.run_gradient", { correction: "Division", smoothing: 0.2, gpu: false });
+    await run(s, "graxpert.run_gradient", { correction: "Division", smoothing: 0.2, gpu: false });
 
     const a = argv();
     expect(a).toContain("Division");
@@ -327,7 +327,7 @@ describe("인자", () => {
   it("생략하면 Provider 기본값이 쓰인다", async () => {
     // Extension 에 기본값을 겹쳐 두면 설정과 두 곳이 갈라진다.
     const s = await setup();
-    await run(s, "gx.run_gradient");
+    await run(s, "graxpert.run_gradient");
 
     const a = argv();
     expect(a).toContain("Subtraction");
@@ -336,7 +336,7 @@ describe("인자", () => {
 
   it("**노이즈 감소는 다른 명령이다**", async () => {
     const s = await setup();
-    await run(s, "gx.run_denoise");
+    await run(s, "graxpert.run_denoise");
 
     const a = argv();
     expect(a).toContain("denoising");
@@ -349,7 +349,7 @@ describe("하늘 격리", () => {
     const s = await setup();
     const result = await run<{ selectionAtStart: boolean; skyApplied: boolean; files: string[] }>(
       s,
-      "gx.run_gradient",
+      "graxpert.run_gradient",
     );
 
     expect(result.selectionAtStart).toBe(false);
@@ -372,7 +372,7 @@ describe("하늘 격리", () => {
       skyApplied: boolean;
       files: string[];
       layer: { id: number };
-    }>(s, "gx.run_gradient");
+    }>(s, "graxpert.run_gradient");
 
     expect(result.selectionAtStart).toBe(true);
     expect(result.skyApplied).toBe(true);
@@ -395,7 +395,10 @@ describe("하늘 격리", () => {
       { requestId: "sel" },
     );
 
-    const result = await run<{ files: string[]; layer: { id: number } }>(s, "gx.run_gradient");
+    const result = await run<{ files: string[]; layer: { id: number } }>(
+      s,
+      "graxpert.run_gradient",
+    );
     const output = join(workspace, result.files[1] as string);
 
     /* 하늘(y < HORIZON)은 처리본이다. 가짜 CLI 가 500 을 뺐다. */
@@ -424,7 +427,7 @@ describe("하늘 격리", () => {
 
     const result = await run<{ selectionAtStart: boolean; skyApplied: boolean }>(
       s,
-      "gx.run_denoise",
+      "graxpert.run_denoise",
     );
 
     expect(result.selectionAtStart).toBe(false);
@@ -433,7 +436,7 @@ describe("하늘 격리", () => {
 
   it("**설명이 어느 쪽으로 가는지 말한다**", async () => {
     const s = await setup();
-    const text = s.mcp.tools.get("gx.run_gradient")?.description ?? "";
+    const text = s.mcp.tools.get("graxpert.run_gradient")?.description ?? "";
 
     expect(text).toMatch(/selection\.sky/u);
     expect(text).toMatch(/skyApplied/u);
@@ -444,7 +447,7 @@ describe("준비되지 않았을 때", () => {
   it("**Job 을 띄우지 않고 이유를 준다**", async () => {
     const s = await setup({ gradient: false });
 
-    const message = await call(s, "gx.run_gradient").then(
+    const message = await call(s, "graxpert.run_gradient").then(
       () => "",
       (error: unknown) => (error instanceof Error ? error.message : String(error)),
     );
@@ -460,7 +463,7 @@ describe("준비되지 않았을 때", () => {
      * 그대로 보내면 실패하는데, 그때는 Job 안이라 이유가 묻힌다. */
     const s = await setup({ gradientId: "somethingelse" });
 
-    const message = await call(s, "gx.run_gradient").then(
+    const message = await call(s, "graxpert.run_gradient").then(
       () => "",
       (error: unknown) => (error instanceof Error ? error.message : String(error)),
     );
@@ -473,7 +476,7 @@ describe("준비되지 않았을 때", () => {
     // 그래디언트 제거만 설정해 둔 사람이 노이즈 감소를 부를 수 있다.
     const s = await setup({ denoise: false });
 
-    const message = await call(s, "gx.run_denoise").then(
+    const message = await call(s, "graxpert.run_denoise").then(
       () => "",
       (error: unknown) => (error instanceof Error ? error.message : String(error)),
     );
@@ -488,21 +491,21 @@ describe("스키마", () => {
     /* 없는 파라미터를 스키마에 두고 조용히 무시하면 호출자는 걸렸다고 믿는다.
      * GraXpert CLI 에 `-cmd denoising` 용 플래그가 하나도 없다. */
     const s = await setup();
-    await expect(call(s, "gx.run_denoise", { strength: 0.5 })).rejects.toThrow(
+    await expect(call(s, "graxpert.run_denoise", { strength: 0.5 })).rejects.toThrow(
       expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
     );
   });
 
   it("0–1 밖을 거절한다", async () => {
     const s = await setup();
-    await expect(call(s, "gx.run_gradient", { smoothing: 1.5 })).rejects.toThrow(
+    await expect(call(s, "graxpert.run_gradient", { smoothing: 1.5 })).rejects.toThrow(
       expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
     );
   });
 
   it("모르는 필드를 거절한다", async () => {
     const s = await setup();
-    await expect(call(s, "gx.run_gradient", { mergeSky: true })).rejects.toThrow(
+    await expect(call(s, "graxpert.run_gradient", { mergeSky: true })).rejects.toThrow(
       expect.objectContaining({ code: ErrorCode.INVALID_PARAMETER }),
     );
   });

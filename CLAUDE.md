@@ -412,7 +412,7 @@ CLI 가 못 하는 일이 아니었다.
 ```text
 document.statistics   격리가 필요한지 잰다
 selection.sky         하늘을 고른다 (손으로 다듬어도 된다)
-gx.run_gradient       선택이 있으면 그 경로를 탄다
+graxpert.run_gradient       선택이 있으면 그 경로를 탄다
 ```
 
 어떤 사진은 격리가 필요 없고, 어떤 사진은 하늘 선택을 손으로 다듬어야 한다. 그래서
@@ -985,7 +985,7 @@ FITS → TIFF 변환 → place` 를 통과시켰다. 변환기가 `0..1 float` �
 ```text
 milky.enhance          → rcastro.bxt            RC-Astro CLI
 milky.remove_stars     → starnet.remove_stars   StarNet2
-milky.remove_gradient  → gx.run_gradient        GraXpert 패널
+milky.remove_gradient  → graxpert.run_gradient        GraXpert 패널
 ```
 
 `milky.get_state` · `milky.restore_stars` 는 외부 처리기를 쓰지 않아 옮기지 않았다 —
@@ -1023,7 +1023,7 @@ Job 은 메모리에만 있다. 서버를 다시 띄우면 사라진다.
 ## Extension 은 기동 뒤에도 붙는다 (ROADMAP §18.3)
 
 **기본은 "아무 패널도 안 깔려 있다" 다.** 번들된 Extension 이 보이는 것이 아니라,
-사용자가 설치한 것만 붙는 형태로 간다 — GraXpert 를 안 쓰는 사람에게 `gx.*` 가
+사용자가 설치한 것만 붙는 형태로 간다 — GraXpert 를 안 쓰는 사람에게 `graxpert.*` 가
 보이면 무엇이 이 서버의 능력인지 흐려진다.
 
 등록은 **패널이 한다.** 작업 폴더 승인(§8.5) · 액션 허용 목록(§17.36) 과 같은 자리다.

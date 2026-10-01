@@ -1,11 +1,11 @@
 # GraXpert Extension
 
 GraXpert 의 **그래디언트 제거**와 **노이즈 감소**를 MCP 에서 실행한다.
-namespace 는 `gx` 다.
+namespace 는 `graxpert` 다.
 
 ```text
-gx.run_gradient   external   빛 공해·배경 기울기를 뺀다
-gx.run_denoise    external   노이즈를 줄인다
+graxpert.run_gradient   external   빛 공해·배경 기울기를 뺀다
+graxpert.run_denoise    external   노이즈를 줄인다
 ```
 
 **CLI 를 부른다.** `GraXpert.exe` 를 `capabilities.json` 의 Provider 로 실행한다.
@@ -21,7 +21,7 @@ Photoshop CEP 패널은 쓰지 않는다.
 ② 패널 설정에서 Allow External Automation 을 켠다
 ```
 
-LLM 이 `gx.run_gradient` 를 부르면 전제가 안 갖춰졌을 때 정확한 이유를 받지만,
+LLM 이 `graxpert.run_gradient` 를 부르면 전제가 안 갖춰졌을 때 정확한 이유를 받지만,
 **그 다음에 할 수 있는 일이 없었다.** 사람을 부를 뿐이다.
 
 ①을 자동화할 수 있는지 재 봤다. `startNotifications(["all"])` 로 듣는 동안
@@ -51,7 +51,7 @@ CLI 는 같은 실행 파일이고 왕복이 이미 실기에서 검증되어 �
 
 ```text
 photoshop.selection.sky   호출자가 하늘을 고른다 (또는 손으로 다듬는다)
-gx.run_gradient
+graxpert.run_gradient
    ├ selection.export_mask    하늘 마스크를 16비트 TIFF 로
    ├ prepare: extendSkyPlane  지상부를 하늘의 연장 평면으로 덮는다
    ├ GraXpert (AI)
@@ -82,7 +82,7 @@ gx.run_gradient
 어떤 사진은 선택을 손으로 다듬어야 한다. 격리가 필요한지는
 `photoshop.document.statistics` 로 재서 판단한다.
 
-`gx.run_denoise` 는 선택을 보지 않는다 — 노이즈 감소는 전체에 거는 것이 맞다.
+`graxpert.run_denoise` 는 선택을 보지 않는다 — 노이즈 감소는 전체에 거는 것이 맞다.
 
 ## 강도를 지정할 수 없다 — 노이즈 감소
 
@@ -96,7 +96,7 @@ Extension 은 **승인된 작업 폴더 밖에 파일을 쓸 수 없다**(ROADMA
 `rcastro.nxt` 나 `photoshop.camera_raw.apply` 쪽이 낫다 — 후자는 실기에서
 σ 6.72 → 3.42(49%)였다.
 
-## 파라미터 — `gx.run_gradient`
+## 파라미터 — `graxpert.run_gradient`
 
 | 입력 | CLI | 범위 | 기본 |
 |---|---|---|---|

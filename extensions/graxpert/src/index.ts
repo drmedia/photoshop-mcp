@@ -82,7 +82,7 @@ export function activate(context: ExtensionContext): void {
     commands.execute<T>({ type, params: params as Record<string, unknown> }, { requestId });
 
   tools.register({
-    name: "gx.run_gradient",
+    name: "graxpert.run_gradient",
     description:
       "그래디언트(빛 공해·배경 기울기)를 제거한다 — GraXpert. 현재 문서를 16비트 TIFF 로 " +
       "내보내 처리한 뒤 **픽셀 레이어 한 장**으로 가져온다. 기존 레이어를 바꾸지 않는다. " +
@@ -104,7 +104,7 @@ export function activate(context: ExtensionContext): void {
         throw new Error(blocked);
       }
       const requestId = toolContext.requestId;
-      const jobId = jobs.start("gx.run_gradient", async (job) =>
+      const jobId = jobs.start("graxpert.run_gradient", async (job) =>
         run(
           {
             capability: "gradientRemoval",
@@ -125,7 +125,7 @@ export function activate(context: ExtensionContext): void {
   });
 
   tools.register({
-    name: "gx.run_denoise",
+    name: "graxpert.run_denoise",
     description:
       "노이즈를 줄인다 — GraXpert. 현재 문서를 16비트 TIFF 로 내보내 처리한 뒤 " +
       "**픽셀 레이어 한 장**으로 가져온다. 기존 레이어를 바꾸지 않는다. " +
@@ -141,7 +141,7 @@ export function activate(context: ExtensionContext): void {
         throw new Error(blocked);
       }
       const requestId = toolContext.requestId;
-      const jobId = jobs.start("gx.run_denoise", async (job) =>
+      const jobId = jobs.start("graxpert.run_denoise", async (job) =>
         run(
           {
             capability: "noiseReduction",

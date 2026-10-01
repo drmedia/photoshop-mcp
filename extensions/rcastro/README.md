@@ -13,7 +13,7 @@ rcastro.sxt   external   StarXTerminator  — 별 분리
 `denoise`)을 쓰지 않은 대신 **설명이 그것으로 시작합니다** — 이름만으로는 무엇을
 하는지 알 수 없기 때문입니다.
 
-노이즈 감소 경로가 셋이라(`gx.run_denoise` · `camera_raw.apply` · 이것) 제품
+노이즈 감소 경로가 셋이라(`graxpert.run_denoise` · `camera_raw.apply` · 이것) 제품
 이름이 모호함을 없앱니다.
 
 **제품별로 폴더를 나누지 않았습니다.** `rc-astro.exe` 하나가 `bxt` · `sxt` · `nxt` 를

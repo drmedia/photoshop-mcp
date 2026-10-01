@@ -6,7 +6,7 @@ import { z } from "zod";
  * 등록된 Extension 조회. (ROADMAP §18.3)
  *
  * **기본은 "아무 패널도 안 깔려 있다" 다.** 사용자가 PhotoshopMCP 패널에서 고른
- * 것만 붙는다 — GraXpert 를 안 쓰는 사람에게 `gx.*` 가 보이면 무엇이 이 서버의
+ * 것만 붙는다 — GraXpert 를 안 쓰는 사람에게 `graxpert.*` 가 보이면 무엇이 이 서버의
  * 능력인지 흐려진다.
  *
  * 목록은 플러그인의 `localStorage` 에 있다. 서버의 cwd 는 MCP 클라이언트가

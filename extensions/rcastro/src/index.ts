@@ -219,7 +219,7 @@ export function activate(context: ExtensionContext): void {
   });
 
   tools.register({
-    /* 노이즈 감소 경로가 셋이라(`gx.run_denoise` · `camera_raw.apply` · 이것)
+    /* 노이즈 감소 경로가 셋이라(`graxpert.run_denoise` · `camera_raw.apply` · 이것)
      * 제품 이름이 모호함을 없앤다. */
     name: "rcastro.nxt",
     description:

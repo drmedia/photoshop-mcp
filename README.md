@@ -174,7 +174,7 @@ commands only. It never touches the bridge. Writing one is documented in
 [docs/EXTENSION_API.md](docs/EXTENSION_API.md).
 
 ```text
-gx.*        GraXpert CLI (gradient removal, denoise)
+graxpert.*  GraXpert CLI (gradient removal, denoise)
 rcastro.*   RC-Astro CLI (BlurXTerminator · NoiseXTerminator · StarXTerminator)
 starnet.*   StarNet2
 example.*   a minimal example

@@ -619,8 +619,9 @@ describe("readOptionsFromEnv", () => {
   it("이름을 주면 그것이 전체 목록이다", () => {
     // `none` 이라는 namespace 를 가진 Extension 은 이제 고를 수 없다 — 그 대가는 받는다.
     expect(
-      readOptionsFromEnv({ PHOTOSHOP_MCP_EXTENSIONS_ENABLED: "gx, rcastro" }).enabledExtensions,
-    ).toEqual(["gx", "rcastro"]);
+      readOptionsFromEnv({ PHOTOSHOP_MCP_EXTENSIONS_ENABLED: "graxpert, rcastro" })
+        .enabledExtensions,
+    ).toEqual(["graxpert", "rcastro"]);
   });
 
   it("PHOTOSHOP_MCP_ALLOW 가 전체 목록을 결정한다", () => {

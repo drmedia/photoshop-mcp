@@ -2,7 +2,7 @@
   "id": "com.drmedia.graxpert",
   "name": "GraXpert CLI Tools",
   "version": "0.1.0",
-  "namespace": "gx",
+  "namespace": "graxpert",
   "main": "dist/index.js",
   "description": "GraXpert CLI 로 그래디언트 제거 · 노이즈 감소를 실행한다",
   "requires": {

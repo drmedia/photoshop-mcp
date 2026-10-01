@@ -2,7 +2,7 @@
   "name": "@photoshop-mcp/mcp-core",
   "version": "0.1.0",
   "type": "module",
-  "description": "MCP 서버 부트스트랩과 Tool Registry",
+  "description": "MCP server bootstrap and tool registry for PhotoshopMCP",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,10 +14,13 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/.tsbuildinfo",
+    "!dist/**/*.map"
   ],
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "prepublishOnly": "node ../../scripts/release.mjs check mcp-core"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
@@ -28,5 +31,25 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "keywords": [
+    "photoshop",
+    "adobe",
+    "mcp",
+    "model-context-protocol",
+    "uxp",
+    "ai"
+  ],
+  "homepage": "https://github.com/drmedia/photoshop-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/drmedia/photoshop-mcp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drmedia/photoshop-mcp.git",
+    "directory": "packages/mcp-core"
+  },
+  "engines": {
+    "node": ">=22.12"
   }
 }

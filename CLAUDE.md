@@ -1313,6 +1313,9 @@ npx photoshop-mcp init     # capabilities.json 을 찾아서 만든다
 npm run lint
 npm run typecheck:tests   # tests/ 타입체크 (tsc -b 대상이 아니다)
 npm run check        # format + lint + build + typecheck:tests + test
+npm run release:build    # 배포할 여섯 패키지의 dist 를 지우고 처음부터 빌드 (낡은 산출물 제거)
+npm run release:check    # 배포 직전 점검: 낡은 파일 · 불필요한 파일. publish 의 prepublishOnly 도 건다
+npm run release:verify   # 여섯 패키지를 pack 해 빈 폴더에 설치하고 MCP 핸드셰이크 (publish 없이). -- --keep <폴더> 로 설치를 남긴다
 ```
 
 `tests/` 는 `tsc -b` 의 project reference 에 들어 있지 않다. 테스트가 패키지 **소스**를

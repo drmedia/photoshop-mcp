@@ -2,13 +2,7 @@
   "mcpServers": {
     "photoshop": {
       "command": "node",
-      "args": ["packages/mcp-server/bin/photoshop-mcp.js"],
-      "env": {
-        "PHOTOSHOP_MCP_BRIDGE": "uxp",
-        "PHOTOSHOP_MCP_PORT": "8765",
-        "PHOTOSHOP_MCP_ALLOW": "read,edit,external,destructive",
-        "PHOTOSHOP_MCP_EXTENSIONS_ENABLED": "graxpert"
-      }
+      "args": ["packages/mcp-server/bin/photoshop-mcp.js"]
     }
   }
 }

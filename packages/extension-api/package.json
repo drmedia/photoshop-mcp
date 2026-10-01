@@ -2,7 +2,7 @@
   "name": "@photoshop-mcp/extension-api",
   "version": "0.1.0",
   "type": "module",
-  "description": "Extension이 사용할 수 있는 Core public API 표면",
+  "description": "Public API surface for PhotoshopMCP extensions",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,10 +14,13 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/.tsbuildinfo",
+    "!dist/**/*.map"
   ],
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "prepublishOnly": "node ../../scripts/release.mjs check extension-api"
   },
   "dependencies": {
     "@photoshop-mcp/photoshop-bridge": "0.1.0",
@@ -25,5 +28,25 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "keywords": [
+    "photoshop",
+    "adobe",
+    "mcp",
+    "model-context-protocol",
+    "uxp",
+    "ai"
+  ],
+  "homepage": "https://github.com/drmedia/photoshop-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/drmedia/photoshop-mcp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drmedia/photoshop-mcp.git",
+    "directory": "packages/extension-api"
+  },
+  "engines": {
+    "node": ">=22.12"
   }
 }

@@ -2,7 +2,7 @@
   "name": "@photoshop-mcp/command-engine",
   "version": "0.1.0",
   "type": "module",
-  "description": "Command Registry 및 Command Engine",
+  "description": "Command registry and engine for PhotoshopMCP",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,10 +14,13 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/.tsbuildinfo",
+    "!dist/**/*.map"
   ],
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "prepublishOnly": "node ../../scripts/release.mjs check command-engine"
   },
   "dependencies": {
     "@photoshop-mcp/photoshop-bridge": "0.1.0",
@@ -25,5 +28,25 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "keywords": [
+    "photoshop",
+    "adobe",
+    "mcp",
+    "model-context-protocol",
+    "uxp",
+    "ai"
+  ],
+  "homepage": "https://github.com/drmedia/photoshop-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/drmedia/photoshop-mcp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drmedia/photoshop-mcp.git",
+    "directory": "packages/command-engine"
+  },
+  "engines": {
+    "node": ">=22.12"
   }
 }

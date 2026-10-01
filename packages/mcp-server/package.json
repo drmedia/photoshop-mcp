@@ -2,7 +2,7 @@
   "name": "photoshop-mcp",
   "version": "0.1.0",
   "type": "module",
-  "description": "Photoshop MCP 실행 패키지 (composition root)",
+  "description": "MCP server that lets AI clients inspect and edit Adobe Photoshop documents through a fixed, permission-gated set of tools",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,13 +18,37 @@
   },
   "files": [
     "bin",
-    "dist"
+    "dist",
+    "!dist/.tsbuildinfo",
+    "!dist/**/*.map"
   ],
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "prepublishOnly": "node ../../scripts/release.mjs check mcp-server"
   },
   "dependencies": {
     "@photoshop-mcp/mcp-core": "0.1.0",
-    "@photoshop-mcp/photoshop-bridge": "0.1.0"
+    "@photoshop-mcp/photoshop-bridge": "0.1.0",
+    "@photoshop-mcp/photoshop-tools": "0.1.0"
+  },
+  "keywords": [
+    "photoshop",
+    "adobe",
+    "mcp",
+    "model-context-protocol",
+    "uxp",
+    "ai"
+  ],
+  "homepage": "https://github.com/drmedia/photoshop-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/drmedia/photoshop-mcp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drmedia/photoshop-mcp.git",
+    "directory": "packages/mcp-server"
+  },
+  "engines": {
+    "node": ">=22.12"
   }
 }

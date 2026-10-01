@@ -29,6 +29,9 @@
     "typecheck:tests": "tsc -p tsconfig.test.json",
     "verify:live": "node scripts/verify-live.mjs",
     "package:plugin": "node scripts/package-plugin.mjs",
+    "release:build": "node scripts/release.mjs build",
+    "release:check": "node scripts/release.mjs check",
+    "release:verify": "node scripts/release-verify.mjs",
     "api:coverage": "node scripts/api-coverage.mjs"
   },
   "devDependencies": {

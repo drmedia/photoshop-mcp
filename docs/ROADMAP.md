@@ -11895,11 +11895,11 @@ Phase 14 에서 막혀 있던 미확인 사항(§94)을 시험하려고 `.ccx` �
 
 ## 고친 것
 
-- `scripts/ccx-files.mjs` 의 `selectOutputs(distDir, srcDir)`: **`dist/a/b.js` 는 `src/a/b.ts` 가 있을 때만
+- `scripts/dist-outputs.mjs` 의 `selectOutputs(distDir, srcDir)`: **`dist/a/b.js` 는 `src/a/b.ts` 가 있을 때만
   담는다.** 짝이 없는 것은 `stale` 로 돌려준다.
 - 패키징 스크립트는 `keep` 만 스테이징 폴더에 복사하고, **빠진 파일의 이름을 경고로 출력한다.** 조용히
   빼면 `dist` 가 낡았다는 것을 아무도 모른다.
-- 순수 함수라 임시 폴더로 시험한다(`tests/ccx-files.test.ts` 8개). 패키징 스크립트는 불러오는 순간
+- 순수 함수라 임시 폴더로 시험한다(`tests/dist-outputs.test.ts` 8개). 패키징 스크립트는 불러오는 순간
   실행되어 import 할 수 없어서 판단만 떼어 냈다. 변형 다섯으로 헛통과가 아님을 확인했다 — 그중 하나
   (폴더를 무시하고 파일 이름만 본다)는 처음에 살아남아 "폴더가 다르면 짝이 아니다" 테스트를 더했다.
 - 결과: `.ccx` 107 → **101개 항목**, 263KB → 256KB. `src/` · 탐침 · 낡은 모듈이 모두 없다.
@@ -11953,3 +11953,129 @@ Photoshop 이 둘을 한 플러그인으로 취급하므로 같은 Photoshop 에
 
 그래서 §94 의 교대 연결 우려는 **ID 가 다른 두 변형**(Marketplace 와 직접 배포)을 함께 설치한 경우에만
 남는다. 그것은 아직 재현해 보지 않은 추론이고, 변형이 실제로 둘이 될 때(Marketplace 등록)의 일이다.
+
+
+# 99. npm 배포 준비 — 올리기 전에 막은 것들
+
+사용자가 npm 배포와 `npx photoshop-mcp` 를 요청했다(§18.0 은 "쓰는 사람이 생길 때" 로 미뤄 둔 일이다).
+배포 단위는 §18.0 의 A안 그대로다 — 여섯 패키지를 올리고 무스코프 `photoshop-mcp` 가 bin 을 가진다.
+**`npm publish` 는 하지 않았다.** 올린 버전은 지워도 같은 번호를 다시 쓸 수 없고, 패키지 이름과 경계가
+공개 API 가 된다(§18.0). 로그인과 scope 소유도 사용자만 할 수 있다. 여기서는 올리기 전에 닫을 수 있는
+것을 전부 닫았다.
+
+## 올리기 전에 발견한 것
+
+1. **선언하지 않은 의존성.** 실행 패키지 `photoshop-mcp` 가 `@photoshop-mcp/photoshop-tools` 를
+   (`doctor.ts` · `run.ts`) import 하는데 `dependencies` 에 없었다. 모노레포에서는 호이스팅으로 풀려서
+   모르고 지냈고, npm 에서 설치한 환경에서는 풀리지 않을 수 있는 "유령 의존성" 이다. 추가했다.
+2. **배포물에 낡은 산출물이 실려 있었다.** 여섯 패키지 중 세 곳의 `dist` 에 지운 소스의 컴파일 결과가
+   남아 있었다(탐침 `*-probe.tmp.js` 넷, 이름이 바뀐 모듈의 옛 결과 …). `.ccx`(§98)와 같은 원인이고
+   패키지가 `files: ["dist"]` 라 그대로 npm 에 실릴 뻔했다. 올린 뒤에는 되돌릴 수 없어서 `.ccx` 보다
+   무겁다. 처음 점검에서 42건(`.js` · `.d.ts` · 소스맵 포함)이 잡혔다.
+3. **빌드 캐시와 소스맵이 실렸다.** `dist/.tsbuildinfo`(로컬 경로가 들어갈 수 있다)와 `*.map`(가리키는
+   `src` 를 싣지 않으니 쓸모없다). `files` 에 부정 패턴(`!dist/.tsbuildinfo` · `!dist/**/*.map`)으로 뺐고
+   npm 이 따르는 것을 `npm pack --dry-run` 으로 확인했다.
+4. **npm 페이지가 비어 있었다.** `repository` · `homepage` · `bugs` · `keywords` · `engines` 가 없고 설명은
+   한국어, 실행 패키지의 README 는 개발자용 구조 설명이었다. 채웠다(README 는 설치 방법 중심의 영어, 개발자용
+   내용은 아래 절로).
+
+한 가지는 내가 틀렸다. 낡은 `dist` 를 근거로 의존성을 감사했더니 `mcp-core` 가 `zod` 를 선언하지 않았다고
+나와서 추가했는데, 그 import 는 **소스가 이미 지워진 낡은 `dist/actions/tool.js`** 에 있던 것이었다. 소스를
+훑는 테스트가 옳았고 추가를 되돌렸다. 낡은 산출물은 감사 결과도 오염시킨다.
+
+## 만든 장치
+
+- `scripts/dist-outputs.mjs` 의 `staleOutputs`: 소스가 사라진 산출물을 `.js` · `.d.ts` · 소스맵까지 찾는다
+  (`.ccx` 용 `selectOutputs` 와 같은 규칙, 13개 테스트. `staleOutputs` 의 변형은 셋 — 하나는 접미사 순서가
+  결과에 영향이 없는 동치 변형이라 "긴 것부터"라던 주석을 바로잡았다).
+- `npm run release:build`: 여섯 패키지의 `dist` 를 지우고 처음부터 다시 빌드한다. 명시적으로 부를 때만
+  지운다(`packages/*` 의 `dist` 만).
+- `npm run release:check`: 낡은 파일 · 올라가면 안 되는 파일(`src/` · `*.tmp.*` · `.tsbuildinfo`)을 찾고
+  실제로 올라갈 목록을 `npm pack --dry-run` 으로 확인한다. 아무것도 바꾸지 않는다.
+- **각 패키지의 `prepublishOnly` 가 같은 점검을 건다.** 낡은 파일을 일부러 넣고 `npm publish --dry-run`
+  을 해서 중단되는 것을 확인했다. 점검을 잊어도 `npm publish` 자체가 막는다.
+- `tests/package-deps.test.ts`: 여섯 패키지의 소스가 import 하는 외부 패키지가 `dependencies` 에 있는지
+  본다. 처음 돌렸을 때 실제로 실패했다(위 1번). `dist` 가 아니라 소스를 훑는다 — 위 오염 때문이다.
+
+깨끗한 빌드 뒤 `photoshop-tools` 는 587개 파일(323KB)에서 **286개(233KB)** 가 됐다.
+
+## 설치 시험 (publish 없이)
+
+여섯 패키지를 `npm pack` 한 압축 파일로 **모노레포 밖의 빈 폴더에 설치**하고 `node_modules/.bin/
+photoshop-mcp` 를 실행해 MCP 핸드셰이크를 했다. 결과: 서버 `PhotoshopMCP 0.1.0`, Tool **166개**,
+`instructions` 672자, `retouch` 프롬프트, `doctor` 종료 코드 0(이 기기의 8765 를 다른 프로세스가 쥐고
+있어 8766 에서 열린다고 §93 의 범위 안내가 나왔다).
+
+**이 시험이 확인하지 못한 것:** 내부 패키지끼리의 연결은 레지스트리에 아직 없어서 `overrides` 로 압축
+파일에 연결했다. 실제 레지스트리에서 이름이 풀리는지는 올린 뒤에만 알 수 있다.
+
+## 결정: 로컬 패키지 상태로 시험하면 충분하다
+
+`npm publish` 가 필요한지 물었고, 설치 시험은 올리지 않고도 된다는 것으로 정했다. 로컬 레지스트리
+(Verdaccio)로 레지스트리 이름 해석까지 보는 방법도 제안했지만 쓰지 않기로 했다. 그래서 **publish 는
+미룬다.** 올릴 때가 오면 아래 "사용자가 해야 하는 것" 이 남는다.
+
+시험을 한 번 해 보고 끝내지 않고 다시 돌릴 수 있는 명령으로 만들었다.
+
+- `npm run release:verify`: 여섯 패키지를 `npm pack` → 모노레포 밖의 빈 폴더에 설치(내부 패키지는
+  `overrides` 로 압축 파일에 연결) → 설치된 `bin` 으로 MCP 핸드셰이크(Mock Bridge) → `doctor`.
+  `photoshop.ping` · `document.analyze` · `mask.summary` 가 있는지, `instructions` 와 `retouch` 프롬프트가
+  있는지를 **이름으로** 본다(Tool 개수는 더할 때마다 바뀐다).
+- `--keep <폴더>`: 시험 뒤 설치를 지우지 않고 남긴다. 그 설치본을 MCP 클라이언트에 연결하면 실제
+  Photoshop 과 설치본 `.ccx` 플러그인까지 붙여 볼 수 있다. 폴더는 비어 있거나 없어야 하고 **저장소 밖**이어야
+  한다(저장소 안이면 호이스팅 때문에 "빈 폴더에 설치" 가 아니다). 거절 세 경우를 확인했다.
+- 서버는 셸을 거치지 않고 `node` 로 직접 띄운다. 셸을 거치면 `kill` 이 셸만 죽여 서버가 폴더를 붙든 채
+  남고 임시 폴더 삭제가 `EBUSY` 로 실패했다(처음 만든 임시 스크립트에서 겪었다). 정리 단계의 안전 타이머가
+  서버가 끝난 뒤 `null.kill()` 을 불러 성공 메시지 뒤에 크래시하던 버그도 고쳤다. 연속 두 번 돌려 둘 다
+  종료 코드 0, 남은 임시 폴더 없음.
+
+**확인하지 못하는 것:** 실제 레지스트리에서 이름이 풀리는지와 `npx` 의 내려받기 경로. 올려야만 안다.
+## 사용자가 해야 하는 것 (아직 하지 않았다)
+
+- [ ] **npm 로그인** — `npm whoami` 가 `ENEEDAUTH` 였다. 2FA 가 걸려 있으면 OTP 가 필요하다.
+- [ ] **scope `@photoshop-mcp` 소유 확인** — 여섯 이름 모두 레지스트리에서 404 라 이름은 비어 있지만, scope
+      (npm 조직 `photoshop-mcp`)를 사용자가 소유하는지는 로그인 없이 알 수 없다. 조직이 없으면 만들거나
+      사용자가 가진 scope 로 이름을 바꿔야 한다(이름 변경은 소스의 import 와 문서 전체를 건드린다).
+- [ ] **GitHub Release 에 `.ccx` 첨부** — 패키지 README 가 그 페이지를 가리킨다. 지금은 Release 가 없다.
+- [ ] **`claude mcp add photoshop -- npx -y photoshop-mcp`** 가 실제로 동작하는지, Windows 에서 클라이언트가
+      `npx` 를 띄우지 못하면 어떻게 하는지 — 이 기기에서 확인하지 않았다.
+- [ ] 올린 직후 저장소 README 의 "Not published to npm yet — clone it" 과 한국어판의 같은 문구를 고친다
+      (올리기 전에 고치면 거짓이 된다).
+
+## 올리는 순서 (로그인 뒤)
+
+```text
+npm run release:build && npm run release:check
+npm publish --dry-run -w packages/photoshop-bridge   # 여섯 개 모두. 로그인 없이도 된다
+# 의존이 없는 쪽부터: bridge → command-engine → tools → mcp-core → extension-api → photoshop-mcp
+npm publish -w packages/<이름>
+npx photoshop-mcp doctor    # 빈 폴더에서
+```
+
+## 체크리스트
+
+- [x] 선언 누락 의존성 수정 + 소스 기준 테스트
+- [x] 낡은 산출물 · 빌드 캐시 · 소스맵이 패키지에 실리지 않게 함, `prepublishOnly` 로 강제
+- [x] npm 페이지 메타데이터와 사용자용 README
+- [x] 압축 파일로 빈 폴더에 설치해 MCP 핸드셰이크(166개 Tool) — 이제 `npm run release:verify` 로 다시 돌릴 수 있다
+- [ ] 사용자: npm 로그인 · scope 소유 · Release 의 `.ccx`
+- [ ] `npm publish` — **미룸.** 로컬 패키지 상태의 시험으로 충분하다고 정했다
+- [ ] 올린 뒤 레지스트리에서 `npx photoshop-mcp` 실행, 저장소 README 문구 수정
+
+## §100 자동 접속 끄기 (기본값 꺼짐)
+
+플러그인은 로드된 동안 서버를 계속 찾는다(최대 30초마다 8765–8774 를 훑는다). Photoshop 을 평소처럼 쓸 때는
+필요 없고, 포트를 다른 WebSocket 서버가 쓰면 그쪽에 `hello` 를 보내며, 서버가 뜨는 순간 알아서 붙어 허용된
+Tool 이 열린 문서를 건드릴 수 있다.
+
+- 패널 `Connect` / `Disconnect` 버튼과 플라이아웃 메뉴(`Connect to MCP server` · `Disconnect from MCP server`). 버튼은 상태가 아니라 누르면 일어나는 일을 말한다. 내부 이름은 자동 접속(`autoConnect`)이다. **기본 꺼짐**, `localStorage` 에 저장(못 읽으면 꺼짐).
+- 꺼짐 = 접속 시도 자체가 없다. 상태 줄은 `Not connected`. 끄면 열린 연결·재접속 타이머·큐를 모두 정리한다.
+- 켜면 `start()` 가 백오프와 훑기 상태를 처음으로 되돌린다.
+- 영향: 처음 설치한 사용자는 버튼을 **한 번** 눌러야 한다. `.ccx` 설치 안내와 실기 시험(`verify:live`)도 같다.
+
+검증: `tests/bridge-port-search.test.ts` 27개. `stop()` 의 `stopped` 대입·타이머 정리를 둘 다 빼면 대기 중 끄기
+시험이 실패한다. **둘 중 하나만 빼면 살아남는다** — 서로 겹치는 이중 방어라 동등 변이다. 실기 패널의 버튼
+동작은 플러그인을 다시 적재한 뒤 사람이 눌러 확인해야 한다(미확인).
+
+- [x] 구현 · 시험 · 문서
+- [ ] 실기 패널에서 버튼 · 저장 확인

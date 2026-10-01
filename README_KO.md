@@ -298,7 +298,8 @@ PHOTOSHOP_MCP_BRIDGE=mock npm run dev    # Mock Bridge. Photoshop·플러그인 
 3. Adobe UXP Developer Tool 에서 `photoshop-uxp/manifest.json` 을 Add → Load 합니다.
 4. Photoshop 패널 `플러그인 > Photoshop MCP` 에서 Bridge 상태를 확인합니다.
 
-순서는 상관없습니다. 플러그인이 지수 백오프로 재접속합니다.
+**플러그인은 기본으로 접속하지 않습니다**(ROADMAP §100). 패널 아래 `Connect` 버튼(켜지면 `Disconnect`)(또는 플라이아웃 메뉴)을 한 번
+눌러 켭니다 — 선택은 저장됩니다. 켜면 순서는 상관없습니다. 플러그인이 지수 백오프로 재접속합니다.
 자세한 내용은 [photoshop-uxp/README.md](photoshop-uxp/README.md) 를 참고하세요.
 
 제대로 붙었는지는 한 번에 확인할 수 있습니다.

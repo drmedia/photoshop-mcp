@@ -11,7 +11,7 @@
  * `uxp plugin package` 는 플러그인 폴더를 통째로 압축하고 제외 옵션이 없다.
  * `photoshop-uxp/` 를 그대로 주면 `src/` · 소스맵 · `.d.ts` · `.uxprc` 가 함께
  * 들어간다 — 실행에 필요한 것은 `manifest.json` · `icons/` · `dist/*.js` 뿐이다. `dist/*.js` 는 현재
- * 소스에 대응하는 것만 담는다(`ccx-files.mjs`).
+ * 소스에 대응하는 것만 담는다(`dist-outputs.mjs`).
  * 그래서 임시 폴더에 그것만 복사해 놓고 그 폴더를 묶는다.
  *
  * ## UXP CLI
@@ -35,7 +35,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { selectOutputs } from "./ccx-files.mjs";
+import { selectOutputs } from "./dist-outputs.mjs";
 
 const PLUGIN_DIR = fileURLToPath(new URL("../photoshop-uxp/", import.meta.url));
 const OUT_DIR = join(PLUGIN_DIR, "out");

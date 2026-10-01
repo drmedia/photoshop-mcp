@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 // @ts-expect-error — 순수 JS 모듈이라 타입 선언이 없다. scripts/api-coverage.mjs 를 시험하는 쪽과 같다.
-import { selectOutputs } from "../scripts/ccx-files.mjs";
+import { selectOutputs, staleOutputs } from "../scripts/dist-outputs.mjs";
 
 /**
  * `.ccx` 에 담을 산출물을 고르는 규칙. (ROADMAP §98)
@@ -23,7 +23,7 @@ function put(base: string, path: string): void {
 }
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "ccx-files-"));
+  root = mkdtempSync(join(tmpdir(), "dist-outputs-"));
   src = join(root, "src");
   dist = join(root, "dist");
   mkdirSync(src, { recursive: true });
@@ -95,5 +95,53 @@ describe("selectOutputs", () => {
 
   it("빈 dist 는 둘 다 비어 있다", () => {
     expect(selectOutputs(dist, src)).toEqual({ keep: [], stale: [] });
+  });
+});
+
+describe("staleOutputs — npm 패키지의 낡은 파일", () => {
+  it("**.js 만 아니라 .d.ts · 소스맵까지** 소스가 사라진 것은 전부 낡은 것이다", () => {
+    put(src, "a.ts");
+    for (const name of ["a.js", "a.d.ts", "a.js.map", "a.d.ts.map"]) {
+      put(dist, name);
+    }
+    for (const name of ["gone.js", "gone.d.ts", "gone.js.map", "gone.d.ts.map"]) {
+      put(dist, name);
+    }
+    expect(staleOutputs(dist, src)).toEqual([
+      "gone.d.ts",
+      "gone.d.ts.map",
+      "gone.js",
+      "gone.js.map",
+    ]);
+  });
+
+  it("소스가 있는 산출물은 하나도 낡다고 하지 않는다", () => {
+    put(src, "dom/x.ts");
+    for (const name of ["dom/x.js", "dom/x.d.ts", "dom/x.js.map", "dom/x.d.ts.map"]) {
+      put(dist, name);
+    }
+    expect(staleOutputs(dist, src)).toEqual([]);
+  });
+
+  it("tsbuildinfo 는 빌드 캐시라 대상이 아니다", () => {
+    put(dist, "tsconfig.tsbuildinfo");
+    expect(staleOutputs(dist, src)).toEqual([]);
+  });
+
+  it("**탐침 .tmp 산출물**을 잡는다 — 지운 *.tmp.ts 의 결과", () => {
+    put(src, "commands/real.ts");
+    put(dist, "commands/real.js");
+    put(dist, "commands/text-probe.tmp.js");
+    put(dist, "commands/text-probe.tmp.d.ts");
+    expect(staleOutputs(dist, src)).toEqual([
+      "commands/text-probe.tmp.d.ts",
+      "commands/text-probe.tmp.js",
+    ]);
+  });
+
+  it("폴더가 다르면 같은 이름이어도 짝이 아니다", () => {
+    put(src, "a/x.ts");
+    put(dist, "b/x.d.ts");
+    expect(staleOutputs(dist, src)).toEqual(["b/x.d.ts"]);
   });
 });

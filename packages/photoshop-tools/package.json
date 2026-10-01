@@ -2,7 +2,7 @@
   "name": "@photoshop-mcp/photoshop-tools",
   "version": "0.1.0",
   "type": "module",
-  "description": "Photoshop Core MCP Tool 및 Command 정의",
+  "description": "Core MCP tools and commands for PhotoshopMCP",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,10 +14,13 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/.tsbuildinfo",
+    "!dist/**/*.map"
   ],
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "prepublishOnly": "node ../../scripts/release.mjs check photoshop-tools"
   },
   "dependencies": {
     "@photoshop-mcp/command-engine": "0.1.0",
@@ -26,5 +29,25 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "keywords": [
+    "photoshop",
+    "adobe",
+    "mcp",
+    "model-context-protocol",
+    "uxp",
+    "ai"
+  ],
+  "homepage": "https://github.com/drmedia/photoshop-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/drmedia/photoshop-mcp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drmedia/photoshop-mcp.git",
+    "directory": "packages/photoshop-tools"
+  },
+  "engines": {
+    "node": ">=22.12"
   }
 }

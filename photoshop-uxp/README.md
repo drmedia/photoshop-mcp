@@ -42,7 +42,7 @@ npm run build          # 저장소 루트에서. dist/ 생성
 
 MCP 서버가 `ws://127.0.0.1:8765`~`8774` 중 한 곳에서 대기해야 합니다. 서버는 8765 부터 빈 포트를 찾아 열고
 플러그인이 같은 범위를 훑어 찾습니다 — 포트를 지정할 필요가 없습니다. 붙으면 패널 상태 줄 끝에 포트가
-보입니다. 서버 먼저 띄울 필요는 없습니다 — 플러그인이 지수 백오프로 재접속합니다. (PROTOCOL.md §1 · §7)
+보입니다. **기본은 접속하지 않는다**(ROADMAP §100) — 패널의 `Connect` / `Disconnect` 버튼이나 플라이아웃 메뉴로 켠다. 켜면 서버 먼저 띄울 필요는 없다 — 플러그인이 지수 백오프로 재접속한다. 끄면 포트를 훑지 않는다. (PROTOCOL.md §1 · §7)
 
 ## 핸드셰이크
 
@@ -466,7 +466,7 @@ npm run build && npm run package:plugin
 `manifest.json` · `icons/` · `dist/*.js` 만 복사해 묶는다** (`scripts/package-plugin.mjs`).
 UXP CLI 위치는 `UXP_CLI` 환경 변수로 주고 기본값은 `D:\Dev\uxp-cli` 다.
 
-**현재 소스에 대응하는 `dist/*.js` 만 담는다**(`scripts/ccx-files.mjs`). `tsc -b` 는 소스가 사라져도
+**현재 소스에 대응하는 `dist/*.js` 만 담는다**(`scripts/dist-outputs.mjs`). `tsc -b` 는 소스가 사라져도
 옛 산출물을 지우지 않아서, 예전에는 지운 탐침(`*-probe.tmp.js`)까지 `.ccx` 에 실렸다. 빠진 파일은
 경고로 이름이 나온다 — `rm -rf photoshop-uxp/dist && npm run build` 로 지우면 경고가 사라진다.
 

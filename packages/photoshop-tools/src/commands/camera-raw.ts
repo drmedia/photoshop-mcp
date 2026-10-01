@@ -484,6 +484,30 @@ export const cameraRawApplyCommand: CommandHandler<CameraRawParams, CameraRawRes
       cause: parsed.error,
     });
   }
+
+  /* **요청한 이름이 하나도 빠지지 않았는지 본다.** (ROADMAP §84)
+   *
+   * 서버와 플러그인은 따로 설치된다. 서버만 새 버전이면 새 파라미터를 옛 플러그인이
+   * 표에서 못 찾아 **오류 없이 건너뛴다** — 이름 집합 테스트는 개발 중 어긋남만
+   * 잡는다. `applied` 는 플러그인이 실제로 보낸 이름이므로 요청과 견주면 잡힌다.
+   *
+   * **이 시점에 필터는 이미 걸렸다.** 되돌릴 수 없으니 오류가 그것을 말해야 한다 —
+   * 아무 일도 없었다고 읽히는 것이 가장 나쁜 실패다. */
+  const applied = new Set(parsed.data.applied);
+  const requested = Object.entries(command.params as Record<string, unknown>)
+    .filter(([name, value]) => name !== "layerId" && value !== undefined)
+    .map(([name]) => name);
+  const missing = requested.filter((name) => !applied.has(name));
+  if (missing.length > 0) {
+    throw new PhotoshopMcpError(
+      ErrorCode.PROTOCOL_ERROR,
+      `Camera Raw 가 요청한 설정 일부를 적용하지 않았습니다: ${missing.join(", ")}. ` +
+        "나머지는 이미 걸려 문서가 바뀌었습니다 — photoshop.history.undo 로 되돌리세요. " +
+        "서버와 Photoshop 플러그인의 버전이 같은지 확인하세요.",
+      { details: { requested, applied: parsed.data.applied, missing } },
+    );
+  }
+
   return parsed.data as {
     layer: LayerInfo;
     applied: string[];

@@ -470,4 +470,92 @@ describe("Camera Raw", () => {
       expect(result["smartFilterCount"]).toBe(0);
     });
   });
+
+  describe("요청한 이름이 applied 에 다 있는가 (ROADMAP §84)", () => {
+    /**
+     * 플러그인을 흉내 낸다 — **진짜 빌더**로 `applied` 를 만들고 Mock 의 나머지 동작을 쓴다.
+     * `drop` 에 든 이름은 옛 플러그인이 표에서 못 찾아 건너뛴 것처럼 빼고 돌려준다.
+     */
+    class PluginLikeBridge extends MockPhotoshopBridge {
+      constructor(private readonly drop: readonly string[] = []) {
+        super();
+      }
+
+      override async executeCommand<TResult>(
+        command: Parameters<MockPhotoshopBridge["executeCommand"]>[0],
+      ): Promise<TResult> {
+        const result = (await super.executeCommand<Record<string, unknown>>(command)) as {
+          applied?: string[];
+        };
+        if (command.type === "CAMERA_RAW_APPLY") {
+          const { applied } = buildCameraRawDescriptor(
+            command.params as Parameters<typeof buildCameraRawDescriptor>[0],
+          );
+          result.applied = applied.filter((name) => !this.drop.includes(name));
+        }
+        return result as TResult;
+      }
+    }
+
+    const mcpWith = (drop: readonly string[] = []): ReturnType<typeof createPhotoshopMcp> =>
+      createPhotoshopMcp({ bridge: new PluginLikeBridge(drop), logger: createSilentLogger() });
+
+    it("**빠진 이름이 있으면 오류가 그 이름과 '이미 걸렸다' 를 말한다**", async () => {
+      const mcp = mcpWith(["dehaze"]);
+      const layerId = await pixelLayer(mcp);
+      const attempt = apply(mcp, { layerId, exposure: 1, dehaze: 20 });
+      await expect(attempt).rejects.toThrow(/적용하지 않았습니다: dehaze/u);
+      // 성공으로 읽히면 안 되고, 문서가 이미 바뀌었다는 것도 말해야 한다.
+      await expect(attempt).rejects.toThrow(/이미 걸려 문서가 바뀌었습니다/u);
+    });
+
+    it("빠진 이름이 여럿이면 전부 나열한다", async () => {
+      // 순서는 스키마 키 순서를 따른다 — 고정하지 않고 둘 다 있는지만 본다.
+      const mcp = mcpWith(["dehaze", "texture"]);
+      const layerId = await pixelLayer(mcp);
+      const attempt = apply(mcp, { layerId, dehaze: 10, texture: 10, exposure: 1 });
+      await expect(attempt).rejects.toThrow(/적용하지 않았습니다:.*dehaze/u);
+      await expect(attempt).rejects.toThrow(/적용하지 않았습니다:.*texture/u);
+    });
+
+    it("**모두 적용됐으면 통과한다 — 곡선·구간 경계·국소 보정까지**", async () => {
+      // 거짓 오류가 나면 멀쩡한 호출이 막힌다. 이름 종류별로 `applied` 가 요청 이름과
+      // 같은 모양인지 진짜 빌더로 확인한다.
+      const mcp = mcpWith();
+      const layerId = await pixelLayer(mcp);
+      const mask = { type: "linearGradient", from: { x: 0, y: 0 }, to: { x: 0, y: 1 } };
+      const result = (await apply(mcp, {
+        layerId,
+        exposure: 1,
+        saturation: 10,
+        hueRed: 5,
+        sharpenRadius: 2,
+        curveHighlights: 10,
+        curveShadowSplit: 20,
+        curveRgb: [
+          { x: 0, y: 0 },
+          { x: 255, y: 255 },
+        ],
+        localCorrections: [{ mask, exposure: 0.5 }],
+      })) as { applied: string[] };
+      expect(result.applied).toEqual(
+        expect.arrayContaining([
+          "exposure",
+          "saturation",
+          "hueRed",
+          "sharpenRadius",
+          "curveHighlights",
+          "curveShadowSplit",
+          "curveRgb",
+          "localCorrections",
+        ]),
+      );
+    });
+
+    it("`layerId` 는 설정이 아니라 대상이라 applied 에 없어도 된다", async () => {
+      const mcp = mcpWith();
+      const layerId = await pixelLayer(mcp);
+      await expect(apply(mcp, { layerId, exposure: 1 })).resolves.toBeDefined();
+    });
+  });
 });

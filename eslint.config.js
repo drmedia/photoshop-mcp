@@ -28,6 +28,8 @@ export default tseslint.config(
         console: "readonly",
         URL: "readonly",
         setTimeout: "readonly",
+        // Node 22 의 전역. 스냅샷 갱신(api-coverage.mjs --refresh)이 쓴다.
+        fetch: "readonly",
       },
     },
     rules: { "no-console": "off", "@typescript-eslint/no-unused-vars": "off" },

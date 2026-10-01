@@ -11176,3 +11176,87 @@ path.to_selection feather 10 (300ppi)   375,275,825,525   25px   ← 값에 비�
 뒤 선택이 필요하면 다시 만들어야 한다. Tool 설명에는 아직 적지 않았다.
 
 임시 문서 둘은 닫았고(`discardChanges`) 사진 문서는 처음 그대로다.
+
+---
+# 88. Photoshop API 커버리지 매트릭스 — Adobe 레퍼런스와 플러그인 소스를 자동으로 견준다
+
+"우리가 DOM 의 어디까지 쓰고 있나" 를 사람이 훑는 대신 도구가 센다. `node scripts/api-coverage.mjs`
+(`npm run api:coverage`)가 `docs/API_COVERAGE.md` 를 만든다.
+
+## 기준은 Adobe 의 공개 문서 원본이다
+
+웹 페이지를 긁지 않는다. **`AdobeDocs/uxp-photoshop`** 저장소의 `src/pages/ps-reference/classes/*.md`
+(문서 원본)를 파싱한다. 한 번 받아 `docs/api-coverage/adobe-api-snapshot.json` 으로 커밋하므로 평소
+실행은 오프라인이고 결과가 재현된다. `--refresh` 만 네트워크를 쓴다. 스냅샷에 저장소 커밋 SHA 를 담는다.
+
+```text
+클래스 48개 · 멤버 506개   (Preferences 하위 12개 포함)
+확인 143 (28%) · 대응 4 · 공유 이름 148 (29%) · 반사 읽기 55 · 흔적 없음 156 (31%)
+```
+
+## 처음 나온 결과가 세 군데 틀렸다
+
+도구가 그럴듯한 표를 내는 것과 맞는 것은 다르다. 첫 출력을 값 몇 개와 대조하다 잡았다.
+
+```text
+클래스 37개           문서는 48개다. 하위 폴더(classes/preferences/…)를 파일 목록 정규식이 제외했다.
+                      앞서 목록을 찍을 때는 파일명만 잘라 보여서 몰랐다.
+'Name' 이라는 멤버     표 머리글(| Name | Type | …)을 멤버로 읽었다. 거의 모든 클래스에 가짜가 하나씩.
+Layer.applyGaussianBlur  흔적 없음으로 나왔는데 photoshop.filter.gaussian_blur 가 있다. batchPlay 라서다.
+```
+
+세 번째는 도구의 성격을 바꿨다. **DOM 사용 흔적만 세면 batchPlay 로 구현한 기능이 빈틈으로 보인다.**
+그래서 보고서가 "흔적 없음" 을 "Tool 이 없다" 로 읽지 말라고 맨 앞에 적는다.
+
+## 귀속할 수 없는 이름은 확인으로 세지 않는다
+
+`name` · `id` · `delete` · `duplicate` 처럼 여러 클래스가 공유하는 이름은 소스가 쓰더라도 어느 클래스를
+가리키는지 모른다. **"공유 이름" 으로 따로 둔다.** 그래서 확인 수는 하한이다. 반대로 과대 집계를 하면
+커버리지가 실제보다 좋아 보인다.
+
+`Preferences/*` 는 `preferences.get` 이 열거 가능한 키를 반사적으로 읽어 이름이 코드에 없다. 이름 기준
+비교가 성립하지 않아 "반사 읽기" 로 분리했다.
+
+## 이름 일치 추정은 버렸다
+
+batchPlay `_obj` 이름과 멤버 이름을 맞추는 자동 추정(`applyGaussianBlur` ↔ `gaussianBlur`)을 시험했다.
+20건이 걸렸는데 `Action.delete` 가 일반 `delete` 이벤트와 맞는 식의 오탐이 섞여 있었다. 추정으로
+채우지 않고 **사람이 검증한 대응표** `docs/api-coverage/provided-otherwise.json` 을 두었다.
+
+대응표는 **테스트가 자동 검증한다.** 멤버가 스냅샷에 있는지, Tool 이 레지스트리에 있는지 — Tool 이름을
+틀리게 하거나 Tool 을 지우고 표를 잊으면 실패한다.
+
+## 찾은 것 — DOM 에 있는데 batchPlay 로 구현한 것
+
+```text
+Layer.applyGaussianBlur   23.5  filter.gaussian_blur       _obj: "gaussianBlur"
+Layer.applyHighPass       23.5  filter.high_pass           _obj: "highPass"
+Layer.applyMaximum        23.5  filter.minimum_maximum     _obj: "maximum"
+Layer.applyMinimum        23.5  filter.minimum_maximum     _obj: "minimum"
+```
+
+`filter.ts` 의 주석은 batchPlay 필터를 "DOM 에 없는 것들이 쓴다" 고 적었는데 이 넷은 DOM 에 있다.
+§71 에서 `selection.set` 을 DOM 으로 옮기며 `mode` 와 `antiAlias` 를 얻은 것과 같은 종류의 후보다.
+**옮기라는 권고가 아니다.** DOM `apply*` 가 스마트 필터로 붙는 방식이 지금과 같은지 등은 재 봐야 안다.
+주석 "DOM 에 없는 것들" 은 사실과 다르다 — 정정 대상이다.
+
+## 한계
+
+- **Tool → DOM 방향은 없다.** 지금은 DOM 멤버마다 Tool 이 있는지를 본다. "이 Tool 이 DOM 의 무엇을 쓰나"
+  는 소스 파일 이름 수준이다.
+- **대응표는 넷뿐이다.** 흔적 없음 156 중 batchPlay 로 이미 제공하는 것이 더 있을 수 있다. 채우려면 한 줄씩
+  Tool 과 맞춰 봐야 한다. 일부러 안 연 것의 **제외 사유**를 적는 표도 아직 없다.
+- **클래스만 본다.** `objects`(옵션 형식) · `modules`(상수) · `colors` 는 안 봤다. `constants.FlipAxis` 가
+  27.8 에 없던 일(ROADMAP §44)은 상수 쪽이라 이 도구가 못 잡는다.
+- 한 번 받은 스냅샷이다. Adobe 문서가 바뀌면 `--refresh` 후 보고서를 다시 만든다.
+
+## 체크리스트
+
+- [x] Adobe 공개 문서 원본을 스냅샷으로 받아 클래스 48개 · 멤버 506개를 파싱
+- [x] 플러그인 소스에서 쓰는 이름을 주석 제외로 집계, 귀속 불가는 분리
+- [x] 대응표(사람 검증) + 자동 검증 테스트, 보고서 최신성 테스트
+- [x] 변형 세 가지로 테스트가 실제로 실패하는 것을 확인
+- [ ] 흔적 없음 중 batchPlay 로 이미 제공하는 것을 대응표에 채운다
+- [ ] 일부러 안 연 것의 제외 사유 표
+- [ ] 상수(`modules`)와 옵션 객체(`objects`)까지 넓힌다
+- [ ] filter.ts 의 "DOM 에 없는 것들" 주석 정정

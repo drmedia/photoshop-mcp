@@ -1,0 +1,26 @@
+[
+  {
+    "member": "Layer.applyGaussianBlur",
+    "tool": "photoshop.filter.gaussian_blur",
+    "via": "batchPlay",
+    "note": "`_obj: \"gaussianBlur\"` (filter.ts). DOM 은 23.5 부터"
+  },
+  {
+    "member": "Layer.applyHighPass",
+    "tool": "photoshop.filter.high_pass",
+    "via": "batchPlay",
+    "note": "`_obj: \"highPass\"` (filter.ts). DOM 은 23.5 부터"
+  },
+  {
+    "member": "Layer.applyMinimum",
+    "tool": "photoshop.filter.minimum_maximum",
+    "via": "batchPlay",
+    "note": "`mode: minimum` 일 때 `_obj: \"minimum\"` (filter.ts). DOM 은 23.5 부터"
+  },
+  {
+    "member": "Layer.applyMaximum",
+    "tool": "photoshop.filter.minimum_maximum",
+    "via": "batchPlay",
+    "note": "`mode: maximum` 일 때 `_obj: \"maximum\"` (filter.ts). DOM 은 23.5 부터"
+  }
+]

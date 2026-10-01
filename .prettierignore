@@ -4,3 +4,6 @@ package-lock.json
 
 # 문서는 직접 작성/관리한다. Prettier 가 마크다운 서식을 바꾸지 않도록 제외한다.
 *.md
+
+# 도구가 생성하는 데이터. 형식은 스크립트가 정한다 (scripts/api-coverage.mjs).
+docs/api-coverage/

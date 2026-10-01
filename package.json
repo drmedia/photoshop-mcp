@@ -28,7 +28,8 @@
     "check": "npm run format:check && npm run lint && npm run build && npm run typecheck:tests && npm test",
     "typecheck:tests": "tsc -p tsconfig.test.json",
     "verify:live": "node scripts/verify-live.mjs",
-    "package:plugin": "node scripts/package-plugin.mjs"
+    "package:plugin": "node scripts/package-plugin.mjs",
+    "api:coverage": "node scripts/api-coverage.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

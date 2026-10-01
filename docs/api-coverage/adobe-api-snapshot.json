@@ -1,0 +1,2954 @@
+{
+ "source": "AdobeDocs/uxp-photoshop",
+ "commit": "208fe869f791956b5e5805fcdc6651ecebfead7a",
+ "commitDate": "2026-08-14T19:04:44Z",
+ "classes": {
+  "Action": {
+   "properties": [
+    {
+     "name": "id",
+     "type": "number",
+     "access": "R",
+     "minVersion": "22.1"
+    },
+    {
+     "name": "index",
+     "type": "number",
+     "access": "R",
+     "minVersion": "22.1"
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "access": "R W",
+     "minVersion": "22.1"
+    },
+    {
+     "name": "parent",
+     "type": "ActionSet",
+     "access": "R",
+     "minVersion": "22.1"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.0"
+    }
+   ],
+   "methods": [
+    {
+     "name": "delete",
+     "minVersion": "22.1"
+    },
+    {
+     "name": "duplicate",
+     "minVersion": "22.1"
+    },
+    {
+     "name": "play",
+     "minVersion": "22.1"
+    }
+   ]
+  },
+  "ActionSet": {
+   "properties": [
+    {
+     "name": "actions",
+     "type": "Action[]",
+     "access": "R",
+     "minVersion": "22.1"
+    },
+    {
+     "name": "id",
+     "type": "number",
+     "access": "R",
+     "minVersion": "22.1"
+    },
+    {
+     "name": "index",
+     "type": "number",
+     "access": "R",
+     "minVersion": "22.1"
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "access": "R W",
+     "minVersion": "22.1"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.0"
+    }
+   ],
+   "methods": [
+    {
+     "name": "delete",
+     "minVersion": "22.1"
+    },
+    {
+     "name": "duplicate",
+     "minVersion": "22.1"
+    },
+    {
+     "name": "play",
+     "minVersion": "22.1"
+    }
+   ]
+  },
+  "Channel": {
+   "properties": [
+    {
+     "name": "color",
+     "type": "SolidColor",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "histogram",
+     "type": "number[]",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "kind",
+     "type": "ChannelType",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "opacity",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "parent",
+     "type": "Document",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "visible",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "23.0"
+    }
+   ],
+   "methods": [
+    {
+     "name": "duplicate",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "merge",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "remove",
+     "minVersion": "23.0"
+    }
+   ]
+  },
+  "Channels": {
+   "properties": [
+    {
+     "name": "length",
+     "type": "number",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "parent",
+     "type": "Document",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.0"
+    }
+   ],
+   "methods": [
+    {
+     "name": "add",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "getByName",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "removeAll",
+     "minVersion": "23.0"
+    }
+   ]
+  },
+  "CharacterStyle": {
+   "properties": [
+    {
+     "name": "alternateLigatures",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "false"
+    },
+    {
+     "name": "antiAliasMethod",
+     "type": "AntiAlias",
+     "access": "R W",
+     "minVersion": "SHARP"
+    },
+    {
+     "name": "autoKerning",
+     "type": "AutoKernType",
+     "access": "R W",
+     "minVersion": "METRICS"
+    },
+    {
+     "name": "baseline",
+     "type": "Baseline",
+     "access": "R W",
+     "minVersion": "NORMAL"
+    },
+    {
+     "name": "baselineShift",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "capitalization",
+     "type": "TextCase",
+     "access": "R W",
+     "minVersion": "NORMAL"
+    },
+    {
+     "name": "characterAlignment",
+     "type": "CharacterAlignment",
+     "access": "R W",
+     "minVersion": "ROMAN"
+    },
+    {
+     "name": "color",
+     "type": "SolidColor",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "fauxBold",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "false"
+    },
+    {
+     "name": "fauxItalic",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "false"
+    },
+    {
+     "name": "font",
+     "type": "string",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "fractionalWidths",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "false"
+    },
+    {
+     "name": "fractions",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "false"
+    },
+    {
+     "name": "horizontalDiacriticPosition",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "horizontalScale",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "kashidas",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "true"
+    },
+    {
+     "name": "language",
+     "type": "Language",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "leading",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "null"
+    },
+    {
+     "name": "ligatures",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "true"
+    },
+    {
+     "name": "middleEasternDigitsType",
+     "type": "MiddleEasternDigitsType",
+     "access": "R W",
+     "minVersion": "LTRARABIC"
+    },
+    {
+     "name": "middleEasternTextDirection",
+     "type": "MiddleEasternTextDirection",
+     "access": "R W",
+     "minVersion": "DEFAULT"
+    },
+    {
+     "name": "noBreak",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "false"
+    },
+    {
+     "name": "ordinals",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "false"
+    },
+    {
+     "name": "size",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "strikeThrough",
+     "type": "StrikeThrough",
+     "access": "R W",
+     "minVersion": "STRIKEOFF"
+    },
+    {
+     "name": "stylisticAlternates",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "false"
+    },
+    {
+     "name": "swash",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "false"
+    },
+    {
+     "name": "titlingAlternates",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "false"
+    },
+    {
+     "name": "tracking",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "underline",
+     "type": "Underline",
+     "access": "R W",
+     "minVersion": "NONE"
+    },
+    {
+     "name": "useAutoLeading",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "verticalDiacriticPosition",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "verticalScale",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "-"
+    }
+   ],
+   "methods": [
+    {
+     "name": "reset",
+     "minVersion": "24.1"
+    }
+   ]
+  },
+  "ColorSampler": {
+   "properties": [
+    {
+     "name": "color",
+     "type": "SolidColor \\",
+     "access": "NoColor",
+     "minVersion": "R"
+    },
+    {
+     "name": "docId",
+     "type": "number",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "parent",
+     "type": "Document",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "position",
+     "type": "object",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.0"
+    }
+   ],
+   "methods": [
+    {
+     "name": "move",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "remove",
+     "minVersion": "24.0"
+    }
+   ]
+  },
+  "ColorSamplers": {
+   "properties": [
+    {
+     "name": "length",
+     "type": "number",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "parent",
+     "type": "Document",
+     "access": "R",
+     "minVersion": "24.0"
+    }
+   ],
+   "methods": [
+    {
+     "name": "add",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "removeAll",
+     "minVersion": "24.0"
+    }
+   ]
+  },
+  "CountItem": {
+   "properties": [
+    {
+     "name": "groupIndex",
+     "type": "",
+     "access": "",
+     "minVersion": null
+    },
+    {
+     "name": "itemIndex",
+     "type": "",
+     "access": "",
+     "minVersion": null
+    },
+    {
+     "name": "parent",
+     "type": "CountItems",
+     "access": "R",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "position",
+     "type": "object",
+     "access": "R",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.1"
+    }
+   ],
+   "methods": [
+    {
+     "name": "move",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "remove",
+     "minVersion": "24.1"
+    }
+   ]
+  },
+  "CountItems": {
+   "properties": [
+    {
+     "name": "length",
+     "type": "number",
+     "access": "R",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "parent",
+     "type": "Document",
+     "access": "R",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.1"
+    }
+   ],
+   "methods": [
+    {
+     "name": "activateGroupByIndex",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "add",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "createGroup",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "getAll",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "removeAllFromActiveGroup",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "removeGroupByIndex",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "renameActiveGroup",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "setActiveColor",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "setActiveLabelSize",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "setActiveMarkerSize",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "toggleActiveGroupVisibility",
+     "minVersion": "24.1"
+    }
+   ]
+  },
+  "Document": {
+   "properties": [
+    {
+     "name": "saveAs",
+     "type": "",
+     "access": "",
+     "minVersion": null
+    },
+    {
+     "name": "selection",
+     "type": "",
+     "access": "",
+     "minVersion": null
+    },
+    {
+     "name": "activeChannels",
+     "type": "Channel[]",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "activeHistoryBrushSource",
+     "type": "HistoryState",
+     "access": "R W",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "activeHistoryState",
+     "type": "HistoryState",
+     "access": "R W",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "activeLayers",
+     "type": "Layers",
+     "access": "R W",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "artboards",
+     "type": "Layers",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "backgroundLayer",
+     "type": "Layer",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "bitsPerChannel",
+     "type": "BitsPerChannelType",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "channels",
+     "type": "Channels",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "cloudDocument",
+     "type": "boolean",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "cloudWorkAreaDirectory",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "colorProfileName",
+     "type": "string",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "colorProfileType",
+     "type": "ColorProfileType",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "colorSamplers",
+     "type": "ColorSamplers",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "componentChannels",
+     "type": "Channel[]",
+     "access": "R",
+     "minVersion": "24.5"
+    },
+    {
+     "name": "countItems",
+     "type": "CountItems",
+     "access": "R",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "guides",
+     "type": "Guides",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "height",
+     "type": "number",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "histogram",
+     "type": "number[]",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "historyStates",
+     "type": "HistoryStates",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "id",
+     "type": "number",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "layerComps",
+     "type": "LayerComps",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "layers",
+     "type": "Layers",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "mode",
+     "type": "DocumentMode",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "path",
+     "type": "string",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "pathItems",
+     "type": "PathItems",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "pixelAspectRatio",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "quickMaskMode",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "resolution",
+     "type": "number",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "saved",
+     "type": "boolean",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "title",
+     "type": "string",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "width",
+     "type": "number",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "zoom",
+     "type": "number",
+     "access": "R",
+     "minVersion": "25.1"
+    }
+   ],
+   "methods": [
+    {
+     "name": "calculations",
+     "minVersion": "24.5"
+    },
+    {
+     "name": "changeMode",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "close",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "closeWithoutSaving",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "convertProfile",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "createLayer",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "createLayerGroup",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "createPixelLayer",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "createTextLayer",
+     "minVersion": "24.2"
+    },
+    {
+     "name": "crop",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "duplicate",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "duplicateLayers",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "flatten",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "generativeUpscale",
+     "minVersion": "27.2"
+    },
+    {
+     "name": "groupLayers",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "linkLayers",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "mergeVisibleLayers",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "paste",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "rasterizeAllLayers",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "resizeCanvas",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "resizeImage",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "revealAll",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "rotate",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "sampleColor",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "save",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "splitChannels",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "suspendHistory",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "trap",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "trim",
+     "minVersion": "23.0"
+    }
+   ]
+  },
+  "Documents": {
+   "properties": [
+    {
+     "name": "length",
+     "type": "number",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "parent",
+     "type": "Photoshop",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "22.5"
+    }
+   ],
+   "methods": [
+    {
+     "name": "add",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "getByName",
+     "minVersion": "22.5"
+    }
+   ]
+  },
+  "Guide": {
+   "properties": [
+    {
+     "name": "coordinate",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "direction",
+     "type": "Direction",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "docId",
+     "type": "number",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "id",
+     "type": "number",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "parent",
+     "type": "Document",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.0"
+    }
+   ],
+   "methods": [
+    {
+     "name": "delete",
+     "minVersion": "23.0"
+    }
+   ]
+  },
+  "Guides": {
+   "properties": [
+    {
+     "name": "length",
+     "type": "number",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "parent",
+     "type": "Document",
+     "access": "R",
+     "minVersion": "23.0"
+    }
+   ],
+   "methods": [
+    {
+     "name": "add",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "removeAll",
+     "minVersion": "23.0"
+    }
+   ]
+  },
+  "HistoryState": {
+   "properties": [
+    {
+     "name": "docId",
+     "type": "number",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "id",
+     "type": "number",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "parent",
+     "type": "Document",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "snapshot",
+     "type": "boolean",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.0"
+    }
+   ],
+   "methods": []
+  },
+  "HistoryStates": {
+   "properties": [
+    {
+     "name": "length",
+     "type": "number",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "parent",
+     "type": "Document",
+     "access": "R",
+     "minVersion": "22.5"
+    }
+   ],
+   "methods": [
+    {
+     "name": "getByName",
+     "minVersion": "22.5"
+    }
+   ]
+  },
+  "Layer": {
+   "properties": [
+    {
+     "name": "allLocked",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "blendMode",
+     "type": "BlendMode",
+     "access": "R W",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "bounds",
+     "type": "Bounds",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "boundsNoEffects",
+     "type": "Bounds",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "document",
+     "type": "Document",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "fillOpacity",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "filterMaskDensity",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "filterMaskFeather",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "id",
+     "type": "number",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "isBackgroundLayer",
+     "type": "boolean",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "isClippingMask",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "kind",
+     "type": "LayerKind",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "layerMaskDensity",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "layerMaskFeather",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "layers",
+     "type": "Layers",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "linkedLayers",
+     "type": "Layers",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "locked",
+     "type": "boolean",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "access": "R W",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "opacity",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "parent",
+     "type": "Layer",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "pixelsLocked",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "positionLocked",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "textItem",
+     "type": "TextItem",
+     "access": "R",
+     "minVersion": "24.2"
+    },
+    {
+     "name": "transparentPixelsLocked",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "vectorMaskDensity",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "vectorMaskFeather",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "visible",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "22.5"
+    }
+   ],
+   "methods": [
+    {
+     "name": "applyAddNoise",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyAverage",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyBlur",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyBlurMore",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyClouds",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyCustomFilter",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyDeInterlace",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyDespeckle",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyDifferenceClouds",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyDiffuseGlow",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyDisplace",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyDustAndScratches",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyGaussianBlur",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyGlassEffect",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyHighPass",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyImage",
+     "minVersion": "24.5"
+    },
+    {
+     "name": "applyLensBlur",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyLensFlare",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyMaximum",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyMedianNoise",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyMinimum",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyMotionBlur",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyNTSC",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyOceanRipple",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyOffset",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyPinch",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyPolarCoordinates",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyRipple",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applySharpen",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applySharpenEdges",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applySharpenMore",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyShear",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applySmartBlur",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "applySpherize",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "applyTwirl",
+     "minVersion": "23.5"
+    },
+    {
+     "name": "applyUnSharpMask",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "applyWave",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "applyZigZag",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "bringToFront",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "clear",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "copy",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "cut",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "delete",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "duplicate",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "flip",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "link",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "merge",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "move",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "rasterize",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "rotate",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "scale",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "sendToBack",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "skew",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "translate",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "unlink",
+     "minVersion": "23.0"
+    }
+   ]
+  },
+  "LayerComp": {
+   "properties": [
+    {
+     "name": "appearance",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "childComp",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "comment",
+     "type": "string",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "docId",
+     "type": "number",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "id",
+     "type": "number",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "parent",
+     "type": "Document",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "position",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "selected",
+     "type": "boolean",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "visibility",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    }
+   ],
+   "methods": [
+    {
+     "name": "apply",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "duplicate",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "recapture",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "remove",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "resetLayerComp",
+     "minVersion": "24.0"
+    }
+   ]
+  },
+  "LayerComps": {
+   "properties": [
+    {
+     "name": "length",
+     "type": "number",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "parent",
+     "type": "Document",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.0"
+    }
+   ],
+   "methods": [
+    {
+     "name": "add",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "getAllByName",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "removeAll",
+     "minVersion": "24.0"
+    }
+   ]
+  },
+  "Layers": {
+   "properties": [
+    {
+     "name": "length",
+     "type": "number",
+     "access": "R",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "22.5"
+    }
+   ],
+   "methods": [
+    {
+     "name": "add",
+     "minVersion": "22.5"
+    },
+    {
+     "name": "getByName",
+     "minVersion": "22.5"
+    }
+   ]
+  },
+  "ParagraphStyle": {
+   "properties": [
+    {
+     "name": "features",
+     "type": "TypeInterfaceFeatures",
+     "access": "R W",
+     "minVersion": "DEFAULT"
+    },
+    {
+     "name": "firstLineIndent",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "hyphenation",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "false"
+    },
+    {
+     "name": "hyphenationFeatures",
+     "type": "HyphenationProperties",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "justification",
+     "type": "Justification",
+     "access": "R W",
+     "minVersion": "LEFT"
+    },
+    {
+     "name": "justificationFeatures",
+     "type": "JustificationProperties",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "kashidaWidth",
+     "type": "KashidaWidthType",
+     "access": "R W",
+     "minVersion": "MEDIUM"
+    },
+    {
+     "name": "kinsoku",
+     "type": "Kinsoku",
+     "access": "R W",
+     "minVersion": "NONE"
+    },
+    {
+     "name": "layoutMode",
+     "type": "ParagraphLayout",
+     "access": "R W",
+     "minVersion": "WORLD"
+    },
+    {
+     "name": "leftIndent",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "mojikumi",
+     "type": "Mojikumi",
+     "access": "R W",
+     "minVersion": "NONE"
+    },
+    {
+     "name": "rightIndent",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "spaceAfter",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "spaceBefore",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "-"
+    }
+   ],
+   "methods": [
+    {
+     "name": "reset",
+     "minVersion": "24.1"
+    }
+   ]
+  },
+  "PathItem": {
+   "properties": [
+    {
+     "name": "docId",
+     "type": "number",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "id",
+     "type": "number",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "kind",
+     "type": "PathKind",
+     "access": "R W",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "access": "R W",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "parent",
+     "type": "Document",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "subPathItems",
+     "type": "SubPathItems",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.3"
+    }
+   ],
+   "methods": [
+    {
+     "name": "deselect",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "duplicate",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "fillPath",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "makeClippingPath",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "makeSelection",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "remove",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "select",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "strokePath",
+     "minVersion": "23.3"
+    }
+   ]
+  },
+  "PathItems": {
+   "properties": [
+    {
+     "name": "length",
+     "type": "number",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "parent",
+     "type": "Document",
+     "access": "R",
+     "minVersion": "23.3"
+    }
+   ],
+   "methods": [
+    {
+     "name": "add",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "getByName",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "removeAll",
+     "minVersion": "23.3"
+    }
+   ]
+  },
+  "PathPoint": {
+   "properties": [
+    {
+     "name": "anchor",
+     "type": "number[]",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "kind",
+     "type": "PointKind",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "leftDirection",
+     "type": "number[]",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "parent",
+     "type": "SubPathItem",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "rightDirection",
+     "type": "number[]",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.3"
+    }
+   ],
+   "methods": []
+  },
+  "PathPointInfo": {
+   "properties": [
+    {
+     "name": "anchor",
+     "type": "number[]",
+     "access": "R W",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "kind",
+     "type": "PointKind",
+     "access": "R W",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "leftDirection",
+     "type": "number[]",
+     "access": "R W",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "rightDirection",
+     "type": "number[]",
+     "access": "R W",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.3"
+    }
+   ],
+   "methods": []
+  },
+  "PathPoints": {
+   "properties": [
+    {
+     "name": "length",
+     "type": "number",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "parent",
+     "type": "SubPathItem",
+     "access": "R",
+     "minVersion": "23.3"
+    }
+   ],
+   "methods": []
+  },
+  "Photoshop": {
+   "properties": [
+    {
+     "name": "actionTree",
+     "type": "ActionSet[]",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "activeDocument",
+     "type": "Document",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "backgroundColor",
+     "type": "SolidColor",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "currentTool",
+     "type": "Tool",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "displayDialogs",
+     "type": "DialogModes",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "documents",
+     "type": "Documents",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "fonts",
+     "type": "TextFonts",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "foregroundColor",
+     "type": "SolidColor",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "preferences",
+     "type": "Preferences",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.0"
+    }
+   ],
+   "methods": [
+    {
+     "name": "batchPlay",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "bringToFront",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "convertUnits",
+     "minVersion": "23.4"
+    },
+    {
+     "name": "createDocument",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "getColorProfiles",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "open",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "showAlert",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "updateUI",
+     "minVersion": "26.0"
+    }
+   ]
+  },
+  "Preferences": {
+   "properties": [
+    {
+     "name": "cursors",
+     "type": "PreferencesCursors",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "fileHandling",
+     "type": "PreferencesFileHandling",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "general",
+     "type": "PreferencesGeneral",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "guidesGridsAndSlices",
+     "type": "PreferencesGuidesGridsAndSlices",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "history",
+     "type": "PreferencesHistory",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "interface",
+     "type": "PreferencesInterface",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "notifications",
+     "type": "PreferencesNotifications",
+     "access": "R",
+     "minVersion": "26.11"
+    },
+    {
+     "name": "performance",
+     "type": "PreferencesPerformance",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "tools",
+     "type": "PreferencesTools",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "transparencyAndGamut",
+     "type": "PreferencesTransparencyAndGamut",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "type",
+     "type": "PreferencesType",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "unitsAndRulers",
+     "type": "PreferencesUnitsAndRulers",
+     "access": "R",
+     "minVersion": "24.0"
+    }
+   ],
+   "methods": []
+  },
+  "Preferences/PreferencesCursors": {
+   "properties": [
+    {
+     "name": "otherCursors",
+     "type": "OtherCursors",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "paintingCursors",
+     "type": "PaintingCursors",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.0"
+    }
+   ],
+   "methods": []
+  },
+  "Preferences/PreferencesFileHandling": {
+   "properties": [
+    {
+     "name": "askBeforeSavingLayeredTIFF",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "imagePreviews",
+     "type": "SavePreview",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "maximizeCompatibility",
+     "type": "MaximizeCompatibility",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "recentFileListMaximum",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "useLowerCaseExtension",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    }
+   ],
+   "methods": []
+  },
+  "Preferences/PreferencesGeneral": {
+   "properties": [
+    {
+     "name": "autoUpdateOpenDocuments",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "beepWhenDone",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "colorPicker",
+     "type": "ColorPickerOption",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "exportClipboard",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "imageInterpolation",
+     "type": "InterpolationMethod",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.0"
+    }
+   ],
+   "methods": []
+  },
+  "Preferences/PreferencesGuidesGridsAndSlices": {
+   "properties": [
+    {
+     "name": "gridStyle",
+     "type": "GridLineStyle",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "gridSubDivisions",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "guideStyle",
+     "type": "GuideLineStyle",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "showSliceNumber",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.0"
+    }
+   ],
+   "methods": []
+  },
+  "Preferences/PreferencesHistory": {
+   "properties": [
+    {
+     "name": "createFirstSnapshot",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "editLogItems",
+     "type": "EditLogItemsType",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "nonLinearHistory",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "numberOfHistoryStates",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "saveLogItems",
+     "type": "SaveLogItemsType",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "useHistoryLog",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    }
+   ],
+   "methods": []
+  },
+  "Preferences/PreferencesInterface": {
+   "properties": [
+    {
+     "name": "colorChannelsInColor",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "dynamicColorSliders",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "textFontSize",
+     "type": "FontSize",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.0"
+    }
+   ],
+   "methods": []
+  },
+  "Preferences/PreferencesNotifications": {
+   "properties": [
+    {
+     "name": "quietMode",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "26.11"
+    },
+    {
+     "name": "showFeatureOnboarding",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "26.11"
+    },
+    {
+     "name": "showToolTips",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "26.11"
+    },
+    {
+     "name": "showWhatsNew",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "26.11"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "26.11"
+    },
+    {
+     "name": "useRichToolTips",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "26.11"
+    }
+   ],
+   "methods": []
+  },
+  "Preferences/PreferencesPerformance": {
+   "properties": [
+    {
+     "name": "imageCacheLevels",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "maxRAMuse",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.0"
+    }
+   ],
+   "methods": []
+  },
+  "Preferences/PreferencesTools": {
+   "properties": [
+    {
+     "name": "keyboardZoomResizesWindows",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "showToolTips",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "useShiftKeyForToolSwitch",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    }
+   ],
+   "methods": []
+  },
+  "Preferences/PreferencesTransparencyAndGamut": {
+   "properties": [
+    {
+     "name": "gamutWarningOpacity",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "gridSize",
+     "type": "GridSize",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.0"
+    }
+   ],
+   "methods": []
+  },
+  "Preferences/PreferencesType": {
+   "properties": [
+    {
+     "name": "showEnglishFontNames",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "showTextFeatures",
+     "type": "TypeInterfaceFeatures",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "smartQuotes",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.0"
+    }
+   ],
+   "methods": []
+  },
+  "Preferences/PreferencesUnitsAndRulers": {
+   "properties": [
+    {
+     "name": "pointSize",
+     "type": "PointType",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "rulerUnits",
+     "type": "RulerUnits",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typeUnits",
+     "type": "TypeUnits",
+     "access": "R W",
+     "minVersion": "24.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.0"
+    }
+   ],
+   "methods": []
+  },
+  "Selection": {
+   "properties": [
+    {
+     "name": "bounds",
+     "type": "Bounds",
+     "access": "R",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "docId",
+     "type": "number",
+     "access": "R",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "parent",
+     "type": "Document",
+     "access": "R",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "solid",
+     "type": "boolean",
+     "access": "R",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "25.0"
+    }
+   ],
+   "methods": [
+    {
+     "name": "contract",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "deselect",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "expand",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "feather",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "grow",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "inverse",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "load",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "makeWorkPath",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "resizeBoundary",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "rotateBoundary",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "save",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "saveTo",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "selectAll",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "selectBorder",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "selectColumn",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "selectEllipse",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "selectPolygon",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "selectRectangle",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "selectRow",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "smooth",
+     "minVersion": "25.0"
+    },
+    {
+     "name": "translateBoundary",
+     "minVersion": "25.0"
+    }
+   ]
+  },
+  "SolidColor": {
+   "properties": [
+    {
+     "name": "cmyk",
+     "type": "CMYKColor",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "gray",
+     "type": "GrayColor",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "hsb",
+     "type": "HSBColor",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "lab",
+     "type": "LabColor",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "nearestWebColor",
+     "type": "RGBColor",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "rgb",
+     "type": "RGBColor",
+     "access": "R W",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "24.2"
+    }
+   ],
+   "methods": [
+    {
+     "name": "isEqual",
+     "minVersion": "23.0"
+    }
+   ]
+  },
+  "SubPathInfo": {
+   "properties": [
+    {
+     "name": "closed",
+     "type": "boolean",
+     "access": "R W",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "entireSubPath",
+     "type": "PathPointInfo[]",
+     "access": "R W",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "operation",
+     "type": "ShapeOperation",
+     "access": "R W",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.3"
+    }
+   ],
+   "methods": []
+  },
+  "SubPathItem": {
+   "properties": [
+    {
+     "name": "closed",
+     "type": "boolean",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "operation",
+     "type": "ShapeOperation",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "parent",
+     "type": "PathItem",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "pathPoints",
+     "type": "PathPoints",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.3"
+    }
+   ],
+   "methods": []
+  },
+  "SubPathItems": {
+   "properties": [
+    {
+     "name": "length",
+     "type": "number",
+     "access": "R",
+     "minVersion": "23.3"
+    },
+    {
+     "name": "parent",
+     "type": "PathItem",
+     "access": "R",
+     "minVersion": "23.3"
+    }
+   ],
+   "methods": []
+  },
+  "TextFont": {
+   "properties": [
+    {
+     "name": "family",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "parent",
+     "type": "Photoshop",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "postScriptName",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "style",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.0"
+    }
+   ],
+   "methods": []
+  },
+  "TextFonts": {
+   "properties": [
+    {
+     "name": "length",
+     "type": "number",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "parent",
+     "type": "Photoshop",
+     "access": "R",
+     "minVersion": "23.0"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "23.0"
+    }
+   ],
+   "methods": [
+    {
+     "name": "getByName",
+     "minVersion": "23.0"
+    }
+   ]
+  },
+  "TextItem": {
+   "properties": [
+    {
+     "name": "characterStyle",
+     "type": "",
+     "access": "",
+     "minVersion": null
+    },
+    {
+     "name": "paragraphStyle",
+     "type": "",
+     "access": "",
+     "minVersion": null
+    },
+    {
+     "name": "warpStyle",
+     "type": "",
+     "access": "",
+     "minVersion": null
+    },
+    {
+     "name": "contents",
+     "type": "string",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "isParagraphText",
+     "type": "boolean",
+     "access": "R",
+     "minVersion": "-"
+    },
+    {
+     "name": "isPointText",
+     "type": "boolean",
+     "access": "R",
+     "minVersion": "-"
+    },
+    {
+     "name": "orientation",
+     "type": "Orientation",
+     "access": "R W",
+     "minVersion": "HORIZONTAL"
+    },
+    {
+     "name": "parent",
+     "type": "Layer",
+     "access": "R",
+     "minVersion": "-"
+    },
+    {
+     "name": "textClickPoint",
+     "type": "object",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "typename",
+     "type": "string",
+     "access": "R",
+     "minVersion": "-"
+    }
+   ],
+   "methods": [
+    {
+     "name": "convertToParagraphText",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "convertToPointText",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "convertToShape",
+     "minVersion": "24.1"
+    },
+    {
+     "name": "createWorkPath",
+     "minVersion": "24.1"
+    }
+   ]
+  },
+  "WarpStyle": {
+   "properties": [
+    {
+     "name": "bend",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "direction",
+     "type": "Direction",
+     "access": "R W",
+     "minVersion": "HORIZONTAL"
+    },
+    {
+     "name": "horizontalDistortion",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "-"
+    },
+    {
+     "name": "style",
+     "type": "WarpStyle",
+     "access": "R W",
+     "minVersion": "NONE"
+    },
+    {
+     "name": "verticalDistortion",
+     "type": "number",
+     "access": "R W",
+     "minVersion": "-"
+    }
+   ],
+   "methods": [
+    {
+     "name": "reset",
+     "minVersion": "24.1"
+    }
+   ]
+  }
+ }
+}

@@ -88,6 +88,14 @@ const MUST_STATE: [string, RegExp][] = [
   ["adjustment.get", /hue −180~180, saturation −100~100, lightness −100~100/u],
   ["adjustment.get", /전부 아니면 null/u],
   ["adjustment.get", /raw 는 Photoshop 이 준 원본 descriptor/u],
+
+  // mask.summary — 임계 · 좌표 규칙 · 판정 없음 (§97).
+  ["mask.summary", /퍼센트\(0–100\)이고 합이 100/u],
+  ["mask.summary", /< 0\.5 가림, >= 254\.5 보임/u],
+  ["mask.summary", /왼쪽 위가 원점이며 right · bottom 은 포함하지 않는다/u],
+  ["mask.summary", /문서 캔버스 범위로 잰다/u],
+  ["mask.summary", /판정은 없다/u],
+  ["mask.summary", /마스크가 있어야 한다/u],
 ];
 
 describe("Tool 설명의 단위", () => {

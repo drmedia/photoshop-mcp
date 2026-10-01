@@ -275,6 +275,7 @@ import {
   AdjustmentGetParamsSchema,
   adjustmentGetCommand,
 } from "./adjustment-get.js";
+import { MASK_SUMMARY, MaskSummaryParamsSchema, maskSummaryCommand } from "./mask-summary.js";
 import {
   CAPTURE_DOCUMENT,
   CAPTURE_LAYER,
@@ -420,6 +421,7 @@ export * from "./document-analyze.js";
 export * from "./document-compare.js";
 export * from "./adjustment-get.js";
 export * from "./adjustment-settings.js";
+export * from "./mask-summary.js";
 export * from "./retouch.js";
 export * from "./camera-raw.js";
 export * from "./layer-delete.js";
@@ -697,6 +699,10 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(ADJUSTMENT_GET, adjustmentGetCommand, {
     permission: "read",
     schema: AdjustmentGetParamsSchema,
+  });
+  registry.register(MASK_SUMMARY, maskSummaryCommand, {
+    permission: "read",
+    schema: MaskSummaryParamsSchema,
   });
   registry.register(DOCUMENT_CROP, documentCropCommand, {
     // 픽셀을 버리지 않는다. 캔버스만 줄이므로 되돌릴 수 있다.

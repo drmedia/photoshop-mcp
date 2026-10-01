@@ -167,7 +167,9 @@ describe("Plugin — 서버 찾기", () => {
 
     expect(client.url).toBe(live);
     expect(connected).toEqual([live]);
-    expect(transport.isConnected()).toBe(true);
+    // 클라이언트는 ready 를 보낸 직후 connected 가 된다. 서버가 그것을 처리할 때까지 기다린다 — 곧바로
+    // 단언하면 부하에서 서버가 아직 awaiting_ready 일 때 검사하게 된다.
+    await until(() => transport.isConnected());
     // 서버가 알려 준 pid — 같은 기계에 서버가 여럿일 때 어느 쪽인지 가린다.
     expect(client.serverPid).toBe(process.pid);
   });

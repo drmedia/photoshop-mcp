@@ -1131,6 +1131,30 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
        * `isSmartObject` 뿐이고 그것은 정확히 흉내낸다.
        */
       /**
+       * 마스크 요약. (ROADMAP §97)
+       *
+       * **Mock 은 실패한다.** 마스크가 있는지는 알지만 마스크의 픽셀은 모른다. 그럴듯한 비율을
+       * 돌려주면 그것을 보고 짠 워크플로가 실기에서 다르게 돈다 — `MEASURE_TILT` 가 각도를 지어내지
+       * 않는 것과 같다. 마스크가 없는 레이어를 거절하는 것까지는 정확히 흉내낸다.
+       */
+      case "MASK_SUMMARY": {
+        const at = this.#requireLayerIndex((command.params as { layerId?: number }).layerId);
+        const layer = this.#layers[at] as LayerInfo;
+        if (layer.hasMask !== true) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `레이어 ${String(layer.id)} 에는 마스크가 없습니다.`,
+            { recoverable: true, details: { layerId: layer.id } },
+          );
+        }
+        throw new PhotoshopMcpError(
+          ErrorCode.COMMAND_FAILED,
+          "Mock Bridge 는 마스크 픽셀을 읽지 않아 요약할 수 없습니다. " +
+            "실제 Photoshop 연결이 필요합니다.",
+          { recoverable: false, details: { layerId: layer.id } },
+        );
+      }
+      /**
        * 조정 레이어 읽기. (ROADMAP §96)
        *
        * **Mock 은 조정 레이어의 값을 모른다.** 만들 때 받은 파라미터를 보관하지 않으므로 `raw` 를

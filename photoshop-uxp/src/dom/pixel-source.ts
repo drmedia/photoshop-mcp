@@ -108,6 +108,18 @@ function resolveRequest(params: PixelSourceParams): {
     }
   }
 
+  /* **마스크는 문서 캔버스 범위로 읽는다.** (ROADMAP §97)
+   *
+   * 범위를 주지 않으면 마스크 **자신의 범위**가 온다. 마스크는 문서 밖까지 뻗을 수 있고(실기에서
+   * 4024×6048 문서의 마스크가 6510×6051 로 왔다) 그 바깥은 검정으로 채워져 있어서, 비율을 재면 문서
+   * 밖의 픽셀이 섞인다 — 같은 마스크의 가림이 문서 안에서 40.5% 인데 55.9% 로 나왔다. 타일과 경계
+   * 좌표도 문서의 어디인지 알 수 없게 된다.
+   *
+   * 선택 영역을 주면 아래에서 그 경계 상자로 덮인다. */
+  if (params.target === "mask") {
+    request["sourceBounds"] = { left: 0, top: 0, right: document.width, bottom: document.height };
+  }
+
   if (params.region === "selection") {
     if (!hasSelection()) {
       throw new DispatchError("INVALID_PARAMETER", "잴 선택 영역이 없습니다.", {

@@ -37,6 +37,7 @@ export const EXPECTED_TOOLS = [
   // ROADMAP §91 — 보정 전후를 그림과 수치로. 이미지를 못 받는 클라이언트도 수치로 판단한다
   "photoshop.document.compare",
   "photoshop.adjustment.get",
+  "photoshop.mask.summary",
   // ROADMAP §17.14 — 비어 있던 단계. 배경에는 걸 수 없다
   "photoshop.retouch.remove_spots",
   // ROADMAP §17.17 — 키를 실기에서 잡아냈다. Tool 은 하나뿐이다
@@ -233,6 +234,7 @@ export const EXPECTED_COMMANDS = [
   "DOCUMENT_ANALYZE",
   "DOCUMENT_COMPARE",
   "ADJUSTMENT_GET",
+  "MASK_SUMMARY",
   "DOCUMENT_CROP",
   "CANVAS_RESIZE",
   "DOCUMENT_TRIM",

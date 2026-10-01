@@ -14,7 +14,7 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **165개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **166개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
@@ -172,6 +172,14 @@ Tool 까지 더한 수다(지금 168). 한동안 이 값을 Core 개수로 옮�
   **Photoshop 은 곡선의 초록 채널을 `grain` 으로 준다**(`RGBColor` 의 녹색 키와 같은 함정) — 짐작으로
   `green` 이라 썼다면 놓쳤다. 해석은 **전부 아니면 `null`** 이고, 해석은 서버가 한다(Plugin 은 원본만)
   (ROADMAP §96)
+- 마스크 요약: `mask.summary` — **마스크가 어디를 얼마나 가리는지.** 완전히 가림 · 보임 · 번짐의
+  비율(임계는 0–255 눈금의 양 끝, 8비트면 정확히 0 과 255), 효과가 닿는 경계 상자(`touched`)와
+  완전히 보이는 상자(`full`, **right · bottom 은 포함하지 않는다**), 위치별 강도(`tiles`). 마스크가
+  없는 레이어는 거절하고 Mock 은 값을 지어내지 않고 실패한다. **비볼록 영역의 경계 상자는 영역 전체를
+  덮는다** — 모양은 `tiles` 로 본다. **마스크는 문서 캔버스 범위로 읽는다** — 마스크는 문서 밖까지
+  뻗을 수 있고(4024×6048 문서의 마스크가 6510×6051) 바깥은 검정이라 비율이 부풀었다(같은 마스크의
+  가림이 40.5% 인데 55.9% 로 나왔다). `pixel-source.ts` 한 곳에서 고쳐 `statistics` · `analyze` 의
+  마스크 분석도 같은 영역을 잰다 (ROADMAP §97)
 - 측정: `document.statistics` — **전체 해상도 원본**에서 히스토그램·채널 통계
 - 촬영 정보: `metadata.get` — 카메라·렌즈·노출·ISO·초점 거리. **`statistics` 와
   짝이다** — 저쪽은 "지금 어떤가" 이고 이쪽은 "왜 그런가" 다. DOM 에 없어
@@ -1079,7 +1087,7 @@ Plugin 이 서버를 못 찾는다.
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 165개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 166개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져

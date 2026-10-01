@@ -137,7 +137,7 @@ export function createPathToSelectionTool(
     "photoshop.path.to_selection",
     "패스를 선택 영역으로 바꾼다. " +
       TARGET +
-      "feather 는 가장자리 페더(픽셀), antiAlias 는 기본 true. " +
+      "feather 는 가장자리 페더(문서 픽셀, 해상도와 무관 — 번지는 범위는 사방 약 feather × 2.5), antiAlias 는 기본 true. " +
       "mode 는 replace(기본) · add · subtract · intersect 로 기존 선택과 어떻게 합칠지다. " +
       "**패스는 해상도에 매이지 않으므로 문서를 키운 뒤에도 깨끗한 선택을 준다** — " +
       "선택을 채널로 저장하는 photoshop.selection.save_channel 과 갈리는 자리다. " +
@@ -159,6 +159,8 @@ export function createPathFillTool(
     "패스 안을 색으로 채운다. " +
       TARGET +
       "color 는 {red, green, blue} 0~255, opacity 는 0~100 이다. " +
+      "**feather 는 문서 픽셀이고 해상도와 무관하다** — 가장자리가 번지는 범위는 사방 약 feather × 2.5 픽셀이다 " +
+      "(feather 20 이 50픽셀, photoshop.selection.modify 의 feather 와 같다). " +
       "**활성 레이어의 픽셀에 칠한다** — 조정 레이어나 그룹이 활성이면 Photoshop 이 " +
       "거절하므로 photoshop.layer.select 로 픽셀 레이어를 먼저 고른다. " +
       "wholePath: false 면 선택된 하위 패스만, preserveTransparency: true 면 " +

@@ -11090,7 +11090,7 @@ capture 의 `quality` 문장을 지우자 5개가 정확히 실패했고 복구�
 - [x] dab 셋 · `measure.tilt` · `selection.modify` · `canvas.resize` 의 단위를 적었다
 - [x] 설명에서 단위가 빠지면 실패하는 테스트
 - [x] `text` 의 `size` 단위 — 실기로 쟀다. **문서 픽셀**이고 해상도와 무관하다 (아래)
-- [ ] `path.fill` · `path.to_selection` 의 `feather` 단위 — 근거가 없다
+- [x] `path.fill` · `path.to_selection` 의 `feather` 단위 — 실기로 쟀다. **문서 픽셀**이고 해상도와 무관하다 (아래)
 
 ## 실기로 쟀다 — `text` 의 `size` 는 포인트가 아니라 **문서 픽셀**이다
 
@@ -11143,3 +11143,36 @@ Tool 설명과 소스 주석을 고쳤다. 임시 문서는 둘 다 닫았고(`d
 창 캡처는 사용자의 화면 전체(탭 이름·패널·최근 작업)를 찍으므로 `external` 이다 — 이번에는
 임시 문서 이름만 찍혔으나 호출자가 읽을 수 있는 것을 늘리는 도구라는 점은 그대로다.
 임시 문서 둘은 닫았고 사진 문서는 처음 그대로다.
+
+## 실기로 쟀다 — `path` 의 `feather` 는 **문서 픽셀**이다
+
+소스에 단위 주석이 없어 비워 둔 것이다(`path.to_selection` 설명에만 "픽셀" 이 있었으나
+측정한 값이 아니었다). 사각형 선택(400,300–800,500)을 패스로 굳히고 `feather 20` 으로
+채운 뒤, **번진 픽셀이 차지한 범위**를 `selection.set layerTransparency` +
+`document.statistics` 의 `source` 로 읽었다.
+
+```text
+                                        번진 범위 (사방)
+(선택 그대로)                            400,300,800,500   0px
+selection.modify feather 20  (72ppi)    350,250,850,550   50px
+path.fill        feather 20  (72ppi)    350,250,850,550   50px
+path.fill        feather 20  (300ppi)   350,250,850,550   50px   ← 히스토그램까지 같다
+path.to_selection feather 20 (300ppi)   350,250,850,550   50px
+path.to_selection feather 10 (300ppi)   375,275,825,525   25px   ← 값에 비례
+```
+
+**번짐 = feather × 2.5 이고 해상도에 변하지 않는다.** `path.fill` 은 `selection.modify`
+와 같은 범위로 번진다. pt 였다면 300ppi 에서 20pt ≈ 83px 라 번짐이 약 208px 였을 것이다.
+
+**통제를 두 개 넣었다.** (1) 72ppi 한 점만으로는 pt 와 px 가 같은 값이라 가려지지 않아
+300ppi 를 따로 쟀다. (2) `path.to_selection` 은 이전 선택이 남아 같은 범위가 나왔을
+가능성이 있어 값을 10 으로 바꿨고 25px 로 따라 줄었다. 두 번째 문서가 300ppi 인지는 같은
+호출로 만든 문서가 300ppi 였던 앞선 확인(§87 `text` 측정)에 기댔고 이번에 다시 읽지는 않았다.
+
+## 함께 본 것
+
+**`path.create` 뒤에 선택이 남지 않았다.** 패스를 만든 직후 `selection.modify` 가
+"선택 영역이 있어야 합니다" 로 거절했다. 한 번 본 것이고 이유는 재지 않았다 — 패스를 만든
+뒤 선택이 필요하면 다시 만들어야 한다. Tool 설명에는 아직 적지 않았다.
+
+임시 문서 둘은 닫았고(`discardChanges`) 사진 문서는 처음 그대로다.

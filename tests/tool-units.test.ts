@@ -56,6 +56,10 @@ const MUST_STATE: [string, RegExp][] = [
   ["text.create", /문자 패널의 pt[^.]*72/u],
   ["text.set", /문자 패널의 pt[^.]*72/u],
 
+  // path 의 feather 는 실기로 쟀다 — 문서 픽셀이고 해상도와 무관하다 (§87).
+  ["path.fill", /feather 는 문서 픽셀이고 해상도와 무관하다/u],
+  ["path.to_selection", /feather 는 가장자리 페더\(문서 픽셀/u],
+
   // §86 에서 고친 것도 함께 묶는다.
   ["document.statistics", /clippedLow[^.]*퍼센트/u],
 ];

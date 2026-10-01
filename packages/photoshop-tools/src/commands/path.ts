@@ -96,6 +96,12 @@ export const PathSelectParamsSchema = z
 export const PathToSelectionParamsSchema = z
   .object({
     ...TargetShape,
+    /**
+     * 가장자리 페더. **문서 픽셀이고 해상도와 무관하다**(ROADMAP §87).
+     *
+     * 번지는 범위는 사방 약 `feather × 2.5` 픽셀이다 — `selection.modify` 의 feather 와 같다.
+     * 72ppi 와 300ppi 문서에서 같은 값이 똑같은 범위로 번졌다(feather 20 → 사방 50px).
+     */
     feather: z.number().min(0).max(1000).optional(),
     antiAlias: z.boolean().optional(),
     /** 기존 선택과 어떻게 합칠지. `selection.polygon` 과 같은 이름이다. */
@@ -115,6 +121,12 @@ export const PathFillParamsSchema = z
       })
       .strict(),
     opacity: z.number().min(0).max(100).optional(),
+    /**
+     * 가장자리 페더. **문서 픽셀이고 해상도와 무관하다**(ROADMAP §87).
+     *
+     * 번지는 범위는 사방 약 `feather × 2.5` 픽셀이다 — `selection.modify` 의 feather 와 같다.
+     * 72ppi 와 300ppi 문서에서 같은 값이 똑같은 범위로 번졌다(feather 20 → 사방 50px).
+     */
     feather: z.number().min(0).max(1000).optional(),
     antiAlias: z.boolean().optional(),
     /** `false` 면 선택된 하위 패스만 채운다. */

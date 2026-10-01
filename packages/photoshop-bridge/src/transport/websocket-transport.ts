@@ -20,9 +20,25 @@ import type { BridgeTransport, SendOptions } from "./transport.js";
 export const DEFAULT_PORT = 8765;
 export const DEFAULT_HOST = "127.0.0.1";
 
+/**
+ * 서버가 빈 포트를 찾아 볼 후보의 수. `DEFAULT_PORT` 부터 연속으로 센다. (ROADMAP §93)
+ *
+ * **Plugin 도 같은 범위를 훑는다.** Plugin 은 contracts 를 타입으로만 참조해서 이 값을 import 할 수
+ * 없다 — `photoshop-uxp/src/transport/bridge-ports.ts` 에 같은 값이 따로 있고
+ * `tests/bridge-port-sync.test.ts` 가 둘이 같은지 대조한다. 한쪽만 바뀌면 Plugin 이 서버를 못 찾는다.
+ */
+export const PORT_CANDIDATES = 10;
+
 export interface WebSocketBridgeTransportOptions {
   /** 바인딩 포트. 기본 8765. `0` 을 주면 임의의 빈 포트를 사용한다. */
   port?: number;
+  /**
+   * `port` 부터 연속으로 몇 개까지 시도할지. 기본 1(= `port` 하나만).
+   *
+   * 앞 포트가 `EADDRINUSE` 면 다음 포트로 넘어간다. **그 밖의 오류는 넘어가지 않는다** — 권한 오류처럼
+   * 포트를 바꿔도 같은 오류는 포트 탓이 아니다. `port: 0` 이면 무시한다.
+   */
+  portCount?: number;
   /** 바인딩 호스트. 기본 `127.0.0.1` (루프백 전용). */
   host?: string;
   /** Command 기본 타임아웃(ms). */
@@ -69,6 +85,7 @@ export interface PluginInfo {
  */
 export class WebSocketBridgeTransport implements BridgeTransport {
   readonly #port: number;
+  readonly #portCount: number;
   readonly #host: string;
   readonly #timeoutMs: number;
   readonly #onStateChange: ((state: ConnectionState) => void) | undefined;
@@ -83,6 +100,7 @@ export class WebSocketBridgeTransport implements BridgeTransport {
 
   constructor(options: WebSocketBridgeTransportOptions = {}) {
     this.#port = options.port ?? DEFAULT_PORT;
+    this.#portCount = Math.max(1, Math.floor(options.portCount ?? 1));
     this.#host = options.host ?? DEFAULT_HOST;
     this.#timeoutMs = options.timeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS;
     this.#onStateChange = options.onStateChange;
@@ -105,9 +123,39 @@ export class WebSocketBridgeTransport implements BridgeTransport {
       return;
     }
 
+    /* 앞 포트가 쓰이고 있으면 다음 포트로 넘어간다. (ROADMAP §93)
+     *
+     * **`EADDRINUSE` 만 넘어간다.** 다른 오류는 포트를 바꿔도 같으므로 바로 알린다. `port: 0` 은
+     * OS 가 빈 포트를 고르니 찾을 것이 없다. 마지막 후보까지 쓰이고 있으면 그 오류를 그대로 던진다 —
+     * 호출자(`run.ts`)가 `EADDRINUSE` 로 알아본다. */
+    const attempts = this.#port === 0 ? 1 : this.#portCount;
+    let lastError: PhotoshopMcpError | null = null;
+    for (let offset = 0; offset < attempts; offset += 1) {
+      const port = this.#port === 0 ? 0 : this.#port + offset;
+      if (port > 65_535) {
+        break;
+      }
+      try {
+        await this.#listen(port);
+        return;
+      } catch (error) {
+        lastError = error as PhotoshopMcpError;
+        const code = (lastError.cause as { code?: unknown } | undefined)?.code;
+        if (code !== "EADDRINUSE") {
+          throw lastError;
+        }
+      }
+    }
+    throw (
+      lastError ?? new PhotoshopMcpError(ErrorCode.COMMAND_FAILED, "빈 포트를 찾지 못했습니다.")
+    );
+  }
+
+  /** 포트 하나에 바인딩한다. 실패하면 서버를 정리하고 던진다. */
+  async #listen(port: number): Promise<void> {
     const server = new WebSocketServer({
       host: this.#host,
-      port: this.#port,
+      port,
       maxPayload: MAX_FRAME_BYTES,
     });
     this.#server = server;
@@ -119,6 +167,7 @@ export class WebSocketBridgeTransport implements BridgeTransport {
     await new Promise<void>((resolve, reject) => {
       const onError = (error: Error): void => {
         this.#server = null;
+        server.close();
         reject(new PhotoshopMcpError(ErrorCode.COMMAND_FAILED, error.message, { cause: error }));
       };
       server.once("error", onError);
@@ -309,7 +358,7 @@ export class WebSocketBridgeTransport implements BridgeTransport {
       payload: {
         accepted: true,
         protocolVersion: PROTOCOL_VERSION,
-        server: { name: SERVER_NAME, version: SERVER_VERSION },
+        server: { name: SERVER_NAME, version: SERVER_VERSION, pid: process.pid },
       },
     };
     this.#send(socket, accepted);

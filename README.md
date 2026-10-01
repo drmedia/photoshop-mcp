@@ -206,7 +206,7 @@ removes named files only — no patterns, because the approved folder is the use
 | Variable                           | Default                     | Meaning                                                  |
 | ---------------------------------- | --------------------------- | -------------------------------------------------------- |
 | `PHOTOSHOP_MCP_BRIDGE`             | `uxp`                       | `uxp` or `mock`                                            |
-| `PHOTOSHOP_MCP_PORT`               | `8765`                      | Bridge WebSocket port                                      |
+| `PHOTOSHOP_MCP_PORT`               | unset = first free of 8765–8774 | Pin the Bridge WebSocket port (must be inside that range) |
 | `PHOTOSHOP_MCP_ALLOW`              | `read,edit`                 | Permission levels. `all` and `none` also work              |
 | `PHOTOSHOP_MCP_EXTENSIONS`         | `<cwd>/extensions`          | Extension directory                                        |
 | `PHOTOSHOP_MCP_EXTENSIONS_ENABLED` | unset = all                 | Namespaces to load. `none` loads nothing                   |

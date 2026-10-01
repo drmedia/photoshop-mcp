@@ -22,11 +22,24 @@ MCP Server                         Photoshop UXP Plugin
 ### 기본 엔드포인트
 
 ```text
-ws://127.0.0.1:8765
+ws://127.0.0.1:8765  ~  ws://127.0.0.1:8774
 ```
 
 * 루프백에만 바인딩한다. 외부 인터페이스에 노출하지 않는다.
-* 포트는 `PHOTOSHOP_MCP_PORT` 환경 변수로 변경할 수 있다.
+* **포트는 고정이 아니라 범위다.** Server 는 8765 부터 연속 10개(`PORT_CANDIDATES`) 중 **첫 빈 포트**를
+  연다. 다른 프로그램이 8765 를 쓰고 있어도 사용자가 아무것도 지정하지 않아도 된다.
+  `EADDRINUSE` 만 다음 포트로 넘어가고 다른 오류는 그대로 알린다.
+* **Plugin 이 같은 범위를 훑는다.** 마지막으로 붙은 주소를 맨 앞에 두고, 실패하면 기다리지 않고 다음
+  후보로 간다. 모두 실패해야 백오프(§7)를 쓴다. 후보 하나에는 **3초**까지만 쓴다 — 포트를 다른
+  프로그램의 WebSocket 서버가 쓰면 연결은 열리는데 `hello_ack` 가 오지 않기 때문이다. 핸드셰이크가
+  맞는 서버에만 붙고, 아니면 닫고 다음으로 간다.
+* 범위는 Server(`DEFAULT_PORT` · `PORT_CANDIDATES`)와 Plugin(`bridge-ports.ts`)이 **따로 같은 값을
+  갖는다.** Plugin 은 contracts 를 타입으로만 참조해서 값을 import 할 수 없다.
+  `tests/bridge-port-search.test.ts` 가 둘을 대조한다.
+* `PHOTOSHOP_MCP_PORT` 로 **고정**하면 그 포트 하나만 쓴다. 범위 안(8765~8774)이어야 Plugin 이 찾는다.
+  범위 밖이면 Server 가 기동할 때 경고한다.
+* 한 Photoshop 에는 Plugin 이 하나라 Server 가 여럿 떠 있어도 **먼저 찾은 쪽에만** 붙는다.
+  `hello_ack` 의 `server.pid` 로 어느 쪽인지 가린다.
 * 동시에 **하나의 Plugin 연결만** 지원한다. 새 연결이 오면 이전 연결을 대체한다.
   (다중 Photoshop 인스턴스 지원은 범위 밖이다.)
 
@@ -123,10 +136,13 @@ Plugin 은 접속 직후 다른 메시지보다 먼저 `hello` 를 보낸다.
   "payload": {
     "accepted": true,
     "protocolVersion": 1,
-    "server": { "name": "PhotoshopMCP", "version": "0.1.0" }
+    "server": { "name": "PhotoshopMCP", "version": "0.1.0", "pid": 12345 }
   }
 }
 ```
+
+`server.pid` 는 선택이다. 같은 기계에 Server 가 여럿일 때 패널이 어느 쪽에 붙었는지 보이게 한다.
+모르는 Plugin 은 무시하면 된다 — 필드를 더했을 뿐이라 `protocolVersion` 은 그대로다.
 
 거부:
 

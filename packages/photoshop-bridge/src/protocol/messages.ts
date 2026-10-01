@@ -59,7 +59,8 @@ export interface HelloAckAccepted {
   payload: {
     accepted: true;
     protocolVersion: number;
-    server: { name: string; version: string };
+    /** `pid` 는 선택이다 — 같은 기계에 서버가 여럿일 때 패널이 어느 쪽에 붙었는지 보이게 한다. */
+    server: { name: string; version: string; pid?: number };
   };
 }
 

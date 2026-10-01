@@ -147,6 +147,7 @@ export type { BridgeTransport, SendOptions } from "./transport/transport.js";
 export {
   DEFAULT_HOST,
   DEFAULT_PORT,
+  PORT_CANDIDATES,
   WebSocketBridgeTransport,
   type PluginInfo,
   type WebSocketBridgeTransportOptions,

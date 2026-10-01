@@ -287,7 +287,7 @@ Photoshop 이 실행 중이 아니어도 MCP 서버는 정상 기동합니다.
 Bridge 는 환경 변수로 고릅니다.
 
 ```bash
-npm run dev                              # UXP Bridge (기본). ws://127.0.0.1:8765 대기
+npm run dev                              # UXP Bridge (기본). ws://127.0.0.1:8765~8774 중 첫 빈 포트에서 대기
 PHOTOSHOP_MCP_BRIDGE=mock npm run dev    # Mock Bridge. Photoshop·플러그인 불필요
 ```
 

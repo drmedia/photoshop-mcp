@@ -101,14 +101,23 @@ export function isPortInUse(error: unknown): boolean {
  * **세 갈래를 모두 말한다.** 이미 뜬 서버를 쓰거나, 그것을 끝내거나, 포트를
  * 바꾸거나다. 하나만 말하면 나머지 둘을 아는 사람만 빠져나온다.
  */
-export function portConflictMessage(port: number, pid: number | null): string {
+export function portConflictMessage(port: number, pid: number | null, count = 1): string {
   const who = pid === null ? "다른 프로세스" : `다른 프로세스 (PID ${String(pid)})`;
+  /* 범위를 다 훑었는데도 없는 경우다. 첫 포트를 쥔 프로세스만 말한다 — 나머지를 다 찾으면 길어지고
+   * 보통 같은 서버가 여럿 남은 경우다. */
+  const head =
+    count > 1
+      ? `포트 ${String(port)}~${String(port + count - 1)} 를 모두 다른 프로세스가 쓰고 있어 Bridge 를 열지 못했습니다. ` +
+        `${String(port)} 는 ${who}가 쓰고 있습니다.`
+      : `포트 ${String(port)} 를 ${who}가 이미 쓰고 있어 Bridge 를 열지 못했습니다.`;
   return [
-    `포트 ${String(port)} 를 ${who}가 이미 쓰고 있어 Bridge 를 열지 못했습니다.`,
+    head,
     "  PhotoshopMCP 서버가 이미 떠 있다면 그것을 쓰십시오 — 두 개를 띄울 수 없습니다.",
     pid === null
       ? "  누가 쓰는지는 확인하지 못했습니다. netstat 로 찾아 끝내십시오."
       : `  남은 서버라면 끝내십시오. Windows: taskkill /PID ${String(pid)} /F`,
-    `  다른 포트를 쓰려면 PHOTOSHOP_MCP_PORT 를 바꾸십시오 (지금 ${String(port)}).`,
+    count > 1
+      ? "  남은 서버를 끝내면 빈 포트를 다시 찾습니다."
+      : `  다른 포트를 쓰려면 PHOTOSHOP_MCP_PORT 를 바꾸십시오 (지금 ${String(port)}).`,
   ].join("\n");
 }

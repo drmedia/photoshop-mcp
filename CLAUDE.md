@@ -1050,6 +1050,24 @@ push 가 없다" 고 적은 것은 *임의 이벤트*에 한한 이야기였다.
 Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unload 하면
 함께 사라진다.
 
+## Bridge 포트는 범위다 (ROADMAP §93)
+
+서버는 **8765 부터 연속 10개 중 첫 빈 포트**를 연다. Plugin 이 같은 범위를 훑어 핸드셰이크가 맞는
+서버에 붙는다 — 다른 프로그램이 8765 를 쥐고 있어도 아무것도 지정하지 않아도 된다. 마지막으로 붙은
+주소를 `localStorage` 에 기억해 다음에 맨 앞에 둔다.
+
+**범위는 서버와 Plugin 에 따로 같은 값으로 있다.** Plugin 은 contracts 를 타입으로만 참조해서
+`PORT_CANDIDATES` 를 import 할 수 없다. `photoshop-uxp/src/transport/bridge-ports.ts` 와 서버의
+`DEFAULT_PORT` · `PORT_CANDIDATES` 를 `tests/bridge-port-search.test.ts` 가 대조한다 — 한쪽만 바꾸면
+Plugin 이 서버를 못 찾는다.
+
+**후보 하나에 3초만 쓴다.** 포트를 다른 프로그램의 WebSocket 서버가 쓰면 연결은 열리는데
+`hello_ack` 가 오지 않는다. 기한이 없으면 그 후보에서 멈춰 뒤를 못 본다.
+
+`PHOTOSHOP_MCP_PORT` 는 **고정**이다. 그 포트 하나만 쓰고, 8765~8774 밖이면 Plugin 이 못 찾으므로
+서버가 기동 때 경고한다. 서버가 둘 뜨면 Plugin 은 먼저 찾은 쪽에만 붙는다 — 패널 상태 줄 끝의
+포트와 `hello_ack` 의 `server.pid` 로 가린다.
+
 ## 진단과 임시 파일 (ROADMAP §17, §18.1)
 
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
@@ -1296,7 +1314,7 @@ npm run check        # format + lint + build + typecheck:tests + test
 | 변수 | 기본값 | 설명 |
 |---|---|---|
 | `PHOTOSHOP_MCP_BRIDGE` | `uxp` | `uxp` 또는 `mock` |
-| `PHOTOSHOP_MCP_PORT` | `8765` | Bridge WebSocket 포트 |
+| `PHOTOSHOP_MCP_PORT` | (생략=8765 부터 첫 빈 포트) | Bridge 포트를 **고정**. 8765~8774 안이어야 Plugin 이 찾는다 |
 | `PHOTOSHOP_MCP_EXTENSIONS` | `<cwd>/extensions` | Extension 디렉터리 |
 | `PHOTOSHOP_MCP_EXTENSIONS_ENABLED` | (생략=전부) | 적재할 **namespace**. `none` 이면 하나도 안 함 |
 | `PHOTOSHOP_MCP_ALLOW` | `read,edit` | 허용 권한. `all` · `none` 도 쓸 수 있다 |

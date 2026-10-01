@@ -131,6 +131,8 @@ import { layerPlace } from "./dom/place.js";
 import { documentExport, documentSave, documentSaveAs, selectionExportMask } from "./dom/save.js";
 import { approveFolder, revokeFolder, workspaceStatus } from "./dom/workspace.js";
 import { BridgeClient, type ClientState } from "./transport/ws-client.js";
+import { orderedBridgeUrls } from "./transport/bridge-ports.js";
+import { readPreferredUrl, writePreferredUrl } from "./transport/preferred-url.js";
 import {
   adjustmentBlackWhite,
   adjustmentChannelMixer,
@@ -184,7 +186,6 @@ import {
 const PLUGIN = { name: "photoshop-mcp-uxp", version: "0.1.0" };
 
 /** PROTOCOL.md §1 기본 엔드포인트. */
-const DEFAULT_URL = "ws://127.0.0.1:8765";
 
 const STATE_LABEL: Record<ClientState, string> = {
   disconnected: "Disconnected",
@@ -613,9 +614,13 @@ export function createDispatcher(): CommandDispatcher {
   return dispatcher;
 }
 
-export function createClient(url: string = DEFAULT_URL): BridgeClient {
+/** 서버를 찾는 후보. 마지막으로 붙은 주소가 맨 앞이다. (ROADMAP §93) */
+export function createClient(
+  urls: readonly string[] = orderedBridgeUrls(readPreferredUrl()),
+): BridgeClient {
   return new BridgeClient({
-    url,
+    urls,
+    onConnected: writePreferredUrl,
     dispatcher: createDispatcher(),
     plugin: PLUGIN,
     host: { app: "PS", version: host?.version ?? "unknown" },
@@ -686,14 +691,19 @@ function renderState(state: ClientState): void {
   if (statusElement !== null) {
     /* **상태와 주소를 나눈다.** 한 줄에 합쳤더니 좁은 패널에서 줄 하나를 다
      * 먹었다. 상태는 짧고 자주 보고, 주소는 길고 가끔 본다. */
-    statusElement.textContent = `${state === "connected" ? "●" : "○"} ${detail}`;
+    /* 붙었을 때는 어느 포트인지 함께 보인다 — 서버가 여럿일 수 있다. (ROADMAP §93) */
+    const port = client.url.slice(client.url.lastIndexOf(":"));
+    statusElement.textContent = `${state === "connected" ? "●" : "○"} ${detail}${
+      state === "connected" ? ` ${port}` : ""
+    }`;
     statusElement.style.color =
       state === "connected" ? "#5aa469" : state === "retrying" ? "#e8a33d" : "";
   }
   if (urlElement !== null) {
     /* 연결되면 주소는 알 필요가 없다. 막혔을 때만 진단에 쓰인다 —
      * 좁은 패널에서 한 줄이 아깝다. */
-    urlElement.textContent = client.url;
+    // 못 찾았을 때는 어디를 훑었는지 보인다. 후보 하나만 보이면 포트가 하나뿐인 줄 안다.
+    urlElement.textContent = client.urlRange;
     urlElement.style.display = state === "connected" ? "none" : "block";
   }
   // 접속 실패 사유를 패널에 그대로 노출한다.
@@ -810,7 +820,7 @@ export function mountPanel(root: HTMLElement): void {
      * 한 줄에 들어가고 길이가 변하지 않는다. 여기 남는 것은 길이를 알 수 없는
      * 폴더 경로와 오류다 — 그래서 이쪽이 스크롤된다.
      *
-     * 주소는 거의 늘 `ws://127.0.0.1:8765` 라 볼 일이 없다. 연결이 안 됐을
+     * 붙은 포트는 상태 줄 끝에 보인다. 주소(후보 범위)는 연결이 안 됐을
      * 때만 낸다 — 좁은 패널에서 한 줄이 아깝다. */
     '<div style="flex:1;min-height:0;overflow-y:auto;padding:0 6px 6px">',
     '<div id="photoshop-mcp-workspace" style="',

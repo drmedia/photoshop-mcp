@@ -30,6 +30,12 @@ export interface StartOptions extends CreatePhotoshopMcpOptions {
   mode?: BridgeMode;
   /** `uxp` 모드에서 사용할 WebSocket 포트. */
   port?: number;
+  /**
+   * `port` 부터 연속으로 몇 개까지 빈 포트를 찾아 볼지. 기본 1(= `port` 하나만). (ROADMAP §93)
+   *
+   * 사용자가 포트를 고정했으면 1 로 두고, 고정하지 않았으면 `PORT_CANDIDATES` 를 준다.
+   */
+  portCount?: number;
   /** Bridge 연결 상태 변화 알림. */
   onBridgeStateChange?: (state: ConnectionState) => void;
   /**
@@ -74,6 +80,8 @@ export interface StartOptions extends CreatePhotoshopMcpOptions {
 export interface StartedPhotoshopMcp extends PhotoshopMcp {
   /** `uxp` 모드에서만 존재한다. `mock` 모드면 `null`. */
   bridgeTransport: BridgeTransport | null;
+  /** 실제로 바인딩된 Bridge 포트. `uxp` 모드에서만 있고 `mock` 모드면 `null`. */
+  bridgePort: number | null;
   /** 적재에 성공한 Extension. `extensionsDir` 를 주지 않았으면 빈 배열. */
   loadedExtensions: LoadedExtension[];
   /** 등록된 Capability Provider 수. */
@@ -96,6 +104,7 @@ export async function startPhotoshopMcpServer(
   const {
     mode = "uxp",
     port,
+    portCount,
     onBridgeStateChange,
     transport,
     extensionsDir,
@@ -106,6 +115,7 @@ export async function startPhotoshopMcpServer(
   } = options;
 
   let bridgeTransport: BridgeTransport | null = null;
+  let boundPort: (() => number) | null = null;
   let bridge = coreOptions.bridge;
   let pendingEvents: ((event: string, payload: unknown) => void) | null = null;
 
@@ -142,6 +152,7 @@ export async function startPhotoshopMcpServer(
       // 나중에 채워 넣는다. 그 전에는 열지 않으므로 놓치는 것도 없다.
       const wsTransport = new WebSocketBridgeTransport({
         port: port ?? DEFAULT_PORT,
+        ...(portCount === undefined ? {} : { portCount }),
         onStateChange: (state) => {
           onBridgeStateChange?.(state);
           if (state === "connected") {
@@ -160,6 +171,7 @@ export async function startPhotoshopMcpServer(
         await wsTransport.start();
       };
       pluginCommands = () => wsTransport.plugin?.commands ?? null;
+      boundPort = () => wsTransport.port;
     }
   }
 
@@ -307,6 +319,7 @@ export async function startPhotoshopMcpServer(
   return {
     ...mcp,
     bridgeTransport,
+    bridgePort: boundPort?.() ?? null,
     loadedExtensions,
     loadedProviders,
     loadedWorkflows,

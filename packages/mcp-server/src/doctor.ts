@@ -5,7 +5,7 @@ import { access, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { createPhotoshopMcp, createSilentLogger } from "@photoshop-mcp/mcp-core";
 import { listBlockers, type Blocker } from "@photoshop-mcp/photoshop-tools";
-import { MockPhotoshopBridge } from "@photoshop-mcp/photoshop-bridge";
+import { MockPhotoshopBridge, PORT_CANDIDATES } from "@photoshop-mcp/photoshop-bridge";
 import { readOptionsFromEnv } from "./run.js";
 
 /**
@@ -102,19 +102,37 @@ export async function runDoctor(
   );
 
   // ── 포트 ───────────────────────────────────────────────────────────
-  const free = await portFree(options.port);
+  /* 포트를 고정하지 않았으면 서버가 `PORT_CANDIDATES` 개까지 빈 포트를 찾는다(ROADMAP §93).
+   * 그래서 첫 포트가 차 있어도 **범위 안에 빈 곳이 있으면 문제가 아니다.** */
+  const candidates = options.portPinned
+    ? [options.port]
+    : Array.from({ length: PORT_CANDIDATES }, (_, index) => options.port + index);
+  let firstFree: number | null = null;
+  for (const candidate of candidates) {
+    if (await portFree(candidate)) {
+      firstFree = candidate;
+      break;
+    }
+  }
   /* **누가 쓰는지까지 말한다.** "이미 쓰고 있습니다" 만으로는 사용자가 다음에
    * 할 일이 없다. 끝내려면 PID 가 있어야 한다. 못 찾으면 담지 않는다 —
    * 짐작한 PID 를 내놓으면 엉뚱한 프로세스를 죽인다. */
-  const holder = free ? null : await findPortHolder(options.port);
+  const first = candidates[0] as number;
+  const holder = firstFree === first ? null : await findPortHolder(first);
+  const who = holder === null ? "다른 프로세스" : `PID ${String(holder)}`;
+  const range = `${String(first)}~${String(first + candidates.length - 1)}`;
   add(
     "Bridge 포트",
-    free ? "ok" : "warn",
-    free
-      ? `${options.port} 비어 있음`
-      : `${options.port} 을 ${holder === null ? "다른 프로세스" : `PID ${holder}`} 가 ` +
-          "이미 쓰고 있습니다. PhotoshopMCP 서버가 이미 떠 있다면 정상이고, " +
-          "아니라면 새 서버가 EADDRINUSE 로 기동에 실패합니다",
+    firstFree === null ? "warn" : "ok",
+    firstFree === first
+      ? `${String(first)} 비어 있음`
+      : firstFree !== null
+        ? `${String(first)} 은 ${who} 가 쓰고 있어 ${String(firstFree)} 에서 열립니다 ` +
+          "(Photoshop 플러그인이 범위를 훑어 찾습니다)"
+        : candidates.length > 1
+          ? `${range} 가 모두 사용 중입니다 (${String(first)} 은 ${who}). 이미 떠 있는 서버를 끝내야 새 서버가 뜹니다`
+          : `${String(first)} 을 ${who} 가 이미 쓰고 있습니다. PhotoshopMCP 서버가 이미 떠 있다면 정상이고, ` +
+            "아니라면 새 서버가 EADDRINUSE 로 기동에 실패합니다",
   );
 
   // ── 외부 처리기 ────────────────────────────────────────────────────

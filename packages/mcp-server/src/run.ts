@@ -13,6 +13,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   DEFAULT_PORT,
+  PORT_CANDIDATES,
   PermissionPolicy,
   parsePermissionLevels,
 } from "@photoshop-mcp/photoshop-bridge";
@@ -34,7 +35,7 @@ function log(message: string): void {
 /**
  * 환경 변수에서 실행 옵션을 읽는다.
  *
- * - `PHOTOSHOP_MCP_PORT` — Bridge WebSocket 포트 (기본 8765)
+ * - `PHOTOSHOP_MCP_PORT` — Bridge WebSocket 포트를 **고정**한다. 생략하면 8765 부터 빈 포트를 찾는다
  * - `PHOTOSHOP_MCP_BRIDGE` — `uxp` (기본) 또는 `mock`
  * - `PHOTOSHOP_MCP_EXTENSIONS` — Extension 디렉터리 (기본 `<cwd>/extensions`)
  * - `PHOTOSHOP_MCP_EXTENSIONS_ENABLED` — 적재할 namespace. 생략하면 전부,
@@ -46,6 +47,8 @@ function log(message: string): void {
 export function readOptionsFromEnv(env: Record<string, string | undefined> = process.env): {
   mode: BridgeMode;
   port: number;
+  /** 사용자가 포트를 정했는가. 아니면 서버가 `PORT_CANDIDATES` 개까지 빈 포트를 찾는다. */
+  portPinned: boolean;
   extensionsDir: string;
   enabledExtensions: readonly string[] | undefined;
   capabilityConfig: string;
@@ -60,6 +63,15 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
 
   if (rawPort !== undefined && port !== parsed) {
     log(`PHOTOSHOP_MCP_PORT 값이 올바르지 않습니다: ${rawPort} — 기본값 ${DEFAULT_PORT} 사용`);
+  }
+  const portPinned = rawPort !== undefined && port === parsed;
+  /* **범위 밖으로 고정하면 Plugin 이 못 찾는다.** Plugin 은 8765 부터 PORT_CANDIDATES 개만 훑는다
+   * (ROADMAP §93). 0(임의 포트)은 테스트용이라 말하지 않는다. */
+  if (portPinned && port !== 0 && (port < DEFAULT_PORT || port >= DEFAULT_PORT + PORT_CANDIDATES)) {
+    log(
+      `PHOTOSHOP_MCP_PORT ${String(port)} 는 Plugin 이 찾는 범위(${String(DEFAULT_PORT)}~` +
+        `${String(DEFAULT_PORT + PORT_CANDIDATES - 1)}) 밖입니다 — Photoshop 이 붙지 못합니다`,
+    );
   }
 
   // 디렉터리가 없으면 조용히 건너뛴다. Extension 이 없는 것은 정상이다.
@@ -103,6 +115,7 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
   return {
     mode,
     port,
+    portPinned,
     extensionsDir,
     enabledExtensions,
     capabilityConfig,
@@ -113,12 +126,21 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
 
 /** CLI 진입점. 오류를 스스로 처리하며 예외를 던지지 않는다. */
 export async function main(): Promise<void> {
-  const { mode, port, extensionsDir, enabledExtensions, capabilityConfig, workflowConfig, policy } =
-    readOptionsFromEnv();
+  const {
+    mode,
+    port,
+    portPinned,
+    extensionsDir,
+    enabledExtensions,
+    capabilityConfig,
+    workflowConfig,
+    policy,
+  } = readOptionsFromEnv();
 
   const options: StartOptions = {
     mode,
     port,
+    portCount: portPinned ? 1 : PORT_CANDIDATES,
     extensionsDir,
     ...(enabledExtensions === undefined ? {} : { enabledExtensions }),
     capabilityConfig,
@@ -137,7 +159,9 @@ export async function main(): Promise<void> {
       .map((tool) => tool.name)
       .join(", ");
     const bridgeLabel =
-      mode === "mock" ? "Mock Bridge" : `UXP Bridge (ws://127.0.0.1:${port} 대기 중)`;
+      mode === "mock"
+        ? "Mock Bridge"
+        : `UXP Bridge (ws://127.0.0.1:${String(mcp.bridgePort ?? port)} 대기 중)`;
     /* **부모 PID 를 남긴다.** 프로세스가 남은 것을 나중에 발견했을 때
      * "부모가 살아 있는가" 를 바로 볼 수 있어야 고아인지 아닌지 갈린다.
      * 실기에서 셋이 남았는데 그때 이 값이 없어 원인을 못 좁혔다. */
@@ -269,7 +293,9 @@ export async function main(): Promise<void> {
      * 든다. 무엇보다 **PID 를 알아야 끝낼 수 있다.** */
     if (isPortInUse(error)) {
       const conflicted = options.port ?? DEFAULT_PORT;
-      log(portConflictMessage(conflicted, await findPortHolder(conflicted)));
+      log(
+        portConflictMessage(conflicted, await findPortHolder(conflicted), options.portCount ?? 1),
+      );
     } else {
       log(`시작 실패: ${error instanceof Error ? error.message : String(error)}`);
     }

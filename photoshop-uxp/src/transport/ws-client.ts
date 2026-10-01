@@ -9,6 +9,15 @@ const RECONNECT_INITIAL_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
 
 /**
+ * 후보 하나에 쓰는 시간. 소켓을 만든 때부터 핸드셰이크가 끝날 때까지다. (ROADMAP §93)
+ *
+ * **핸드셰이크에도 걸어야 한다.** 포트를 다른 프로그램의 WebSocket 서버가 쓰고 있으면 연결은
+ * 열리는데 `hello_ack` 가 오지 않는다 — 기한이 없으면 그 후보에서 영원히 멈추고 뒤의 후보를 못 본다.
+ * 루프백이라 정상 서버는 수 ms 안에 답한다.
+ */
+const ATTEMPT_TIMEOUT_MS = 3_000;
+
+/**
  * 연결 수명 상태. PROTOCOL.md §7 의 상태 기계를 Plugin 쪽에서 본 것.
  *
  * - `connecting` — 소켓을 만들고 open 을 기다린다
@@ -22,7 +31,14 @@ const RECONNECT_MAX_MS = 30_000;
 export type ClientState = "disconnected" | "connecting" | "handshaking" | "connected" | "retrying";
 
 export interface BridgeClientOptions {
-  url: string;
+  /**
+   * 접속 후보. 앞에서부터 시도하고, 모두 실패하면 백오프 뒤에 처음부터 다시 훑는다. (ROADMAP §93)
+   *
+   * 한 번이라도 붙은 후보는 다음 훑기에서 맨 앞에 선다 — 서버가 재시작해도 같은 포트면 바로 붙는다.
+   */
+  urls: readonly string[];
+  /** 핸드셰이크까지 끝낸 후보. 다음 실행에서 맨 앞에 두려고 저장하는 데 쓴다. */
+  onConnected?: (url: string) => void;
   dispatcher: CommandDispatcher;
   plugin: { name: string; version: string };
   host?: { app: string; version: string };
@@ -57,9 +73,25 @@ export class BridgeClient {
   private stopped = true;
   private lastErrorMessage: string | null = null;
   private nextRetryMs = 0;
+  /** 이번 훑기에서 아직 시도하지 않은 후보. */
+  private queue: string[] = [];
+  /** 지금 시도하는(또는 붙은) 후보. */
+  private currentUrl: string;
+  /** 마지막으로 핸드셰이크까지 끝낸 후보. 다음 훑기의 맨 앞이다. */
+  private preferredUrl: string | null = null;
+  /** 소켓 생성 자체가 실패했는가 — 권한 거부는 포트를 바꿔도 같아서 사유를 따로 둔다. */
+  private constructorFailed = false;
+  private attemptTimer: ReturnType<typeof setTimeout> | null = null;
+  private advanceTimer: ReturnType<typeof setTimeout> | null = null;
+  /** 서버가 `hello_ack` 로 알려 준 pid. 같은 기계에 서버가 여럿일 때 어느 쪽인지 가린다. */
+  private serverPidValue: number | null = null;
 
   constructor(options: BridgeClientOptions) {
+    if (options.urls.length === 0) {
+      throw new Error("접속 후보가 없습니다.");
+    }
     this.options = options;
+    this.currentUrl = options.urls[0] as string;
   }
 
   get state(): ClientState {
@@ -76,14 +108,30 @@ export class BridgeClient {
     return this.nextRetryMs;
   }
 
-  /** 접속 대상 URL. */
+  /** 지금 시도하는 URL. 붙었으면 붙은 URL 이다. */
   get url(): string {
-    return this.options.url;
+    return this.currentUrl;
+  }
+
+  /** 후보 범위를 한 줄로. 예: `ws://127.0.0.1:8765–8774`. 어느 서버도 못 찾았을 때 보여 준다. */
+  get urlRange(): string {
+    const first = this.options.urls[0] as string;
+    const last = this.options.urls[this.options.urls.length - 1] as string;
+    if (first === last) {
+      return first;
+    }
+    return `${first}–${last.slice(last.lastIndexOf(":") + 1)}`;
+  }
+
+  /** 붙은 서버의 pid. 서버가 알려 주지 않았으면 `null`. */
+  get serverPid(): number | null {
+    return this.serverPidValue;
   }
 
   /** 접속을 시작한다. 실패하면 백오프 후 재시도한다. */
   start(): void {
     this.stopped = false;
+    this.beginSweep();
     this.connect();
   }
 
@@ -91,6 +139,11 @@ export class BridgeClient {
   stop(): void {
     this.stopped = true;
     this.clearReconnectTimer();
+    this.clearAttemptTimer();
+    if (this.advanceTimer !== null) {
+      clearTimeout(this.advanceTimer);
+      this.advanceTimer = null;
+    }
     const socket = this.socket;
     this.socket = null;
     socket?.close(1000, "plugin stopping");
@@ -102,23 +155,35 @@ export class BridgeClient {
       return;
     }
     this.clearReconnectTimer();
+    if (this.queue.length === 0) {
+      this.beginSweep();
+    }
+    this.currentUrl = this.queue.shift() as string;
     this.setState("connecting");
 
     let socket: WebSocket;
     try {
-      socket = new WebSocket(this.options.url);
+      socket = new WebSocket(this.currentUrl);
     } catch (error) {
       // UXP 가 network 권한을 거부하면 생성자에서 던진다.
       // 조용히 재시도하면 원인을 알 수 없으므로 사유를 남긴다.
       this.lastErrorMessage = describe(error);
-      this.log(`WebSocket 생성 실패 (${this.options.url}): ${this.lastErrorMessage}`);
-      this.scheduleReconnect();
+      this.constructorFailed = true;
+      this.log(`WebSocket 생성 실패 (${this.currentUrl}): ${this.lastErrorMessage}`);
+      this.advance();
       return;
     }
     this.socket = socket;
 
+    // 이 후보에 쓸 수 있는 시간. 핸드셰이크가 끝나면 `handleHelloAck` 가 푼다.
+    this.clearAttemptTimer();
+    this.attemptTimer = setTimeout(() => {
+      this.attemptTimer = null;
+      this.log(`${this.currentUrl} 응답 없음`);
+      this.failCurrent(socket);
+    }, ATTEMPT_TIMEOUT_MS);
+
     listen(socket, "open", () => {
-      this.lastErrorMessage = null;
       this.setState("handshaking");
       this.sendHello(socket);
     });
@@ -128,7 +193,7 @@ export class BridgeClient {
     });
 
     listen(socket, "error", () => {
-      this.lastErrorMessage = `WebSocket error (${this.options.url})`;
+      this.lastErrorMessage = `WebSocket error (${this.currentUrl})`;
       this.log(this.lastErrorMessage);
       // UXP 는 error 뒤에 close 를 보내지 않을 수 있다.
       // close 만 믿고 기다리면 connecting 상태로 영구히 멈춘다.
@@ -150,12 +215,51 @@ export class BridgeClient {
       return;
     }
     this.socket = null;
+    this.serverPidValue = null;
+    this.clearAttemptTimer();
     try {
       socket.close();
     } catch {
       // 이미 닫혔거나 닫을 수 없는 상태면 무시한다.
     }
     this.setState("disconnected");
+    this.advance();
+  }
+
+  /** 이번 훑기의 후보 순서를 만든다. 마지막으로 붙은 후보가 맨 앞이다. */
+  private beginSweep(): void {
+    const urls = [...this.options.urls];
+    const preferred = this.preferredUrl;
+    this.queue =
+      preferred !== null && urls.includes(preferred)
+        ? [preferred, ...urls.filter((url) => url !== preferred)]
+        : urls;
+    this.constructorFailed = false;
+  }
+
+  /**
+   * 한 후보가 실패한 뒤의 다음 걸음. (ROADMAP §93)
+   *
+   * 남은 후보가 있으면 **기다리지 않고** 다음으로 간다 — 루프백에서 닫힌 포트는 즉시 거절되므로
+   * 한 바퀴가 빠르다. 모두 실패했을 때만 백오프를 쓴다. 후보마다 백오프를 걸면 서버가 끝 포트에 있을 때
+   * 한 바퀴에 수십 초가 든다.
+   */
+  private advance(): void {
+    if (this.stopped) {
+      return;
+    }
+    if (this.queue.length > 0) {
+      // 같은 호출 스택에서 이어 가면 연달아 실패할 때 재귀가 깊어진다.
+      this.advanceTimer = setTimeout(() => {
+        this.advanceTimer = null;
+        this.connect();
+      }, 0);
+      return;
+    }
+    // 한 바퀴를 다 돌았다. 소켓 생성 실패(권한)는 사유를 그대로 두고, 아니면 범위를 말한다.
+    if (!this.constructorFailed) {
+      this.lastErrorMessage = `No server found (${this.urlRange})`;
+    }
     this.scheduleReconnect();
   }
 
@@ -218,10 +322,19 @@ export class BridgeClient {
     // Dispatcher 는 생성 시점에 이미 구성되어 있으므로 바로 ready 를 보낸다.
     this.sendReady(socket);
 
+    // 우리 서버다. 이 후보를 기억하고 남은 후보는 버린다.
+    this.clearAttemptTimer();
+    this.preferredUrl = this.currentUrl;
+    this.queue = [];
+    this.lastErrorMessage = null;
+    const server = isRecord(payload["server"]) ? payload["server"] : {};
+    this.serverPidValue = typeof server["pid"] === "number" ? server["pid"] : null;
+
     // 핸드셰이크 성공 시 백오프를 초기화한다.
     this.reconnectDelayMs = RECONNECT_INITIAL_MS;
     this.setState("connected");
-    this.log("핸드셰이크 완료 (hello → hello_ack → ready)");
+    this.log(`핸드셰이크 완료 (hello → hello_ack → ready) ${this.currentUrl}`);
+    this.options.onConnected?.(this.currentUrl);
   }
 
   private async handleCommand(socket: WebSocket, message: Record<string, unknown>): Promise<void> {
@@ -292,6 +405,13 @@ export class BridgeClient {
       this.connect();
     }, delay);
     this.reconnectDelayMs = Math.min(this.reconnectDelayMs * 2, RECONNECT_MAX_MS);
+  }
+
+  private clearAttemptTimer(): void {
+    if (this.attemptTimer !== null) {
+      clearTimeout(this.attemptTimer);
+      this.attemptTimer = null;
+    }
   }
 
   private clearReconnectTimer(): void {

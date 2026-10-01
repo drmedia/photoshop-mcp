@@ -11238,7 +11238,7 @@ Layer.applyMinimum        23.5  filter.minimum_maximum     _obj: "minimum"
 `filter.ts` 의 주석은 batchPlay 필터를 "DOM 에 없는 것들이 쓴다" 고 적었는데 이 넷은 DOM 에 있다.
 §71 에서 `selection.set` 을 DOM 으로 옮기며 `mode` 와 `antiAlias` 를 얻은 것과 같은 종류의 후보다.
 **옮기라는 권고가 아니다.** DOM `apply*` 가 스마트 필터로 붙는 방식이 지금과 같은지 등은 재 봐야 안다.
-주석 "DOM 에 없는 것들" 은 사실과 다르다 — 정정 대상이다.
+주석 "DOM 에 없는 것들" 은 사실과 달랐고 정정했다 — 옮기지 않은 이유가 기록에 없다는 것도 함께 적었다.
 
 ## 한계
 
@@ -11259,4 +11259,4 @@ Layer.applyMinimum        23.5  filter.minimum_maximum     _obj: "minimum"
 - [ ] 흔적 없음 중 batchPlay 로 이미 제공하는 것을 대응표에 채운다
 - [ ] 일부러 안 연 것의 제외 사유 표
 - [ ] 상수(`modules`)와 옵션 객체(`objects`)까지 넓힌다
-- [ ] filter.ts 의 "DOM 에 없는 것들" 주석 정정
+- [x] filter.ts 의 "DOM 에 없는 것들" 주석 정정 — 있다는 사실과 이유가 기록에 없다는 것을 적었다

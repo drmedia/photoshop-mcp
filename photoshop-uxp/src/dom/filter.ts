@@ -122,7 +122,22 @@ async function applyFilterCore(
   });
 }
 
-/** batchPlay descriptor 로 거는 필터. DOM 에 없는 것들이 쓴다. */
+/**
+ * batchPlay descriptor 로 거는 필터. (ROADMAP §8.4 · §88)
+ *
+ * **"DOM 에 없어서" 가 아니다.** 이것을 쓰는 `gaussianBlur` · `highPass` ·
+ * `minimum`/`maximum` 은 Adobe Layer 레퍼런스에 `applyGaussianBlur` · `applyHighPass` ·
+ * `applyMinimum` · `applyMaximum` 으로 **있다**(23.5+). 이 주석이 한동안 반대로 적혀 있었다.
+ *
+ * 이 셋은 Phase 4(§8.4)에서 descriptor 로 만들었고, 그 뒤 §53 이 DOM `apply*` 를 열 때
+ * (`applyDomFilter`) 옮기지 않은 채 남았다. **옮기지 않은 이유는 기록에 없다.**
+ *
+ * 옮길지는 열려 있다. 재 보지 않은 것이 있다 — DOM 메서드가 지금처럼 스마트 필터로 붙는지,
+ * 결과가 같은지. `docs/API_COVERAGE.md` 의 "DOM 에 있는데 batchPlay 로 구현한 것" 이 이
+ * 목록을 자동으로 낸다.
+ *
+ * 진짜로 DOM 에 없는 것은 `applySmartSharpen` · 표면 흐림 · 노이즈 감소다(`applyDomFilter`).
+ */
 async function applyFilter(
   commandName: string,
   params: { layerId?: number; asSmartFilter?: boolean },

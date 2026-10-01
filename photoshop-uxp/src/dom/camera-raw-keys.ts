@@ -36,7 +36,7 @@ export interface CameraRawParams {
 }
 
 /** MCP 이름 → Camera Raw descriptor 키. 실기에서 잡아낸 그대로다. */
-const KEYS: Record<string, string> = {
+export const KEYS: Record<string, string> = {
   exposure: "$Ex12",
   temperature: "$Temp",
   tint: "$Tint",
@@ -133,7 +133,7 @@ const KEYS: Record<string, string> = {
  * **`curve` 에는 `$` 가 없다.** `saturation` 에 이은 두 번째 예외다 —
  * 규칙성을 가정하면 이것 하나가 조용히 빠진다.
  */
-const CURVE_KEYS: Record<string, string> = {
+export const CURVE_KEYS: Record<string, string> = {
   curveRgb: "curve",
   curveRed: "$CrvR",
   curveGreen: "$CrvG",

@@ -131,6 +131,9 @@ export class BridgeClient {
   /** 접속을 시작한다. 실패하면 백오프 후 재시도한다. */
   start(): void {
     this.stopped = false;
+    // 껐다 다시 켠 것이면 이전의 백오프가 남아 있다. 켜는 순간에는 바로 찾아야 한다.
+    this.reconnectDelayMs = RECONNECT_INITIAL_MS;
+    this.nextRetryMs = 0;
     this.beginSweep();
     this.connect();
   }
@@ -147,6 +150,11 @@ export class BridgeClient {
     const socket = this.socket;
     this.socket = null;
     socket?.close(1000, "plugin stopping");
+    // 끈 상태에서 옛 접속 실패 문구가 패널에 남으면 지금도 찾고 있는 것처럼 읽힌다.
+    this.queue = [];
+    this.lastErrorMessage = null;
+    this.constructorFailed = false;
+    this.serverPidValue = null;
     this.setState("disconnected");
   }
 

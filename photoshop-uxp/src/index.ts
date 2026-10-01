@@ -134,6 +134,7 @@ import { documentExport, documentSave, documentSaveAs, selectionExportMask } fro
 import { approveFolder, revokeFolder, workspaceStatus } from "./dom/workspace.js";
 import { BridgeClient, type ClientState } from "./transport/ws-client.js";
 import { orderedBridgeUrls } from "./transport/bridge-ports.js";
+import { readAutoConnect, writeAutoConnect } from "./transport/auto-connect.js";
 import { readPreferredUrl, writePreferredUrl } from "./transport/preferred-url.js";
 import {
   adjustmentBlackWhite,
@@ -647,6 +648,8 @@ let workspaceElement: HTMLElement | null = null;
 /** 액션 수 · Extension 수를 한 요소에 적는다. UXP 가 flex `gap` 을 무시한다. */
 let countsElement: HTMLElement | null = null;
 let urlElement: HTMLElement | null = null;
+/** 푸터의 자동 접속 토글. */
+let connectButton: HTMLElement | null = null;
 
 /**
  * 패널 조작이 낸 오류. Bridge 오류와 **같은 박스**에 낸다.
@@ -667,6 +670,27 @@ function renderError(): void {
   errorElement.style.display = message === null ? "none" : "block";
 }
 
+function renderConnectButton(): void {
+  if (connectButton !== null) {
+    // 버튼은 상태가 아니라 **누르면 일어나는 일**을 말한다. 켜져 있으면 끊는 버튼이고 꺼져 있으면 잇는 버튼이다.
+    connectButton.textContent = autoConnect ? "Disconnect" : "Connect";
+  }
+}
+
+/** 자동 접속을 켜거나 끈다. 저장하고, 켜면 바로 서버를 찾고, 끄면 접속을 멈춘다. */
+function setAutoConnect(enabled: boolean): void {
+  autoConnect = enabled;
+  writeAutoConnect(enabled);
+  if (enabled) {
+    client.start();
+  } else {
+    client.stop();
+  }
+  renderConnectButton();
+  renderState(client.state);
+  renderError();
+}
+
 /** 패널 조작을 감싼다. 성공하면 앞선 오류를 지운다. */
 function afterAction(run: () => Promise<unknown>, redraw: () => void): void {
   void run()
@@ -683,7 +707,9 @@ function afterAction(run: () => Promise<unknown>, redraw: () => void): void {
 }
 
 function renderState(state: ClientState): void {
-  const label = STATE_LABEL[state];
+  // 끈 상태의 "Disconnected" 는 서버가 없다는 뜻으로 읽힌다. 찾지 않는 중이라고 말한다.
+  const off = !autoConnect && state === "disconnected";
+  const label = off ? "Not connected" : STATE_LABEL[state];
   const detail =
     state === "retrying" ? `${label} (in ${Math.round(client.retryDelayMs / 1000)}s)` : label;
 
@@ -710,7 +736,7 @@ function renderState(state: ClientState): void {
      * 좁은 패널에서 한 줄이 아깝다. */
     // 못 찾았을 때는 어디를 훑었는지 보인다. 후보 하나만 보이면 포트가 하나뿐인 줄 안다.
     urlElement.textContent = client.urlRange;
-    urlElement.style.display = state === "connected" ? "none" : "block";
+    urlElement.style.display = state === "connected" || off ? "none" : "block";
   }
   // 접속 실패 사유를 패널에 그대로 노출한다.
   // UXP Developer Tool 콘솔을 열지 않고도 원인을 확인할 수 있어야 한다.
@@ -718,6 +744,12 @@ function renderState(state: ClientState): void {
 }
 
 const client = createClient();
+
+/* 서버에 자동으로 접속할지. **기본은 꺼짐**이다. (ROADMAP §100)
+ *
+ * 평소에 Photoshop 을 쓸 때는 서버를 찾을 이유가 없고, 켜 두면 포트 범위의 다른 프로그램에 `hello` 를
+ * 보내거나 클라이언트가 띄운 서버에 알아서 붙는다. 끄면 접속을 시도하지 않는다. */
+let autoConnect = readAutoConnect();
 
 /**
  * 액션 수와 등록된 Extension 수를 한 줄에 그린다.
@@ -845,6 +877,7 @@ export function mountPanel(root: HTMLElement): void {
     `<sp-action-button size="s" id="photoshop-mcp-approve" style="${BTN}">Folder…</sp-action-button>`,
     `<sp-action-button size="s" id="photoshop-mcp-actions" style="${BTN}">Actions</sp-action-button>`,
     `<sp-action-button size="s" id="photoshop-mcp-extensions" style="${BTN}">Extensions</sp-action-button>`,
+    `<sp-action-button size="s" id="photoshop-mcp-connect" style="${BTN}">Connect</sp-action-button>`,
     "</div>",
   ].join("");
 
@@ -853,12 +886,17 @@ export function mountPanel(root: HTMLElement): void {
   countsElement = root.querySelector("#photoshop-mcp-counts");
   errorElement = root.querySelector("#photoshop-mcp-error");
   workspaceElement = root.querySelector("#photoshop-mcp-workspace");
+  connectButton = root.querySelector("#photoshop-mcp-connect");
+  renderConnectButton();
 
   root.querySelector("#photoshop-mcp-approve")?.addEventListener("click", () => {
     afterAction(approveFolder, () => void renderWorkspace());
   });
   root.querySelector("#photoshop-mcp-actions")?.addEventListener("click", () => {
     afterAction(openActionPicker, () => void renderCounts());
+  });
+  connectButton?.addEventListener("click", () => {
+    setAutoConnect(!autoConnect);
   });
   root.querySelector("#photoshop-mcp-extensions")?.addEventListener("click", () => {
     afterAction(openExtensionPicker, () => void renderCounts());
@@ -924,6 +962,8 @@ function refreshPanel(): void {
  */
 const MENU_APPROVE = "approveWorkspaceFolder";
 const MENU_REVOKE = "revokeWorkspaceFolder";
+const MENU_CONNECT_ON = "autoConnectOn";
+const MENU_CONNECT_OFF = "autoConnectOff";
 
 function onMenu(id: string): void {
   if (id === MENU_APPROVE) {
@@ -933,6 +973,14 @@ function onMenu(id: string): void {
   if (id === MENU_REVOKE) {
     revokeFolder();
     void renderWorkspace();
+    return;
+  }
+  if (id === MENU_CONNECT_ON) {
+    setAutoConnect(true);
+    return;
+  }
+  if (id === MENU_CONNECT_OFF) {
+    setAutoConnect(false);
   }
 }
 
@@ -944,14 +992,19 @@ entrypoints.setup({
       menuItems: [
         { id: MENU_APPROVE, label: "Approve output folder…" },
         { id: MENU_REVOKE, label: "Revoke output folder" },
+        { id: MENU_CONNECT_ON, label: "Connect to MCP server" },
+        { id: MENU_CONNECT_OFF, label: "Disconnect from MCP server" },
       ],
       invokeMenu: onMenu,
     },
   },
 });
 
-// 플러그인이 로드되면 패널을 열지 않아도 접속을 유지한다.
-client.start();
+/* 자동 접속이 켜져 있으면, 플러그인이 로드될 때 패널을 열지 않아도 접속을 유지한다.
+ * **꺼져 있으면(기본) 접속을 시도하지 않는다.** (ROADMAP §100) */
+if (autoConnect) {
+  client.start();
+}
 
 /**
  * 알림 구독 상태. 연결되면 서버로 보낸다.

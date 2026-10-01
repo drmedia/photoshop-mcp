@@ -15,6 +15,7 @@ import {
   bridgeUrls,
   orderedBridgeUrls,
 } from "../photoshop-uxp/src/transport/bridge-ports.js";
+import { parseAutoConnect } from "../photoshop-uxp/src/transport/auto-connect.js";
 import { BridgeClient } from "../photoshop-uxp/src/transport/ws-client.js";
 
 /**
@@ -282,4 +283,113 @@ describe("run.ts — 포트를 고정했는가", () => {
     expect(range).not.toContain("PHOTOSHOP_MCP_PORT");
     expect(portConflictMessage(8765, 4242)).toContain("PHOTOSHOP_MCP_PORT");
   });
+});
+
+describe("자동 접속 끄기 (ROADMAP §100)", () => {
+  it("**기본은 꺼짐이다** — 저장된 값이 없거나 모르는 값이면 꺼짐으로 읽는다", () => {
+    for (const stored of [null, undefined, "", "0", "false", "true", "yes", "on", "01", " 1"]) {
+      expect(parseAutoConnect(stored), String(stored)).toBe(false);
+    }
+  });
+
+  it('**"1" 만 켜짐이다**', () => {
+    expect(parseAutoConnect("1")).toBe(true);
+  });
+
+  it("**start() 를 부르지 않으면 서버가 떠 있어도 접속을 시도하지 않는다** — 꺼진 상태의 기본", async () => {
+    const transport = new WebSocketBridgeTransport({ port: 0 });
+    cleanups.push(() => transport.stop());
+    await transport.start();
+
+    const client = makeClient([url(transport.port)]);
+    // 일부러 start() 를 부르지 않는다. 재접속 첫 대기(1초)보다 길게 기다려도 아무 일도 없어야 한다.
+    await new Promise((resolve) => setTimeout(resolve, 1_500));
+
+    expect(client.state).toBe("disconnected");
+    expect(transport.isConnected()).toBe(false);
+    expect(transport.state()).toBe("disconnected");
+  });
+
+  it("**연결된 뒤 stop() 하면 끊고, 서버가 그대로 떠 있어도 다시 붙지 않는다**", async () => {
+    const transport = new WebSocketBridgeTransport({ port: 0 });
+    cleanups.push(() => transport.stop());
+    await transport.start();
+
+    const client = makeClient([url(transport.port)]);
+    client.start();
+    await until(() => client.state === "connected");
+    await until(() => transport.isConnected());
+
+    client.stop();
+    expect(client.state).toBe("disconnected");
+    await until(() => !transport.isConnected());
+
+    // 재접속 첫 대기(1초)를 넘겨도 붙지 않는다.
+    await new Promise((resolve) => setTimeout(resolve, 1_800));
+    expect(client.state).toBe("disconnected");
+    expect(transport.isConnected()).toBe(false);
+  }, 15_000);
+
+  it("**다시 켜면 바로 붙는다**", async () => {
+    const transport = new WebSocketBridgeTransport({ port: 0 });
+    cleanups.push(() => transport.stop());
+    await transport.start();
+
+    const client = makeClient([url(transport.port)]);
+    client.start();
+    await until(() => client.state === "connected");
+    client.stop();
+    await until(() => client.state === "disconnected");
+
+    client.start();
+    await until(() => client.state === "connected", 3_000);
+    await until(() => transport.isConnected());
+  }, 15_000);
+
+  it("**대기(백오프) 중에 끄면 서버가 나중에 떠도 붙지 않는다** — 걸려 있던 재접속 타이머가 살아남지 않는다", async () => {
+    const port = await freePort();
+    const client = makeClient([url(port)]);
+    client.start();
+    await until(() => client.state === "retrying");
+
+    client.stop();
+    expect(client.state).toBe("disconnected");
+
+    // 이제 서버가 뜬다. 끄지 않았다면 대기가 끝나는 1초 안에 붙었을 것이다.
+    const transport = new WebSocketBridgeTransport({ port });
+    cleanups.push(() => transport.stop());
+    await transport.start();
+    await new Promise((resolve) => setTimeout(resolve, 2_500));
+
+    expect(client.state).toBe("disconnected");
+    expect(transport.isConnected()).toBe(false);
+  }, 15_000);
+
+  it('끄면 옛 접속 실패 문구를 지운다 — 끈 상태에서 "서버를 못 찾았다" 가 남으면 지금도 찾는 것처럼 읽힌다', async () => {
+    const dead = await freePort();
+    const client = makeClient([url(dead)]);
+    client.start();
+    await until(() => client.state === "retrying");
+    expect(client.lastError).toMatch(/No server found/u);
+
+    client.stop();
+    expect(client.lastError).toBeNull();
+    expect(client.state).toBe("disconnected");
+  });
+
+  it("**다시 켤 때 이전 백오프가 남지 않는다** — 첫 시도가 실패하면 대기는 처음의 1초다", async () => {
+    const dead = await freePort();
+    const client = makeClient([url(dead)]);
+    client.start();
+    await until(() => client.state === "retrying");
+    expect(client.retryDelayMs).toBe(1_000);
+
+    // 첫 대기(1초)가 지나 두 번째 실패가 나면 다음 대기는 2초로 늘어난다.
+    await until(() => client.retryDelayMs === 2_000, 5_000);
+
+    client.stop();
+    client.start();
+    await until(() => client.state === "retrying");
+    expect(client.retryDelayMs).toBe(1_000);
+  }, 20_000);
 });

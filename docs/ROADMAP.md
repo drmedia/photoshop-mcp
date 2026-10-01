@@ -11256,7 +11256,96 @@ Layer.applyMinimum        23.5  filter.minimum_maximum     _obj: "minimum"
 - [x] 플러그인 소스에서 쓰는 이름을 주석 제외로 집계, 귀속 불가는 분리
 - [x] 대응표(사람 검증) + 자동 검증 테스트, 보고서 최신성 테스트
 - [x] 변형 세 가지로 테스트가 실제로 실패하는 것을 확인
-- [ ] 흔적 없음 중 batchPlay 로 이미 제공하는 것을 대응표에 채운다
-- [ ] 일부러 안 연 것의 제외 사유 표
+- [x] 흔적 없음 중 이미 제공하는 것을 대응표에 채운다 — §89 (156 → 119)
+- [x] 일부러 안 연 것의 제외 사유 표 — 사유가 기록으로 남은 것만 (§89)
 - [ ] 상수(`modules`)와 옵션 객체(`objects`)까지 넓힌다
 - [x] filter.ts 의 "DOM 에 없는 것들" 주석 정정 — 있다는 사실과 이유가 기록에 없다는 것을 적었다
+
+---
+# 89. 흔적 없음 156개를 훑었다 — 대응 11, 제외 31, 그리고 틀린 주장 둘
+
+§88 의 도구가 낸 "흔적 없음" 을 하나씩 구현 소스와 맞춰 봤다. 결과: **156 → 119**
+(대응 11 · 제외 31 이 빠졌다). 남은 119 는 "아직 정해지지 않은 것" 이다 — 빈틈인지 일부러 안
+연 것인지 기록이 없다.
+
+## 훑다가 파서 버그를 둘 더 잡았다
+
+```text
+CharacterStyle 의 최소 버전이 `false` · `SHARP` · `NORMAL`   표에 Default · Range 열이 끼어 있다.
+                                                    열 위치를 고정하면 기본값이 버전 칸에 들어간다.
+ColorSampler.color 의 최소 버전이 `R`                유니온 형식 `A \| B` 의 이스케이프된 파이프를 셀 경계로 읽었다.
+```
+
+열 순서를 **머리글에서 읽고**, 이스케이프된 파이프는 경계로 보지 않게 했다. 스냅샷을 다시 받아 버전이 아닌
+값이 하나도 없는 것을 확인했고 테스트 둘을 더했다. **분류하려고 목록을 읽지 않았으면 못 봤을 오류다** —
+숫자만 보면 합계는 그럴듯했다.
+
+## 대응 11 — 구현 소스를 읽어 확인한 것만
+
+batchPlay 로 구현하지만 DOM 에도 있는 것(옮길 후보)이 다섯이다.
+
+```text
+Layer.applyGaussianBlur · applyHighPass · applyMinimum · applyMaximum    filter.*          (§88)
+Selection.save(channelName?)                                              selection.save_channel   _obj: "duplicate"
+```
+
+`Selection.save` 는 문서에 "새 알파 채널로 저장" 이라고 적혀 있고 `save_channel` 이 정확히 그 일이다.
+`Selection.saveTo(channel, mode)`(기존 채널에, 합성 모드까지)는 아직 열지 않았다.
+
+**같은 기능을 다른 DOM 메서드로** 제공하는 것이 여섯이다 — 이름만 다르다.
+
+```text
+Layer.bringToFront · sendToBack   → layer.reorder        Layer.move(anchor, PLACEBEFORE/AFTER)
+Document.closeWithoutSaving       → document.close       close(SaveOptions.DONOTSAVECHANGES)
+Document.createPixelLayer         → layer.create         Document.createLayer()
+Document.groupLayers              → group.create         createLayerGroup({ fromLayers })
+Photoshop.createDocument          → document.create      app.documents.add
+```
+
+`closeWithoutSaving()` 과 `createDocument()` 가 지금 쓰는 길과 **같은 동작인지는 재 보지 않았다** — 표의
+비고에 그대로 적었다. 특히 `documents.add` 는 일부 키를 조용히 무시해 만든 뒤 다시 거는데, `createDocument`
+가 같은지는 모른다.
+
+## 제외 31 — 사유가 기록으로 남은 것만
+
+`CharacterStyle` 23 + `ParagraphStyle` 8. 텍스트는 워터마크·서명 범위까지만 연다는 방침(§17.33)이 근거다.
+**이 멤버를 두고 따로 결정한 기록은 없다** — 방침에서 읽은 것이라고 표에 그대로 적었다. 사유 없이 안
+열린 것은 제외로 세지 않고 흔적 없음으로 남겼다 — 그래야 결정이 필요한 목록이 사라지지 않는다.
+
+제외표는 테스트가 지킨다. 제외한 멤버를 소스가 쓰기 시작하면(`Layer.flip` 을 일부러 적어 확인) 실패해서
+낡은 제외가 남지 않는다. 사유가 비거나 짧아도 실패한다.
+
+## 틀린 주장 둘 — "문서가 없다" 고 적었던 것
+
+둘 다 **공백이라고 적기 전에 있는 것부터 확인한다**(CLAUDE.md §17.16)를 어긴 같은 모양이다.
+
+**1. "복사하는 Tool 은 만들 수 없다 — `copy` · `cut` 이 없다" (§41, CLAUDE.md)**
+Adobe 레퍼런스에 **`Layer.copy(merge?)` 와 `Layer.cut()` 이 있다**(23.0+). §41 은 `Document.paste`
+하나뿐이라고 적었는데 `Document` 클래스만 본 것으로 보인다. CLAUDE.md 를 사실대로 고쳤다.
+**만들지는 정하지 않았다** — 사용자의 클립보드를 **덮어쓴다**. 클립보드를 읽는 `paste` 가 `external` 이듯
+이쪽은 더 위험한 쓰기라 사용자의 판단이 필요하다.
+
+**2. "`SubPathInfo` 의 인터페이스 문서가 없다" (§58, `path.create` 설명)**
+현재 문서에 `SubPathInfo`(`closed` · `entireSubPath` · `operation`) · `PathPointInfo`
+(`anchor` · `leftDirection` · `rightDirection` · `kind`) · `PathItems.add(name, entirePath)` 가 있고
+`PathPointInfo` 에는 사용 예제 스크립트까지 있다(23.3+). 그때 문서에 없었는지는 모른다 — 지금은 있다.
+`path.create` 설명을 "열지 않았다 / 레퍼런스에는 있으나 재 보지 않았다" 로 고쳤다. 좌표로 그리는 통로를
+열지는 정하지 않았다. 열면 `Selection.makeWorkPath` 가 못 하는 정확한 도형을 만들 수 있다.
+
+두 건 모두 **ROADMAP §41 · §58 의 옛 문장은 고치지 않았다** — 그날의 판단 기록이다. 정정은 여기와
+CLAUDE.md · Tool 설명에 있다.
+
+## 남은 것
+
+- 흔적 없음 119 중 아직 구현을 안 읽은 것 — 대부분 `Layer.apply*` 필터(34)와 `Document` 의 UI·호스트 성격 멤버,
+  `CountItems`(카운트 도구), 경로의 좌표 클래스. 결정이 필요한 것은 사용자에게 묻는다.
+- 위 틀린 주장 둘이 여는 두 길(`Layer.copy/cut`, 좌표 경로)과 `Selection.saveTo`.
+
+## 체크리스트
+
+- [x] 파서가 열 순서를 머리글에서 읽고 이스케이프된 파이프를 처리
+- [x] 대응 11 (구현 소스로 확인) · 제외 31 (사유가 기록으로 남은 것만) 과 그 테스트
+- [x] 틀린 주장 둘을 찾아 CLAUDE.md · `path.create` 설명을 사실대로 고침
+- [ ] `Layer.copy/cut` 을 열지 — 사용자 결정 (클립보드를 덮어쓴다)
+- [ ] 좌표로 그리는 경로를 열지 — 재 보고 정한다
+- [ ] 남은 흔적 없음 119 를 훑는다

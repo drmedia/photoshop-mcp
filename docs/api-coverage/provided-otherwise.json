@@ -3,24 +3,66 @@
     "member": "Layer.applyGaussianBlur",
     "tool": "photoshop.filter.gaussian_blur",
     "via": "batchPlay",
-    "note": "`_obj: \"gaussianBlur\"` (filter.ts). DOM 은 23.5 부터"
+    "note": "`_obj: \"gaussianBlur\"` (filter.ts)"
   },
   {
     "member": "Layer.applyHighPass",
     "tool": "photoshop.filter.high_pass",
     "via": "batchPlay",
-    "note": "`_obj: \"highPass\"` (filter.ts). DOM 은 23.5 부터"
+    "note": "`_obj: \"highPass\"` (filter.ts)"
   },
   {
     "member": "Layer.applyMinimum",
     "tool": "photoshop.filter.minimum_maximum",
     "via": "batchPlay",
-    "note": "`mode: minimum` 일 때 `_obj: \"minimum\"` (filter.ts). DOM 은 23.5 부터"
+    "note": "`mode: minimum` 일 때 `_obj: \"minimum\"` (filter.ts)"
   },
   {
     "member": "Layer.applyMaximum",
     "tool": "photoshop.filter.minimum_maximum",
     "via": "batchPlay",
-    "note": "`mode: maximum` 일 때 `_obj: \"maximum\"` (filter.ts). DOM 은 23.5 부터"
+    "note": "`mode: maximum` 일 때 `_obj: \"maximum\"` (filter.ts)"
+  },
+  {
+    "member": "Selection.save",
+    "tool": "photoshop.selection.save_channel",
+    "via": "batchPlay",
+    "note": "`_obj: \"duplicate\"` 로 선택을 알파 채널에 복제한다 (selection-ops.ts). DOM `Selection.save(channelName?)` 는 \"새 알파 채널로 저장\" 이다"
+  },
+  {
+    "member": "Layer.bringToFront",
+    "tool": "photoshop.layer.reorder",
+    "via": "DOM 다른 메서드",
+    "note": "`placement: top` 을 `Layer.move(anchor, PLACEBEFORE/AFTER)` 로 한다 (layer-reorder.ts)"
+  },
+  {
+    "member": "Layer.sendToBack",
+    "tool": "photoshop.layer.reorder",
+    "via": "DOM 다른 메서드",
+    "note": "`placement: bottom` 을 `Layer.move(anchor, PLACEBEFORE/AFTER)` 로 한다 (layer-reorder.ts)"
+  },
+  {
+    "member": "Document.closeWithoutSaving",
+    "tool": "photoshop.document.close",
+    "via": "DOM 다른 메서드",
+    "note": "`close(SaveOptions.DONOTSAVECHANGES)` 를 부른다 (close-work-document.ts). `closeWithoutSaving()` 은 상수를 얻을 필요가 없는 같은 동작인지 재 보지 않았다"
+  },
+  {
+    "member": "Document.createPixelLayer",
+    "tool": "photoshop.layer.create",
+    "via": "DOM 다른 메서드",
+    "note": "`Document.createLayer()` 를 부른다 (layer-edit.ts)"
+  },
+  {
+    "member": "Document.groupLayers",
+    "tool": "photoshop.group.create",
+    "via": "DOM 다른 메서드",
+    "note": "`layerIds` 를 `createLayerGroup({ fromLayers })` 로 넘긴다 (group.ts)"
+  },
+  {
+    "member": "Photoshop.createDocument",
+    "tool": "photoshop.document.create",
+    "via": "DOM 다른 메서드",
+    "note": "`app.documents.add` 를 부른다 (document-create.ts). 이쪽은 일부 키를 조용히 무시해 만든 뒤 다시 건다 — `createDocument` 가 같은지는 재 보지 않았다"
   }
 ]

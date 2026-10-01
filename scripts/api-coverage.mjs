@@ -64,6 +64,8 @@ export function parseClass(markdown) {
   const methods = [];
   let section = null;
   let current = null; // 최소 버전을 기다리는 멤버
+  // 이름 열 다음의 열 이름들. 대부분의 문서가 이 순서다.
+  let columns = ["Type", "Access", "Min Version", "Description"];
 
   for (const line of markdown.split(/\r?\n/u)) {
     const heading = /^(#{2,3}) (.+)$/u.exec(line);
@@ -82,15 +84,22 @@ export function parseClass(markdown) {
     }
     if (section === "Properties") {
       const row = /^\|\s*([A-Za-z_][\w]*)\s*\|(.*)\|\s*$/u.exec(line);
-      // 표 머리글(`| Name | Type | …`)은 멤버가 아니다.
-      if (row && row[1] !== "Name") {
-        const cells = row[2].split("|").map((cell) => plain(cell));
-        // 이름 | 형식 | 접근 | 최소 버전 | 설명
+      if (row && row[1] === "Name") {
+        // 표 머리글은 멤버가 아니다. 대신 **열 순서를 읽는다** — `CharacterStyle` 은
+        // `Default` · `Range` 열이 끼어 있어 최소 버전의 위치가 다르다.
+        columns = row[2].split(/(?<!\\)\|/u).map((cell) => plain(cell));
+        continue;
+      }
+      if (row) {
+        // 유니온 형식은 `A \| B` 로 적힌다 — 이스케이프된 파이프는 셀 경계가 아니다.
+        const cells = row[2].split(/(?<!\\)\|/u).map((cell) => plain(cell));
+        const at = (header) => cells[columns.indexOf(header)] ?? "";
+        const minVersion = at("Min Version");
         properties.push({
           name: row[1],
-          type: cells[0] ?? "",
-          access: cells[1] ?? "",
-          minVersion: cells[2] === "" ? null : (cells[2] ?? null),
+          type: at("Type"),
+          access: at("Access"),
+          minVersion: minVersion === "" ? null : minVersion,
         });
         continue;
       }
@@ -227,6 +236,23 @@ export function loadOtherwise() {
   return existsSync(OTHERWISE) ? JSON.parse(readFileSync(OTHERWISE, "utf8")) : [];
 }
 
+const NOT_EXPOSED = join(ROOT, "docs/api-coverage/not-exposed.json");
+
+/**
+ * 일부러 열지 않은 것과 그 사유. **사유가 기록으로 남은 것만** 적는다.
+ *
+ * ```json
+ * { "members": ["CharacterStyle.ligatures", …], "reason": "…", "source": "ROADMAP §…" }
+ * ```
+ *
+ * 사유 없이 안 열린 것은 "제외" 가 아니라 **미결정**이다 — "흔적 없음" 으로 남긴다. 그래야 결정이
+ * 필요한 목록이 사라지지 않는다. 항목마다 멤버가 스냅샷에 있는지, 그 멤버를 소스가 아직 안 쓰는지를
+ * `tests/api-coverage.test.ts` 가 본다 — 열었는데 제외로 적혀 있으면 실패한다.
+ */
+export function loadNotExposed() {
+  return existsSync(NOT_EXPOSED) ? JSON.parse(readFileSync(NOT_EXPOSED, "utf8")) : [];
+}
+
 /**
  * `Preferences/*` 는 `preferences.get` 이 하위 객체의 열거 가능한 키를 **반사적으로** 읽는다
  * (`app-info.ts`). 이름이 코드에 없으므로 이름 기준 비교가 성립하지 않는다.
@@ -235,6 +261,9 @@ const REFLECTIVE = (className) => className.startsWith("Preferences/");
 
 export function compare(snapshot) {
   const otherwise = new Map(loadOtherwise().map((entry) => [entry.member, entry]));
+  const excludedBy = new Map(
+    loadNotExposed().flatMap((entry) => entry.members.map((member) => [member, entry])),
+  );
   const used = new Map(); // 이름 → 쓰는 파일들
   for (const file of sourceFiles(SRC)) {
     const { members, strings } = scanNames(readFileSync(file, "utf8"));
@@ -261,15 +290,29 @@ export function compare(snapshot) {
       const files = used.get(m.name) ?? [];
       const shared = (classCountByName.get(m.name) ?? 1) > 1;
       const mapped = otherwise.get(`${className}.${m.name}`);
-      // 우선순위: 사람이 적은 대응 > 반사 읽기 > 소스의 이름 흔적.
-      let status = files.length === 0 ? "none" : shared ? "shared" : "confirmed";
+      const excluded = excludedBy.get(`${className}.${m.name}`);
+      // 소스의 이름 흔적만으로 본 판정. 사람이 적은 표가 덮기 전의 값이다.
+      const baseStatus = files.length === 0 ? "none" : shared ? "shared" : "confirmed";
+      // 우선순위: 대응 > 제외 > 반사 읽기 > 소스의 이름 흔적.
+      let status = baseStatus;
       if (REFLECTIVE(className)) {
         status = "reflective";
+      }
+      if (excluded) {
+        status = "excluded";
       }
       if (mapped) {
         status = "otherwise";
       }
-      return { ...m, files, status, mapped, sharedBy: classCountByName.get(m.name) ?? 1 };
+      return {
+        ...m,
+        files,
+        status,
+        baseStatus,
+        mapped,
+        excluded,
+        sharedBy: classCountByName.get(m.name) ?? 1,
+      };
     });
     rows.push({ className, members });
   }
@@ -305,10 +348,12 @@ export function render(snapshot, rows) {
     "  **어느 클래스를 가리키는지 알 수 없다.** 쓰고 있을 수도, 아닐 수도 있다.",
     "- **대응** — 사람이 적은 `docs/api-coverage/provided-otherwise.json` 의 항목. DOM 이 아니라",
     "  다른 길(주로 batchPlay)로 **Tool 이 이미 제공**한다. 표는 테스트가 검증한다.",
+    "- **제외** — `docs/api-coverage/not-exposed.json` 의 항목. **사유가 기록으로 남은 것만** 적는다.",
+    "  멤버를 소스가 쓰기 시작하면 테스트가 실패하므로 낡은 제외가 남지 않는다.",
     "- **반사 읽기** — `Preferences/*` 는 `preferences.get` 이 열거 가능한 키를 훑어 읽는다. 이름이",
     "  코드에 없는 것이 정상이라 이름 기준 비교가 성립하지 않는다.",
-    "- **흔적 없음** — 소스 어디에도 그 이름이 없다. 빈틈일 수도, 일부러 안 연 것일 수도,",
-    "  batchPlay 로 이미 제공하는데 아직 대응표에 안 적힌 것일 수도 있다.",
+    "- **흔적 없음** — 소스 어디에도 그 이름이 없고 사유도 기록에 없다. **아직 정해지지 않은 것**이다.",
+    "  빈틈일 수도, 일부러 안 연 것일 수도, batchPlay 로 이미 제공하는데 대응표에 안 적힌 것일 수도 있다.",
     "",
     '**"흔적 없음" 을 "Tool 이 없다" 로 읽지 않는다.** 이 문서는 DOM **사용 흔적**을 센다.',
     "batchPlay 로 구현한 기능은 DOM 멤버 이름이 코드에 없어 흔적 없음으로 나온다.",
@@ -321,6 +366,7 @@ export function render(snapshot, rows) {
     `클래스 ${rows.length}개 · 멤버 ${total.length}개 — ` +
       `확인 **${count("confirmed")}** (${pct(count("confirmed"), total.length)}) · ` +
       `대응 ${count("otherwise")} · ` +
+      `제외 ${count("excluded")} · ` +
       `공유 이름 ${count("shared")} (${pct(count("shared"), total.length)}) · ` +
       `반사 읽기 ${count("reflective")} · ` +
       `흔적 없음 ${count("none")} (${pct(count("none"), total.length)})`,
@@ -348,18 +394,51 @@ export function render(snapshot, rows) {
     lines.push("");
   }
 
+  // 같은 기능을 다른 DOM 메서드로 제공하는 것 — 옮길 일은 아니고 이름이 다른 것이다.
+  const viaOtherDom = total.filter((m) => m.mapped && !/batchPlay/iu.test(m.mapped.via ?? ""));
+  if (viaOtherDom.length > 0) {
+    lines.push(
+      "## 같은 기능을 다른 DOM 메서드로 제공하는 것",
+      "",
+      '이름 기준으로는 "흔적 없음" 이지만 Tool 은 있다. 다른 메서드로 같은 일을 한다.',
+      "",
+      "| DOM 멤버 | 최소 버전 | Tool | 어떻게 |",
+      "|---|---|---|---|",
+    );
+    for (const m of viaOtherDom) {
+      lines.push(
+        `| \`${m.mapped.member}\`${m.kind === "메서드" ? "()" : ""} | ${m.minVersion ?? "—"} | \`${m.mapped.tool}\` | ${m.mapped.note ?? ""} |`,
+      );
+    }
+    lines.push("");
+  }
+
+  // 일부러 열지 않은 것 — 사유와 출처를 함께.
+  const excludedEntries = loadNotExposed();
+  if (excludedEntries.length > 0) {
+    lines.push("## 일부러 열지 않은 것", "");
+    for (const entry of excludedEntries) {
+      const classes = [...new Set(entry.members.map((member) => member.split(".")[0]))];
+      lines.push(
+        `- **${entry.members.length}개** (${classes.join(" · ")}): ${entry.reason}`,
+        `  - 출처: ${entry.source}`,
+      );
+    }
+    lines.push("");
+  }
+
   lines.push(
     "## 클래스별 요약",
     "",
-    "| 클래스 | 멤버 | 확인 | 대응 | 공유 이름 | 반사 읽기 | 흔적 없음 | 확인 비율 |",
-    "|---|---:|---:|---:|---:|---:|---:|---:|",
+    "| 클래스 | 멤버 | 확인 | 대응 | 제외 | 공유 이름 | 반사 읽기 | 흔적 없음 | 확인 비율 |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
   );
   for (const { className, members } of [...rows].sort(
     (a, b) => b.members.length - a.members.length || a.className.localeCompare(b.className),
   )) {
     const c = (s) => members.filter((m) => m.status === s).length;
     lines.push(
-      `| ${className} | ${members.length} | ${c("confirmed")} | ${c("otherwise")} | ${c("shared")} | ${c("reflective")} | ${c("none")} | ${pct(c("confirmed"), members.length)} |`,
+      `| ${className} | ${members.length} | ${c("confirmed")} | ${c("otherwise")} | ${c("excluded")} | ${c("shared")} | ${c("reflective")} | ${c("none")} | ${pct(c("confirmed"), members.length)} |`,
     );
   }
   lines.push("");
@@ -386,6 +465,11 @@ export function render(snapshot, rows) {
         `- **대응 (${by("otherwise").length})**: ${by("otherwise")
           .map((m) => `${label(m)} → \`${m.mapped.tool}\``)
           .join(" · ")}`,
+      );
+    }
+    if (by("excluded").length > 0) {
+      lines.push(
+        `- **제외 (${by("excluded").length})**: ${by("excluded").map(label).join(" · ")} — 사유는 위 "일부러 열지 않은 것"`,
       );
     }
     if (by("shared").length > 0) {

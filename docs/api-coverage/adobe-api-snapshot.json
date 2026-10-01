@@ -201,199 +201,199 @@
      "name": "alternateLigatures",
      "type": "boolean",
      "access": "R W",
-     "minVersion": "false"
+     "minVersion": "24.1"
     },
     {
      "name": "antiAliasMethod",
      "type": "AntiAlias",
      "access": "R W",
-     "minVersion": "SHARP"
+     "minVersion": "24.1"
     },
     {
      "name": "autoKerning",
      "type": "AutoKernType",
      "access": "R W",
-     "minVersion": "METRICS"
+     "minVersion": "24.1"
     },
     {
      "name": "baseline",
      "type": "Baseline",
      "access": "R W",
-     "minVersion": "NORMAL"
+     "minVersion": "24.1"
     },
     {
      "name": "baselineShift",
      "type": "number",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "capitalization",
      "type": "TextCase",
      "access": "R W",
-     "minVersion": "NORMAL"
+     "minVersion": "24.1"
     },
     {
      "name": "characterAlignment",
      "type": "CharacterAlignment",
      "access": "R W",
-     "minVersion": "ROMAN"
+     "minVersion": "24.1"
     },
     {
      "name": "color",
      "type": "SolidColor",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "fauxBold",
      "type": "boolean",
      "access": "R W",
-     "minVersion": "false"
+     "minVersion": "24.1"
     },
     {
      "name": "fauxItalic",
      "type": "boolean",
      "access": "R W",
-     "minVersion": "false"
+     "minVersion": "24.1"
     },
     {
      "name": "font",
      "type": "string",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "fractionalWidths",
      "type": "boolean",
      "access": "R W",
-     "minVersion": "false"
+     "minVersion": "24.1"
     },
     {
      "name": "fractions",
      "type": "boolean",
      "access": "R W",
-     "minVersion": "false"
+     "minVersion": "24.1"
     },
     {
      "name": "horizontalDiacriticPosition",
      "type": "number",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "horizontalScale",
      "type": "number",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "kashidas",
      "type": "boolean",
      "access": "R W",
-     "minVersion": "true"
+     "minVersion": "24.1"
     },
     {
      "name": "language",
      "type": "Language",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "leading",
      "type": "number",
      "access": "R W",
-     "minVersion": "null"
+     "minVersion": "24.1"
     },
     {
      "name": "ligatures",
      "type": "boolean",
      "access": "R W",
-     "minVersion": "true"
+     "minVersion": "24.1"
     },
     {
      "name": "middleEasternDigitsType",
      "type": "MiddleEasternDigitsType",
      "access": "R W",
-     "minVersion": "LTRARABIC"
+     "minVersion": "24.1"
     },
     {
      "name": "middleEasternTextDirection",
      "type": "MiddleEasternTextDirection",
      "access": "R W",
-     "minVersion": "DEFAULT"
+     "minVersion": "24.1"
     },
     {
      "name": "noBreak",
      "type": "boolean",
      "access": "R W",
-     "minVersion": "false"
+     "minVersion": "24.1"
     },
     {
      "name": "ordinals",
      "type": "boolean",
      "access": "R W",
-     "minVersion": "false"
+     "minVersion": "24.1"
     },
     {
      "name": "size",
      "type": "number",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "strikeThrough",
      "type": "StrikeThrough",
      "access": "R W",
-     "minVersion": "STRIKEOFF"
+     "minVersion": "24.1"
     },
     {
      "name": "stylisticAlternates",
      "type": "boolean",
      "access": "R W",
-     "minVersion": "false"
+     "minVersion": "24.1"
     },
     {
      "name": "swash",
      "type": "boolean",
      "access": "R W",
-     "minVersion": "false"
+     "minVersion": "24.1"
     },
     {
      "name": "titlingAlternates",
      "type": "boolean",
      "access": "R W",
-     "minVersion": "false"
+     "minVersion": "24.1"
     },
     {
      "name": "tracking",
      "type": "number",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "underline",
      "type": "Underline",
      "access": "R W",
-     "minVersion": "NONE"
+     "minVersion": "24.1"
     },
     {
      "name": "useAutoLeading",
      "type": "boolean",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "verticalDiacriticPosition",
      "type": "number",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "verticalScale",
      "type": "number",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     }
    ],
    "methods": [
@@ -407,9 +407,9 @@
    "properties": [
     {
      "name": "color",
-     "type": "SolidColor \\",
-     "access": "NoColor",
-     "minVersion": "R"
+     "type": "SolidColor \\| NoColor",
+     "access": "R",
+     "minVersion": "24.0"
     },
     {
      "name": "docId",
@@ -1644,85 +1644,85 @@
      "name": "features",
      "type": "TypeInterfaceFeatures",
      "access": "R W",
-     "minVersion": "DEFAULT"
+     "minVersion": "24.1"
     },
     {
      "name": "firstLineIndent",
      "type": "number",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "hyphenation",
      "type": "boolean",
      "access": "R W",
-     "minVersion": "false"
+     "minVersion": "24.1"
     },
     {
      "name": "hyphenationFeatures",
      "type": "HyphenationProperties",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "justification",
      "type": "Justification",
      "access": "R W",
-     "minVersion": "LEFT"
+     "minVersion": "24.1"
     },
     {
      "name": "justificationFeatures",
      "type": "JustificationProperties",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "kashidaWidth",
      "type": "KashidaWidthType",
      "access": "R W",
-     "minVersion": "MEDIUM"
+     "minVersion": "24.1"
     },
     {
      "name": "kinsoku",
      "type": "Kinsoku",
      "access": "R W",
-     "minVersion": "NONE"
+     "minVersion": "24.1"
     },
     {
      "name": "layoutMode",
      "type": "ParagraphLayout",
      "access": "R W",
-     "minVersion": "WORLD"
+     "minVersion": "24.1"
     },
     {
      "name": "leftIndent",
      "type": "number",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "mojikumi",
      "type": "Mojikumi",
      "access": "R W",
-     "minVersion": "NONE"
+     "minVersion": "24.1"
     },
     {
      "name": "rightIndent",
      "type": "number",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "spaceAfter",
      "type": "number",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "spaceBefore",
      "type": "number",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     }
    ],
    "methods": [
@@ -2852,43 +2852,43 @@
      "name": "contents",
      "type": "string",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "isParagraphText",
      "type": "boolean",
      "access": "R",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "isPointText",
      "type": "boolean",
      "access": "R",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "orientation",
      "type": "Orientation",
      "access": "R W",
-     "minVersion": "HORIZONTAL"
+     "minVersion": "24.1"
     },
     {
      "name": "parent",
      "type": "Layer",
      "access": "R",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "textClickPoint",
      "type": "object",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "typename",
      "type": "string",
      "access": "R",
-     "minVersion": "-"
+     "minVersion": "24.1"
     }
    ],
    "methods": [
@@ -2916,31 +2916,31 @@
      "name": "bend",
      "type": "number",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "direction",
      "type": "Direction",
      "access": "R W",
-     "minVersion": "HORIZONTAL"
+     "minVersion": "24.1"
     },
     {
      "name": "horizontalDistortion",
      "type": "number",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     },
     {
      "name": "style",
      "type": "WarpStyle",
      "access": "R W",
-     "minVersion": "NONE"
+     "minVersion": "24.1"
     },
     {
      "name": "verticalDistortion",
      "type": "number",
      "access": "R W",
-     "minVersion": "-"
+     "minVersion": "24.1"
     }
    ],
    "methods": [

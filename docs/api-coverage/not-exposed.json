@@ -1,0 +1,39 @@
+[
+  {
+    "members": [
+      "CharacterStyle.alternateLigatures",
+      "CharacterStyle.antiAliasMethod",
+      "CharacterStyle.autoKerning",
+      "CharacterStyle.baseline",
+      "CharacterStyle.capitalization",
+      "CharacterStyle.characterAlignment",
+      "CharacterStyle.fractionalWidths",
+      "CharacterStyle.fractions",
+      "CharacterStyle.horizontalDiacriticPosition",
+      "CharacterStyle.kashidas",
+      "CharacterStyle.language",
+      "CharacterStyle.ligatures",
+      "CharacterStyle.middleEasternDigitsType",
+      "CharacterStyle.middleEasternTextDirection",
+      "CharacterStyle.noBreak",
+      "CharacterStyle.ordinals",
+      "CharacterStyle.strikeThrough",
+      "CharacterStyle.stylisticAlternates",
+      "CharacterStyle.swash",
+      "CharacterStyle.titlingAlternates",
+      "CharacterStyle.underline",
+      "CharacterStyle.verticalDiacriticPosition",
+      "CharacterStyle.reset",
+      "ParagraphStyle.features",
+      "ParagraphStyle.hyphenationFeatures",
+      "ParagraphStyle.justificationFeatures",
+      "ParagraphStyle.kashidaWidth",
+      "ParagraphStyle.kinsoku",
+      "ParagraphStyle.layoutMode",
+      "ParagraphStyle.mojikumi",
+      "ParagraphStyle.reset"
+    ],
+    "reason": "텍스트는 워터마크·서명 범위까지만 연다. 안 쓰는 파라미터가 스키마에 있으면 호출자가 무엇이 중요한지 모른다. 이 멤버를 두고 따로 결정한 기록은 없다 — 방침에서 읽은 것이다",
+    "source": "CLAUDE.md 텍스트(ROADMAP §17.33). §60 에서 tracking · leading · paragraph · warp 는 열었고 나머지는 열지 않았다"
+  }
+]

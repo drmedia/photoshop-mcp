@@ -101,8 +101,9 @@ export function createPathCreateTool(
       "tolerance 는 곡선 단순화 정도(0.5~10, 기본 2)다 — **작을수록 선택에 가깝고 " +
       "점이 많아진다**. **name 을 주면 저장된 패스(normalPath)가 되고, 생략하면 " +
       "'작업 패스'(workPathIndex)로 남아 다음에 덮어쓰인다** — 실기에서 확인했다. " +
-      "**좌표로 직접 그리는 통로는 없다** — Photoshop 이 요구하는 베지어 기하 " +
-      "(SubPathInfo)의 인터페이스 문서가 없어 짐작해 넘기지 않았다. " +
+      "**좌표로 직접 그리는 통로는 열지 않았다** — 베지어 기하(SubPathInfo · PathPointInfo)를 " +
+      "요구한다. Adobe 레퍼런스에는 그 클래스와 PathItems.add 가 있으나(23.3+) 이 서버에서는 " +
+      "아직 재 보지 않아 좌표를 짐작해 넘기지 않는다. " +
       "반대 방향은 photoshop.path.to_selection 이다.",
     "edit",
     PathCreateParamsSchema,

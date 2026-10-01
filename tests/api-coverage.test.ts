@@ -26,12 +26,18 @@ interface Snapshot {
 }
 interface Row {
   className: string;
-  members: { name: string; status: string }[];
+  members: { name: string; status: string; baseStatus: string }[];
+}
+interface NotExposed {
+  members: string[];
+  reason: string;
+  source: string;
 }
 interface Tool {
   parseClass: (markdown: string) => { properties: Member[]; methods: Member[] };
   scanNames: (code: string) => { members: Set<string>; strings: Set<string> };
   loadOtherwise: () => { member: string; tool: string; via: string }[];
+  loadNotExposed: () => NotExposed[];
   compare: (snapshot: Snapshot) => Row[];
 }
 
@@ -80,6 +86,31 @@ describe("parseClass — Adobe 문서 파서", () => {
       { name: "flip", minVersion: "23.0" },
       { name: "link", minVersion: "24.1" },
     ]);
+  });
+
+  it("열 순서를 머리글에서 읽는다 — Default · Range 가 낀 표(CharacterStyle 꼴)", () => {
+    // 열 위치를 고정하면 최소 버전 칸에 `false` · `SHARP` 같은 기본값이 들어간다.
+    const { properties } = tool.parseClass(
+      [
+        "## Properties",
+        "| Name | Type | Access | Default | Range | Min Version | Description |",
+        "| :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
+        "| ligatures | *boolean* | R W | true | - | 24.1 | 합자 |",
+      ].join("\n"),
+    );
+    expect(properties[0]).toMatchObject({ name: "ligatures", type: "boolean", minVersion: "24.1" });
+  });
+
+  it("유니온 형식의 이스케이프된 파이프(`A \\| B`)를 셀 경계로 보지 않는다", () => {
+    const { properties } = tool.parseClass(
+      [
+        "## Properties",
+        "| Name | Type | Access | Min Version | Description |",
+        "| :--- | :--- | :--- | :--- | :--- |",
+        String.raw`| color | [*SolidColor*](/a.md) \| [*NoColor*](/b.md) | R | 24.0 | 색 |`,
+      ].join("\n"),
+    );
+    expect(properties[0]).toMatchObject({ name: "color", access: "R", minVersion: "24.0" });
   });
 
   it("속성을 `###` 제목으로 적는 문서(CountItem 꼴)도 읽는다", () => {
@@ -174,6 +205,57 @@ describe("대응표 (provided-otherwise.json)", () => {
   it("같은 멤버를 두 번 적지 않는다", () => {
     const names = entries.map((e) => e.member);
     expect(new Set(names).size).toBe(names.length);
+  });
+});
+
+describe("제외표 (not-exposed.json)", () => {
+  const entries = tool.loadNotExposed();
+  const rows = tool.compare(snapshot);
+  const rowOf = (member: string): { status: string; baseStatus: string } | undefined => {
+    const [className, name] = member.split(".") as [string, string];
+    return rows.find((r) => r.className === className)?.members.find((m) => m.name === name);
+  };
+
+  it("항목이 있고 사유와 출처가 비어 있지 않다", () => {
+    expect(entries.length).toBeGreaterThan(0);
+    for (const entry of entries) {
+      // 사유 없이 안 열린 것은 제외가 아니라 미결정이다 — 빈 사유를 허용하지 않는다.
+      expect(entry.reason.trim().length, "사유가 비었다").toBeGreaterThan(20);
+      expect(entry.source.trim().length, "출처가 비었다").toBeGreaterThan(0);
+      expect(entry.members.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("모든 멤버가 Adobe 문서에 있다", () => {
+    for (const entry of entries) {
+      for (const member of entry.members) {
+        const [className, name] = member.split(".") as [string, string];
+        expect(allMembers(className), `${member} 이 Adobe 문서에 없다`).toContain(name);
+      }
+    }
+  });
+
+  it("**제외한 멤버를 소스가 쓰기 시작하면 실패한다** — 낡은 제외가 남지 않는다", () => {
+    for (const entry of entries) {
+      for (const member of entry.members) {
+        expect(
+          rowOf(member)?.baseStatus,
+          `${member} 을 소스가 쓰는데 제외로 적혀 있다 — 제외표에서 뺀다`,
+        ).toBe("none");
+      }
+    }
+  });
+
+  it("같은 멤버를 두 번 적지 않고 대응표와 겹치지 않는다", () => {
+    const all = entries.flatMap((e) => e.members);
+    expect(new Set(all).size).toBe(all.length);
+    const mapped = new Set(tool.loadOtherwise().map((e) => e.member));
+    expect(all.filter((member) => mapped.has(member))).toEqual([]);
+  });
+
+  it("제외한 것은 제외로 나온다", () => {
+    const first = entries[0]?.members[0] as string;
+    expect(rowOf(first)?.status).toBe("excluded");
   });
 });
 

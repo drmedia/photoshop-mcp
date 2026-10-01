@@ -50,6 +50,10 @@ const MUST_STATE: [string, RegExp][] = [
   ["selection.modify", /radius[^.]*픽셀/u],
   ["canvas.resize", /width · height 는 \*\*픽셀\*\*/u],
 
+  // text 의 size 는 실기로 쟀다 — 문서 픽셀이고 해상도와 무관하다 (§87).
+  ["text.create", /size 는 문서 픽셀이다[^.]*포인트가 아니고/u],
+  ["text.set", /size 는 문서 픽셀이다[^.]*포인트가 아니고/u],
+
   // §86 에서 고친 것도 함께 묶는다.
   ["document.statistics", /clippedLow[^.]*퍼센트/u],
 ];

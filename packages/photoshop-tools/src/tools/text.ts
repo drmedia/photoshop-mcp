@@ -20,6 +20,8 @@ export function createTextCreateTool(
     name: "photoshop.text.create",
     description:
       "텍스트 레이어를 만든다. 내용·위치·폰트·크기·색·불투명도·정렬을 한 번에 준다. " +
+      "**size 는 문서 픽셀이다 — 포인트가 아니고 해상도와 무관하다.** " +
+      "72ppi 와 300ppi 문서에서 같은 size 가 같은 픽셀 높이로 나온다(Arial 대문자 높이 ≈ size × 0.72). " +
       "**줄바꿈은 그냥 개행 문자로 준다** — Photoshop 은 CR 을 쓰지만 경계에서 바꿔 준다. " +
       "한동안 그대로 넘겨 **네모(□)가 그려졌다**(ROADMAP §60). " +
       "**워터마크와 서명을 위한 범위다** — 자간·행간·단락·변형은 없다. " +
@@ -47,6 +49,7 @@ export function createTextSetTool(
     name: "photoshop.text.set",
     description:
       "기존 텍스트 레이어의 내용·폰트·크기·색·불투명도·정렬을 고친다. " +
+      "**size 는 문서 픽셀이다 — 포인트가 아니고 해상도와 무관하다.** " +
       "바꿀 항목만 주면 되고 하나 이상 있어야 한다. " +
       "**텍스트 레이어가 아니면 거절한다** — photoshop.layer.list 의 type 이 text 인지 확인한다. " +
       "font 는 PostScript 이름이다(photoshop.font.list 참조). " +

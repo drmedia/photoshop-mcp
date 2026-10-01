@@ -39,7 +39,14 @@ const StyleShape = {
    * 다른 폰트로 대체하므로 Command 가 미리 찾아보고 거절한다.
    */
   font: z.string().trim().min(1).max(255).optional(),
-  /** 포인트. */
+  /**
+   * **문서 픽셀이다 — 포인트가 아니다.** 해상도와 무관하다.
+   *
+   * 실기에서 쟀다(ROADMAP §87). 같은 `size 100` 의 `H` 가 72ppi 문서와 300ppi 문서에서
+   * 똑같이 72px 높이였다(Arial 대문자 높이 ≈ 0.716 × size). 포인트였다면 300ppi 에서
+   * 약 4.17배인 300px 가 나와야 한다. 두 번째 문서가 실제로 300ppi 였는지도
+   * `image.resize` 의 `before.resolution` 으로 확인했다.
+   */
   size: z.number().min(0.1).max(1296).optional(),
   color: ColorSchema.optional(),
   /** 0–100. 워터마크는 보통 20–40 이다. */

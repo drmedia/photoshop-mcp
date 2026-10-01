@@ -113,4 +113,29 @@ describe("문서 통계", () => {
     expect(typeof result["method"]).toBe("string");
     expect(typeof result["elapsedMs"]).toBe("number");
   });
+
+  it("**클리핑의 단위가 설명에 있다 — 퍼센트이고 비율이 아니다**", () => {
+    // 스키마 주석에는 (%) 가 있었지만 주석은 LLM 에게 가지 않는다. 설명이 "클리핑 비율"
+    // 이라고만 해서 다른 모델이 0.255 를 25.5% 로 읽었다. LLM 이 보는 것은 이 문장이다.
+    const description = setup().tools.get("photoshop.document.statistics")?.description ?? "";
+    expect(description).toMatch(/clippedLow[^.]*퍼센트/u);
+    expect(description).toMatch(/비율\(0–1\)이 아니다/u);
+    expect(description).not.toMatch(/클리핑 비율/u);
+  });
+
+  it("실제 값이 설명이 말한 단위와 맞다 — 퍼센트 0–100", async () => {
+    const result = (await stats(setup())) as {
+      channels: Record<string, { clippedLow: number; clippedHigh: number }>;
+      histogram: number[];
+    };
+    for (const channel of Object.values(result.channels)) {
+      expect(channel.clippedLow).toBeGreaterThanOrEqual(0);
+      expect(channel.clippedLow).toBeLessThanOrEqual(100);
+      expect(channel.clippedHigh).toBeLessThanOrEqual(100);
+    }
+    // 히스토그램은 구간별 퍼센트라 합이 100 근처다.
+    const sum = result.histogram.reduce((a, b) => a + b, 0);
+    expect(sum).toBeGreaterThan(99);
+    expect(sum).toBeLessThan(101);
+  });
 });

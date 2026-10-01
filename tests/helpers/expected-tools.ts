@@ -34,6 +34,8 @@ export const EXPECTED_TOOLS = [
   "photoshop.document.statistics",
   // ROADMAP §90 — 구조 · 위치를 맡는다. statistics 는 전체 요약
   "photoshop.document.analyze",
+  // ROADMAP §91 — 보정 전후를 그림과 수치로. 이미지를 못 받는 클라이언트도 수치로 판단한다
+  "photoshop.document.compare",
   // ROADMAP §17.14 — 비어 있던 단계. 배경에는 걸 수 없다
   "photoshop.retouch.remove_spots",
   // ROADMAP §17.17 — 키를 실기에서 잡아냈다. Tool 은 하나뿐이다
@@ -228,6 +230,7 @@ export const EXPECTED_COMMANDS = [
   "RETOUCH_REMOVE_SPOTS",
   "DOCUMENT_STATISTICS",
   "DOCUMENT_ANALYZE",
+  "DOCUMENT_COMPARE",
   "DOCUMENT_CROP",
   "CANVAS_RESIZE",
   "DOCUMENT_TRIM",

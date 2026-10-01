@@ -3,6 +3,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import {
   CallToolRequestSchema,
+  GetPromptRequestSchema,
+  ListPromptsRequestSchema,
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
@@ -19,6 +21,12 @@ import {
   isCapturedImageList,
 } from "@photoshop-mcp/photoshop-bridge";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import {
+  INSTRUCTIONS,
+  RETOUCH_PROMPT_DESCRIPTION,
+  RETOUCH_PROMPT_NAME,
+  retouchPrompt,
+} from "./guidance.js";
 
 export interface PhotoshopMcpServerOptions {
   /** MCP Client 에 보고할 서버 이름. */
@@ -74,7 +82,10 @@ export class PhotoshopMcpServer {
         version: options.version ?? SERVER_VERSION,
       },
       {
+        // 사용자가 짧게 말해도 보정 절차를 따르게 한다. (ROADMAP §92)
+        instructions: INSTRUCTIONS,
         capabilities: {
+          prompts: { listChanged: false },
           /* **`listChanged` 를 선언한다.** (ROADMAP §18.3)
            *
            * Extension 은 기동 뒤에도 붙는다 — 사용자가 패널에서 등록하면
@@ -185,8 +196,53 @@ export class PhotoshopMcpServer {
     });
   }
 
+  /**
+   * `prompts/*` 핸들러. (ROADMAP §92)
+   *
+   * 슬래시 명령으로 쓰는 보정 절차 하나만 낸다. 인자 `goal` 은 선택이다.
+   */
+  #registerPromptHandlers(): void {
+    this.#server.setRequestHandler(ListPromptsRequestSchema, () => ({
+      prompts: [
+        {
+          name: RETOUCH_PROMPT_NAME,
+          description: RETOUCH_PROMPT_DESCRIPTION,
+          arguments: [
+            {
+              name: "goal",
+              description: "보정 목표(선택). 예: 은하수를 살리고 광해를 줄인다",
+              required: false,
+            },
+          ],
+        },
+      ],
+    }));
+
+    this.#server.setRequestHandler(GetPromptRequestSchema, (request) => {
+      if (request.params.name !== RETOUCH_PROMPT_NAME) {
+        throw new PhotoshopMcpError(
+          ErrorCode.INVALID_PARAMETER,
+          `알 수 없는 프롬프트입니다: ${request.params.name}`,
+        );
+      }
+      return {
+        description: RETOUCH_PROMPT_DESCRIPTION,
+        messages: [
+          {
+            role: "user" as const,
+            content: {
+              type: "text" as const,
+              text: retouchPrompt(request.params.arguments?.["goal"]),
+            },
+          },
+        ],
+      };
+    });
+  }
+
   #registerHandlers(): void {
     this.#registerResourceHandlers();
+    this.#registerPromptHandlers();
 
     this.#server.setRequestHandler(ListToolsRequestSchema, () => ({
       tools: this.#registry.list().map((tool) => ({

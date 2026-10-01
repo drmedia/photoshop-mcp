@@ -660,8 +660,17 @@ function describePlane(u: number[], v: number[], y: number[], use: number[]): Pl
   };
 }
 
-export function gradientAnalysis(input: AnalysisInput, grid: Grid): GradientResult {
-  requireGeometry(input, "기울기");
+/**
+ * 타일마다 R · G · B · 휘도의 **중앙값**(0–255 눈금). 표본이 없는 타일은 NaN.
+ *
+ * 평균이 아니라 중앙값인 것이 요점이다 — 별은 소수라 중앙값을 못 움직인다.
+ * `gradient` 와 `document.compare` 가 같이 쓴다. 두 곳이 따로 계산하면 같은 영역이 다른 값을 낸다.
+ */
+export function tileMedians(
+  input: AnalysisInput,
+  grid: Grid,
+): { red: number[]; green: number[]; blue: number[]; luminance: number[] } {
+  requireGeometry(input, "타일 중앙값");
   const { data, width, height, components, maxValue } = input;
   const { cols, rows } = grid;
   const tiles = cols * rows;
@@ -710,7 +719,15 @@ export function gradientAnalysis(input: AnalysisInput, grid: Grid): GradientResu
     }
     return out;
   });
-  const [valR, valG, valB, valL] = value as [number[], number[], number[], number[]];
+  const [red, green, blue, luminance] = value as [number[], number[], number[], number[]];
+  return { red, green, blue, luminance };
+}
+
+export function gradientAnalysis(input: AnalysisInput, grid: Grid): GradientResult {
+  requireGeometry(input, "기울기");
+  const { cols, rows } = grid;
+  const tiles = cols * rows;
+  const { red: valR, green: valG, blue: valB, luminance: valL } = tileMedians(input, grid);
 
   const u = new Array<number>(tiles);
   const v = new Array<number>(tiles);
@@ -1158,6 +1175,74 @@ export function clippingAnalysis(input: AnalysisInput, grid: Grid): ClippingResu
     };
   };
   return { high: describe(high), low: describe(low) };
+}
+
+// ── 전체 요약 (비교용) ────────────────────────────────────────────────
+
+export interface GlobalProfile {
+  pixels: number;
+  /** 채널별 중앙값(0–255). */
+  channelMedians: { red: number; green: number; blue: number };
+  /** 휘도의 분위수(0–255). */
+  luminance: { p1: number; p5: number; p50: number; p95: number; p99: number };
+  /** 어느 한 채널이라도 끝에 닿은 픽셀의 비율(%). */
+  clipping: { highPercent: number; lowPercent: number };
+}
+
+/**
+ * 한 이미지의 전체 요약. **전체 해상도**에서 센다.
+ *
+ * `document.compare` 가 보정 전과 후를 각각 이것으로 요약해 견준다. 두 이미지를 한꺼번에 들고
+ * 있지 않으려는 것이다 — 2400만 픽셀 16비트는 하나가 146MB 다.
+ */
+export function globalProfile(input: AnalysisInput): GlobalProfile {
+  const { data, components, maxValue } = input;
+  const pixels = Math.floor(data.length / components);
+  const quant = quantTable(maxValue);
+  const histR = new Uint32Array(Q);
+  const histG = new Uint32Array(Q);
+  const histB = new Uint32Array(Q);
+  const histL = new Uint32Array(Q);
+  let clipHigh = 0;
+  let clipLow = 0;
+  for (let pixel = 0; pixel < pixels; pixel += 1) {
+    const at = pixel * components;
+    const r = clamp(data[at] as number, maxValue);
+    const g = clamp(data[at + 1] as number, maxValue);
+    const b = clamp(data[at + 2] as number, maxValue);
+    if (r >= maxValue || g >= maxValue || b >= maxValue) clipHigh += 1;
+    if (r <= 0 || g <= 0 || b <= 0) clipLow += 1;
+    const l = clamp(Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b), maxValue);
+    const qr = quant[r] as number;
+    const qg = quant[g] as number;
+    const qb = quant[b] as number;
+    const ql = quant[l] as number;
+    histR[qr] = (histR[qr] as number) + 1;
+    histG[qg] = (histG[qg] as number) + 1;
+    histB[qb] = (histB[qb] as number) + 1;
+    histL[ql] = (histL[ql] as number) + 1;
+  }
+  const level = (hist: Uint32Array, fraction: number): number =>
+    round(binToLevel(Math.max(0, quantileBin(hist, 0, pixels, fraction)), maxValue), 2);
+  return {
+    pixels,
+    channelMedians: {
+      red: level(histR, 0.5),
+      green: level(histG, 0.5),
+      blue: level(histB, 0.5),
+    },
+    luminance: {
+      p1: level(histL, 0.01),
+      p5: level(histL, 0.05),
+      p50: level(histL, 0.5),
+      p95: level(histL, 0.95),
+      p99: level(histL, 0.99),
+    },
+    clipping: {
+      highPercent: pixels === 0 ? 0 : round((100 * clipHigh) / pixels, 4),
+      lowPercent: pixels === 0 ? 0 : round((100 * clipLow) / pixels, 4),
+    },
+  };
 }
 
 // ── 진입점 ────────────────────────────────────────────────────────────

@@ -14,7 +14,7 @@ Core는 Photoshop을 이해하고, Extension은 작업 도메인을 이해합니
 
 **Phase 13 까지 완료. 남은 것은 Phase 14 (Distribution) 하나다.**
 
-Core Tool **163개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
+Core Tool **164개** · Resource 6개. Extension 4개(`example` 2 · `graxpert` 2 ·
 `rcastro` 3 · `starnet` 1).
 
 Tool 개수를 셀 때 주의한다. `photoshop.diagnostics` 의 `registry.tools` 는 Extension
@@ -162,6 +162,10 @@ Tool 까지 더한 수다(지금 168). 한동안 이 값을 Core 개수로 옮�
   이상 타일은 최소 중앙값 제곱으로 걸러낸다 — 최소제곱은 25% 이상치에 끌려가 아무것도 못 걸렀다) ·
   노이즈의 밝기 의존과 가장 평탄한 타일 · 톤 구간별 색 쏠림(Lab, **sRGB 가정**). **판정이 없다** —
   숫자와 방향만 준다. 픽셀 읽기는 `statistics` 와 `pixel-source.ts` 를 공유한다 (ROADMAP §90)
+- 비교: `document.compare` — **보정 전후를 그림 한 장과 수치로.** 이미지 블록 + 텍스트 JSON 이
+  한 응답이라 이미지를 못 받는 클라이언트도 수치로 판단한다. **그림에는 글자가 없어 `panels` 순서가
+  유일한 표식**이다. 보정 전은 `beforeLayerId`(필수 — 비파괴라 원본이 아래에 있다), 후는 생략하면
+  합성. 수치는 전체 해상도, 그림은 축소. **판정이 없다** (ROADMAP §91)
 - 측정: `document.statistics` — **전체 해상도 원본**에서 히스토그램·채널 통계
 - 촬영 정보: `metadata.get` — 카메라·렌즈·노출·ISO·초점 거리. **`statistics` 와
   짝이다** — 저쪽은 "지금 어떤가" 이고 이쪽은 "왜 그런가" 다. DOM 에 없어
@@ -186,6 +190,13 @@ Tool 까지 더한 수다(지금 168). 한동안 이 값을 Core 개수로 옮�
   되돌린다. `convert_to_shape` 만 **destructive** (ROADMAP §60)
 - 액션: `action.list` (조회) · `action.declared` · `action.run` — **선언한 것만**
 - Camera Raw: `camera_raw.apply` — **Tool 은 이 하나뿐이다**
+
+## 보정 절차 안내 (ROADMAP §92)
+
+서버가 `initialize` 의 `instructions` 와 `retouch` 프롬프트로 **읽기 → 분석 → 계획 → 적용 → 재분석**
+절차를 모델에게 건넨다. 사용자는 짧게 말해도 된다. 내용은 `packages/mcp-core/src/server/guidance.ts` 에
+있고 **지침이 언급한 Tool 이름이 레지스트리에 있는지** `tests/retouch-guidance.test.ts` 가 대조한다 —
+Tool 이름을 바꾸면 이 파일도 고친다. `instructions` 는 매 세션 토큰을 먹으므로 1200자 미만으로 둔다.
 
 ## 캡처 (ROADMAP §17.10)
 
@@ -1044,7 +1055,7 @@ Extension 은 자기 namespace 의 URI 만 등록한다 (`starnet://state`). unl
 **무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.** 상태와 함께 막힌 이유·고치는
 방법을 준다.
 
-**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 163개가
+**한 클라이언트에 uxp 서버와 mock 서버를 함께 붙이지 않는다.** Core Tool 164개가
 양쪽에 똑같이 있어 클라이언트가 어느 쪽으로 보낼지 알 수 없고, 결과만 보고는
 구분되지 않는다. mock 은 가짜 문서에 성공을 돌려주므로 **했다고 말하고 아무것도
 안 하는** 상태가 된다. 실기에서 `starnet.remove_stars` 가 mock 으로 떨어져

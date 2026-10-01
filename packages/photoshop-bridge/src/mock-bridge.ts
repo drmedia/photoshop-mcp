@@ -1760,6 +1760,36 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
           { recoverable: false, details: { bounds } },
         );
       }
+      case "DOCUMENT_COMPARE": {
+        const params = command.params as {
+          beforeLayerId: number;
+          afterLayerId?: number;
+          region?: string;
+          grid?: number;
+          diff?: boolean;
+        };
+        // 대상 검증(레이어 · 조정 레이어 · 선택)은 statistics 와 규칙이 같다. 전과 후 각각 거친다 —
+        // Mock 이 실기보다 너그러우면 그 오류 경로가 테스트에 영영 안 나온다.
+        const before = (await this.executeCommand({
+          type: "DOCUMENT_STATISTICS",
+          params: { layerId: params.beforeLayerId, region: params.region },
+        })) as { source: string };
+        const after = (await this.executeCommand({
+          type: "DOCUMENT_STATISTICS",
+          params: { layerId: params.afterLayerId, region: params.region },
+        })) as { source: string };
+        const document = this.#requireDocument();
+        const selected = params.region === "selection";
+        const width = selected ? 100 : document.width;
+        const height = selected ? 100 : document.height;
+        // Mock 은 픽셀이 없다 — 그림은 1×1 자리표시이고 수치는 평평한 회색의 전후(변화 없음)다.
+        return {
+          ...this.#capture(`compare:before=${before.source} after=${after.source}`),
+          panels: params.diff === true ? ["before", "after", "difference"] : ["before", "after"],
+          ...flatComparison(params.grid ?? 8, width, height),
+          elapsedMs: 0,
+        } as TResult;
+      }
       case "DOCUMENT_ANALYZE": {
         const params = command.params as {
           region?: string;
@@ -3862,4 +3892,55 @@ function flatAnalysis(
     };
   }
   return out;
+}
+
+/**
+ * `DOCUMENT_COMPARE` 의 Mock 수치. Mock 의 문서는 평평한 회색 한 장이라 **전후가 같다** — 변화는
+ * 전부 0 이다. 같은 이미지를 `image-compare.ts` 에 넣은 결과와 같아야 하며
+ * `tests/document-compare.test.ts` 가 두 쪽을 견준다.
+ */
+function flatComparison(tiles: number, width: number, height: number): Record<string, unknown> {
+  const short = Math.max(1, Math.min(width, height));
+  const long = Math.max(width, height);
+  const small = Math.max(1, Math.min(tiles, short));
+  const large = Math.max(1, Math.min(32, Math.round((small * long) / short)));
+  const cols = width <= height ? small : large;
+  const rows = width <= height ? large : small;
+  const side = (): Record<string, unknown> => ({
+    pixels: width * height,
+    channelMedians: { red: 128, green: 128, blue: 128 },
+    luminance: { p1: 128, p5: 128, p50: 128, p95: 128, p99: 128 },
+    clipping: { highPercent: 0, lowPercent: 0 },
+  });
+  const zeros = (): number[][] =>
+    Array.from({ length: rows }, () => new Array<number>(cols).fill(0));
+  // 모두 ΔE 0 이면 정렬이 그대로라 앞의 세 타일이 핫스팟이 된다.
+  const hotspots = [0, 1, 2]
+    .filter((tile) => tile < cols * rows)
+    .map((tile) => {
+      const col = tile % cols;
+      const row = Math.floor(tile / cols);
+      return {
+        left: Math.floor((col * width) / cols),
+        top: Math.floor((row * height) / rows),
+        right: Math.floor(((col + 1) * width) / cols),
+        bottom: Math.floor(((row + 1) * height) / rows),
+        deltaE: 0,
+        deltaLuminance: 0,
+      };
+    });
+  return {
+    area: { width, height },
+    grid: { cols, rows },
+    before: side(),
+    after: side(),
+    change: {
+      luminance: { p1: 0, p5: 0, p50: 0, p95: 0, p99: 0 },
+      channelMedians: { red: 0, green: 0, blue: 0 },
+      clipping: { highPercent: 0, lowPercent: 0 },
+      tiles: { deltaLuminance: zeros(), deltaE: zeros() },
+      deltaE: { mean: 0, max: 0 },
+      hotspots,
+    },
+  };
 }

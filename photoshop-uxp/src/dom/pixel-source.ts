@@ -5,17 +5,18 @@ import { toLayerType } from "./mappings.js";
 import { findLayerById } from "./layer-edit.js";
 import { hasSelection } from "./mask-selection.js";
 import { selectionBounds } from "./state-read.js";
+import type { Rgb8 } from "./image-compare.js";
 
 /**
- * 재는 도구가 공유하는 픽셀 읽기. (ROADMAP §90)
+ * 재는 도구가 공유하는 픽셀 읽기. (ROADMAP §90 · §91)
  *
- * `document.statistics` 와 `document.analyze` 가 **같은 규칙으로 같은 곳을 읽어야** 한다 — 한쪽은
- * 조정 레이어를 막고 다른 쪽은 안 막으면 같은 영역을 재고도 숫자가 달라지거나, 막지 않은 쪽이
- * 마스크 영역을 재서 "이 레이어는 순백" 같은 값을 돌려준다(MEASUREMENT.md §6.3). 그래서 두 번
- * 쓰지 않고 여기 한 곳에 둔다.
+ * `document.statistics` · `document.analyze` · `document.compare` 가 **같은 규칙으로 같은 곳을
+ * 읽어야** 한다 — 한쪽은 조정 레이어를 막고 다른 쪽은 안 막으면 같은 영역을 재고도 숫자가 달라지거나,
+ * 막지 않은 쪽이 마스크 영역을 재서 "이 레이어는 순백" 같은 값을 돌려준다(MEASUREMENT.md §6.3).
+ * 그래서 두 번 쓰지 않고 여기 한 곳에 둔다.
  *
- * **전체 해상도로 읽는다.** `targetSize` 를 주지 않는다 — 축소하면 단일 픽셀 클리핑이 평균에
- * 묻힌다(MEASUREMENT.md §6.5).
+ * **수치를 위한 읽기는 전체 해상도다.** `targetSize` 를 주지 않는다 — 축소하면 단일 픽셀 클리핑이
+ * 평균에 묻힌다(MEASUREMENT.md §6.5). 축소해서 읽는 `readPreviewRgb8` 은 **그림을 위한 것**이다.
  */
 
 export interface PixelSourceParams {
@@ -44,8 +45,14 @@ export interface PixelData {
   dispose(): void;
 }
 
-/** 요청을 해석해 픽셀을 읽는다. 호출자는 `runModal` 안에서 부르고 `dispose()` 를 맡는다. */
-export async function readPixels(params: PixelSourceParams): Promise<PixelData> {
+type ImagingApi = NonNullable<typeof imaging>;
+
+/** 대상을 해석한다: 문서 · 레이어 · 마스크 · 선택. 읽기 전의 모든 검증이 여기 있다. */
+function resolveRequest(params: PixelSourceParams): {
+  api: ImagingApi;
+  request: Record<string, unknown>;
+  source: string;
+} {
   const api = imaging;
   if (api === undefined || typeof api.getPixels !== "function") {
     throw new DispatchError(
@@ -117,6 +124,13 @@ export async function readPixels(params: PixelSourceParams): Promise<PixelData> 
     source = `selection:${bounds.left},${bounds.top},${bounds.right},${bounds.bottom}`;
   }
 
+  return { api, request, source };
+}
+
+/** 요청을 해석해 픽셀을 읽는다. 호출자는 `runModal` 안에서 부르고 `dispose()` 를 맡는다. */
+export async function readPixels(params: PixelSourceParams): Promise<PixelData> {
+  const { api, request, source } = resolveRequest(params);
+
   // **targetSize 를 주지 않는다.** 축소하면 클리핑이 사라진다.
   let pixelData;
   try {
@@ -177,5 +191,66 @@ export async function readPixels(params: PixelSourceParams): Promise<PixelData> 
     // 읽기에 실패하면 호출자가 `dispose` 를 받을 수 없으므로 여기서 놓는다.
     dispose();
     throw error;
+  }
+}
+
+/**
+ * **그림을 위한** 읽기. 목표 크기로 축소해 8비트 RGB 로 돌려준다.
+ *
+ * 수치를 내는 데 쓰지 않는다 — 축소한 미리보기라 단일 픽셀 클리핑이 묻힌다.
+ * 16비트는 직접 8비트로 낮춘다(`capture.ts` 와 같은 이유: `componentSize: 8` 을 주는 길은
+ * 16비트 문서에서 `-32005` 로 막혀 있고, 인코더는 8비트만 받는다).
+ */
+export async function readPreviewRgb8(
+  params: PixelSourceParams,
+  size: { width: number; height: number },
+): Promise<{ rgb: Rgb8; source: string }> {
+  const { api, request, source } = resolveRequest(params);
+  let pixelData;
+  try {
+    pixelData = await api.getPixels({ ...request, targetSize: size });
+  } catch (error) {
+    throw new DispatchError(
+      "COMMAND_FAILED",
+      `미리보기를 읽지 못했습니다: ${String((error as { message?: unknown })?.message ?? error)}`,
+      { recoverable: true, details: { source } },
+    );
+  }
+  try {
+    const raw = pixelData.imageData as {
+      componentSize?: number;
+      components?: number;
+      width?: number;
+      height?: number;
+      getData?: (options?: unknown) => Promise<ArrayBufferView>;
+    };
+    if (typeof raw.getData !== "function") {
+      throw new DispatchError(
+        "COMMAND_NOT_SUPPORTED",
+        "이 Photoshop 의 Imaging API 에 getData 가 없어 미리보기를 8비트로 바꿀 수 없습니다.",
+        { recoverable: false },
+      );
+    }
+    const wideBits = raw.componentSize ?? 8;
+    const components = raw.components ?? 3;
+    const wide = (await raw.getData({ chunky: true })) as unknown as {
+      length: number;
+      [index: number]: number;
+    };
+    const width = raw.width ?? size.width;
+    const height = raw.height ?? size.height;
+    const pixels = Math.floor(wide.length / components);
+    const data = new Uint8Array(pixels * 3);
+    // Photoshop 의 16비트는 0–65535 가 아니라 0–32768 이다.
+    const scale = wideBits > 8 ? 255 / 32768 : 1;
+    for (let pixel = 0; pixel < pixels; pixel += 1) {
+      for (let channel = 0; channel < 3; channel += 1) {
+        const value = Math.round((wide[pixel * components + channel] as number) * scale);
+        data[pixel * 3 + channel] = value > 255 ? 255 : value < 0 ? 0 : value;
+      }
+    }
+    return { rgb: { data, width, height }, source };
+  } finally {
+    pixelData.imageData?.dispose?.();
   }
 }

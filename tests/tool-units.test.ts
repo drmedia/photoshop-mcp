@@ -71,6 +71,15 @@ const MUST_STATE: [string, RegExp][] = [
   ["document.analyze", /별은 몇~수십 픽셀 덩어리에/u],
   ["document.analyze", /sRGB 를 가정한 근사/u],
   ["document.analyze", /8비트 문서의 σ 는 정수 단위로 거칠다/u],
+
+  // compare — 패널 순서 · 단위 · 판정 없음 · 퀄리티 눈금 (§91).
+  ["document.compare", /panels 가 유일한 표식/u],
+  ["document.compare", /퍼센트\(0–100\)이며 change\.clipping 은 퍼센트포인트/u],
+  ["document.compare", /0–255 눈금/u],
+  ["document.compare", /왼쪽 위가 원점/u],
+  ["document.compare", /판정은 없다/u],
+  ["document.compare", /sRGB 가정/u],
+  ["document.compare", /JPEG \*\*1–100\*\*/u],
 ];
 
 describe("Tool 설명의 단위", () => {

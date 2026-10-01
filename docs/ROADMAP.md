@@ -10854,7 +10854,7 @@ npm run build && npm run package:plugin
 짙은 회색(`#3A3A3A`)이다. 23px · 46px(@2x) 각 둘, 네 장이다.
 
 **Photoshop 의 `Window > Plugins` 메뉴에서 어두운 테마로 확인했다** — 테두리 · M · 점이
-23px 에서도 읽힌다. 밝은 테마는 아직 못 봤다.
+23px 에서도 읽힌다. 밝은 테마의 짙은 회색도 똑같이 읽힌다.
 
 ## 패널 오류 문구 — 199곳이 아니라 **셋**이었다
 
@@ -10878,5 +10878,5 @@ transport/ws-client.ts    WebSocket error (<url>)
 ## 체크리스트
 
 - [x] `.ccx` 에서 `src/` · 소스맵 · `.d.ts` 를 뺐다 — 항목을 세어 확인
-- [x] 아이콘을 교체했다 (`Window > Plugins` 어두운 테마에서 확인, 밝은 테마는 미확인)
+- [x] 아이콘을 교체했다 (`Window > Plugins` 에서 어두운·밝은 테마 둘 다 확인)
 - [x] 패널에 닿는 한글 문구 셋을 영어로 바꿨다

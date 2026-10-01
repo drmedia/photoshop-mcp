@@ -466,6 +466,10 @@ npm run build && npm run package:plugin
 `manifest.json` · `icons/` · `dist/*.js` 만 복사해 묶는다** (`scripts/package-plugin.mjs`).
 UXP CLI 위치는 `UXP_CLI` 환경 변수로 주고 기본값은 `D:\Dev\uxp-cli` 다.
 
+**현재 소스에 대응하는 `dist/*.js` 만 담는다**(`scripts/ccx-files.mjs`). `tsc -b` 는 소스가 사라져도
+옛 산출물을 지우지 않아서, 예전에는 지운 탐침(`*-probe.tmp.js`)까지 `.ccx` 에 실렸다. 빠진 파일은
+경고로 이름이 나온다 — `rm -rf photoshop-uxp/dist && npm run build` 로 지우면 경고가 사라진다.
+
 서비스가 없으면 CLI 가 오류를 내고도 **종료 코드 0** 으로 끝난다. 스크립트는
 `.ccx` 가 실제로 생겼는지로 성공을 판정한다.
 

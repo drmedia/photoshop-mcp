@@ -5439,7 +5439,7 @@ p95      87.2 → 91.3    91.2 → 81.2    88.1 → 78.1
 배포 단위   A(6개 publish)로 정했다 — 번들은 extension-api 가 사라진다
 이름        bin 을 가진 패키지가 무스코프 `photoshop-mcp` 를 갖는다
 LICENSE     MIT
-아이콘      임시본으로 .ccx 가 나오는 것까지 확인했다 (441KB)
+아이콘      임시본으로 .ccx 가 나오는 것까지 확인했다 (441KB) → §83 에서 교체
 ```
 
 ### 그런데 지금 올릴 이유가 없다
@@ -5500,8 +5500,7 @@ package.json 12개의 내부 의존 핀       어긋나면 설치가 깨진다
 ```text
 npm publish          쓰는 사람이 생길 때
 .ccx 전달 경로       건네줄 사람이 생길 때 (서명·Exchange·개발자 모드)
-패키징에 src 포함     uxp plugin package 가 폴더를 통째로 압축한다
-                     제외 옵션이 없어 스테이징 폴더가 필요하다
+패키징에 src 포함     해결 — §83. 스테이징 폴더로 묶는다
 ```
 
 ---
@@ -10820,3 +10819,52 @@ SO 는 잘리는데 **Camera Raw 국소 마스크의 `0.5` 는 잘린 SO 의 절
 - [x] 레이어 경계는 `layerTransparency` 선택 + `statistics` 의 `source` 로 읽는다
 - [x] §72 의 마지막 열린 항목을 닫았다
 - [x] `smart_object.convert` 설명에 "잘린다" 와 "좌표는 문서 기준" 을 함께 적었다
+
+---
+# 83. 배포 준비 — `.ccx` 에서 `src/` 를 뺀다, 아이콘을 교체한다
+
+§18.0 이 "남은 것" 으로 적어 둔 둘이다. publish 는 여전히 보류다.
+
+## 패키징
+
+`uxp plugin package` 는 폴더를 통째로 압축하고 제외 옵션이 없다. `photoshop-uxp/`
+를 그대로 준 결과는 441KB 였고 `src/` 가 들어 있었다. 실행에 필요한 것은
+`manifest.json` · `icons/` · `dist/*.js` 뿐이다.
+
+`scripts/package-plugin.mjs` 가 **임시 폴더에 그것만 복사하고 그 폴더를 묶는다.**
+`.map` · `.d.ts` · `.tsbuildinfo` 는 `.js` 만 고르는 필터로 걸러진다.
+
+```text
+npm run build && npm run package:plugin
+→ photoshop-uxp/out/com.drmedia.photoshopmcp_PS.ccx   235KB (441KB → 235KB)
+```
+
+`.ccx` 를 열어 항목을 셌다 — 97개(`manifest.json` 1 · `dist` 92 · `icons` 4).
+`src/` · `.map` · `.d.ts` · `.uxprc` 는 하나도 없다.
+
+**UXP CLI 는 서비스가 떠 있어야 한다.** `uxp service start` 를 먼저 하지 않으면
+`Could not connect to the UXP Developer Service` 가 난다. 그리고 이 실패는
+**종료 코드 0 으로 끝난다** — 그래서 스크립트가 종료 코드가 아니라 `.ccx` 가
+실제로 생겼는지로 판정한다.
+
+## 아이콘
+
+임시본(흰 원 안의 M)을 **둥근 테두리 + M + 아래 점**으로 바꿨다. 점은 연결(MCP)을
+뜻한다. 투명 배경에 선만 있고, 어두운 테마용은 밝은 회색(`#E6E6E6`), 밝은 테마용은
+짙은 회색(`#3A3A3A`)이다. 23px · 46px(@2x) 각 둘, 네 장이다.
+
+**Photoshop 패널 메뉴에서 어떻게 보이는지는 아직 보지 못했다.** 형태는 확대본으로
+확인했고 `.ccx` 가 만들어지는 것까지만 확인했다.
+
+## 안 한 것
+
+**패널 오류 문구의 영어화는 하지 않았다.** `photoshop-uxp/README.md` 의 "패널 UI 만
+영어다" 가 이유를 적어 두었고 이번에 규모를 다시 쟀다 — 한글이 든 플러그인 소스가
+87개 파일이고 그 문구를 검사하는 테스트가 10개 이상이다. 오류 문구는 LLM 이 받아
+사용자 언어로 옮기는 계약이라 **바꾸면 그 계약이 바뀐다.**
+
+## 체크리스트
+
+- [x] `.ccx` 에서 `src/` · 소스맵 · `.d.ts` 를 뺐다 — 항목을 세어 확인
+- [x] 아이콘을 교체했다 (형태 확인, Photoshop 패널에서의 모양은 미확인)
+- [ ] 패널 오류 문구 영어화 — 계약이 걸려 있어 결정이 먼저다

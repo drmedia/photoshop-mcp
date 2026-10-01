@@ -449,6 +449,21 @@ TypeError: Cannot read properties of undefined (reading 'sessions')
 `load` 는 플러그인 디렉터리에 `.uxprc` 를 만들어 세션 id 를 보관한다. 기기마다 다르고
 `load` 할 때 다시 생기므로 `.gitignore` 에 있다.
 
+## `.ccx` 로 묶기
+
+```bash
+node $UXP service start        # 한 번 띄워 둔다 (UXP 변수는 위 '사용' 참조)
+npm run build && npm run package:plugin
+# → photoshop-uxp/out/com.drmedia.photoshopmcp_PS.ccx
+```
+
+`uxp plugin package` 는 폴더를 통째로 압축하므로 **스크립트가 임시 폴더에
+`manifest.json` · `icons/` · `dist/*.js` 만 복사해 묶는다** (`scripts/package-plugin.mjs`).
+UXP CLI 위치는 `UXP_CLI` 환경 변수로 주고 기본값은 `D:\Dev\uxp-cli` 다.
+
+서비스가 없으면 CLI 가 오류를 내고도 **종료 코드 0** 으로 끝난다. 스크립트는
+`.ccx` 가 실제로 생겼는지로 성공을 판정한다.
+
 ## 검증 상태
 
 Photoshop 27.8 / UXP Developer Tool 실기 검증 완료.

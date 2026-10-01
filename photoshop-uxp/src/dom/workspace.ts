@@ -28,7 +28,7 @@ export function fileSystem(): LocalFileSystem {
   if (api === undefined) {
     throw new DispatchError(
       "WORKSPACE_NOT_APPROVED",
-      "이 Photoshop 의 UXP 에서 파일 시스템 API 를 쓸 수 없습니다.",
+      "The file system API is not available in this Photoshop UXP.",
       { recoverable: false },
     );
   }

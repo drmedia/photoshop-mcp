@@ -130,10 +130,14 @@ export async function addRegisteredFolder(): Promise<{
    * 이유를 알 수 없다. 고르는 자리에서 막는 것이 맞다. */
   const entries = await folder.getEntries();
   if (!entries.some((entry) => entry.name === "extension.json")) {
-    throw new DispatchError("INVALID_PARAMETER", `이 폴더에 extension.json 이 없습니다: ${path}`, {
-      recoverable: true,
-      details: { path },
-    });
+    throw new DispatchError(
+      "INVALID_PARAMETER",
+      `There is no extension.json in this folder: ${path}`,
+      {
+        recoverable: true,
+        details: { path },
+      },
+    );
   }
 
   const added: RegisteredExtension = { path, addedAt: Date.now() };

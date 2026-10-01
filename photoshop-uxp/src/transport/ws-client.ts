@@ -128,7 +128,7 @@ export class BridgeClient {
     });
 
     listen(socket, "error", () => {
-      this.lastErrorMessage = `WebSocket 오류 (${this.options.url})`;
+      this.lastErrorMessage = `WebSocket error (${this.options.url})`;
       this.log(this.lastErrorMessage);
       // UXP 는 error 뒤에 close 를 보내지 않을 수 있다.
       // close 만 믿고 기다리면 connecting 상태로 영구히 멈춘다.

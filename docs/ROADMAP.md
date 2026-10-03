@@ -12121,4 +12121,5 @@ Tool 이 열린 문서를 건드릴 수 있다.
 - [x] 실기 — `adjustment.update` 곡선 값 변경과 `adjustment.get` 으로 재확인
 - [x] 실기 — 두 문서를 열고 `activate` · `compare_with` (같은 크기 두 문서)
 - [x] 실기 — 생성 레이어 정리
-- [ ] 실기 — 크기가 다른 두 문서의 `compare_with`, 곡선 외 `adjustment.update`
+- [x] 실기 — 크기와 비트 심도가 다른 두 문서의 `compare_with`: 참조 PNG(1024×1536, 8비트)와 TIF(4032×6048, 16비트). 그림과 수치가 일치했다(참조의 휘도 p99 129 · 보정본 96 — 그림에서 은하수가 참조보다 흐린 것과 같은 방향).
+- [ ] 실기 — **비율이 다른** 두 문서(`aspect.differs: true`), 곡선 외 `adjustment.update`

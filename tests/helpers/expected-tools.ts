@@ -143,6 +143,13 @@ export const EXPECTED_TOOLS = [
   // Phase 3 — History
   "photoshop.history.undo",
   "photoshop.history.redo",
+  // ROADMAP §101 — 이름으로 돌아온다
+  "photoshop.history.create_snapshot",
+  "photoshop.history.restore_snapshot",
+  "photoshop.history.list_snapshots",
+  "photoshop.adjustment.update",
+  "photoshop.layer.list_created",
+  "photoshop.layer.delete_created",
   // Phase 4 — 조정 레이어
   "photoshop.adjustment.curves",
   "photoshop.adjustment.levels",
@@ -332,6 +339,12 @@ export const EXPECTED_COMMANDS = [
   "GROUP_MOVE_LAYER",
   "HISTORY_UNDO",
   "HISTORY_REDO",
+  "HISTORY_CREATE_SNAPSHOT",
+  "HISTORY_RESTORE_SNAPSHOT",
+  "HISTORY_LIST_SNAPSHOTS",
+  "ADJUSTMENT_UPDATE",
+  "LAYER_LIST_CREATED",
+  "LAYER_DELETE_CREATED",
   "ADJUSTMENT_CURVES",
   "ADJUSTMENT_LEVELS",
   "ADJUSTMENT_BRIGHTNESS_CONTRAST",

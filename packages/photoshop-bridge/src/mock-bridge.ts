@@ -208,6 +208,45 @@ export interface MockFileSystem {
  * 정상 응답뿐 아니라 오류 상황도 재현할 수 있도록
  * 연결 상태 · 문서 유무 · 1회성 실패 주입을 제어할 수 있다.
  */
+/** `adjustment.update` 의 kind → `LayerInfo.adjustmentType`. */
+const MOCK_ADJUSTMENT_KIND: Record<string, AdjustmentType> = {
+  curves: "curves",
+  levels: "levels",
+  brightness_contrast: "brightnessContrast",
+  hue_saturation: "hueSaturation",
+  vibrance: "vibrance",
+  color_balance: "colorBalance",
+  exposure: "exposure",
+  black_white: "blackAndWhite",
+  photo_filter: "photoFilter",
+  channel_mixer: "channelMixer",
+};
+
+/** 레이어를 만드는 Command. 플러그인의 `LAYER_CREATING_COMMANDS` 와 같은 목록이다. */
+const MOCK_LAYER_CREATING_COMMANDS: ReadonlySet<string> = new Set([
+  "LAYER_CREATE",
+  "LAYER_DUPLICATE",
+  "LAYER_STAMP_VISIBLE",
+  "LAYER_PLACE",
+  "LAYER_FROM_BACKGROUND",
+  "GROUP_CREATE",
+  "TEXT_CREATE",
+  "DOCUMENT_PASTE",
+  "SMART_OBJECT_NEW_VIA_COPY",
+  "SMART_OBJECT_CONVERT",
+  "ADJUSTMENT_CURVES",
+  "ADJUSTMENT_LEVELS",
+  "ADJUSTMENT_BRIGHTNESS_CONTRAST",
+  "ADJUSTMENT_HUE_SATURATION",
+  "ADJUSTMENT_VIBRANCE",
+  "ADJUSTMENT_COLOR_BALANCE",
+  "ADJUSTMENT_EXPOSURE",
+  "ADJUSTMENT_BLACK_WHITE",
+  "ADJUSTMENT_PHOTO_FILTER",
+  "ADJUSTMENT_CHANNEL_MIXER",
+  "RETOUCH_REMOVE_SPOTS",
+]);
+
 export class MockPhotoshopBridge implements PhotoshopBridge {
   #connected: boolean;
   #document: DocumentInfo | null;
@@ -306,6 +345,25 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     activeLayerId: number | null;
     document: DocumentInfo | null;
   }[] = [];
+  /**
+   * ROADMAP §101 — History 스냅샷. 이름 → 그때의 상태.
+   *
+   * 실제 Photoshop 처럼 History 한도와 무관하게 남는다. **Mock 이 History 항목으로 기억하면**
+   * "스냅샷이 사라질 수 있다" 는 실기에 없는 약점이 테스트에 생긴다.
+   */
+  readonly #snapshots = new Map<
+    string,
+    {
+      historyState: string;
+      layers: LayerInfo[];
+      activeLayerId: number | null;
+      document: DocumentInfo | null;
+    }
+  >();
+  /** 조정 레이어 id → 마지막으로 정한 값(JSON). `adjustment.update` 의 `changed` 가 읽는다. (ROADMAP §101) */
+  #adjustmentSettings = new Map<number, string>();
+  /** 이 Mock 의 Command 가 만든 레이어 id. (ROADMAP §101) */
+  #created = new Set<number>();
   #hasSelection = false;
   #workspacePath: string | null;
   #documentPath: string | null;
@@ -360,6 +418,22 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
   }
 
   async executeCommand<TResult>(command: PhotoshopCommand): Promise<TResult> {
+    /* 레이어를 만드는 Command 는 전후 id 차이로 기록한다. 실기 플러그인과 같은 방식이다
+     * (ROADMAP §101). Mock 이 다른 방법으로 알면 그 차이가 테스트에 가려진다. */
+    const tracked = MOCK_LAYER_CREATING_COMMANDS.has(command.type);
+    const before = tracked ? new Set(this.#layers.map((entry) => entry.id)) : null;
+    const result = await this.#run<TResult>(command);
+    if (before !== null) {
+      for (const layer of this.#layers) {
+        if (!before.has(layer.id)) {
+          this.#created.add(layer.id);
+        }
+      }
+    }
+    return result;
+  }
+
+  async #run<TResult>(command: PhotoshopCommand): Promise<TResult> {
     this.executedCommands.push(command);
     this.#guard();
 
@@ -931,6 +1005,69 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
       case "HISTORY_REDO":
         return this.#redoOnce() as TResult;
 
+      /* 스냅샷. **실기와 같은 거절 규칙을 흉내 낸다** — 같은 이름은 덮지 않고, 모르는 이름은
+       * 아는 이름과 함께 거절한다. Mock 이 너그러우면 그 경로는 테스트에 영영 안 나온다. */
+      case "HISTORY_CREATE_SNAPSHOT": {
+        const document = this.#requireDocument();
+        const { name } = command.params as { name: string };
+        if (this.#snapshots.has(name)) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `스냅샷 "${name}" 이 이미 있습니다. 다른 이름을 쓰세요.`,
+            { recoverable: true, details: { existing: [...this.#snapshots.keys()] } },
+          );
+        }
+        // 이력의 마지막 항목 이름이 "지금 상태" 다 — 편집마다 그 편집의 이름으로 남는다.
+        const historyState = this.#history[this.#history.length - 1]?.name ?? "Open";
+        this.#snapshots.set(name, {
+          historyState,
+          layers: this.#layers.map((layer) => ({ ...layer })),
+          activeLayerId: this.#activeLayerId,
+          document: { ...document },
+        });
+        return {
+          name,
+          documentId: document.id,
+          photoshopName: `MCP · ${name}`,
+          historyState,
+          layerCount: this.#layers.length,
+        } as TResult;
+      }
+      case "HISTORY_RESTORE_SNAPSHOT": {
+        const document = this.#requireDocument();
+        const { name } = command.params as { name: string };
+        const saved = this.#snapshots.get(name);
+        if (saved === undefined) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `이 서버가 만든 스냅샷 "${name}" 이 활성 문서에 없습니다.`,
+            { recoverable: true, details: { known: [...this.#snapshots.keys()] } },
+          );
+        }
+        // 돌아오기도 되돌릴 수 있어야 한다 — undo 와 같은 종류다.
+        this.#snapshot("Restore snapshot");
+        this.#layers = saved.layers.map((layer) => ({ ...layer }));
+        this.#activeLayerId = saved.activeLayerId;
+        this.#document = saved.document === null ? null : { ...saved.document };
+        return {
+          name,
+          documentId: document.id,
+          currentState: saved.historyState,
+          layerIdsMatch: true,
+        } as TResult;
+      }
+      case "HISTORY_LIST_SNAPSHOTS": {
+        const document = this.#requireDocument();
+        return {
+          documentId: document.id,
+          snapshots: [...this.#snapshots.entries()].map(([name, saved]) => ({
+            name,
+            historyState: saved.historyState,
+            layerCount: saved.layers.length,
+          })),
+        } as TResult;
+      }
+
       // Phase 4 — 조정 레이어
       case "ADJUSTMENT_CURVES":
         this.#snapshot("Curves");
@@ -1389,6 +1526,75 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
           deleted: requested.filter((id) => !remainingIds.includes(id) && before.includes(id)),
           failed,
           remaining: remainingIds.length,
+        } as TResult;
+      }
+
+      case "ADJUSTMENT_UPDATE": {
+        const params = command.params as {
+          layerId?: number;
+          kind: string;
+          settings: Record<string, unknown>;
+        };
+        const at = this.#requireLayerIndex(params.layerId);
+        const layer = this.#layers[at] as LayerInfo;
+        if (layer.type !== "adjustment") {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `레이어 ${layer.id} 는 조정 레이어가 아닙니다.`,
+            { recoverable: true },
+          );
+        }
+        const expected = MOCK_ADJUSTMENT_KIND[params.kind];
+        if (layer.adjustmentType != null && layer.adjustmentType !== expected) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            `레이어 ${layer.id} 는 ${layer.adjustmentType} 인데 kind 는 ${params.kind} 입니다. 종류를 바꿀 수 없습니다.`,
+            { recoverable: true },
+          );
+        }
+        const next = JSON.stringify(params.settings);
+        const changed = this.#adjustmentSettings.get(layer.id) !== next;
+        if (changed) {
+          this.#snapshot("Update adjustment");
+          this.#adjustmentSettings.set(layer.id, next);
+        }
+        return { layer: { ...layer }, kind: params.kind, changed } as TResult;
+      }
+      case "LAYER_LIST_CREATED": {
+        const document = this.#requireDocument();
+        return {
+          documentId: document.id,
+          layers: this.#layers
+            .filter((entry) => this.#created.has(entry.id))
+            .map((entry) => ({ id: entry.id, name: entry.name })),
+        } as TResult;
+      }
+      case "LAYER_DELETE_CREATED": {
+        this.#requireDocument();
+        const { layerIds } = command.params as { layerIds?: number[] };
+        const mine = this.#layers.filter((entry) => this.#created.has(entry.id)).map((e) => e.id);
+        const requested = layerIds === undefined ? mine : [...new Set(layerIds)];
+        const targets = requested.filter((id) => mine.includes(id));
+        const notCreated = requested.filter((id) => !mine.includes(id));
+        if (targets.length > 0 && this.#layers.every((entry) => targets.includes(entry.id))) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "문서의 레이어를 전부 지울 수는 없습니다. Photoshop 문서에는 레이어가 최소 하나 있어야 합니다.",
+            { recoverable: true },
+          );
+        }
+        if (targets.length > 0) {
+          this.#snapshot("Delete created layers");
+          this.#layers = this.#layers.filter((entry) => !targets.includes(entry.id));
+          if (!this.#layers.some((entry) => entry.id === this.#activeLayerId)) {
+            this.#activeLayerId = this.#layers[this.#layers.length - 1]?.id ?? null;
+          }
+        }
+        return {
+          deleted: targets,
+          failed: [],
+          notCreated,
+          remaining: this.#layers.length,
         } as TResult;
       }
 
@@ -3554,6 +3760,8 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
     };
     this.#layers.unshift(created);
     this.#activeLayerId = created.id;
+    const { name: _name, ...settings } = params as Record<string, unknown>;
+    this.#adjustmentSettings.set(created.id, JSON.stringify(settings));
     return { ...created };
   }
 

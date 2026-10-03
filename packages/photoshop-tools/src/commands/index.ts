@@ -107,6 +107,30 @@ import {
   historyUndoCommand,
 } from "./history.js";
 import {
+  HISTORY_CREATE_SNAPSHOT,
+  HISTORY_LIST_SNAPSHOTS,
+  HISTORY_RESTORE_SNAPSHOT,
+  HistoryCreateSnapshotParamsSchema,
+  HistoryListSnapshotsParamsSchema,
+  HistoryRestoreSnapshotParamsSchema,
+  historyCreateSnapshotCommand,
+  historyListSnapshotsCommand,
+  historyRestoreSnapshotCommand,
+} from "./history-snapshot.js";
+import {
+  ADJUSTMENT_UPDATE,
+  AdjustmentUpdateParamsSchema,
+  adjustmentUpdateCommand,
+} from "./adjustment-update.js";
+import {
+  LAYER_DELETE_CREATED,
+  LAYER_LIST_CREATED,
+  LayerDeleteCreatedParamsSchema,
+  LayerListCreatedParamsSchema,
+  layerDeleteCreatedCommand,
+  layerListCreatedCommand,
+} from "./layer-created.js";
+import {
   GROUP_CREATE,
   GROUP_MOVE_LAYER,
   GroupCreateParamsSchema,
@@ -381,6 +405,9 @@ export * from "./gap-tools.js";
 export * from "./group.js";
 export * from "./mask-selection.js";
 export * from "./history.js";
+export * from "./history-snapshot.js";
+export * from "./layer-created.js";
+export * from "./adjustment-update.js";
 export * from "./layer-edit.js";
 export * from "./layer-lock.js";
 export * from "./layer-flip.js";
@@ -1162,6 +1189,36 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(HISTORY_REDO, historyRedoCommand, {
     permission: edit,
     schema: HistoryRedoParamsSchema,
+  });
+
+  // ROADMAP §101 — 스냅샷. 이름으로 돌아온다. undo 와 같은 종류라 잃는 것이 없다.
+  registry.register(HISTORY_CREATE_SNAPSHOT, historyCreateSnapshotCommand, {
+    permission: edit,
+    schema: HistoryCreateSnapshotParamsSchema,
+  });
+  registry.register(HISTORY_RESTORE_SNAPSHOT, historyRestoreSnapshotCommand, {
+    permission: edit,
+    schema: HistoryRestoreSnapshotParamsSchema,
+  });
+  registry.register(HISTORY_LIST_SNAPSHOTS, historyListSnapshotsCommand, {
+    permission: "read",
+    schema: HistoryListSnapshotsParamsSchema,
+  });
+
+  // ROADMAP §101 — 걸려 있는 조정 레이어의 값을 고친다
+  registry.register(ADJUSTMENT_UPDATE, adjustmentUpdateCommand, {
+    permission: edit,
+    schema: AdjustmentUpdateParamsSchema,
+  });
+
+  // ROADMAP §101 — 이 세션이 만든 레이어만 정리한다
+  registry.register(LAYER_LIST_CREATED, layerListCreatedCommand, {
+    permission: "read",
+    schema: LayerListCreatedParamsSchema,
+  });
+  registry.register(LAYER_DELETE_CREATED, layerDeleteCreatedCommand, {
+    permission: edit,
+    schema: LayerDeleteCreatedParamsSchema,
   });
 
   // Phase 4 — 조정 레이어 (비파괴)

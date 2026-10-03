@@ -448,6 +448,9 @@ Photoshop 의 방사형은 중심에서 반지름까지 **선형 보간**이다.
 |---|---|---|
 | `photoshop.history.undo` | EDIT | |
 | `photoshop.history.redo` | EDIT | 되돌린 것을 다시. **새 편집을 하면 사라진다** |
+| `photoshop.history.create_snapshot` | EDIT | 이름 붙은 **진짜 스냅샷** — History 50개 한도와 무관. `MCP · <이름>`, 같은 이름은 거절 (ROADMAP §101) |
+| `photoshop.history.restore_snapshot` | EDIT | 이 서버가 만든 스냅샷으로. **`layerIdsMatch` 로 돌아왔는지 읽는다** |
+| `photoshop.history.list_snapshots` | READ | 활성 문서에서 이 서버가 만든 것 |
 
 History **조회**는 Tool 이 아니라 `photoshop://history` Resource 다. (§6)
 
@@ -582,10 +585,7 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 ### 5.10 History
 
-| API | 우선순위 | Permission | 비고 |
-|---|---|---|---|
-| `photoshop.history.create_snapshot` | P3 | EDIT | |
-| `photoshop.history.restore_snapshot` | P3 | EDIT | |
+스냅샷은 §4 로 옮겼다 (ROADMAP §101).
 
 ### 5.11 Host · 환경
 

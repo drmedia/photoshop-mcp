@@ -25,6 +25,13 @@ import {
 import { createGroupCreateTool, createGroupMoveLayerTool } from "./group.js";
 import { createHistoryRedoTool, createHistoryUndoTool } from "./history.js";
 import {
+  createHistoryCreateSnapshotTool,
+  createHistoryListSnapshotsTool,
+  createHistoryRestoreSnapshotTool,
+} from "./history-snapshot.js";
+import { createAdjustmentUpdateTool } from "./adjustment-update.js";
+import { createLayerDeleteCreatedTool, createLayerListCreatedTool } from "./layer-created.js";
+import {
   createLayerCreateTool,
   createLayerDuplicateTool,
   createLayerFillOpacityTool,
@@ -392,6 +399,13 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   // Phase 3 — History
   registry.register(createHistoryUndoTool(engine));
   registry.register(createHistoryRedoTool(engine));
+  // ROADMAP §101 — 이름으로 돌아온다
+  registry.register(createHistoryCreateSnapshotTool(engine));
+  registry.register(createHistoryRestoreSnapshotTool(engine));
+  registry.register(createHistoryListSnapshotsTool(engine));
+  registry.register(createAdjustmentUpdateTool(engine));
+  registry.register(createLayerListCreatedTool(engine));
+  registry.register(createLayerDeleteCreatedTool(engine));
 
   // Phase 4 — 조정 레이어 (비파괴)
   registry.register(createCurvesTool(engine));

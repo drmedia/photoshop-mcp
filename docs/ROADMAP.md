@@ -12082,7 +12082,7 @@ Tool 이 열린 문서를 건드릴 수 있다.
 
 ## §101 세션 도구 다섯 가지 (스냅샷 · 생성 레이어 정리 · 조정 수정 · 문서 전환 · 문서 비교)
 
-참조 사진에 맞춰 보정하는 긴 세션에서 시간과 호출을 가장 많이 쓴 지점 다섯이다. Tool 여덟 개(166 → 174).
+참조 사진에 맞춰 보정하는 긴 세션에서 시간과 호출을 가장 많이 쓴 지점 다섯이다. Tool 열 개(166 → 176).
 
 | Tool | 권한 | 하는 일 |
 |---|---|---|
@@ -12091,6 +12091,7 @@ Tool 이 열린 문서를 건드릴 수 있다.
 | `adjustment.update` | edit | 걸려 있는 조정 레이어의 값을 그 자리에서 고친다. 열 종류. `kind` + `settings`(만들 때와 같은 스키마, 통째로 다시 정한다). 전후를 읽어 `changed` |
 | `document.activate` | edit | 활성 문서를 옮긴다. 옮긴 뒤 다시 읽어 확인. 이름이 유일하지 않으면 거절 |
 | `document.compare_with` | read | 다른 열린 문서와 견준다. 크기·비율이 달라도 되고 활성 문서를 옮기지 않는다 |
+| `document.list_created` · `close_created` | read · edit | 이 서버가 만든 복제·새 문서만 모아 **저장하지 않고** 닫는다. 사용자가 연 문서는 `notCreated`. `discardChanges: true` 를 명시해야 한다 |
 
 ### 결정
 
@@ -12123,3 +12124,10 @@ Tool 이 열린 문서를 건드릴 수 있다.
 - [x] 실기 — 생성 레이어 정리
 - [x] 실기 — 크기와 비트 심도가 다른 두 문서의 `compare_with`: 참조 PNG(1024×1536, 8비트)와 TIF(4032×6048, 16비트). 그림과 수치가 일치했다(참조의 휘도 p99 129 · 보정본 96 — 그림에서 은하수가 참조보다 흐린 것과 같은 방향).
 - [ ] 실기 — **비율이 다른** 두 문서(`aspect.differs: true`), 곡선 외 `adjustment.update`
+
+### 후속 (같은 날)
+
+- **문서 정리**: `document.list_created` · `close_created` 를 더했다. 시험용 복제본을 제가 닫지 못해 사용자가 직접 닫아야 했기 때문이다(`document.close` 는 destructive 에 활성 문서만 닫는다). 생성 레이어와 같은 규칙 — `document.create` · `document.duplicate` 의 결과에서 id 를 적고 그것만 닫는다. `document.open` 은 적지 않는다(디스크의 파일을 연 것이라 사용자의 문서다). 복제본에 쌓은 보정은 닫으면 사라지므로 `discardChanges: true` 를 요구한다.
+- **지침(`guidance.ts`)**: 스냅샷 · `adjustment.update` · `compare_with` · `activate`(옮기면 되돌아온다) · 시험용 정리를 `instructions` 와 `retouch` 프롬프트에 넣었다. "닫기" 금지 문구는 "사용자의 문서를 닫는 일" 로 좁혔다. `instructions` 는 1200자 미만을 유지한다.
+- [x] 구현 · Mock 시험 · 문서
+- [ ] 실기 — 복제본을 만들고 `list_created` → `close_created`, 사용자의 문서가 `notCreated` 로 남는지

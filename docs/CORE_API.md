@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (174개)
+## 4. 구현된 Core API (176개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -131,6 +131,8 @@ P3  확장 기능
 | `photoshop.document.compare` | READ | **보정 전후를 그림과 수치로** — 전·후(와 선택 시 차이 열지도)를 가로로 붙인 한 장 + 전체 해상도에서 낸 분위수·클리핑 변화, 타일별 ΔL·ΔE, 가장 크게 변한 곳의 좌표. 이미지를 못 받는 클라이언트도 수치로 판단. 판정 없음 (ROADMAP §91) |
 | `photoshop.document.activate` | EDIT | **활성 문서를 옮긴다** — `documentId` 나 `name` 중 정확히 하나. 이름이 유일하지 않으면 거절. 결과는 옮긴 뒤 **다시 읽은** 활성 문서와 `previousId`, `method`(`setter` · `batchPlay` · `already`). 내용은 안 바뀐다 (ROADMAP §101) |
 | `photoshop.document.compare_with` | READ | **다른 열린 문서와 견준다** — 크기·비율이 달라도 된다. 같은 크기의 **미리보기**로 읽어 붙이고 수치도 거기서 낸다(`measuredFrom: preview` — **클리핑은 믿지 않는다**). 활성 문서를 옮기지 않는다. 판정 없음 (ROADMAP §101) |
+| `photoshop.document.list_created` | READ | **이 서버가 만든 문서**(`duplicate` · `create`)만. 사용자가 열었거나 `open` 으로 연 문서는 안 나온다 (ROADMAP §101) |
+| `photoshop.document.close_created` | EDIT | 그 문서만 **저장하지 않고** 닫는다(`discardChanges: true` 명시). 사용자의 문서는 `notCreated`. 닫은 뒤 목록을 읽어 확인하고 `activeDocumentId` 를 준다 (ROADMAP §101) |
 | `photoshop.adjustment.get` | READ | **조정 레이어가 가진 값을 읽는다** — 이미 걸린 보정이 무엇을 하는지. **곡선과 색조·채도만 해석**(`settings`)하고 나머지 종류는 `null` + 원본(`raw`). 초록 채널은 Photoshop 이 `grain` 으로 주는 것을 `green` 으로 옮긴다. 조정 레이어가 아니면 오류가 아니라 `isAdjustment: false` |
 | `photoshop.mask.summary` | READ | **마스크가 어디를 얼마나 가리는지** — 완전히 가림 · 보임 · 번짐의 비율, 효과가 닿는 경계 상자(`touched`)와 완전히 보이는 상자(`full`), 위치별 강도(`tiles`). 문서 캔버스 범위로 잰다. 마스크가 없는 레이어는 거절. 판정 없음 |
 
@@ -797,7 +799,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **174** |
+| 구현됨 | **176** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

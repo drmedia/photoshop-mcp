@@ -118,6 +118,14 @@ import {
   historyRestoreSnapshotCommand,
 } from "./history-snapshot.js";
 import {
+  DOCUMENT_CLOSE_CREATED,
+  DOCUMENT_LIST_CREATED,
+  DocumentCloseCreatedParamsSchema,
+  DocumentListCreatedParamsSchema,
+  documentCloseCreatedCommand,
+  documentListCreatedCommand,
+} from "./document-created.js";
+import {
   DOCUMENT_ACTIVATE,
   DocumentActivateParamsSchema,
   documentActivateCommand,
@@ -419,6 +427,7 @@ export * from "./history-snapshot.js";
 export * from "./layer-created.js";
 export * from "./adjustment-update.js";
 export * from "./document-activate.js";
+export * from "./document-created.js";
 export * from "./document-compare-with.js";
 export * from "./layer-edit.js";
 export * from "./layer-lock.js";
@@ -1225,6 +1234,16 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(DOCUMENT_COMPARE_WITH, documentCompareWithCommand, {
     permission: "read",
     schema: DocumentCompareWithParamsSchema,
+  });
+
+  // ROADMAP §101 — 이 세션이 만든 문서만 정리한다
+  registry.register(DOCUMENT_LIST_CREATED, documentListCreatedCommand, {
+    permission: "read",
+    schema: DocumentListCreatedParamsSchema,
+  });
+  registry.register(DOCUMENT_CLOSE_CREATED, documentCloseCreatedCommand, {
+    permission: edit,
+    schema: DocumentCloseCreatedParamsSchema,
   });
 
   // ROADMAP §101 — 걸려 있는 조정 레이어의 값을 고친다

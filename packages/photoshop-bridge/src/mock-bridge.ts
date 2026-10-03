@@ -1531,6 +1531,32 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
 
       /* **Mock 은 문서를 하나만 든다.** 활성을 "옮길" 곳이 없으므로 그 하나를 가리키면 이미 활성이고
        * 다른 id 는 없는 문서다. 둘째 문서를 지어내면 다문서 워크플로가 Mock 에서만 돈다. */
+      /* **Mock 은 문서를 만들어도 열어 두지 않는다**(`DOCUMENT_CREATE` 가 하나뿐인 문서를 안 바꾼다).
+       * 그래서 이 Mock 이 만든 문서는 목록에 없고, 닫을 것도 없다 — 지어내지 않는다. */
+      case "DOCUMENT_LIST_CREATED":
+        this.#requireDocument();
+        return { documents: [] } as TResult;
+      case "DOCUMENT_CLOSE_CREATED": {
+        this.#requireDocument();
+        const { documentIds, discardChanges } = command.params as {
+          documentIds?: number[];
+          discardChanges?: unknown;
+        };
+        if (discardChanges !== true) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "discardChanges 에 true 를 명시해야 합니다.",
+            { recoverable: true },
+          );
+        }
+        return {
+          closed: [],
+          failed: [],
+          notCreated: [...new Set(documentIds ?? [])],
+          remainingDocuments: 1,
+          activeDocumentId: this.#document?.id ?? null,
+        } as TResult;
+      }
       case "DOCUMENT_ACTIVATE": {
         const document = this.#requireDocument();
         const { documentId, name } = command.params as { documentId?: number; name?: string };

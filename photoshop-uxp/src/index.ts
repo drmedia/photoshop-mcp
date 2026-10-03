@@ -66,6 +66,11 @@ import {
   historyRestoreSnapshot,
 } from "./dom/history-snapshot.js";
 import { adjustmentUpdate } from "./dom/adjustment-update.js";
+import {
+  documentCloseCreated,
+  documentListCreated,
+  trackCreatedDocuments,
+} from "./dom/created-documents.js";
 import { documentActivate } from "./dom/document-switch.js";
 import { documentCompareWith } from "./dom/document-compare-with.js";
 import { layerDeleteCreated, layerListCreated, trackCreatedLayers } from "./dom/created-layers.js";
@@ -538,6 +543,10 @@ export function createDispatcher(): CommandDispatcher {
     historyRestoreSnapshot(p as { name: string }),
   );
   dispatcher.register("HISTORY_LIST_SNAPSHOTS", async () => historyListSnapshots());
+  dispatcher.register("DOCUMENT_LIST_CREATED", async () => documentListCreated());
+  dispatcher.register("DOCUMENT_CLOSE_CREATED", async (p) =>
+    documentCloseCreated(p as unknown as Parameters<typeof documentCloseCreated>[0]),
+  );
   dispatcher.register("DOCUMENT_ACTIVATE", async (p) =>
     documentActivate(p as Parameters<typeof documentActivate>[0]),
   );
@@ -650,6 +659,7 @@ export function createDispatcher(): CommandDispatcher {
 
   // ROADMAP §101 — 레이어를 만드는 Command 는 전후 차이로 기록한다. **등록이 다 끝난 뒤에 건다.**
   trackCreatedLayers(dispatcher);
+  trackCreatedDocuments(dispatcher);
 
   return dispatcher;
 }

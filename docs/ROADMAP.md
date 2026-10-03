@@ -12130,4 +12130,4 @@ Tool 이 열린 문서를 건드릴 수 있다.
 - **문서 정리**: `document.list_created` · `close_created` 를 더했다. 시험용 복제본을 제가 닫지 못해 사용자가 직접 닫아야 했기 때문이다(`document.close` 는 destructive 에 활성 문서만 닫는다). 생성 레이어와 같은 규칙 — `document.create` · `document.duplicate` 의 결과에서 id 를 적고 그것만 닫는다. `document.open` 은 적지 않는다(디스크의 파일을 연 것이라 사용자의 문서다). 복제본에 쌓은 보정은 닫으면 사라지므로 `discardChanges: true` 를 요구한다.
 - **지침(`guidance.ts`)**: 스냅샷 · `adjustment.update` · `compare_with` · `activate`(옮기면 되돌아온다) · 시험용 정리를 `instructions` 와 `retouch` 프롬프트에 넣었다. "닫기" 금지 문구는 "사용자의 문서를 닫는 일" 로 좁혔다. `instructions` 는 1200자 미만을 유지한다.
 - [x] 구현 · Mock 시험 · 문서
-- [ ] 실기 — 복제본을 만들고 `list_created` → `close_created`, 사용자의 문서가 `notCreated` 로 남는지
+- [x] 실기 — 복제본(id 82)을 만들고 `list_created` 에 나타남 → 사용자 문서 59·78 을 id 로 줘도 `notCreated` 로 남고 안 닫힘 → 인자 없이 닫으니 82 만 닫히고 `activeDocumentId` 는 59 로 돌아옴

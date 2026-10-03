@@ -58,6 +58,15 @@ export class CommandDispatcher {
     this.handlers.set(command, handler);
   }
 
+  /** 등록된 핸들러를 감싼다. 감시 · 기록처럼 결과를 바꾸지 않는 용도다. */
+  wrap(command: string, wrapper: (inner: DispatchHandler) => DispatchHandler): void {
+    const inner = this.handlers.get(command);
+    if (inner === undefined) {
+      throw new DispatchError("COMMAND_NOT_SUPPORTED", `감쌀 Command 가 없습니다: ${command}`);
+    }
+    this.handlers.set(command, wrapper(inner));
+  }
+
   has(command: string): boolean {
     return this.handlers.has(command);
   }

@@ -31,12 +31,46 @@ function channelReference(channel: Channel | undefined): Record<string, unknown>
   return { _ref: "channel", _enum: "channel", _value: name };
 }
 
+/**
+ * 빌더가 조립한 `type` descriptor 를 만들지 않고 가로챈다. (ROADMAP §101)
+ *
+ * `adjustment.update` 가 같은 빌더로 `make` 대신 `set` 을 보내기 위한 것이다. **동기 구간 안에서만
+ * 열려 있다** — 빌더는 `makeAdjustmentLayer` 를 부르기 전에 `await` 하지 않으므로 호출이 끝나기
+ * 전에 값이 들어오고, 구간이 닫힌 뒤에는 다른 호출이 이 값을 볼 수 없다.
+ */
+let captureSink: { type?: Record<string, unknown> } | null = null;
+
+class AdjustmentTypeCaptured extends Error {}
+
+export function captureAdjustmentType(call: () => Promise<unknown>): Record<string, unknown> {
+  const sink: { type?: Record<string, unknown> } = {};
+  captureSink = sink;
+  let pending: Promise<unknown>;
+  try {
+    pending = call();
+  } finally {
+    captureSink = null;
+  }
+  // 가로채면 `makeAdjustmentLayer` 가 거절로 끝난다. 그 거절은 의도한 것이다.
+  pending.catch(() => undefined);
+  if (sink.type === undefined) {
+    throw new DispatchError("COMMAND_FAILED", "조정 값을 조립하지 못했습니다.", {
+      recoverable: false,
+    });
+  }
+  return sink.type;
+}
+
 /** 조정 레이어를 만들고 결과를 프로토콜 형태로 돌려준다. */
 export async function makeAdjustmentLayer(
   commandName: string,
   type: Record<string, unknown>,
   name: string | undefined,
 ): Promise<LayerInfo> {
+  if (captureSink !== null) {
+    captureSink.type = type;
+    throw new AdjustmentTypeCaptured();
+  }
   return runModal(commandName, async () => {
     const document = requireActiveDocument();
 

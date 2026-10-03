@@ -12079,3 +12079,57 @@ Tool 이 열린 문서를 건드릴 수 있다.
 
 - [x] 구현 · 시험 · 문서
 - [ ] 실기 패널에서 버튼 · 저장 확인
+
+## §101 세션 도구 다섯 가지 (스냅샷 · 생성 레이어 정리 · 조정 수정 · 문서 전환 · 문서 비교)
+
+참조 사진에 맞춰 보정하는 긴 세션에서 시간과 호출을 가장 많이 쓴 지점 다섯이다. Tool 열 개(166 → 176).
+
+| Tool | 권한 | 하는 일 |
+|---|---|---|
+| `history.create_snapshot` · `restore_snapshot` · `list_snapshots` | edit · edit · read | 이름 붙은 **진짜 스냅샷**. History 50개 한도와 무관. `MCP · <이름>` 으로 붙여 사용자 스냅샷과 안 섞인다. 같은 이름은 거절. 돌아온 뒤 레이어 id 구성을 만들 때와 견주어 `layerIdsMatch` 로 답한다 |
+| `layer.list_created` · `delete_created` | read · edit | 이 서버의 Command 가 만든 레이어만 모아 지운다. 만들지 않은 id 는 `notCreated` 로 알리고 건드리지 않는다 |
+| `adjustment.update` | edit | 걸려 있는 조정 레이어의 값을 그 자리에서 고친다. 열 종류. `kind` + `settings`(만들 때와 같은 스키마, 통째로 다시 정한다). 전후를 읽어 `changed` |
+| `document.activate` | edit | 활성 문서를 옮긴다. 옮긴 뒤 다시 읽어 확인. 이름이 유일하지 않으면 거절 |
+| `document.compare_with` | read | 다른 열린 문서와 견준다. 크기·비율이 달라도 되고 활성 문서를 옮기지 않는다 |
+| `document.list_created` · `close_created` | read · edit | 이 서버가 만든 복제·새 문서만 모아 **저장하지 않고** 닫는다. 사용자가 연 문서는 `notCreated`. `discardChanges: true` 를 명시해야 한다 |
+
+### 결정
+
+- **`layer.delete_created` 는 `edit` 이다.** `layer.delete`(destructive)와 달리 지우는 범위가 "이 서버가 만든 것" 으로 한정되어 사용자의 작업이 사라지지 않는다. 기록은 플러그인 메모리에만 있고 잊으면 **지우지 못할 뿐 잘못 지우지 않는다.**
+- **생성 추적은 목록 기반이다.** 모든 Command 의 전후를 읽으면 UXP 의 속성별 왕복 때문에 느리다. 레이어를 만드는 Command 21개의 전후 id 차이만 본다. 목록에 없는 Command 가 만든 레이어는 모른다. 플러그인과 Mock 의 목록이 같은지 `tests/document-activate.test.ts` 가 대조한다.
+- **`adjustment.update` 는 빌더를 재사용한다.** 만들 때 쓰는 빌더가 조립한 `type` 을 `makeAdjustmentLayer` 안에서 가로채 `make` 대신 `set` 에 쓴다 — 만들 때와 고칠 때의 값 모양이 갈라지지 않는다. 가로채는 구간은 **동기 구간뿐**이라 호출이 겹쳐도 서로의 값을 못 본다.
+- **스냅샷은 History 상태 참조가 아니다.** 편집이 쌓이면 참조가 가리키던 상태가 사라진다.
+- **`compare_with` 의 수치는 축소한 미리보기에서 나온다.** 크기가 다른 두 문서를 전체 해상도로 1:1 견줄 수 없다. 클리핑은 믿지 않는다고 도구 설명에 적었다(`measuredFrom: "preview"`).
+- **Mock 은 문서를 하나만 든다.** `activate` 는 그 하나를 가리키면 `already`, 다른 id 는 없는 문서다. `compare_with` 는 둘째 문서를 지어내지 않고 거절한다.
+
+### 검증
+
+- Mock: 스냅샷 7 · 생성 레이어 7 · 조정 수정 8 · 문서 전환/비교 8 시험. `npm run check` 통과(1637개).
+- **실기는 아직이다.** 플러그인을 새 빌드로 `load` · `reload` 했지만(Photoshop 27.8) 자동 접속이 꺼져 있어 패널의 `Connect` 를 눌러야 서버에 붙고, 서버(MCP 클라이언트)를 다시 띄워야 새 Tool 이 보인다. 아래 추측은 실기에서 갈린다.
+
+### 실기 검증 (Photoshop 27.8, 2026-10-04)
+
+- 스냅샷: `make` + `snapshotClass` + `fullDocument` 와 `select` + `_name` 이 **그대로 통했다.** 편집 뒤 복원하니 `layerIdsMatch: true`, 레이어가 만들기 전으로 돌아왔다.
+- `adjustment.update`: `set` + `_target: adjustmentLayer _id` + `to: <type>` 이 **통했다.** `adjustment.get` 으로 곡선 중간점이 100 → 150 으로 바뀐 것을 읽었고, 같은 값을 다시 넣으면 `changed: false`.
+- `document.activate`: **`method: "setter"` 로 됐다** — `app.activeDocument` 대입이 되고 읽어서 확인했다. id 와 이름 두 경로 모두. `batchPlay` 로 넘어간 적은 없다(안전망으로 남겨 둔다).
+- `document.compare_with`: `getPixels` 의 `documentID` 로 **비활성 문서를 읽었다.** 보정한 원본(reference)과 복제본(active)을 견주니 `change` 가 전부 음수(휘도 중앙값 −34)로 맞는 방향이었다. 활성 문서는 옮기지 않았다.
+- 생성 추적: `LAYER_CREATE` · `ADJUSTMENT_CURVES` 가 기록됐고 `delete_created` 가 배경(id 1)을 `notCreated` 로 남기고 만든 것만 지웠다.
+- **미확인**: 크기·비율이 다른 두 문서(`aspect.differs: true`)의 비교 — 시험에 쓴 두 문서가 같은 크기였다. `SMART_OBJECT_CONVERT` 등 id 가 바뀌는 Command 의 추적. 열 종류 중 곡선 외의 `adjustment.update`.
+- **시험 중 겪은 것**: `.ccx` 로 설치한 사본과 개발용 사본이 함께 있으면 **옛 코드가 계속 돈다.** 비활성화만으로는 부족했고 Photoshop 을 다시 켜야 개발용 사본이 적재됐다.
+
+- [x] 구현 · Mock 시험 · 문서(CORE_API §4, README 두 벌, CLAUDE.md 개수)
+- [x] 실기 — 스냅샷 만들기/돌아가기 왕복, `layerIdsMatch`
+- [x] 실기 — `adjustment.update` 곡선 값 변경과 `adjustment.get` 으로 재확인
+- [x] 실기 — 두 문서를 열고 `activate` · `compare_with` (같은 크기 두 문서)
+- [x] 실기 — 생성 레이어 정리
+- [x] 실기 — 크기와 비트 심도가 다른 두 문서의 `compare_with`: 참조 PNG(1024×1536, 8비트)와 TIF(4032×6048, 16비트). 그림과 수치가 일치했다(참조의 휘도 p99 129 · 보정본 96 — 그림에서 은하수가 참조보다 흐린 것과 같은 방향).
+- [x] 실기 — **비율이 다른** 두 문서: TIF(2:3)와 그 복제본을 1:1 로 자른 것. `aspect: {reference 0.6667, active 1, differs: true}` 로 알렸고 참조가 정사각형으로 늘어난 그림이 나왔다. 같은 장면이 아니면 타일 색차가 위치를 따르지 않는다는 도구 설명 그대로다 — 아래 타일은 잘린 쪽에 땅이 없고 참조에는 있어 ΔE 가 23 이었다.
+- [x] 실기 — 곡선 외 **아홉 종류 전부** `adjustment.update` 가 `changed: true` 로 통했다(색조·채도 · 레벨 · 자연 채도 · 색 균형 · 노출 · 흑백 · 포토 필터 · 채널 혼합 · 밝기/대비). `adjustment.get` 으로 노출 0.8 · 포토 필터 Lab(−10, −30) 농도 40 · 채널 혼합 red 90/green 10 이 실제로 들어간 것을 읽었다. 종류가 다르면(`levels` 레이어에 `hue_saturation`) 거절한다.
+- [x] 실기 — `SMART_OBJECT_CONVERT` 의 생성 추적: 복제한 레이어(17)를 변환하자 id 가 18 로 바뀌었고 `list_created` 가 **새 id 로 따라갔다**(옛 id 는 사라진다). 전·후 id 차이 방식이라 따로 처리할 것이 없었다. `delete_created` 가 열 개를 지우고 배경만 남겼다.
+
+### 후속 (같은 날)
+
+- **문서 정리**: `document.list_created` · `close_created` 를 더했다. 시험용 복제본을 제가 닫지 못해 사용자가 직접 닫아야 했기 때문이다(`document.close` 는 destructive 에 활성 문서만 닫는다). 생성 레이어와 같은 규칙 — `document.create` · `document.duplicate` 의 결과에서 id 를 적고 그것만 닫는다. `document.open` 은 적지 않는다(디스크의 파일을 연 것이라 사용자의 문서다). 복제본에 쌓은 보정은 닫으면 사라지므로 `discardChanges: true` 를 요구한다.
+- **지침(`guidance.ts`)**: 스냅샷 · `adjustment.update` · `compare_with` · `activate`(옮기면 되돌아온다) · 시험용 정리를 `instructions` 와 `retouch` 프롬프트에 넣었다. "닫기" 금지 문구는 "사용자의 문서를 닫는 일" 로 좁혔다. `instructions` 는 1200자 미만을 유지한다.
+- [x] 구현 · Mock 시험 · 문서
+- [x] 실기 — 복제본(id 82)을 만들고 `list_created` 에 나타남 → 사용자 문서 59·78 을 id 로 줘도 `notCreated` 로 남고 안 닫힘 → 인자 없이 닫으니 82 만 닫히고 `activeDocumentId` 는 59 로 돌아옴

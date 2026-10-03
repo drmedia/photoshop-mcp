@@ -95,7 +95,7 @@ P3  확장 기능
 
 ---
 
-## 4. 구현된 Core API (166개)
+## 4. 구현된 Core API (176개)
 
 서버에 등록되어 있고 `tools/list` 에 나온다.
 
@@ -129,6 +129,10 @@ P3  확장 기능
 | `photoshop.document.statistics` | READ | 히스토그램·채널 통계·**노이즈 σ**. 전체 해상도 원본에서 |
 | `photoshop.document.analyze` | READ | **구조·위치** 분석 — 채널별 분포·클리핑의 위치(점/면)·**기울기**(광해·비네팅)·노이즈의 밝기 의존·톤 구간별 **색 쏠림**. statistics 는 전체 요약, 이쪽은 어디에·어떤 모양으로. 판정 없음 (ROADMAP §90) |
 | `photoshop.document.compare` | READ | **보정 전후를 그림과 수치로** — 전·후(와 선택 시 차이 열지도)를 가로로 붙인 한 장 + 전체 해상도에서 낸 분위수·클리핑 변화, 타일별 ΔL·ΔE, 가장 크게 변한 곳의 좌표. 이미지를 못 받는 클라이언트도 수치로 판단. 판정 없음 (ROADMAP §91) |
+| `photoshop.document.activate` | EDIT | **활성 문서를 옮긴다** — `documentId` 나 `name` 중 정확히 하나. 이름이 유일하지 않으면 거절. 결과는 옮긴 뒤 **다시 읽은** 활성 문서와 `previousId`, `method`(`setter` · `batchPlay` · `already`). 내용은 안 바뀐다 (ROADMAP §101) |
+| `photoshop.document.compare_with` | READ | **다른 열린 문서와 견준다** — 크기·비율이 달라도 된다. 같은 크기의 **미리보기**로 읽어 붙이고 수치도 거기서 낸다(`measuredFrom: preview` — **클리핑은 믿지 않는다**). 활성 문서를 옮기지 않는다. 판정 없음 (ROADMAP §101) |
+| `photoshop.document.list_created` | READ | **이 서버가 만든 문서**(`duplicate` · `create`)만. 사용자가 열었거나 `open` 으로 연 문서는 안 나온다 (ROADMAP §101) |
+| `photoshop.document.close_created` | EDIT | 그 문서만 **저장하지 않고** 닫는다(`discardChanges: true` 명시). 사용자의 문서는 `notCreated`. 닫은 뒤 목록을 읽어 확인하고 `activeDocumentId` 를 준다 (ROADMAP §101) |
 | `photoshop.adjustment.get` | READ | **조정 레이어가 가진 값을 읽는다** — 이미 걸린 보정이 무엇을 하는지. **곡선과 색조·채도만 해석**(`settings`)하고 나머지 종류는 `null` + 원본(`raw`). 초록 채널은 Photoshop 이 `grain` 으로 주는 것을 `green` 으로 옮긴다. 조정 레이어가 아니면 오류가 아니라 `isAdjustment: false` |
 | `photoshop.mask.summary` | READ | **마스크가 어디를 얼마나 가리는지** — 완전히 가림 · 보임 · 번짐의 비율, 효과가 닿는 경계 상자(`touched`)와 완전히 보이는 상자(`full`), 위치별 강도(`tiles`). 문서 캔버스 범위로 잰다. 마스크가 없는 레이어는 거절. 판정 없음 |
 
@@ -327,6 +331,8 @@ RAW 의 현상 설정은 슬라이더를 보며 정하는 일이라 사람이 �
 | `photoshop.color.set_foreground` | EDIT | **`path.stroke` 의 색을 정하는 유일한 통로** |
 | `photoshop.color.set_background` | EDIT | `canvas.resize` 로 넓힌 영역이 이 색 |
 | `photoshop.layer.delete` | DESTRUCTIVE | **id 를 명시한다.** 패턴을 받지 않는다 |
+| `photoshop.layer.list_created` | READ | **이 서버의 Command 가 만든** 레이어만 — 사용자가 만들었거나 원래 있던 것은 안 나온다. 플러그인을 다시 띄우면 잊는다 (ROADMAP §101) |
+| `photoshop.layer.delete_created` | EDIT | 그 레이어만 지운다. **만들지 않은 id 는 건드리지 않고 `notCreated` 로 알린다.** 범위가 한정되어 `edit` 이다 (ROADMAP §101) |
 
 `layerId` 를 생략하면 활성 레이어를 대상으로 한다. 그것이 무엇인지는
 `photoshop.layer.get_active` 로 미리 확인한다.
@@ -370,6 +376,7 @@ Photoshop UI 는 그룹 끝에서 한 번 더 누르면 밖으로 나간다. 그
 | `photoshop.adjustment.photo_filter` | EDIT | **색이 Lab 이다** — 프리셋 이름 통로가 없다 |
 | `photoshop.adjustment.channel_mixer` | EDIT | 출력 채널을 다시 만든다. `monochrome` 은 `gray` 와 짝 |
 | `photoshop.adjustment.color_balance` | EDIT | 구간별 `[C↔R, M↔G, Y↔B]` |
+| `photoshop.adjustment.update` | EDIT | **걸려 있는 조정 레이어의 값을 그 자리에서 고친다.** `kind` + `settings`(만들 때와 같은 스키마·**통째로 다시 정한다**). 종류가 다르면 거절, `changed` 는 전후를 읽어 확인 (ROADMAP §101) |
 
 **전부 조정 레이어로 만든다.** 픽셀을 직접 고치지 않는다. 그래서 EDIT 이다.
 
@@ -448,6 +455,9 @@ Photoshop 의 방사형은 중심에서 반지름까지 **선형 보간**이다.
 |---|---|---|
 | `photoshop.history.undo` | EDIT | |
 | `photoshop.history.redo` | EDIT | 되돌린 것을 다시. **새 편집을 하면 사라진다** |
+| `photoshop.history.create_snapshot` | EDIT | 이름 붙은 **진짜 스냅샷** — History 50개 한도와 무관. `MCP · <이름>`, 같은 이름은 거절 (ROADMAP §101) |
+| `photoshop.history.restore_snapshot` | EDIT | 이 서버가 만든 스냅샷으로. **`layerIdsMatch` 로 돌아왔는지 읽는다** |
+| `photoshop.history.list_snapshots` | READ | 활성 문서에서 이 서버가 만든 것 |
 
 History **조회**는 Tool 이 아니라 `photoshop://history` Resource 다. (§6)
 
@@ -582,10 +592,7 @@ Permission 은 구현 시점의 예정값이며, §2 의 경계 규칙이 최종
 
 ### 5.10 History
 
-| API | 우선순위 | Permission | 비고 |
-|---|---|---|---|
-| `photoshop.history.create_snapshot` | P3 | EDIT | |
-| `photoshop.history.restore_snapshot` | P3 | EDIT | |
+스냅샷은 §4 로 옮겼다 (ROADMAP §101).
 
 ### 5.11 Host · 환경
 
@@ -792,7 +799,7 @@ elicitation 은 클라이언트가 무시하면 보장이 사라진다. 대화�
 
 | 구간 | 개수 |
 |---|---|
-| 구현됨 | **166** |
+| 구현됨 | **176** |
 | 후보 (P1) | 약 20 |
 | 후보 (P2) | 약 45 |
 | 후보 (P3) | 약 45 |

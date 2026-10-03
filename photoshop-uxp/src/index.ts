@@ -61,6 +61,20 @@ import { groupCreate, groupMoveLayer } from "./dom/group.js";
 import { hostGet } from "./dom/host.js";
 import { historyRedo, historyUndo } from "./dom/history.js";
 import {
+  historyCreateSnapshot,
+  historyListSnapshots,
+  historyRestoreSnapshot,
+} from "./dom/history-snapshot.js";
+import { adjustmentUpdate } from "./dom/adjustment-update.js";
+import {
+  documentCloseCreated,
+  documentListCreated,
+  trackCreatedDocuments,
+} from "./dom/created-documents.js";
+import { documentActivate } from "./dom/document-switch.js";
+import { documentCompareWith } from "./dom/document-compare-with.js";
+import { layerDeleteCreated, layerListCreated, trackCreatedLayers } from "./dom/created-layers.js";
+import {
   layerCreate,
   layerDuplicate,
   layerFillOpacity,
@@ -521,6 +535,31 @@ export function createDispatcher(): CommandDispatcher {
   // Phase 3 — History
   dispatcher.register("HISTORY_UNDO", async () => historyUndo());
   dispatcher.register("HISTORY_REDO", async () => historyRedo());
+  // ROADMAP §101 — 스냅샷
+  dispatcher.register("HISTORY_CREATE_SNAPSHOT", async (p) =>
+    historyCreateSnapshot(p as { name: string }),
+  );
+  dispatcher.register("HISTORY_RESTORE_SNAPSHOT", async (p) =>
+    historyRestoreSnapshot(p as { name: string }),
+  );
+  dispatcher.register("HISTORY_LIST_SNAPSHOTS", async () => historyListSnapshots());
+  dispatcher.register("DOCUMENT_LIST_CREATED", async () => documentListCreated());
+  dispatcher.register("DOCUMENT_CLOSE_CREATED", async (p) =>
+    documentCloseCreated(p as unknown as Parameters<typeof documentCloseCreated>[0]),
+  );
+  dispatcher.register("DOCUMENT_ACTIVATE", async (p) =>
+    documentActivate(p as Parameters<typeof documentActivate>[0]),
+  );
+  dispatcher.register("DOCUMENT_COMPARE_WITH", async (p) =>
+    documentCompareWith(p as unknown as Parameters<typeof documentCompareWith>[0]),
+  );
+  dispatcher.register("ADJUSTMENT_UPDATE", async (p) =>
+    adjustmentUpdate(p as Parameters<typeof adjustmentUpdate>[0]),
+  );
+  dispatcher.register("LAYER_LIST_CREATED", async () => layerListCreated());
+  dispatcher.register("LAYER_DELETE_CREATED", async (p) =>
+    layerDeleteCreated(p as { layerIds?: number[] }),
+  );
 
   // Phase 4 — 조정 레이어 (비파괴)
   dispatcher.register("ADJUSTMENT_CURVES", async (p) =>
@@ -617,6 +656,10 @@ export function createDispatcher(): CommandDispatcher {
   // ROADMAP §16 — MCP Resource 를 뒷받침하는 읽기
   dispatcher.register("SELECTION_GET", async () => selectionGet());
   dispatcher.register("HISTORY_LIST", async () => historyList());
+
+  // ROADMAP §101 — 레이어를 만드는 Command 는 전후 차이로 기록한다. **등록이 다 끝난 뒤에 건다.**
+  trackCreatedLayers(dispatcher);
+  trackCreatedDocuments(dispatcher);
 
   return dispatcher;
 }

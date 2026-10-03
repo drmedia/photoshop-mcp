@@ -1,6 +1,7 @@
-import { imaging } from "photoshop";
+import { app, imaging } from "photoshop";
 import { DispatchError } from "../dispatcher/dispatcher.js";
 import { requireActiveDocument } from "./document.js";
+import { toArray } from "./layers.js";
 import { toLayerType } from "./mappings.js";
 import { findLayerById } from "./layer-edit.js";
 import { hasSelection } from "./mask-selection.js";
@@ -20,6 +21,11 @@ import type { Rgb8 } from "./image-compare.js";
  */
 
 export interface PixelSourceParams {
+  /**
+   * 읽을 문서. 생략하면 활성 문서. **주면 활성 문서를 옮기지 않고** 그 문서를 읽는다(ROADMAP §101).
+   * 선택 영역은 활성 문서의 것이라 다른 문서에는 쓸 수 없다.
+   */
+  documentId?: number;
   region?: "document" | "selection";
   layerId?: number;
   target?: "layer" | "mask";
@@ -62,7 +68,28 @@ function resolveRequest(params: PixelSourceParams): {
     );
   }
 
-  const document = requireActiveDocument();
+  const active = requireActiveDocument();
+  let document = active;
+  if (params.documentId !== undefined && params.documentId !== active.id) {
+    const found = toArray<typeof active>(app.documents).find(
+      (entry) => entry.id === params.documentId,
+    );
+    if (found === undefined) {
+      throw new DispatchError(
+        "DOCUMENT_NOT_FOUND",
+        `문서 ${String(params.documentId)} 가 열려 있지 않습니다.`,
+        { recoverable: true, details: { documentId: params.documentId } },
+      );
+    }
+    if (params.region === "selection") {
+      throw new DispatchError(
+        "INVALID_PARAMETER",
+        "선택 영역은 활성 문서의 것이라 다른 문서에는 쓸 수 없습니다.",
+        { recoverable: true },
+      );
+    }
+    document = found;
+  }
   const request: Record<string, unknown> = { documentID: document.id };
   let source = "document";
 

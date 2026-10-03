@@ -118,6 +118,16 @@ import {
   historyRestoreSnapshotCommand,
 } from "./history-snapshot.js";
 import {
+  DOCUMENT_ACTIVATE,
+  DocumentActivateParamsSchema,
+  documentActivateCommand,
+} from "./document-activate.js";
+import {
+  DOCUMENT_COMPARE_WITH,
+  DocumentCompareWithParamsSchema,
+  documentCompareWithCommand,
+} from "./document-compare-with.js";
+import {
   ADJUSTMENT_UPDATE,
   AdjustmentUpdateParamsSchema,
   adjustmentUpdateCommand,
@@ -408,6 +418,8 @@ export * from "./history.js";
 export * from "./history-snapshot.js";
 export * from "./layer-created.js";
 export * from "./adjustment-update.js";
+export * from "./document-activate.js";
+export * from "./document-compare-with.js";
 export * from "./layer-edit.js";
 export * from "./layer-lock.js";
 export * from "./layer-flip.js";
@@ -1203,6 +1215,16 @@ export function registerPhotoshopCommands(registry: CommandRegistry): void {
   registry.register(HISTORY_LIST_SNAPSHOTS, historyListSnapshotsCommand, {
     permission: "read",
     schema: HistoryListSnapshotsParamsSchema,
+  });
+
+  // ROADMAP §101 — 활성 문서를 옮기고, 다른 문서와 견준다
+  registry.register(DOCUMENT_ACTIVATE, documentActivateCommand, {
+    permission: edit,
+    schema: DocumentActivateParamsSchema,
+  });
+  registry.register(DOCUMENT_COMPARE_WITH, documentCompareWithCommand, {
+    permission: "read",
+    schema: DocumentCompareWithParamsSchema,
   });
 
   // ROADMAP §101 — 걸려 있는 조정 레이어의 값을 고친다

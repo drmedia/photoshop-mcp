@@ -10,7 +10,11 @@ import {
 } from "./adjustment-extra.js";
 import { adjustmentBrightnessContrast, adjustmentCurves, adjustmentLevels } from "./adjustment.js";
 import { requireActiveDocument } from "./document.js";
-import { adjustmentColorBalance, adjustmentHueSaturation, adjustmentVibrance } from "./gap-tools.js";
+import {
+  adjustmentColorBalance,
+  adjustmentHueSaturation,
+  adjustmentVibrance,
+} from "./gap-tools.js";
 import { findLayerById } from "./layer-edit.js";
 import { flattenLayers } from "./layers.js";
 import { withMaskStateAsync } from "./mask-state.js";
@@ -119,10 +123,14 @@ export async function adjustmentUpdate(params: {
     const info = flattenLayers(document.layers).find((entry) => entry.id === target.id);
     const withState = info === undefined ? undefined : (await withMaskStateAsync([info]))[0];
     if (withState === undefined || withState.type !== "adjustment") {
-      throw new DispatchError("INVALID_PARAMETER", `레이어 ${target.id} 는 조정 레이어가 아닙니다.`, {
-        recoverable: true,
-        details: { layerId: target.id, type: withState?.type ?? null },
-      });
+      throw new DispatchError(
+        "INVALID_PARAMETER",
+        `레이어 ${target.id} 는 조정 레이어가 아닙니다.`,
+        {
+          recoverable: true,
+          details: { layerId: target.id, type: withState?.type ?? null },
+        },
+      );
     }
     // 종류를 아는데 다르면 거절한다. 모르면(`null`) 막지 않는다 — 없는 것을 틀렸다고 읽지 않는다.
     const expected = EXPECTED_TYPE[params.kind];
@@ -131,7 +139,10 @@ export async function adjustmentUpdate(params: {
         "INVALID_PARAMETER",
         `레이어 ${target.id} 는 ${withState.adjustmentType} 인데 kind 는 ${params.kind} 입니다. ` +
           "종류를 바꿀 수 없습니다.",
-        { recoverable: true, details: { layerId: target.id, adjustmentType: withState.adjustmentType } },
+        {
+          recoverable: true,
+          details: { layerId: target.id, adjustmentType: withState.adjustmentType },
+        },
       );
     }
 
@@ -152,10 +163,14 @@ export async function adjustmentUpdate(params: {
     );
     const failure = results.find((result) => result["message"] !== undefined);
     if (failure !== undefined) {
-      throw new DispatchError("COMMAND_FAILED", `조정 값을 고치지 못했습니다: ${String(failure["message"])}`, {
-        recoverable: true,
-        details: { layerId: target.id, kind: params.kind },
-      });
+      throw new DispatchError(
+        "COMMAND_FAILED",
+        `조정 값을 고치지 못했습니다: ${String(failure["message"])}`,
+        {
+          recoverable: true,
+          details: { layerId: target.id, kind: params.kind },
+        },
+      );
     }
     const after = await readAdjustment(target.id);
 

@@ -29,6 +29,8 @@ import {
   createHistoryListSnapshotsTool,
   createHistoryRestoreSnapshotTool,
 } from "./history-snapshot.js";
+import { createDocumentActivateTool } from "./document-activate.js";
+import { createDocumentCompareWithTool } from "./document-compare-with.js";
 import { createAdjustmentUpdateTool } from "./adjustment-update.js";
 import { createLayerDeleteCreatedTool, createLayerListCreatedTool } from "./layer-created.js";
 import {
@@ -403,6 +405,8 @@ export function registerPhotoshopTools(registry: ToolRegistry, engine: CommandEn
   registry.register(createHistoryCreateSnapshotTool(engine));
   registry.register(createHistoryRestoreSnapshotTool(engine));
   registry.register(createHistoryListSnapshotsTool(engine));
+  registry.register(createDocumentActivateTool(engine));
+  registry.register(createDocumentCompareWithTool(engine));
   registry.register(createAdjustmentUpdateTool(engine));
   registry.register(createLayerListCreatedTool(engine));
   registry.register(createLayerDeleteCreatedTool(engine));

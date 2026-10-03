@@ -66,11 +66,9 @@ import {
   historyRestoreSnapshot,
 } from "./dom/history-snapshot.js";
 import { adjustmentUpdate } from "./dom/adjustment-update.js";
-import {
-  layerDeleteCreated,
-  layerListCreated,
-  trackCreatedLayers,
-} from "./dom/created-layers.js";
+import { documentActivate } from "./dom/document-switch.js";
+import { documentCompareWith } from "./dom/document-compare-with.js";
+import { layerDeleteCreated, layerListCreated, trackCreatedLayers } from "./dom/created-layers.js";
 import {
   layerCreate,
   layerDuplicate,
@@ -540,6 +538,12 @@ export function createDispatcher(): CommandDispatcher {
     historyRestoreSnapshot(p as { name: string }),
   );
   dispatcher.register("HISTORY_LIST_SNAPSHOTS", async () => historyListSnapshots());
+  dispatcher.register("DOCUMENT_ACTIVATE", async (p) =>
+    documentActivate(p as Parameters<typeof documentActivate>[0]),
+  );
+  dispatcher.register("DOCUMENT_COMPARE_WITH", async (p) =>
+    documentCompareWith(p as unknown as Parameters<typeof documentCompareWith>[0]),
+  );
   dispatcher.register("ADJUSTMENT_UPDATE", async (p) =>
     adjustmentUpdate(p as Parameters<typeof adjustmentUpdate>[0]),
   );

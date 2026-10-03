@@ -12079,3 +12079,43 @@ Tool 이 열린 문서를 건드릴 수 있다.
 
 - [x] 구현 · 시험 · 문서
 - [ ] 실기 패널에서 버튼 · 저장 확인
+
+## §101 세션 도구 다섯 가지 (스냅샷 · 생성 레이어 정리 · 조정 수정 · 문서 전환 · 문서 비교)
+
+참조 사진에 맞춰 보정하는 긴 세션에서 시간과 호출을 가장 많이 쓴 지점 다섯이다. Tool 여덟 개(166 → 174).
+
+| Tool | 권한 | 하는 일 |
+|---|---|---|
+| `history.create_snapshot` · `restore_snapshot` · `list_snapshots` | edit · edit · read | 이름 붙은 **진짜 스냅샷**. History 50개 한도와 무관. `MCP · <이름>` 으로 붙여 사용자 스냅샷과 안 섞인다. 같은 이름은 거절. 돌아온 뒤 레이어 id 구성을 만들 때와 견주어 `layerIdsMatch` 로 답한다 |
+| `layer.list_created` · `delete_created` | read · edit | 이 서버의 Command 가 만든 레이어만 모아 지운다. 만들지 않은 id 는 `notCreated` 로 알리고 건드리지 않는다 |
+| `adjustment.update` | edit | 걸려 있는 조정 레이어의 값을 그 자리에서 고친다. 열 종류. `kind` + `settings`(만들 때와 같은 스키마, 통째로 다시 정한다). 전후를 읽어 `changed` |
+| `document.activate` | edit | 활성 문서를 옮긴다. 옮긴 뒤 다시 읽어 확인. 이름이 유일하지 않으면 거절 |
+| `document.compare_with` | read | 다른 열린 문서와 견준다. 크기·비율이 달라도 되고 활성 문서를 옮기지 않는다 |
+
+### 결정
+
+- **`layer.delete_created` 는 `edit` 이다.** `layer.delete`(destructive)와 달리 지우는 범위가 "이 서버가 만든 것" 으로 한정되어 사용자의 작업이 사라지지 않는다. 기록은 플러그인 메모리에만 있고 잊으면 **지우지 못할 뿐 잘못 지우지 않는다.**
+- **생성 추적은 목록 기반이다.** 모든 Command 의 전후를 읽으면 UXP 의 속성별 왕복 때문에 느리다. 레이어를 만드는 Command 21개의 전후 id 차이만 본다. 목록에 없는 Command 가 만든 레이어는 모른다. 플러그인과 Mock 의 목록이 같은지 `tests/document-activate.test.ts` 가 대조한다.
+- **`adjustment.update` 는 빌더를 재사용한다.** 만들 때 쓰는 빌더가 조립한 `type` 을 `makeAdjustmentLayer` 안에서 가로채 `make` 대신 `set` 에 쓴다 — 만들 때와 고칠 때의 값 모양이 갈라지지 않는다. 가로채는 구간은 **동기 구간뿐**이라 호출이 겹쳐도 서로의 값을 못 본다.
+- **스냅샷은 History 상태 참조가 아니다.** 편집이 쌓이면 참조가 가리키던 상태가 사라진다.
+- **`compare_with` 의 수치는 축소한 미리보기에서 나온다.** 크기가 다른 두 문서를 전체 해상도로 1:1 견줄 수 없다. 클리핑은 믿지 않는다고 도구 설명에 적었다(`measuredFrom: "preview"`).
+- **Mock 은 문서를 하나만 든다.** `activate` 는 그 하나를 가리키면 `already`, 다른 id 는 없는 문서다. `compare_with` 는 둘째 문서를 지어내지 않고 거절한다.
+
+### 검증
+
+- Mock: 스냅샷 7 · 생성 레이어 7 · 조정 수정 8 · 문서 전환/비교 8 시험. `npm run check` 통과(1637개).
+- **실기는 아직이다.** 플러그인을 새 빌드로 `load` · `reload` 했지만(Photoshop 27.8) 자동 접속이 꺼져 있어 패널의 `Connect` 를 눌러야 서버에 붙고, 서버(MCP 클라이언트)를 다시 띄워야 새 Tool 이 보인다. 아래 추측은 실기에서 갈린다.
+
+### 실기에서 확인할 것
+
+- `history.create_snapshot` 의 descriptor(`make` + `snapshotClass` + `fullDocument`), `restore_snapshot` 의 `select` + `_name` — **키는 사람이 만든 알림에서 잡은 것이 아니라 기존 지식**이다. 틀리면 `COMMAND_FAILED` 로 나온다.
+- `document.activate` 의 `method` — 대입(`setter`)이 되는지 `batchPlay select` 로 넘어가는지. 안 쓰이는 쪽은 지운다.
+- `adjustment.update` 의 `set` descriptor(`_target: adjustmentLayer _id`, `to: <type>`)가 값을 바꾸는지, 같은 값은 `changed: false` 인지.
+- `document.compare_with` — `getPixels` 의 `documentID` 로 비활성 문서를 읽는지.
+- 생성 추적 — 21개 Command 가 id 를 정확히 남기는지(`SMART_OBJECT_CONVERT` 는 id 가 바뀐다).
+
+- [x] 구현 · Mock 시험 · 문서(CORE_API §4, README 두 벌, CLAUDE.md 개수)
+- [ ] 실기 — 스냅샷 만들기/돌아가기 왕복, `layerIdsMatch`
+- [ ] 실기 — `adjustment.update` 곡선 값 변경과 `adjustment.get` 으로 재확인
+- [ ] 실기 — 두 문서를 열고 `activate` · `compare_with`
+- [ ] 실기 — 생성 레이어 정리

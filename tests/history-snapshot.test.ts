@@ -93,7 +93,10 @@ describe("history 스냅샷", () => {
 
   it("목록은 만든 것만 담는다", async () => {
     const mcp = setup();
-    expect(((await invoke(mcp, "photoshop.history.list_snapshots")) as { snapshots: unknown[] }).snapshots).toEqual([]);
+    expect(
+      ((await invoke(mcp, "photoshop.history.list_snapshots")) as { snapshots: unknown[] })
+        .snapshots,
+    ).toEqual([]);
 
     await invoke(mcp, "photoshop.history.create_snapshot", { name: "one" });
     await invoke(mcp, "photoshop.history.create_snapshot", { name: "two" });

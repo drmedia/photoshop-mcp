@@ -1529,6 +1529,46 @@ export class MockPhotoshopBridge implements PhotoshopBridge {
         } as TResult;
       }
 
+      /* **Mock 은 문서를 하나만 든다.** 활성을 "옮길" 곳이 없으므로 그 하나를 가리키면 이미 활성이고
+       * 다른 id 는 없는 문서다. 둘째 문서를 지어내면 다문서 워크플로가 Mock 에서만 돈다. */
+      case "DOCUMENT_ACTIVATE": {
+        const document = this.#requireDocument();
+        const { documentId, name } = command.params as { documentId?: number; name?: string };
+        if (documentId !== document.id && name !== document.name) {
+          throw new PhotoshopMcpError(
+            ErrorCode.DOCUMENT_NOT_FOUND,
+            "그 문서가 열려 있지 않습니다.",
+            {
+              recoverable: true,
+              details: { open: [{ id: document.id, name: document.name }] },
+            },
+          );
+        }
+        return {
+          document: { ...(await this.getDocumentInfo()) },
+          previousId: document.id,
+          changed: false,
+          method: "already",
+        } as TResult;
+      }
+      /* 둘째 문서가 없으므로 **자기 자신과는 견주지 않는다** — 실기와 같은 거절이고, 다른 id 는 없는
+       * 문서다. 픽셀을 모르므로 수치를 지어내지 않는 쪽은 `DOCUMENT_COMPARE` 와 같다(평평한 값). */
+      case "DOCUMENT_COMPARE_WITH": {
+        const document = this.#requireDocument();
+        const params = command.params as { documentId: number; diff?: boolean; grid?: number };
+        if (params.documentId === document.id) {
+          throw new PhotoshopMcpError(
+            ErrorCode.INVALID_PARAMETER,
+            "활성 문서와 같은 문서입니다. 같은 문서의 전후는 photoshop.document.compare 로 견줍니다.",
+            { recoverable: true },
+          );
+        }
+        throw new PhotoshopMcpError(
+          ErrorCode.DOCUMENT_NOT_FOUND,
+          `문서 ${String(params.documentId)} 가 열려 있지 않습니다. Mock Bridge 는 문서를 하나만 듭니다.`,
+          { recoverable: true },
+        );
+      }
       case "ADJUSTMENT_UPDATE": {
         const params = command.params as {
           layerId?: number;

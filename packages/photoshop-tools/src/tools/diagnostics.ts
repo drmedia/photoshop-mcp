@@ -36,6 +36,14 @@ export interface DiagnosticsSource {
   bridgeKind(): "uxp" | "mock" | null;
   allowedPermissions(): PermissionLevel[];
   toolCount(): number;
+  /**
+   * `tools/list` 에 보이는 Tool 의 범위와, 그 때문에 **감춰진 Tool 의 수**. (ROADMAP §102)
+   *
+   * `toolCount()` 는 감춘 것까지 센다. 이것이 없으면 호출자는 184개가 등록돼 있는데
+   * 102개만 보이는 이유를 알 길이 없고, 보이지 않는 Tool 을 "서버에 없다" 고 결론 내린다.
+   * 실기에서 모델이 `diagnostics` 로 184개를 보고도 그렇게 답했다.
+   */
+  toolProfile(): { name: string; hidden: number };
   commandCount(): number;
   providers(): Promise<ProviderAvailability[]>;
   workflows(): WorkflowDefinition[];
@@ -81,8 +89,24 @@ export function listBlockers(input: {
   allowed: PermissionLevel[];
   providers: ProviderAvailability[];
   extensions: unknown[];
+  /**
+   * Tool 프로필과 감춘 수. **생략하면 판정하지 않는다** — 서버를 띄우지 않고 환경만 보는
+   * `doctor` 는 등록된 Tool 을 세지 못한다.
+   */
+  toolProfile?: { name: string; hidden: number };
 }): Blocker[] {
   const found: Blocker[] = [];
+
+  if (input.toolProfile !== undefined && input.toolProfile.hidden > 0) {
+    found.push({
+      code: "tool_profile",
+      label: `Tool 프로필 ${input.toolProfile.name}`,
+      detail:
+        `Tool 프로필 '${input.toolProfile.name}' 이 ${String(input.toolProfile.hidden)}개를 ` +
+        "tools/list 에서 감춥니다. **목록에 없는 Tool 은 서버에 없는 것이 아니라 감춘 것입니다** — " +
+        "그 Tool 을 호출할 수 없습니다. 필요하면 PHOTOSHOP_MCP_PROFILE=full 로 서버를 다시 띄우세요.",
+    });
+  }
 
   if (input.connected === false) {
     found.push({
@@ -145,9 +169,10 @@ export function createDiagnosticsTool(
   return {
     name: "photoshop.diagnostics",
     description:
-      "서버 상태를 한 번에 보고한다 — Bridge 연결, 권한, 외부 처리기, Extension, " +
+      "서버 상태를 한 번에 보고한다 — Bridge 연결, 권한, Tool 프로필, 외부 처리기, Extension, " +
       "워크플로, Job, 이벤트. **막혀 있는 것은 이유와 고치는 방법을 함께 준다.** " +
-      "무언가 안 될 때 가장 먼저 부른다.",
+      "무언가 안 될 때 가장 먼저 부른다. 필요한 Tool 이 목록에 없으면 이것으로 " +
+      "프로필이 감춘 것인지 본다.",
     permission: "read",
     inputSchema: DiagnosticsInputSchema,
     handler: async () => {
@@ -155,11 +180,17 @@ export function createDiagnosticsTool(
       const extensions = source.extensions();
       const allowed = source.allowedPermissions();
       const connected = source.bridgeConnected();
+      const toolProfile = source.toolProfile();
 
       return {
         bridge: { connected, state: source.bridgeState(), kind: source.bridgeKind() },
         permissions: { allowed },
-        registry: { tools: source.toolCount(), commands: source.commandCount() },
+        registry: {
+          tools: source.toolCount(),
+          commands: source.commandCount(),
+          profile: toolProfile.name,
+          hiddenTools: toolProfile.hidden,
+        },
         capabilities: providers.map((provider) => ({
           id: provider.id,
           capability: provider.capability,
@@ -173,7 +204,7 @@ export function createDiagnosticsTool(
         })),
         jobs: source.jobCounts(),
         events: { recorded: source.eventCount() },
-        blocked: describeBlockers({ connected, allowed, providers, extensions }),
+        blocked: describeBlockers({ connected, allowed, providers, extensions, toolProfile }),
       };
     },
   };

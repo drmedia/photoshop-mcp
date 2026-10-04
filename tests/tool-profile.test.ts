@@ -160,6 +160,23 @@ describe("프로필별 tools/list", () => {
     expect(text.length).toBeLessThan(600);
   });
 
+  it("diagnostics 가 말하는 감춘 수가 tools/list 가 실제로 뺀 수와 같다", async () => {
+    /* 실기에서 모델이 `diagnostics` 로 184개를 보고도 감춘 Tool 을 "서버에 없다" 고 답했다.
+     * 감춘 수는 목록을 거르는 쪽과 **독립으로** 맞아야 한다 — 같은 함수를 두 번 부르는 것은
+     * 검증이 아니다. 여기서는 실제 MCP 클라이언트가 받은 `tools/list` 로 센다. */
+    for (const profile of ["full", "retouch", "readonly"] as const) {
+      const { client } = await connect(profile);
+      const listed = (await names(client)).length;
+      const result = await client.callTool({ name: "photoshop.diagnostics", arguments: {} });
+      const report = JSON.parse(
+        (result.content as { type: string; text: string }[])[0]?.text ?? "{}",
+      ) as { registry: { tools: number; profile: string; hiddenTools: number } };
+
+      expect(report.registry.profile).toBe(profile);
+      expect(report.registry.tools - report.registry.hiddenTools).toBe(listed);
+    }
+  });
+
   it("모르는 이름은 프로필과 무관하게 그냥 없는 Tool 이다", async () => {
     const { client } = await connect("retouch");
     const result = await client.callTool({ name: "photoshop.nope", arguments: {} });

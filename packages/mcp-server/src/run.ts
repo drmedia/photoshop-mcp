@@ -17,6 +17,7 @@ import {
   PermissionPolicy,
   parsePermissionLevels,
 } from "@photoshop-mcp/photoshop-bridge";
+import { parseToolProfile, type ToolProfile } from "@photoshop-mcp/mcp-core";
 import { listBlockers } from "@photoshop-mcp/photoshop-tools";
 import { findPortHolder, isPortInUse, portConflictMessage } from "./port-holder.js";
 import { startPhotoshopMcpServer, type BridgeMode, type StartOptions } from "./start.js";
@@ -41,6 +42,8 @@ function log(message: string): void {
  * - `PHOTOSHOP_MCP_EXTENSIONS_ENABLED` — 적재할 namespace. 생략하면 전부,
  *   `none` 또는 빈 문자열이면 하나도 안 함
  * - `PHOTOSHOP_MCP_ALLOW` — 허용할 Permission Level (기본 `read,edit`)
+ * - `PHOTOSHOP_MCP_PROFILE` — `tools/list` 에 보일 Tool 의 범위. `full`(기본) ·
+ *   `retouch`(보정에 쓰는 것만) · `readonly`(조회만). 보이는 것만 줄이고 권한은 그대로다
  * - `PHOTOSHOP_MCP_CAPABILITIES` — 외부 처리기 설정 (기본 `<cwd>/capabilities.json`)
  * - `PHOTOSHOP_MCP_WORKFLOWS` — 워크플로 설정 (기본 `<cwd>/workflows.json`)
  */
@@ -54,6 +57,7 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
   capabilityConfig: string;
   workflowConfig: string;
   policy: PermissionPolicy;
+  toolProfile: ToolProfile;
 } {
   const mode: BridgeMode = env["PHOTOSHOP_MCP_BRIDGE"] === "mock" ? "mock" : "uxp";
 
@@ -107,6 +111,17 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
     log(`PHOTOSHOP_MCP_ALLOW 에 알 수 없는 값이 있습니다: ${unknown.join(", ")} — 무시합니다`);
   }
 
+  // 모르는 값은 `full` 로 떨어뜨리되 알린다 — 오타로 목록이 줄거나 늘어난 것을 못 보면 안 된다.
+  const { profile: toolProfile, unknown: unknownProfile } = parseToolProfile(
+    env["PHOTOSHOP_MCP_PROFILE"],
+  );
+  if (unknownProfile !== null) {
+    log(
+      `PHOTOSHOP_MCP_PROFILE 값을 모릅니다: ${unknownProfile} — full 로 띄웁니다 ` +
+        "(full · retouch · readonly)",
+    );
+  }
+
   // 파일이 없으면 조용히 넘어간다. 외부 처리기가 없는 것은 정상이다.
   const capabilityConfig = resolve(env["PHOTOSHOP_MCP_CAPABILITIES"] ?? "capabilities.json");
 
@@ -121,6 +136,7 @@ export function readOptionsFromEnv(env: Record<string, string | undefined> = pro
     capabilityConfig,
     workflowConfig,
     policy: new PermissionPolicy(levels),
+    toolProfile,
   };
 }
 
@@ -135,6 +151,7 @@ export async function main(): Promise<void> {
     capabilityConfig,
     workflowConfig,
     policy,
+    toolProfile,
   } = readOptionsFromEnv();
 
   const options: StartOptions = {
@@ -146,6 +163,7 @@ export async function main(): Promise<void> {
     capabilityConfig,
     workflowConfig,
     policy,
+    profile: toolProfile,
     onBridgeStateChange: (state) => {
       log(`Bridge: ${STATE_LABEL[state] ?? state}`);
     },
@@ -168,6 +186,9 @@ export async function main(): Promise<void> {
     log(`stdio 서버 시작. ${bridgeLabel} · pid ${process.pid} ← ${process.ppid}`);
     log(`Tool ${mcp.tools.size}개: ${names}`);
     log(`허용 권한: ${policy.allowed.join(", ") || "(없음)"}`);
+    if (toolProfile !== "full") {
+      log(`Tool 프로필: ${toolProfile} — tools/list 에 일부만 보입니다 (PHOTOSHOP_MCP_PROFILE)`);
+    }
     if (mcp.loadedProviders > 0) {
       log(`외부 처리기 ${mcp.loadedProviders}개: ${mcp.capabilities.list().join(", ")}`);
     }

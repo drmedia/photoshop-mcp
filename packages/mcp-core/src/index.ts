@@ -52,3 +52,11 @@ export {
   type LoadedExtension,
 } from "./extensions/manager.js";
 export { PhotoshopMcpServer, type PhotoshopMcpServerOptions } from "./server/mcp-server.js";
+export {
+  DEFAULT_TOOL_PROFILE,
+  RETOUCH_TOOLS,
+  TOOL_PROFILES,
+  isToolVisible,
+  parseToolProfile,
+  type ToolProfile,
+} from "./server/tool-profile.js";

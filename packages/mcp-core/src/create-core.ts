@@ -26,6 +26,7 @@ import { JobStore } from "./jobs/store.js";
 import { WorkflowRegistry } from "./workflows/registry.js";
 import { createConsoleLogger } from "./extensions/logger.js";
 import { PhotoshopMcpServer } from "./server/mcp-server.js";
+import type { ToolProfile } from "./server/tool-profile.js";
 
 export interface CreatePhotoshopMcpOptions {
   /**
@@ -43,6 +44,12 @@ export interface CreatePhotoshopMcpOptions {
    * `external` 과 `destructive` 는 명시적으로 켜야 한다. (ARCHITECTURE §22)
    */
   policy?: PermissionPolicy;
+  /**
+   * `tools/list` 에 보일 Tool 의 범위. 생략하면 `full`. (ROADMAP §102)
+   *
+   * 보이는 것만 줄인다 — 권한은 `policy` 가 그대로 강제한다.
+   */
+  profile?: ToolProfile;
 }
 
 /** 조립된 Core 구성 요소. */
@@ -191,6 +198,7 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
   const server = new PhotoshopMcpServer({
     registry: tools,
     resources,
+    ...(options.profile === undefined ? {} : { profile: options.profile }),
     ...(options.name === undefined ? {} : { name: options.name }),
     ...(options.version === undefined ? {} : { version: options.version }),
   });

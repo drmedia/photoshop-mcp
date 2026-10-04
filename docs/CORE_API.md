@@ -507,6 +507,11 @@ StarNet2 가 67초였다. 그래서 오래 걸리는 Tool 은 **짧게 끝나도
 
 무언가 안 되면 `photoshop.diagnostics` 를 먼저 부른다.
 
+**목록에 없는 Tool 은 서버에 없는 것이 아니라 Tool 프로필(`PHOTOSHOP_MCP_PROFILE`)이 감춘
+것일 수 있다.** `registry.profile` 과 `registry.hiddenTools` 가 어느 프로필이고 몇 개를
+`tools/list` 에서 뺐는지 알려 주고, `full` 이 아니면 `blocked` 에 풀어 주는 방법이 한 줄
+오른다. `registry.tools` 는 감춘 것까지 센 수다. (ROADMAP §102)
+
 `window.capture` 는 `diagnostics` 가 답하지 못하는 하나를 답한다 — **대화상자가 떠서
 Photoshop 이 명령을 못 받는 상태.** 그때는 Bridge 가 응답하지 않으므로 Photoshop 에게
 물어볼 방법 자체가 없다. 창을 밖에서 찍는 것이 유일한 길이다.

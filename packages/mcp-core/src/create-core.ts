@@ -26,7 +26,7 @@ import { JobStore } from "./jobs/store.js";
 import { WorkflowRegistry } from "./workflows/registry.js";
 import { createConsoleLogger } from "./extensions/logger.js";
 import { PhotoshopMcpServer } from "./server/mcp-server.js";
-import type { ToolProfile } from "./server/tool-profile.js";
+import { DEFAULT_TOOL_PROFILE, isToolVisible, type ToolProfile } from "./server/tool-profile.js";
 
 export interface CreatePhotoshopMcpOptions {
   /**
@@ -264,6 +264,12 @@ export function createPhotoshopMcp(options: CreatePhotoshopMcpOptions = {}): Pho
     },
     allowedPermissions: () => policy.allowed,
     toolCount: () => tools.size,
+    /* 부를 때마다 센다 — Extension 은 기동 뒤에도 붙고 떨어지므로 등록 시점의 값이
+     * 낡는다. `tools/list` 를 거르는 판정(`isToolVisible`)을 그대로 쓴다. */
+    toolProfile: () => {
+      const name = options.profile ?? DEFAULT_TOOL_PROFILE;
+      return { name, hidden: tools.list().filter((tool) => !isToolVisible(name, tool)).length };
+    },
     commandCount: () => commands.size,
     providers: async () => capabilities.describeAsync(),
     workflows: () => workflows.list(),

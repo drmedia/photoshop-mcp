@@ -34,7 +34,7 @@ afterEach(async () => {
 interface Diagnostics {
   bridge: { connected: boolean; state: string; kind: "uxp" | "mock" | null };
   permissions: { allowed: string[] };
-  registry: { tools: number; commands: number };
+  registry: { tools: number; commands: number; profile: string; hiddenTools: number };
   capabilities: { id: string; available: boolean; reason: string | null }[];
   extensions: unknown[];
   workflows: unknown[];
@@ -44,7 +44,11 @@ interface Diagnostics {
 }
 
 function setup(
-  options: { connected?: boolean; allow?: ("read" | "edit" | "external" | "destructive")[] } = {},
+  options: {
+    connected?: boolean;
+    allow?: ("read" | "edit" | "external" | "destructive")[];
+    profile?: "full" | "retouch" | "readonly";
+  } = {},
 ): ReturnType<typeof createPhotoshopMcp> {
   return createPhotoshopMcp({
     bridge: new MockPhotoshopBridge({
@@ -53,6 +57,7 @@ function setup(
     }),
     logger: createSilentLogger(),
     policy: new PermissionPolicy(options.allow ?? ["read", "edit", "external", "destructive"]),
+    ...(options.profile === undefined ? {} : { profile: options.profile }),
   });
 }
 
@@ -142,6 +147,48 @@ describe("진단", () => {
     // 무엇이 막혔는지 알아내는 경로까지 막으면 원인을 알 수 없다.
     const mcp = setup({ allow: ["read"] });
     expect(mcp.tools.get("photoshop.diagnostics")?.permission).toBe("read");
+  });
+
+  describe("Tool 프로필 (ROADMAP §102)", () => {
+    /* 실기에서 모델이 감춘 Tool(`layer.flip`)을 요청받고 `diagnostics` 로 184개가 등록된 것을
+     * 보고도 "그런 도구는 없다" 고 답했다. 감춘 것이 서버에 없는 것처럼 읽혔기 때문이다. */
+
+    it("full 이면 감춘 것이 없고 막힘에도 안 오른다", async () => {
+      const report = await diagnose(setup({ profile: "full" }));
+
+      expect(report.registry.profile).toBe("full");
+      expect(report.registry.hiddenTools).toBe(0);
+      expect(report.blocked.some((line) => line.includes("PHOTOSHOP_MCP_PROFILE"))).toBe(false);
+    });
+
+    it("프로필을 주지 않으면 full 이다", async () => {
+      const report = await diagnose(setup());
+
+      expect(report.registry.profile).toBe("full");
+      expect(report.registry.hiddenTools).toBe(0);
+    });
+
+    it("retouch 는 감춘 수를 세고 풀려면 어떻게 하는지 말한다", async () => {
+      const mcp = setup({ profile: "retouch" });
+      const report = await diagnose(mcp);
+
+      expect(report.registry.profile).toBe("retouch");
+      expect(report.registry.hiddenTools).toBeGreaterThan(0);
+      expect(report.registry.hiddenTools).toBeLessThan(report.registry.tools);
+
+      const line = report.blocked.find((entry) => entry.includes("PHOTOSHOP_MCP_PROFILE=full"));
+      expect(line).toBeDefined();
+      expect(line).toContain(String(report.registry.hiddenTools));
+      expect(line).toContain("감춘 것");
+    });
+
+    it("readonly 도 감춘 수를 센다 — 권한으로 가른 것이다", async () => {
+      const report = await diagnose(setup({ profile: "readonly" }));
+
+      expect(report.registry.profile).toBe("readonly");
+      expect(report.registry.hiddenTools).toBeGreaterThan(0);
+      expect(report.blocked.some((line) => line.includes("PHOTOSHOP_MCP_PROFILE=full"))).toBe(true);
+    });
   });
 });
 

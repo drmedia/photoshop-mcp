@@ -46,6 +46,8 @@ Tool 별 사용법과 함정(176개 전체)은 `docs/FIELD_NOTES.md` 의 「현�
 | Extension 등록 · 해제 · `tools/list_changed` | Extension 은 기동 뒤에도 붙는다 |
 | Resource | Resource |
 | Bridge 포트 | Bridge 포트는 범위다 |
+| Tool 프로필 · 목록에 없는 Tool · 감춘 Tool 진단 | Tool 프로필 |
+| Ollama 로 Claude Code 를 쓸 때 (500 · 컨텍스트 · 입력 토큰 재기) | Ollama + Claude Code |
 | 안 될 때 · 진단 · 임시 파일 · 로그 | 진단과 임시 파일 |
 | Photoshop 알림 · descriptor 캡처 | Event |
 | 워크플로 | Workflow |

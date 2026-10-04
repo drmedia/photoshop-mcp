@@ -12133,3 +12133,31 @@ Tool 이 열린 문서를 건드릴 수 있다.
 - **지침(`guidance.ts`)**: 스냅샷 · `adjustment.update` · `compare_with` · `activate`(옮기면 되돌아온다) · 시험용 정리를 `instructions` 와 `retouch` 프롬프트에 넣었다. "닫기" 금지 문구는 "사용자의 문서를 닫는 일" 로 좁혔다. `instructions` 는 1200자 미만을 유지한다.
 - [x] 구현 · Mock 시험 · 문서
 - [x] 실기 — 복제본(id 82)을 만들고 `list_created` 에 나타남 → 사용자 문서 59·78 을 id 로 줘도 `notCreated` 로 남고 안 닫힘 → 인자 없이 닫으니 82 만 닫히고 `activeDocumentId` 는 59 로 돌아옴
+
+## §102 Tool 프로필 (`PHOTOSHOP_MCP_PROFILE`)
+
+### 왜
+
+Core Tool 176개의 `tools/list` 가 약 14.5만 글자다. 실제 클라이언트(VS Code Copilot + OpenRouter · Qwen3.8 27B)의 사용량 기록에서 **요청마다 입력이 58K~65K 토큰으로 고정**이고 출력은 수십~수백 토큰이었다 — 비용과 지연의 대부분이 도구 정의다. 출력 JSON 을 줄이는 것보다 **목록을 줄이는 쪽이 지렛대가 크다.**
+
+### 결정
+
+- **노출만 줄인다.** `tools/list` 를 거르고, 권한 강제와 Extension 의 Command 직접 호출은 그대로다. 프로필은 보안 경계가 아니라 목록의 크기다.
+- **감춘 Tool 을 부르면 `TOOL_NOT_FOUND` 로 이유를 말한다.** 지침이나 이전 대화가 이름을 알고 있을 수 있어 "없다" 가 아니라 "이 프로필이라 안 보인다 · `full` 로 띄워라" 로 답한다. 등록된 이름 전체를 쏟지 않는다(이유가 토큰이다).
+- **Extension Tool 은 `retouch` 에서 가리지 않는다.** `PHOTOSHOP_MCP_EXTENSIONS_ENABLED` 가 이미 그 스위치다. `readonly` 는 권한으로 가른다.
+- **`retouch` 는 허용 목록이다.** 새 Core Tool 은 기본으로 안 보인다. 오타가 조용히 Tool 을 감추는 것이 이 방식의 약점이라 `tests/tool-profile.test.ts` 가 (a) 목록의 이름이 전부 레지스트리에 있는지 (b) **보정 지침이 언급한 Tool 이 전부 들어 있는지** 대조한다. 이 대조가 `image.resize` 누락을 잡았다.
+- 모르는 값은 `full` 로 두고 시작 로그에 경고한다.
+
+### 측정 (Mock, `tools/list` JSON 글자)
+
+| 프로필 | 도구 | 글자 | full 대비 |
+|---|---|---|---|
+| full | 176 | 144,833 | 100% |
+| retouch | 94 | 83,633 | 58% |
+| readonly | 43 | 30,258 | 21% |
+
+`retouch` 가 기대보다 덜 줄었다 — 보정에 쓰는 Tool 이 큰 것들이다(`camera_raw.apply` 하나가 약 1.5만 글자). 입력 토큰으로의 환산은 글자 비율에 의한 **추정**이다.
+
+- [x] 구현 · 시험 14개 · `npm run check` 통과(1655개)
+- [ ] 실기 — Copilot 에서 `PHOTOSHOP_MCP_PROFILE=retouch` 로 띄워 **입력 토큰이 실제로 얼마나 줄었는지** 사용량 기록으로 확인 (58K~65K 가 기준선)
+- [ ] 실기 — 감춘 Tool 호출 시 모델이 오류를 읽고 `full` 이 필요하다고 판단하는지

@@ -83,6 +83,7 @@ Folders are approved by you, in the panel — a tool can only name a file inside
 | Variable                    | Default                      | Meaning                                              |
 | --------------------------- | ---------------------------- | ---------------------------------------------------- |
 | `PHOTOSHOP_MCP_ALLOW`       | `read,edit`                  | Allowed permission levels. `all` and `none` also work |
+| `PHOTOSHOP_MCP_PROFILE`     | `full`                       | Tools shown by `tools/list`: `full`, `retouch`, `readonly`. Permissions are unchanged |
 | `PHOTOSHOP_MCP_PORT`        | first free of 8765–8774      | Pin the bridge port                                  |
 | `PHOTOSHOP_MCP_BRIDGE`      | `uxp`                        | `mock` runs without Photoshop or the plugin          |
 | `PHOTOSHOP_MCP_CAPABILITIES`| `<cwd>/capabilities.json`    | External processors (`npx photoshop-mcp init` makes one) |

@@ -1104,6 +1104,66 @@ doctor 는 클라이언트가 넘길 env 를 모르므로** 권한은 참고용�
 로그는 기본적으로 조용하다. `PHOTOSHOP_MCP_DEBUG=1` 로 correlation ID 추적을 켠다.
 **실패는 디버그가 아니어도 남긴다** — 조용히 실패하면 원인을 못 찾는다.
 
+## Tool 프로필 (ROADMAP §102)
+
+`PHOTOSHOP_MCP_PROFILE` 은 `tools/list` 에 **보일 것만** 고른다 — `full`(기본) · `retouch`(보정에
+쓰는 94개) · `readonly`(read 권한만). **권한은 그대로다.** 프로필은 보안 경계가 아니라 목록의 크기다.
+
+**감춘 Tool 은 서버에 없는 것이 아니다.** 목록에 없는 Tool 을 "이 서버에는 없다" 고 단정하지
+않는다. 실기에서 `retouch` 가 감춘 `layer.flip` 을 요구받은 모델 다섯 번이 모두 "도구가 없다" 고
+답했고, `diagnostics` 로 `registry.tools: 184` 를 본 Qwen 두 번도 같았다 — 보이는 것은 102개인데
+등록은 184개인 이유를 출력이 말해 주지 않았기 때문이다.
+
+**감춘 Tool 을 부르면 `TOOL_NOT_FOUND` 로 이유를 말하는 경로는 Claude Code 에서는 밟히지 않는다.**
+클라이언트가 `tools/list` 에 없는 이름을 호출하지 않으므로 모델이 그 메시지를 못 본다. 그 메시지는 이름을
+기억으로 부르는 클라이언트용이다. 모델이 보는 것은 **`photoshop.diagnostics`** 뿐이다.
+
+`diagnostics` 의 `registry.profile` · `registry.hiddenTools` 가 어느 프로필이 몇 개를 뺐는지 알려
+주고, `full` 이 아니면 `blocked` 에 `PHOTOSHOP_MCP_PROFILE=full` 로 서버를 다시 띄우라는 한 줄이
+오른다. **`registry.tools` 는 감춘 것까지 센 수다** (Core 176 + Extension 8 = 184, `retouch` 에서 보이는
+것은 102). 감춘 수는 부를 때마다 센다 — Extension 은 기동 뒤에도 붙는다. 재시험(Qwen 2회 · gemma 2회)에서
+네 번 모두 프로필이 감춘다고 짚었고 Qwen 두 번은 `full` 안내까지 했다. 표본이 작아 효과 크기는 말할 수 없다.
+
+프로필의 효과는 클라이언트마다 다르다. 도구를 통째로 싣는 클라이언트(Ollama 경로의 Claude Code)에서는
+입력이 줄지만, Copilot 은 도구가 많으면 알아서 줄여 보내 프로필 효과가 안 보였다.
+
+## Ollama + Claude Code (ROADMAP §102)
+
+`scripts/claude-ollama.mjs` 로 띄운다. 주소는 `--url` 이나 `PHOTOSHOP_MCP_OLLAMA_URL` 로 준다(내부 주소를
+저장소에 적지 않는다).
+
+**`500 no user query found in messages` 는 요청이 Ollama 의 컨텍스트 창을 넘어서 난다.** 창은
+`/api/ps` 의 `context_length`(이 환경 65,536)다. 넘으면 Ollama 가 앞쪽 메시지를 잘라 사용자
+메시지가 사라지는 것으로 **추정**한다. 평소 구성은 약 75K 토큰 이상이다(도구 3 · 40 · 80개에서 29.6K ·
+43.9K · 58.8K 로 잰 값의 외삽, 직접 재지 못했다) — `~/.claude` 전역 지침이 약 26K, 내장 도구 25개가
+약 5.2만 자, Photoshop 도구 102개가 약 8.8만 자다. 스크립트는 설정 폴더를 비우고 내장 도구를 끄고 이
+서버만 붙여 입력을 약 3.2만으로 줄인다. **Ollama 서버의 컨텍스트를 키우는 것은 답이 아니다** — VRAM 과
+프롬프트 처리 시간이 입력에 비례해 늘 뿐 낭비를 덮는다.
+
+**입력 토큰을 잴 때 스트리밍 값을 믿지 않는다.** 스트리밍 `message_start` 의 `input_tokens` 는 그림의
+base64 를 **글자로 센 추정치**다. `document.compare` 의 1280px 그림이 로그에서는 요청당 약 2.3만 토큰을
+더하는 것으로 찍혔지만 실제는 약 1.2K(Qwen) · 0.3K(gemma)다 — 그 착시로 "컨텍스트 여유가 5.7K 뿐" 이라고
+적었다가 같은 날 뒤집었다. **비스트리밍 응답이나 `message_delta` 의 값**을 본다. 같은 본문을 연달아 보내면
+프롬프트 캐시가 걸려 값이 줄므로 첫 메시지 앞에 무작위 접두를 붙여 막고 잰다.
+
+**텍스트 전용 모델은 그림을 돌려주는 Tool 에서 요청 전체가 거절된다.** `document.compare` 직후
+`API 400: Multimodal data provided, but model does not support multimodal requests` 로 끝난다(gpt-oss:20b).
+`compare` · `capture` 계열을 쓰는 보정 지침과 맞지 않는다. 같은 모델은 세 번 중 두 번은 도구를 한 번도
+부르지 않고 의사코드 스크립트만 썼다. Qwen3.8 27B · gemma4:31b 는 이미지를 받는 모델이라 문제가 없었다.
+
+**Photoshop 플러그인은 서버 하나에만 붙는다**(위 「Bridge 포트는 범위다」). 다른 Claude 세션이 이미 서버를
+띄워 8765 를 쥐고 있으면 이쪽 서버는 `PHOTOSHOP_NOT_CONNECTED` 를 돌려준다. 시험하려면 그 서버를 내려야
+하고, 그 세션의 Photoshop 도구는 `/mcp` 로 다시 연결하기 전까지 끊긴다. 서버가 새로 뜬 뒤 플러그인이
+다시 붙기까지 첫 호출이 실패할 수 있다(지수 백오프) — 모델들은 `ping` · `diagnostics` 로 기다렸다 진행했다.
+
+**시험이 도중에 중단되면 복제본이 남는다.** 서버가 재시작되면 생성 추적(`close_created`)이 사라진다.
+사람이 닫거나, `destructive` 를 열어 `document.close` 를 쓴다 — 이것은 **활성 문서를 닫으므로** 호출 직전에
+활성 문서가 그 복제본인지 확인한다.
+
+결과 요약(보정 · 마스크 국소 보정 · 감춘 Tool, 2026-10-05): Qwen3.8 27B 와 gemma4:31b 는 복제본에서만
+편집하고 `camera_raw.apply` 를 한 번에 담고 정리까지 했다. 표본은 모델당 2~3회, 사진 한 장이다. 자세한 것은
+ROADMAP §102 에 있다. **요청 문구와 채점기는 저장소에 두지 않았다.**
+
 ## Event (ROADMAP §15)
 
 **Command 수명 이벤트는 동작한다** — `command.started` · `command.completed` ·

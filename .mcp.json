@@ -2,7 +2,11 @@
   "mcpServers": {
     "photoshop": {
       "command": "node",
-      "args": ["packages/mcp-server/bin/photoshop-mcp.js"]
+      "args": ["packages/mcp-server/bin/photoshop-mcp.js"],
+      "env": {
+        "PHOTOSHOP_MCP_ALLOW": "read,edit,external",
+        "PHOTOSHOP_MCP_PROFILE": "retouch"
+      }
     }
   }
 }

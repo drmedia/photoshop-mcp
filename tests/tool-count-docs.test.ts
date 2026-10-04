@@ -25,6 +25,9 @@ const MENTIONS: [string, RegExp][] = [
   ["README_KO.md", /Core Tool (\d+)개, Resource 6개가 \*\*Mock Bridge\*\*/u],
   ["CLAUDE.md", /Core Tool \*\*(\d+)개\*\* · Resource 6개/u],
   ["CLAUDE.md", /Core Tool (\d+)개가/u],
+  // `CLAUDE.md` 에서 옮겨 간 현장 노트. 같은 문장이 거기에도 있어 따로 지켜야 어긋나지 않는다.
+  ["docs/FIELD_NOTES.md", /Core Tool \*\*(\d+)개\*\* · Resource 6개/u],
+  ["docs/FIELD_NOTES.md", /Core Tool (\d+)개가/u],
   ["docs/CORE_API.md", /## 4\. 구현된 Core API \((\d+)개\)/u],
   ["docs/CORE_API.md", /\| 구현됨 \| \*\*(\d+)\*\* \|/u],
 ];

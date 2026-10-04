@@ -27,6 +27,7 @@ import {
   RETOUCH_PROMPT_NAME,
   retouchPrompt,
 } from "./guidance.js";
+import { DEFAULT_TOOL_PROFILE, isToolVisible, type ToolProfile } from "./tool-profile.js";
 
 export interface PhotoshopMcpServerOptions {
   /** MCP Client 에 보고할 서버 이름. */
@@ -42,6 +43,12 @@ export interface PhotoshopMcpServerOptions {
    * 클라이언트가 있는 줄 알고 구독을 시도한다.
    */
   resources?: ResourceSource;
+  /**
+   * `tools/list` 에 보일 Tool 의 범위. 생략하면 `full`.
+   *
+   * 보이는 것만 줄인다. 권한 강제는 Command Engine 이 그대로 한다.
+   */
+  profile?: ToolProfile;
 }
 
 /**
@@ -70,12 +77,14 @@ export class PhotoshopMcpServer {
   readonly #registry: ToolRegistry;
   readonly #resources: ResourceSource | null;
   readonly #server: Server;
+  readonly #profile: ToolProfile;
   #transport: Transport | null = null;
   #requestSequence = 0;
 
   constructor(options: PhotoshopMcpServerOptions) {
     this.#registry = options.registry;
     this.#resources = options.resources ?? null;
+    this.#profile = options.profile ?? DEFAULT_TOOL_PROFILE;
     this.#server = new Server(
       {
         name: options.name ?? SERVER_NAME,
@@ -245,20 +254,34 @@ export class PhotoshopMcpServer {
     this.#registerPromptHandlers();
 
     this.#server.setRequestHandler(ListToolsRequestSchema, () => ({
-      tools: this.#registry.list().map((tool) => ({
-        name: tool.name,
-        // 요구 권한을 설명에 덧붙인다. 클라이언트가 호출 전에 위험도를 알 수 있어야 한다.
-        description: `${tool.description} [권한: ${tool.permission}]`,
-        inputSchema: zodToJsonSchema(tool.inputSchema, {
-          target: "jsonSchema7",
-          $refStrategy: "none",
-        }) as { type: "object" },
-      })),
+      tools: this.#registry
+        .list()
+        .filter((tool) => isToolVisible(this.#profile, tool))
+        .map((tool) => ({
+          name: tool.name,
+          // 요구 권한을 설명에 덧붙인다. 클라이언트가 호출 전에 위험도를 알 수 있어야 한다.
+          description: `${tool.description} [권한: ${tool.permission}]`,
+          inputSchema: zodToJsonSchema(tool.inputSchema, {
+            target: "jsonSchema7",
+            $refStrategy: "none",
+          }) as { type: "object" },
+        })),
     }));
 
     this.#server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const requestId = `req-${++this.#requestSequence}`;
       try {
+        // 목록에서 감춘 Tool 은 실행하지 않는다. 이름을 아는 호출자(지침 · 이전 대화)가
+        // 부를 수 있으므로 "없다" 가 아니라 **왜 안 보이는지**를 말한다.
+        const hidden = this.#registry.get(request.params.name);
+        if (hidden !== undefined && !isToolVisible(this.#profile, hidden)) {
+          throw new PhotoshopMcpError(
+            ErrorCode.TOOL_NOT_FOUND,
+            `이 서버는 프로필 '${this.#profile}' 로 떠 있어 쓸 수 없는 Tool 입니다: ${request.params.name}. ` +
+              "전체 Tool 이 필요하면 PHOTOSHOP_MCP_PROFILE=full 로 다시 띄웁니다.",
+            { details: { name: request.params.name, profile: this.#profile } },
+          );
+        }
         const result = await this.#registry.invoke(request.params.name, request.params.arguments, {
           requestId,
         });

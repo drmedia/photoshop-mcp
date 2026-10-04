@@ -81,6 +81,21 @@ PHOTOSHOP_MCP_ALLOW=all                     # 전부
 강제 지점은 Command Engine 입니다. Extension 이 Tool 을 거치지 않고 Command 를 직접
 호출할 수 있기 때문입니다. Tool 의 레벨은 `tools/list` 노출용이자 빠른 실패용입니다.
 
+## Tool 프로필
+
+Core Tool 이 176개라 `tools/list` 만 약 14.5만 글자입니다. 컨텍스트가 작거나 토큰을 세는
+환경에서는 이것이 요청마다 입력으로 들어갑니다. `PHOTOSHOP_MCP_PROFILE` 로 보일 범위를 고릅니다.
+
+| 값 | 보이는 것 | 도구 수 | 목록 크기 |
+|---|---|---|---|
+| `full` (기본) | 전부 | 176 | 100% |
+| `retouch` | 보정에 쓰는 것 — 읽기 · 분석 · 비교 · 조정 · Camera Raw · 마스크 · 선택 · 스냅샷 | 94 | 약 58% |
+| `readonly` | `read` 권한만 | 43 | 약 21% |
+
+**목록만 줄입니다.** 권한은 `PHOTOSHOP_MCP_ALLOW` 가 그대로 강제하고 보안 경계가 아닙니다.
+감춘 Tool 을 부르면 실행하지 않고 어느 프로필이라 안 되는지 말합니다. Extension 의 Tool 은
+`retouch` 에서 가리지 않습니다 — 사용자가 직접 켠 것이라서입니다.
+
 ## 파일 저장
 
 저장 폴더는 **사용자가 Photoshop 의 'Photoshop MCP' 패널에서 승인**합니다.
